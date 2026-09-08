@@ -2,7 +2,7 @@
 
 MIANCAK is primarily a personal project, but it is developed in the open and should remain understandable, reproducible, and legally clean.
 
-This document defines how project changes should be made. For detailed branch/PR conventions, see [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md).
+This document defines how project changes should be made. For detailed branch/PR conventions, see [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md). For the exact CI contract, see [docs/CI.md](docs/CI.md).
 
 ## Before changing code
 
@@ -11,6 +11,8 @@ Read:
 - [README.md](README.md)
 - [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
+- [docs/CI.md](docs/CI.md)
 - [docs/UPSTREAM.md](docs/UPSTREAM.md)
 
 The interaction contract is normative. If an implementation appears easier only by violating it, the design must be discussed and documented before code is changed.
@@ -20,12 +22,12 @@ The interaction contract is normative. If an implementation appears easier only 
 Project work should normally follow:
 
 ```text
-Issue -> feature branch -> Draft PR -> CI/review -> merge
+Issue -> short-lived branch -> Draft PR -> CI/review -> squash merge
 ```
 
-Do not use `master` as a scratch branch.
+Use the repository Issue/PR templates rather than keeping scope and acceptance criteria only in chat history.
 
-Keep PRs narrow. Avoid bundling architectural rewrites, formatting changes, dependency upgrades, and feature work into one change unless they are inseparable.
+Do not use `master` as a scratch branch. Keep PRs narrow. Avoid bundling architectural rewrites, formatting changes, dependency upgrades, and feature work into one change unless they are inseparable.
 
 ## Commit style
 
@@ -42,33 +44,26 @@ docs(interaction): define language switching invariants
 
 ## Building the inherited Android project
 
-Until MIANCAK's native/Rime toolchain is introduced, the project inherits Unexpected Keyboard's existing Android build requirements:
+Until MIANCAK's Rime-native toolchain is introduced, the project inherits Unexpected Keyboard's existing Android build requirements:
 
 - OpenJDK 17
 - Android SDK / platform 36
-- Python 3 for some generated-file maintenance tasks
+- Python 3 for generated-file maintenance tasks
 
-Initialize submodules if required by the inherited tree:
+Initialize submodules:
 
 ```sh
 git submodule update --init
 ```
 
-Build a debug APK with:
-
-```sh
-./gradlew assembleDebug
-```
-
-Run unit tests with:
+Use the repository Gradle wrapper rather than installing/selecting another Gradle version:
 
 ```sh
 ./gradlew test
+./gradlew assembleDebug
 ```
 
-Existing layout/compose generated-file checks must continue to pass when relevant files are touched.
-
-These instructions are inherited from Unexpected Keyboard's previous `CONTRIBUTING.md` and will be updated as MIANCAK introduces its own native build dependencies.
+The wrapper currently pins the project Gradle version in `gradle/wrapper/gradle-wrapper.properties`.
 
 ## Installing for local testing
 
@@ -78,7 +73,25 @@ With Android debugging enabled and a device connected:
 ./gradlew installDebug
 ```
 
-If Android reports a signature mismatch for an existing debug installation, uninstall the old debug package and install again. Be aware that enabling an input method is an explicit Android user action and may need to be repeated after uninstalling.
+If Android reports a signature mismatch for an existing debug installation, uninstall the old debug package and install again. Enabling an input method is an explicit Android user action and may need to be repeated after uninstalling.
+
+CI debug APKs intentionally do not rely on a stable signing secret yet, so APKs from different CI runs may also require reinstalling rather than upgrading in place.
+
+## CI before merge
+
+The baseline required CI jobs are:
+
+```text
+generated
+unit
+build-debug
+```
+
+`generated` verifies checked-in generated data, `unit` runs the inherited unit tests with the Gradle wrapper, and `build-debug` produces an installable debug APK artifact.
+
+Do not merge while a required check is failing. Do not bypass a failure by weakening the workflow or deleting a test unless the underlying project contract is deliberately being changed.
+
+See [docs/CI.md](docs/CI.md) for the security policy and future Rime/native checks.
 
 ## Interaction changes
 
@@ -102,7 +115,7 @@ When touching inherited layout infrastructure, preserve upstream conventions unl
 
 Do not hand-edit generated outputs when a generator is the source of truth.
 
-If a task changes source data used by an inherited generator, run the corresponding generator/check and include the resulting generated changes in the same PR.
+If a task changes source data used by an inherited generator, run the corresponding generator/check and include the resulting generated changes in the same PR. CI will fail if the checked-in generated outputs are stale.
 
 ## Dependencies and licenses
 
@@ -134,4 +147,4 @@ Prefer small adaptation layers around proven upstream behavior.
 
 AI agents may author or review code in this repository. Their output is treated like any other contribution: it must be reviewable, testable, license-compatible, and understandable from the repository itself.
 
-Prompts/chat history are not a substitute for committed specifications. Important behavioral or architectural decisions belong in `docs/`.
+Prompts/chat history are not a substitute for committed specifications. Important behavioral or architectural decisions belong in `docs/` and task acceptance criteria belong in Issues/PRs.
