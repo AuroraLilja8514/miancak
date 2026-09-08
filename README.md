@@ -52,12 +52,13 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Development
 
-Development happens through Issues, feature branches, and Draft Pull Requests. Direct pushes to `master` are discouraged for project work.
+Development happens through Issues, short-lived branches, Draft Pull Requests, and required CI checks. Normal project work should not be pushed directly to `master`.
 
 Start with:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
+- [docs/CI.md](docs/CI.md)
 - [docs/UPSTREAM.md](docs/UPSTREAM.md)
 
 ## Upstream
