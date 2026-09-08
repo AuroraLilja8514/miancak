@@ -1,241 +1,137 @@
-# Contributing
+# Contributing to MIANCAK
 
-Thanks for contributing :)
+MIANCAK is primarily a personal project, but it is developed in the open and should remain understandable, reproducible, and legally clean.
 
-## Building the app
+This document defines how project changes should be made. For detailed branch/PR conventions, see [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md).
 
-The application uses Gradle and can be used with Android Studio, but using
-Android Studio is not required. The build dependencies are:
+## Before changing code
+
+Read:
+
+- [README.md](README.md)
+- [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/UPSTREAM.md](docs/UPSTREAM.md)
+
+The interaction contract is normative. If an implementation appears easier only by violating it, the design must be discussed and documented before code is changed.
+
+## Development model
+
+Project work should normally follow:
+
+```text
+Issue -> feature branch -> Draft PR -> CI/review -> merge
+```
+
+Do not use `master` as a scratch branch.
+
+Keep PRs narrow. Avoid bundling architectural rewrites, formatting changes, dependency upgrades, and feature work into one change unless they are inseparable.
+
+## Commit style
+
+Use concise Conventional-Commit-style messages where practical, for example:
+
+```text
+feat(input): add engine key semantics
+feat(rime): add native session bridge
+fix(input): preserve literal punctuation during composition
+test(input): cover shift latch in Chinese mode
+ci(android): build native debug APK
+docs(interaction): define language switching invariants
+```
+
+## Building the inherited Android project
+
+Until MIANCAK's native/Rime toolchain is introduced, the project inherits Unexpected Keyboard's existing Android build requirements:
+
 - OpenJDK 17
-- Android SDK: build tools, platform `36`
+- Android SDK / platform 36
+- Python 3 for some generated-file maintenance tasks
 
-Python 3 is required to update generated files but not to build the app.
-
-Make sure the Git submodules are initialized and point to the right revision:
+Initialize submodules if required by the inherited tree:
 
 ```sh
 git submodule update --init
 ```
 
-For Android Studio users, no more setup is needed.
-
-For Nix users, the right environment can be obtained with `nix-shell ./shell.nix`.
-Instructions to install Nix are [here](https://wiki.nixos.org/wiki/Nix_Installation_Guide).
-
-If you don't use Android Studio or Nix, you have to inform Gradle about the
-location of your Android SDK by either:
-- Setting the `ANDROID_HOME` environment variable to point to the android sdk or
-- Creating the file `local.properties` and writing
-  `sdk.dir=<location_of_android_home>` into it.
-
-Building the debug apk:
+Build a debug APK with:
 
 ```sh
 ./gradlew assembleDebug
 ```
 
-Nix users can call gradle directly: `gradle assembleDebug`.
+Run unit tests with:
 
-If the build succeeds, the debug apk is located in `build/outputs/apk/debug/app-debug.apk`.
+```sh
+./gradlew test
+```
 
-## Debugging on your phone
+Existing layout/compose generated-file checks must continue to pass when relevant files are touched.
 
-First [Enable adb debugging on your device](https://developer.android.com/studio/command-line/adb#Enabling).
-Then connect your phone to your computer using an USB cable or via wireless
-debugging.
+These instructions are inherited from Unexpected Keyboard's previous `CONTRIBUTING.md` and will be updated as MIANCAK introduces its own native build dependencies.
 
-If you use Android Studio, this process will be automatic and you don't have to
-follow this guide anymore.
+## Installing for local testing
 
-And finally, install the application with:
+With Android debugging enabled and a device connected:
+
 ```sh
 ./gradlew installDebug
 ```
 
-The released version of the application won't be removed, both versions will
-be installed at the same time.
+If Android reports a signature mismatch for an existing debug installation, uninstall the old debug package and install again. Be aware that enabling an input method is an explicit Android user action and may need to be repeated after uninstalling.
 
-## Debugging the application: INSTALL_FAILED_UPDATE_INCOMPATIBLE
+## Interaction changes
 
-`./gradlew installDebug` can fail with the following error message:
+Any change to keyboard behavior should answer all of these questions in its PR:
 
-```
-FAILURE: Build failed with an exception.
-* What went wrong:
-Execution failed for task ':installDebug'.
-> java.util.concurrent.ExecutionException: com.android.builder.testing.api.DeviceException: com.android.ddmlib.InstallException: INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package juloo.keyboard2.debug signatures do not match newer version; ignoring!
-```
+1. Does it preserve one-finger operation?
+2. Does it preserve stable physical key positions across Chinese/English modes?
+3. Does it distinguish engine input from exact literal output?
+4. Does it avoid hidden punctuation/context heuristics?
+5. What happens while a Rime composition is active?
+6. How does it interact with Shift latch/lock?
+7. Is the behavior covered by state-machine tests?
 
-The application can't be "updated" because the temporary certificate has been
-lost. The solution is to uninstall and install again.
-The application must be enabled again in the settings.
+## Layout changes
 
-```sh
-adb uninstall juloo.keyboard2.debug
-./gradlew installDebug
-```
+Unexpected Keyboard layouts are XML-based and generated metadata may need regeneration/checking.
 
-## Specifying a debug signing certificate on Github Actions
+When touching inherited layout infrastructure, preserve upstream conventions unless MIANCAK has documented a reason to diverge. Avoid unnecessary changes that make future upstream synchronization harder.
 
-It's possible to specify the signing certificate that the automated build
-should use.
-After you successfully run `./gradlew asssembleDebug`, (thus a debug.keystore
-exists) you can use this second command to generate a base64 stringified
-version of it:
+## Generated files
 
-```sh
-gpg -c --armor --pinentry-mode loopback --passphrase debug0 --yes "debug.keystore"
-```
+Do not hand-edit generated outputs when a generator is the source of truth.
 
-This will create the file `debug.keystore.asc`, paste its content into a new
-Github secret named `DEBUG_KEYSTORE`.
+If a task changes source data used by an inherited generator, run the corresponding generator/check and include the resulting generated changes in the same PR.
 
-## Guidelines
+## Dependencies and licenses
 
-### Adding a layout
+Do not add a binary, native library, dictionary, schema, model, or other third-party artifact without recording:
 
-Layouts are defined in XML, see `srcs/layouts/latn_qwerty_us.xml`.
-An online tool for editing layout files written by @Lixquid is available
-[here](https://unexpected-keyboard-layout-editor.lixquid.com/).
+- source/upstream project;
+- exact version or commit when practical;
+- license;
+- whether it is modified;
+- how it is built or obtained.
 
-Makes sure to specify the `name` attribute like in `latn_qwerty_us.xml`,
-otherwise the layout won't be added to the app.
+Update [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) when a dependency is actually introduced.
 
-The layout file must be placed in the `srcs/layouts` directory and named
-according to:
-- script (`latn` for latin, etc..)
-- layout name (eg. the name of a standard)
-- country code (or language code if more adequate)
+Do not remove or obscure copyright/license notices inherited from Unexpected Keyboard.
 
-Then, run `./gradlew genLayoutsList` to add the layout to the app.
+## Privacy and network access
 
-The last step will update the file `res/values/layouts.xml`, that you should
-not edit directly.
+Normal typing and composition must work offline.
 
-Run `./gradlew checkKeyboardLayouts` to check some properties about your
-layout. This will change the file `check_layout.output`, which you should
-commit.
+Adding network permission or a network dependency to the input path requires an explicit design discussion and is outside the initial project scope.
 
-Layouts are CC0 licensed by default. If you do not want your layout to be
-released into the public domain, add a copyright notice at the top of the file
-and a mention in `srcs/layouts/LICENSE`.
+## Large refactors
 
-#### Adding a programming layout
+Avoid broad rewrites that do not directly enable an agreed feature. In particular, do not perform a Java-to-Kotlin migration or rewrite Unexpected Keyboard's gesture engine as incidental cleanup.
 
-A programming layout must contain all ASCII characters.
-The current programming layouts are: QWERTY, Dvorak and Colemak.
+Prefer small adaptation layers around proven upstream behavior.
 
-See for example, Dvorak, added in https://github.com/Julow/Unexpected-Keyboard/pull/16
+## AI-assisted development
 
-It's best to leave free spots on the layout for language-specific symbols that
-are added automatically when necessary.
-These symbols are defined in `res/xml/method.xml` (`extra_keys`).
+AI agents may author or review code in this repository. Their output is treated like any other contribution: it must be reviewable, testable, license-compatible, and understandable from the repository itself.
 
-It's possible to place extra keys with the `loc` prefix. These keys are
-normally hidden unless they are needed.
-
-Some users cannot easily type the characters close the the edges of the screen
-due to a bulky phone case. It is best to avoid placing important characters
-there (such as the digits or punctuation).
-
-#### Adding a localized layout
-
-Localized layouts (a layout specific to a language) are gladly accepted.
-See for example: 4333575 (Bulgarian), 88e2175 (Latvian), 133b6ec (German).
-
-They don't need to contain every ASCII characters (although it's useful in
-passwords) and dead-keys.
-
-### Adding support for a language
-
-Supported locales are defined in `res/xml/method.xml`.
-
-The attributes `languageTag` and `imeSubtypeLocale` define a locale, the
-attribute `imeSubtypeExtraValue` defines the default layout and the dead-keys
-and other extra keys to show.
-
-The list of language tags (generally two letters)
-and locales (generally of the form `xx_XX`)
-can be found in this [stackoverflow answer](https://stackoverflow.com/a/7989085)
-
-### Updating translations
-
-The text used in the app is written in `res/values-<language_tag>/strings.xml`.
-
-The list of language tags can be found in this
-[stackoverflow answer](https://stackoverflow.com/a/7989085)
-
-The first part before the `_` is used, for example,
-`res/values-fr/strings.xml` for French,
-`res/values-lv/strings.xml` for Latvian.
-
-Commented-out lines indicate missing translations:
-
-```xml
-  <!-- <string name="pref_layouts_add">Add an alternate layout</string> -->
-```
-
-Remove the `<!--` and `-->` parts and change the text.
-
-### Adding a translation
-
-The preferred method for translating the app is to use Weblate:
-https://hosted.weblate.org/engage/unexpected-keyboard/
-
-The `res/values-<language_tag>/strings.xml` file must be created by copying the
-default translation in `res/values/strings.xml`, which contain the structure of
-the file and the English strings.
-
-Store descriptions in `fastlane/metadata/android/` are updated automatically.
-Translating changelogs is not useful.
-
-The app name might be partially translated, the "Unexpected" word should remain
-untranslated if possible.
-
-As translations need to be updated regularly, you can subscribe to this issue
-to receive a notification when an update is needed:
-https://github.com/Julow/Unexpected-Keyboard/issues/373
-
-### Adding symbols to Shift, Fn, Compose and other modifiers
-
-New key combinations can be added to builtin modifiers in the following files:
-
-- Shift in `srcs/compose/shift.json`.
-- Fn in `srcs/compose/fn.json`.
-- Compose in `srcs/compose/compose/extra.json`.
-- Other modifiers are defined in the `accent_*.json` files in `srcs/compose`.
-
-Generated code must then be updated by running:
-
-```
-./gradlew compileComposeSequences
-```
-
-These files describe each symbols that get transformed when a given modifier is
-activated, in JSON format. For example:
-
-Example from `fn.json`, when `Fn` is activated, `<` becomes `«`:
-```json
-{
-  "<": "«",
-}
-```
-
-The result of a sequence can be a key name. See the list of key names in
-[doc/Possible-key-values.md](doc/Possible-key-values.md). For example from
-`fn.json`, when `Fn` is activated, space becomes `nbsp`:
-```json
-{
-  " ": "nbsp",
-}
-```
-
-Compose sequences are made of several steps. For example, the sequence
-`Compose V s = Š` is defined as:
-```json
-{
-  "V": {
-    "s": "Š"
-  }
-}
-```
+Prompts/chat history are not a substitute for committed specifications. Important behavioral or architectural decisions belong in `docs/`.

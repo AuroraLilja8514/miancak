@@ -1,48 +1,77 @@
-# Unexpected Keyboard [<img src="https://hosted.weblate.org/widget/unexpected-keyboard/svg-badge.svg" alt="État de la traduction" />](https://hosted.weblate.org/engage/unexpected-keyboard/)
+# MIANCAK
 
----
+**MIANCAK Is Another New Chinese Android Keyboard.**
 
-⚠️ Google wants to kill the open-source Android community.
+MIANCAK is a personal, open-source Android input method project based on [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard). Its goal is to keep Unexpected Keyboard's compact, swipe-oriented mobile interaction model while adding first-class Chinese composition through Rime.
 
-See [keepandroidopen.org](https://keepandroidopen.org/) and the [F-Droid blog](https://f-droid.org/en/2025/09/29/google-developer-registration-decree.html).
+This project is primarily developed for self use. It is public so that its source, history, licenses, and third-party provenance remain transparent and auditable.
 
----
+## Project status
 
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-     alt="Get it on F-Droid"
-     height="80">](https://f-droid.org/packages/juloo.keyboard2/)
-[<img src="https://play.google.com/intl/en_us/badges/images/generic/en-play-badge.png"
-     alt="Get it on Google Play"
-     height="80">](https://play.google.com/store/apps/details?id=juloo.keyboard2)
+MIANCAK is currently in the **design and bootstrap stage**. The repository still closely follows Unexpected Keyboard, and Chinese input functionality has not yet been implemented.
 
-Lightweight and privacy-conscious virtual keyboard for Android.
+The first implementation target is a minimal Android IME that combines:
 
-https://github.com/Julow/Unexpected-Keyboard/assets/2310568/28f8f6fe-ac13-46f3-8c5e-d62443e16d0d
+- Unexpected Keyboard's existing key layout and swipe interaction model;
+- explicit literal symbols and punctuation;
+- Chinese composition powered by librime;
+- direct, interference-free English input;
+- a touch-oriented Chinese candidate strip;
+- offline operation with no network dependency in the input path.
 
-The main feature is that you can type more characters by swiping the keys towards the corners.
+## Interaction principles
 
-This application was originally designed for programmers using Termux.
-Now perfect for everyday use.
+The interaction model is treated as a product contract, not an implementation detail. In particular:
 
-This application contains no ads and is open source.
+- Chinese and English use the same physical keyboard layout.
+- Unexpected Keyboard's one-finger Shift latch/lock behavior is preserved.
+- No normal interaction requires simultaneously holding Shift and another key.
+- Engine input and literal input are distinct semantics.
+- Literal punctuation, digits, and symbols always mean exactly what is shown.
+- `.` and `。`, `,` and `，` may coexist as separate explicit inputs.
+- Candidate selection is touch-first; digits are not candidate shortcuts by default.
+- The keyboard must not guess punctuation from surrounding text.
 
-Usage: to apply the symbols located in the corners of each key, slide your finger in the direction of the symbols. For example, the Settings are opened by sliding in the left down corner.
+See [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md) for the normative rules.
 
-| <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" alt="Screenshot-1" /> | <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" alt="Screenshot-2"/> | <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" alt="Screenshot-3"/> |
-| --- | --- | --- |
-| <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" alt="Screenshot-4" /> | <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" alt="Screenshot-5" /> | <img src="/fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" alt="Screenshot-6" /> |
+## Architecture direction
 
-## Help translate the application
+The intended runtime architecture is deliberately small:
 
-Improve the application translations [using Weblate](https://hosted.weblate.org/engage/unexpected-keyboard/).
+```text
+Unexpected Keyboard frontend / gestures
+        -> semantic input layer
+        -> direct path OR Rime composition engine
+        -> Rime worker / JNI / librime
+        -> editor transaction / InputConnection
+```
 
-[<img src="https://hosted.weblate.org/widget/unexpected-keyboard/multi-auto.svg" alt="État de la traduction" />](https://hosted.weblate.org/engage/unexpected-keyboard/)
+MIANCAK does **not** plan to embed Fcitx5 core as a runtime dependency, and it does not plan to provide a general executable plugin system. Word lists and Rime configuration are treated as data.
 
-## Contributing
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-For instructions on building the application, see
-[Contributing](CONTRIBUTING.md).
+## Development
+
+Development happens through Issues, feature branches, and Draft Pull Requests. Direct pushes to `master` are discouraged for project work.
+
+Start with:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
+- [docs/UPSTREAM.md](docs/UPSTREAM.md)
+
+## Upstream
+
+MIANCAK is a fork of [Julow/Unexpected-Keyboard](https://github.com/Julow/Unexpected-Keyboard). The fork relationship, original Git history, copyright notices, and license are intentionally preserved.
+
+Changes that do not need to diverge from upstream should remain easy to rebase or port when practical.
+
+## Licensing
+
+This repository remains licensed under the GNU General Public License v3.0 as inherited from Unexpected Keyboard. See [LICENSE](LICENSE).
+
+Third-party components will be documented when they are actually introduced. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Acknowledgement
 
-The [NLnet foundation](https://nlnet.nl/) funded the work on the spell checking feature.
+MIANCAK would not exist without Unexpected Keyboard and its contributors. The project deliberately reuses its interaction model and codebase rather than pretending to be an independent clean-room implementation.
