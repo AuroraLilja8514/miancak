@@ -2,6 +2,20 @@
 
 MIANCAK is a public fork of [Julow/Unexpected-Keyboard](https://github.com/Julow/Unexpected-Keyboard). The fork relationship is intentional and should remain useful over time.
 
+## Current synchronized baseline
+
+As of 2026-09-14, MIANCAK has synchronized inherited Unexpected Keyboard code through upstream `master` commit:
+
+```text
+fd425d733b9ea9ec88eb96b9bbfc2ddefa66fc64
+```
+
+That baseline includes the Unexpected Keyboard `2.1.0` release at `5b0128bd8e665a21a579304eab353216ffef3bf4` and the six upstream commits that followed it through 2026-09-13.
+
+The synchronization is represented in Git history as a real merge with the upstream commit as a parent. MIANCAK intentionally keeps its own project README, contribution/development documentation, GitHub templates, and `.github/workflows/ci.yml`. The inherited upstream `check-generated.yml` and `make-apk.yml` workflows are not restored because their responsibilities are covered by MIANCAK CI.
+
+When this baseline changes, update this section in the same upstream-sync PR.
+
 ## Upstream role
 
 Unexpected Keyboard is the source of MIANCAK's keyboard frontend foundation, including its layout model, swipe interaction, modifier behavior, and much of the Android IME implementation.
@@ -67,6 +81,8 @@ A typical branch name:
 ```text
 chore/sync-upstream-YYYY-MM
 ```
+
+For upstream synchronization PRs, prefer a merge commit rather than squash/rebase when preserving the upstream parent relationship makes future synchronization easier.
 
 ## Do not automatically overwrite intentional divergence
 
