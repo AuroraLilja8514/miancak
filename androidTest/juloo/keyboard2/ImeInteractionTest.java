@@ -193,9 +193,28 @@ public class ImeInteractionTest
   private void ensureChinese() { if (!language().getText().equals("中文")) language().click(); awaitMode("中文"); }
   private String candidate()
   {
-    UiObject2 candidate = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ")), 20000);
-    assertNotNull("No Chinese candidate; preedit=" + find("miancak_preedit").getText(), candidate);
-    return candidate.getText();
+    long end = SystemClock.uptimeMillis() + 20000;
+    long stableSince = 0;
+    String previous = "", status = "";
+    while (SystemClock.uptimeMillis() < end)
+    {
+      try
+      {
+        UiObject2 node = device.findObject(By.descStartsWith("Candidate 1: "));
+        UiObject2 preedit = device.findObject(By.res(pkg, "miancak_preedit"));
+        status = preedit == null ? "keyboard is absent" : preedit.getText();
+        String value = node == null ? "" : node.getText();
+        if (!value.equals(previous)) { previous = value; stableSince = SystemClock.uptimeMillis(); }
+        if (!value.isEmpty() && SystemClock.uptimeMillis() - stableSince >= 250) return value;
+      }
+      catch (androidx.test.uiautomator.StaleObjectException ex)
+      {
+        stableSince = SystemClock.uptimeMillis();
+      }
+      SystemClock.sleep(30);
+    }
+    fail("No stable Chinese candidate; preedit=" + status);
+    return "";
   }
   private void awaitIdlePreedit() { assertTrue(device.wait(Until.gone(By.descStartsWith("Pinyin: ")), 15000)); }
   private void awaitOrientation(int expected)

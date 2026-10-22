@@ -3,6 +3,19 @@ set -euo pipefail
 mkdir -p test-results
 collect() {
   adb logcat -d > test-results/logcat.txt || true
+  adb shell uiautomator dump /sdcard/miancak-window.xml || true
+  adb pull /sdcard/miancak-window.xml test-results/window.xml || true
+  python3 - <<'PY'
+from pathlib import Path
+lines = Path("test-results/logcat.txt").read_text(errors="replace").splitlines()
+indexes = set()
+for i, line in enumerate(lines):
+    if any(marker in line for marker in ("AndroidRuntime", "FATAL EXCEPTION", "MIANCAK", "Fatal signal", "ANR in")):
+        indexes.update(range(max(0, i - 2), min(len(lines), i + 15)))
+for i in sorted(indexes)[-240:]:
+    print(lines[i])
+print(Path("test-results/window.xml").read_text() if Path("test-results/window.xml").exists() else "No UI dump")
+PY
   adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
   if [[ -f test-results/device/native-metrics.json ]]; then
     cat test-results/device/native-metrics.json
