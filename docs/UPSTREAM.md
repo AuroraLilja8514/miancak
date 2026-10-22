@@ -4,13 +4,15 @@ MIANCAK is a public fork of [Julow/Unexpected-Keyboard](https://github.com/Julow
 
 ## Current synchronized baseline
 
-As of 2026-09-14, MIANCAK has synchronized inherited Unexpected Keyboard code through upstream `master` commit:
+As of 2026-10-22, MIANCAK has synchronized inherited Unexpected Keyboard code through the explicitly selected upstream commit:
 
 ```text
-fd425d733b9ea9ec88eb96b9bbfc2ddefa66fc64
+c87d9b8fbd501197286eaafeae88278dfbdd56b7
 ```
 
-That baseline includes the Unexpected Keyboard `2.1.0` release at `5b0128bd8e665a21a579304eab353216ffef3bf4` and the six upstream commits that followed it through 2026-09-13.
+That baseline includes the Unexpected Keyboard `2.1.0` release at `5b0128bd8e665a21a579304eab353216ffef3bf4`, the previous synchronized baseline `fd425d733b9ea9ec88eb96b9bbfc2ddefa66fc64` (2026-09-13), and 14 additional upstream commits through 2026-10-11. The new changes cover locale/dictionary selection, the numeric keyboard's space key, Shift/Fn gesture priority, autocapitalisation, English suggestions, extract-view handling, and the inherited Dvorak layout.
+
+This is an exact-commit synchronization, not an instruction to track a moving upstream head. No MIANCAK-specific key positions have been introduced yet; the Dvorak update is an inherited upstream layout change, not a Chinese/English mode-dependent layout change.
 
 The synchronization is represented in Git history as a real merge with the upstream commit as a parent. MIANCAK intentionally keeps its own project README, contribution/development documentation, GitHub templates, and `.github/workflows/ci.yml`. The inherited upstream `check-generated.yml` and `make-apk.yml` workflows are not restored because their responsibilities are covered by MIANCAK CI.
 
