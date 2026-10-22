@@ -33,6 +33,8 @@ def checkout(name, spec):
         git(dest, "checkout", "--detach", "--quiet", spec["commit"])
     if git(dest, "rev-parse", "HEAD") != spec["commit"]:
         raise RuntimeError(f"Wrong source revision: {name}")
+    if git(dest, "status", "--porcelain", "--untracked-files=normal"):
+        raise RuntimeError(f"Modified source cache: {name}; remove it and prepare again")
     return dest
 
 
@@ -56,7 +58,8 @@ def main():
         "deps/leveldb", "deps/yaml-cpp", "deps/marisa-trie", "deps/opencc")
     pinyin = checkout("pinyin", LOCK["pinyin"])
     boost = CACHE / "boost"
-    if not (boost / "CMakeLists.txt").exists():
+    marker = boost / ".miancak-source-sha256"
+    if not marker.exists() or marker.read_text().strip() != LOCK["boost"]["sha256"]:
         archive = CACHE / "boost.tar.xz"
         if not archive.exists():
             print("Downloading pinned Boost source archive", flush=True)
@@ -65,9 +68,12 @@ def main():
         if hashlib.sha256(archive.read_bytes()).hexdigest() != LOCK["boost"]["sha256"]:
             archive.unlink()
             raise RuntimeError("Boost source archive checksum mismatch")
+        if boost.exists():
+            shutil.rmtree(boost)
         with tarfile.open(archive) as tar:
             tar.extractall(CACHE, filter="data")
         (CACHE / ("boost-" + LOCK["boost"]["version"])).rename(boost)
+        marker.write_text(LOCK["boost"]["sha256"] + "\n")
     if ASSETS.exists():
         shutil.rmtree(ASSETS)
     data = ASSETS / "rime"

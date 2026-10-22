@@ -68,6 +68,14 @@ jobs:
       - name: Verify tests did not leave stale generated files
         run: git diff --exit-code
 
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-results-${{ github.sha }}
+          path: build/test-results/
+          retention-days: 7
+
   build-debug:
     name: build-debug
     runs-on: ubuntu-24.04
@@ -122,7 +130,11 @@ jobs:
           retention-days: 7
 
   interaction-tests:
-    name: interaction-tests
+    name: interaction-tests (${{ matrix.api }})
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 35]
     needs: build-debug
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -145,7 +157,7 @@ jobs:
       - name: Android offline native and interaction tests
         uses: reactivecircus/android-emulator-runner@v2.35.0
         with:
-          api-level: 35
+          api-level: ${{ matrix.api }}
           arch: x86_64
           target: google_apis
           disable-animations: true
@@ -155,6 +167,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: instrumented-results-${{ github.sha }}
-          path: instrumentation.log
+          name: instrumented-results-api-${{ matrix.api }}-${{ github.sha }}
+          path: test-results/
           retention-days: 7

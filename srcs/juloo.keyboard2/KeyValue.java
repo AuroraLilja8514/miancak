@@ -26,6 +26,7 @@ public final class KeyValue implements Comparable<KeyValue>
     SWITCH_VOICE_TYPING_CHOOSER,
     HIDE_SELF,
     CHANGE_DICTIONARY,
+    TOGGLE_LANGUAGE,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -107,6 +108,7 @@ public final class KeyValue implements Comparable<KeyValue>
     Slider, // [_payload] is a [KeyValue.Slider], value is slider repeatition.
     Macro, // [_payload] is a [KeyValue.Macro], value is unused.
     Stateful, // [_payload] is a [KeyValue.Stateful], value is the query.
+    Literal, Engine, // [_payload] is SemanticText: fixed exact text plus display label.
   }
 
   private static final int FLAGS_OFFSET = 20;
@@ -172,6 +174,28 @@ public final class KeyValue implements Comparable<KeyValue>
   public String getString()
   {
     return _payload.toString();
+  }
+
+  public String getSemanticText() { return ((SemanticText)_payload).text; }
+
+  private static final class SemanticText implements Comparable<SemanticText>
+  {
+    final String text, symbol;
+    SemanticText(String text, String symbol) { this.text = text; this.symbol = symbol; }
+    @Override public String toString() { return symbol; }
+    @Override public int hashCode() { return 31 * text.hashCode() + symbol.hashCode(); }
+    @Override public int compareTo(SemanticText other)
+    {
+      int compared = text.compareTo(other.text);
+      return compared != 0 ? compared : symbol.compareTo(other.symbol);
+    }
+  }
+
+  public static KeyValue makeSemanticText(String text, boolean engine, String symbol, int flags)
+  {
+    if (symbol == null) symbol = text;
+    if (symbol.length() > 1) flags |= FLAG_SMALLER_FONT;
+    return new KeyValue(new SemanticText(text, symbol), engine ? Kind.Engine : Kind.Literal, 0, flags);
   }
 
   /** Defined only when [getKind() == Kind.Char]. */
@@ -283,6 +307,9 @@ public final class KeyValue implements Comparable<KeyValue>
         return new KeyValue(symbol, _code, _code, flags);
       case Macro:
         return makeMacro(symbol, getMacro(), flags);
+      case Engine:
+      case Literal:
+        return makeSemanticText(getSemanticText(), getKind() == Kind.Engine, symbol, flags);
       default:
         return makeMacro(symbol, new KeyValue[]{ this }, flags);
     }
@@ -696,6 +723,7 @@ public final class KeyValue implements Comparable<KeyValue>
       /* Spaces */
       case "\\t": return charKey("\\t", '\t', 0); // Send the tab character
       case "\\n": return charKey("\\n", '\n', 0); // Send the newline character
+      case "language_switch": return eventKey("中/EN", Event.TOGGLE_LANGUAGE, FLAG_SMALLER_FONT);
       case "space": return editingKey(0xE00D, Editing.SPACE_BAR, FLAG_SMALLER_FONT | FLAG_GREYED);
       case "nbsp": return charKey("\u237d", '\u00a0', FLAG_SMALLER_FONT);
       case "nnbsp": return charKey("\u2423", '\u202F', FLAG_SMALLER_FONT);

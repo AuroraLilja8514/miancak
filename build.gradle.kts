@@ -50,6 +50,11 @@ android {
     named("test") {
       java.srcDirs("test")
     }
+    named("debug") {
+      java.srcDirs("debug")
+      manifest.srcFile("debug/AndroidManifest.xml")
+      res.srcDirs("debug/res")
+    }
     named("androidTest") {
       java.srcDirs("androidTest")
       res.srcDirs("androidTest/res")
@@ -94,7 +99,7 @@ android {
         "proguard-rules.pro")
       isShrinkResources = true
       isDebuggable = false
-      resValue("string", "app_name", "@string/app_name_release")
+      resValue("string", "app_name", "MIANCAK")
       signingConfig = signingConfigs["release"]
     }
 
@@ -103,7 +108,7 @@ android {
       isShrinkResources = false
       isDebuggable = true
       applicationIdSuffix = ".debug"
-      resValue("string", "app_name", "@string/app_name_debug")
+      resValue("string", "app_name", "MIANCAK (Debug)")
       resValue("bool", "debug_logs", "true")
       signingConfig = signingConfigs["debug"]
     }

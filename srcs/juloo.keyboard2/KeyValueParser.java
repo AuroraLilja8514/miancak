@@ -181,6 +181,10 @@ public final class KeyValueParser
       String payload;
       switch (kind)
       {
+        case "engine":
+        case "literal":
+          payload = parseSingleQuotedString(m);
+          return KeyValue.makeSemanticText(payload, kind.equals("engine"), symbol, flags);
         case "str":
           payload = parseSingleQuotedString(m);
           if (symbol == null)

@@ -6,6 +6,8 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.io.FileOutputStream;
+import android.os.SystemClock;
+import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
@@ -76,5 +78,44 @@ public class RimeNativeTest
     }
     for (File file : privateUser.listFiles())
       assertFalse("Private input must not create a user dictionary", file.getName().contains("userdb"));
+  }
+
+  @Test public void reportWarmNativeLatencyWithoutGuessingADeviceTarget() throws Exception
+  {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    long deploymentStarted = SystemClock.elapsedRealtimeNanos();
+    RimeData.Paths paths = RimeData.deploy(context);
+    long deploymentMicros = (SystemClock.elapsedRealtimeNanos() - deploymentStarted) / 1000;
+    long opened = SystemClock.elapsedRealtimeNanos();
+    long openMicros;
+    long[] samples = new long[50];
+    try (RimeEngine engine = new RimeEngine(paths))
+    {
+      openMicros = (SystemClock.elapsedRealtimeNanos() - opened) / 1000;
+      engine.setLearning(false);
+      for (int i = 0; i < samples.length; i++)
+      {
+        long began = SystemClock.elapsedRealtimeNanos();
+        assertTrue(engine.processText("nihao").composing);
+        assertFalse(engine.confirm().committed.isEmpty());
+        samples[i] = (SystemClock.elapsedRealtimeNanos() - began) / 1000;
+      }
+    }
+    Arrays.sort(samples);
+    org.json.JSONObject report = new org.json.JSONObject();
+    report.put("api", android.os.Build.VERSION.SDK_INT);
+    report.put("abi", android.os.Build.SUPPORTED_ABIS[0]);
+    report.put("deploymentVerificationMicros", deploymentMicros);
+    report.put("runtimeOpenMicros", openMicros);
+    report.put("warmComposeAndConfirmP50Micros", samples[25]);
+    report.put("warmComposeAndConfirmP95Micros", samples[47]);
+    report.put("testProcessPssKiB", android.os.Debug.getPss());
+    report.put("scope", "Debug APK on emulator; JNI operation latency, not physical touch-to-editor latency");
+    File directory = context.getExternalFilesDir("test-results");
+    assertTrue(directory.isDirectory() || directory.mkdirs());
+    try (FileOutputStream out = new FileOutputStream(new File(directory, "native-metrics.json")))
+    {
+      out.write(report.toString(2).getBytes(StandardCharsets.UTF_8));
+    }
   }
 }

@@ -6,8 +6,8 @@ Reviewed on 2026-10-22 against the committed source, interaction contract, archi
 
 - Project identity, interaction rules, architecture, Issue/PR workflow and baseline CI exist.
 - The inherited frontend is synchronized through Unexpected Keyboard `c87d9b8fbd501197286eaafeae88278dfbdd56b7`.
-- The first MIANCAK-specific code is an Android-independent semantic action/routing planner and its behavioral tests. It is not connected to the IME.
-- Rime/JNI, packaged Chinese schemas/data, a Chinese candidate strip and Chinese input on a device are not implemented.
+- The semantic routing foundation is merged. Its executor and dedicated touch UI now connect it to the inherited IME frontend.
+- Rime/JNI and packaged pinyin data are implemented and passed native emulator tests. The serialized controller, frontend adapter and touch candidates are implemented on the integration branch; full Android interaction verification is tracked in TESTING.md.
 
 The architecture direction is still appropriate: preserve the frontend, add a small semantic boundary and integrate librime directly. A gesture rewrite, Kotlin migration or Fcitx5 runtime would add work without resolving the current gaps.
 
@@ -83,6 +83,6 @@ Acceptance gate: documented device results, passing generated/unit/debug/native/
 
 ## Immediate next work
 
-Review and land M1 after CI. Then specify M2's exact librime/schema/toolchain/ABI choices in an Issue and prove the native build. M3 can use a deterministic fake engine while that spike proceeds, but production frontend wiring waits for its ordering and lifecycle tests.
+M1 and M2 are merged with passing CI. Complete the integrated M3/M4 emulator matrix and process-restart checks, fix any failures, and record actual M5 validation/measurement scope before merging the MVP. Physical-device performance remains a separately identified follow-up because this execution environment supplies emulators.
 
 Chat-only requirements that are not present in the committed specification must be reconciled explicitly before changing the interaction contract. Do not infer that this plan or a passing planner test constitutes a working Chinese keyboard.

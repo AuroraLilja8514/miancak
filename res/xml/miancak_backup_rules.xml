@@ -1,0 +1,3 @@
+<full-backup-content>
+  <exclude domain="file" path="rime/"/>
+</full-backup-content>

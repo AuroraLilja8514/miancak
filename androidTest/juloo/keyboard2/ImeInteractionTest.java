@@ -1,0 +1,281 @@
+package juloo.keyboard2;
+
+import android.app.Instrumentation;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Rect;
+import android.os.SystemClock;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.Until;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import juloo.keyboard2.prefs.LayoutsPreference;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import static org.junit.Assert.*;
+
+@RunWith(AndroidJUnit4.class)
+public class ImeInteractionTest
+{
+  private Instrumentation instrumentation;
+  private UiDevice device;
+  private Context context;
+  private ImeTestActivity activity;
+  private String pkg;
+  private float keyWidth, rowHeight, left, top;
+
+  @Test public void touchMixedInputAndEditorLifecycles() throws Exception
+  {
+    instrumentation = InstrumentationRegistry.getInstrumentation();
+    context = instrumentation.getTargetContext();
+    pkg = context.getPackageName();
+    device = UiDevice.getInstance(instrumentation);
+    device.wakeUp();
+    device.setOrientationNatural();
+    instrumentation.runOnMainSync(() -> {
+      SharedPreferences.Editor prefs = DirectBootAwarePreferences.get_shared_preferences(context).edit();
+      prefs.putString("physical_keyboard_behavior", "show").putBoolean("miancak_chinese", true)
+        .putString("number_row", "no_number_row").putString("number_entry_layout", "number");
+      LayoutsPreference.save_to_preferences(prefs,
+          Collections.singletonList(new LayoutsPreference.NamedLayout("miancak_qwerty")));
+      prefs.commit();
+    });
+    device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1");
+    device.executeShellCommand("ime enable " + pkg + "/juloo.keyboard2.Keyboard2");
+    device.executeShellCommand("ime set " + pkg + "/juloo.keyboard2.Keyboard2");
+    activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    focus(activity.first);
+    String output = "";
+    try
+    {
+      ensureChinese();
+      Rect chineseGeometry = keyboard().getVisibleBounds();
+      long began = SystemClock.elapsedRealtime();
+      type("nihao");
+      String first = candidate();
+      assertTrue(first.matches(".*[\\u3400-\\u9fff].*"));
+      screenshot("chinese-candidates");
+      if (InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"))
+      {
+        gesture('c', -1, -1);
+        awaitText(activity.first, first + "。");
+        screenshot("process-restart");
+        return;
+      }
+      gesture('c', -1, -1); // Explicit full-width full stop, NW of c.
+      output += first + "。";
+      awaitText(activity.first, output);
+      type("nihao"); first = candidate();
+      gesture('c', -1, 1); // ASCII period, SW of the same key.
+      output += first + ".";
+      awaitText(activity.first, output);
+      type("di"); first = candidate();
+      gesture('e', 1, -1); // Literal 3, never candidate number 3.
+      output += first + "3";
+      awaitText(activity.first, output);
+      tap(0.75f, 2); tap('q'); // One-finger Shift latch, then q.
+      output += "Q"; awaitText(activity.first, output);
+      assertEquals("中文", language().getText());
+      type("nihao"); candidate();
+      find("miancak_cancel").click();
+      awaitIdlePreedit();
+      assertEquals(output, text(activity.first));
+      // One-finger long-press locks Shift; a later tap unlocks it.
+      pointGeometry();
+      int sx = Math.round(left + keyWidth * 0.75f), sy = Math.round(top + rowHeight * 2.5f);
+      device.swipe(sx, sy, sx, sy, 170);
+      tap('q'); tap('q'); output += "QQ"; awaitText(activity.first, output);
+      tap(0.75f, 2);
+      type("nihao"); first = candidate();
+      language().click(); // Active composition confirms before changing mode.
+      output += first; awaitText(activity.first, output);
+      awaitMode("EN");
+      Rect englishGeometry = keyboard().getVisibleBounds();
+      assertEquals(chineseGeometry, englishGeometry);
+      type("hello"); tap(5f, 3); output += "hello "; awaitText(activity.first, output);
+      tap(9.25f, 2); output = output.substring(0, output.length() - 1); awaitText(activity.first, output);
+      screenshot("mixed-input");
+      language().click(); awaitMode("中文");
+      // An existing composition survives keyboard-view recreation for a theme change.
+      type("nihao"); first = candidate();
+      instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("theme", "light").commit());
+      assertEquals(first, candidate());
+      find("miancak_cancel").click(); awaitIdlePreedit();
+      // A field switch cancels uncommitted text rather than leaking it into either editor.
+      type("nihao");
+      focus(activity.second);
+      assertEquals(output, text(activity.first));
+      type("di"); first = candidate();
+      device.findObject(By.descStartsWith("Candidate 1: ")).click();
+      awaitText(activity.second, first);
+      type("nihao"); candidate();
+      instrumentation.runOnMainSync(() -> activity.second.setSelection(0));
+      awaitIdlePreedit();
+      assertEquals(first, text(activity.second));
+      // Password/numeric editors disable the engine, including explicit language toggles.
+      focus(activity.password); awaitMode("EN");
+      assertFalse(language().isEnabled());
+      type("secret"); awaitText(activity.password, "secret");
+      focus(activity.number); awaitMode("EN");
+      assertFalse(language().isEnabled());
+      // Numeric layout has six width units and four rows: 1/2/3 are row three.
+      Rect numberBounds = keyboard().getVisibleBounds();
+      Config numericConfig = Config.globalConfig();
+      float numericWidth = (numberBounds.width() - 2 * numericConfig.horizontal_margin) / 6f;
+      float numericRow = Math.min(numericConfig.keyboard_rows_height_pixels,
+          (numericConfig.screenHeightPixels - numericConfig.keyboard_rows_height_pixels) / 3.95f);
+      for (float column : new float[] { 2f, 3f, 4f })
+        device.click(Math.round(numberBounds.left + numericConfig.horizontal_margin + column * numericWidth),
+            Math.round(numberBounds.top + numericConfig.marginTop + 2.5f * numericRow));
+      awaitText(activity.number, "123");
+      // A no-learning text field still supports Chinese composition.
+      focus(activity.privateField); ensureChinese();
+      type("nihao"); first = candidate(); gesture('c', -1, -1);
+      awaitText(activity.privateField, first + "。");
+      screenshot("private-field");
+      // Rotation creates a fresh editor generation and cancels uncommitted preedit.
+      type("nihao"); candidate();
+      device.setOrientationLeft();
+      awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
+      assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
+      awaitIdlePreedit();
+      device.setOrientationNatural();
+      awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
+      assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
+      screenshot("rotation");
+      // Exercise a real WebView InputConnection as well as standard EditText.
+      // The original Activity reference may be obsolete after rotation: reopen a fresh fixture.
+      activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+      instrumentation.runOnMainSync(() -> activity.openWebEditor());
+      long loadDeadline = SystemClock.uptimeMillis() + 15000;
+      while (!activity.webReady && SystemClock.uptimeMillis() < loadDeadline) SystemClock.sleep(30);
+      assertTrue(activity.webReady);
+      UiObject2 web = device.wait(Until.findObject(By.clazz("android.webkit.WebView")), 15000);
+      assertNotNull(web);
+      Rect webBounds = web.getVisibleBounds();
+      float density = context.getResources().getDisplayMetrics().density;
+      device.click(webBounds.left + Math.round(40 * density), webBounds.top + Math.round(80 * density));
+      assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
+      ensureChinese();
+      type("nihao"); first = candidate(); gesture('c', -1, -1);
+      awaitWeb(first + "。");
+      screenshot("web-editor");
+      File metrics = new File(context.getExternalFilesDir("test-results"), "interaction-metrics.txt");
+      try (FileOutputStream stream = new FileOutputStream(metrics))
+      {
+        stream.write(("Complete touch/lifecycle scenario ms=" + (SystemClock.elapsedRealtime() - began) + "\nEmulator API=" + android.os.Build.VERSION.SDK_INT + "\n").getBytes(StandardCharsets.UTF_8));
+      }
+    }
+    finally
+    {
+      screenshot("final-state");
+      device.unfreezeRotation();
+    }
+  }
+
+  private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
+  private UiObject2 language() { return find("miancak_language"); }
+  private UiObject2 keyboard() { return find("keyboard_view"); }
+  private void awaitMode(String mode) { assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_language").text(mode)), 15000)); }
+  private void ensureChinese() { if (!language().getText().equals("中文")) language().click(); awaitMode("中文"); }
+  private String candidate()
+  {
+    UiObject2 candidate = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ")), 20000);
+    assertNotNull("No Chinese candidate; preedit=" + find("miancak_preedit").getText(), candidate);
+    return candidate.getText();
+  }
+  private void awaitIdlePreedit() { assertTrue(device.wait(Until.gone(By.descStartsWith("Pinyin: ")), 15000)); }
+  private void awaitOrientation(int expected)
+  {
+    long end = SystemClock.uptimeMillis() + 15000;
+    while (context.getResources().getConfiguration().orientation != expected && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
+    assertEquals(expected, context.getResources().getConfiguration().orientation);
+  }
+  private void focus(EditText edit)
+  {
+    instrumentation.runOnMainSync(() -> {
+      edit.requestFocus();
+      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT);
+    });
+    assertNotNull(keyboard());
+    device.waitForIdle();
+  }
+  private String text(EditText edit)
+  {
+    String[] result = { "" };
+    instrumentation.runOnMainSync(() -> result[0] = edit.getText().toString());
+    return result[0];
+  }
+  private void awaitText(EditText edit, String expected)
+  {
+    long end = SystemClock.uptimeMillis() + 15000;
+    while (SystemClock.uptimeMillis() < end && !text(edit).equals(expected)) SystemClock.sleep(30);
+    assertEquals(expected, text(edit));
+  }
+  private void pointGeometry()
+  {
+    Rect bounds = keyboard().getVisibleBounds();
+    Config config = Config.globalConfig();
+    keyWidth = (bounds.width() - 2 * config.horizontal_margin) / 10f;
+    left = bounds.left + config.horizontal_margin;
+    top = bounds.top + config.marginTop;
+    rowHeight = Math.min(config.keyboard_rows_height_pixels,
+        (config.screenHeightPixels - config.keyboard_rows_height_pixels) / 3.95f);
+  }
+  private float[] position(char c)
+  {
+    String[] rows = { "qwertyuiop", "asdfghjkl", "zxcvbnm" };
+    for (int row = 0; row < rows.length; row++)
+    {
+      int index = rows[row].indexOf(c);
+      if (index >= 0) return new float[] { index + (row == 0 ? 0.5f : row == 1 ? 1f : 2f), row };
+    }
+    throw new AssertionError(c);
+  }
+  private void tap(char c) { float[] p = position(c); tap(p[0], (int)p[1]); }
+  private void tap(float column, int row)
+  {
+    pointGeometry();
+    assertTrue(device.click(Math.round(left + column * keyWidth), Math.round(top + (row + 0.5f) * rowHeight)));
+  }
+  private void type(String text) { for (char c : text.toCharArray()) tap(c); }
+  private void gesture(char c, int dx, int dy)
+  {
+    pointGeometry(); float[] p = position(c);
+    int x = Math.round(left + p[0] * keyWidth), y = Math.round(top + (p[1] + 0.5f) * rowHeight);
+    assertTrue(device.swipe(x, y, Math.round(x + dx * keyWidth * 0.85f), Math.round(y + dy * rowHeight * 0.65f), 12));
+  }
+  private void awaitWeb(String expected) throws Exception
+  {
+    long end = SystemClock.uptimeMillis() + 15000;
+    String value = "";
+    while (SystemClock.uptimeMillis() < end)
+    {
+      CountDownLatch latch = new CountDownLatch(1);
+      String[] result = { "" };
+      instrumentation.runOnMainSync(() -> activity.web.evaluateJavascript("document.getElementById('t').value", text -> { result[0] = text; latch.countDown(); }));
+      assertTrue(latch.await(5, TimeUnit.SECONDS));
+      value = result[0];
+      if (value.equals(org.json.JSONObject.quote(expected))) return;
+      SystemClock.sleep(30);
+    }
+    assertEquals(org.json.JSONObject.quote(expected), value);
+  }
+  private void screenshot(String name)
+  {
+    File directory = context.getExternalFilesDir("test-results");
+    directory.mkdirs();
+    device.takeScreenshot(new File(directory, name + ".png"));
+  }
+}
