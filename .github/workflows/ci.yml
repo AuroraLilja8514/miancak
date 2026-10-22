@@ -53,6 +53,15 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Cache locked native sources
+        uses: actions/cache@v4
+        with:
+          path: .native
+          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+
+      - name: Prepare pinned Rime sources and data
+        run: python3 scripts/prepare_rime.py
+
       - name: Run unit tests
         run: ./gradlew --no-daemon test
 
@@ -62,7 +71,7 @@ jobs:
   build-debug:
     name: build-debug
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -78,13 +87,65 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
+      - name: Cache locked native sources
+        uses: actions/cache@v4
+        with:
+          path: .native
+          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+
+      - name: Prepare pinned Rime sources and data
+        run: python3 scripts/prepare_rime.py
+
+      - name: Build debug APK and instrumented tests
+        run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
+
+      - name: Verify packaged native runtime
+        run: python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: miancak-debug-${{ github.sha }}
-          path: build/outputs/apk/debug/*.apk
+          path: |
+            build/outputs/apk/debug/*.apk
+            build/outputs/apk/androidTest/debug/*.apk
           if-no-files-found: error
+          retention-days: 7
+
+  interaction-tests:
+    name: interaction-tests
+    needs: build-debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: miancak-debug-${{ github.sha }}
+          path: artifacts-download
+      - name: Gather APKs
+        run: |
+          mkdir -p artifacts
+          find artifacts-download -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
+          find artifacts-download -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android offline native and interaction tests
+        uses: reactivecircus/android-emulator-runner@v2.35.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -camera-back none
+          script: bash scripts/emulator_tests.sh
+      - name: Upload instrumented test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: instrumented-results-${{ github.sha }}
+          path: instrumentation.log
           retention-days: 7

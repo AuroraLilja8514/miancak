@@ -54,6 +54,7 @@ Initialize submodules:
 
 ```sh
 git submodule update --init
+python3 scripts/prepare_rime.py
 ```
 
 Use the repository Gradle wrapper rather than installing/selecting another Gradle version:
@@ -64,6 +65,8 @@ Use the repository Gradle wrapper rather than installing/selecting another Gradl
 ```
 
 The wrapper currently pins the project Gradle version in `gradle/wrapper/gradle-wrapper.properties`.
+
+Rime builds additionally require the pinned NDK/CMake and Python 3.12+. See [docs/NATIVE_RUNTIME.md](docs/NATIVE_RUNTIME.md) for source preparation, ABI selection and emulator tests. Source downloads occur at build time; normal input is offline.
 
 ## Installing for local testing
 
