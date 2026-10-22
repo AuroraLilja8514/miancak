@@ -29,9 +29,9 @@ The APK includes the unmodified simplified-pinyin dictionary, MIANCAK schema/def
 
 ## Verification
 
-The existing generated/unit/debug jobs remain stable. The debug build compiles instrumented tests and checks the actual APK's ABIs, offline dictionary and provenance. `interaction-tests` installs both APKs on an independent API 35 x86_64 emulator and exercises real native composition, selection, deletion, clear, repeat initialization and asset/user-data preservation.
+The stable generated/unit/build jobs remain in place. Debug and minified release APKs are checked for all declared ABIs, ELF alignment, hashed offline data and provenance. Release verification also checks JNI entry-point names and excludes the debug editor fixture.
 
-Build success is separate from complete IME integration. Controller ordering, editor lifetimes, gesture adaptation and touch candidate tests are subsequent gates. Emulator results do not imply physical-device coverage.
+`interaction-tests` installs the debug and instrumentation APKs on independent API 23 and API 35 x86_64 emulators. It exercises real native composition/selection/editing, partial commits, empty engine input, repeat initialization, no-learning behavior and asset/user-data preservation. Separate phases validate the actual gesture IME and process restart with guest networking disabled. See [TESTING.md](TESTING.md) for the complete integration results and scoped measurements. Emulator results do not imply physical-device coverage.
 
 ## Provenance
 

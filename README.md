@@ -23,7 +23,7 @@ The MVP combines:
 
 ## Using the MVP
 
-Enable MIANCAK in Android's input-method settings and select it. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
+Download the debug APK from a successful [MIANCAK CI run](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml), install it, then enable MIANCAK in Android's input-method settings and select it. The unsigned release artifact is intended for a separate signing step. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
 
 - Tap **中文 / EN** to switch explicitly; key geometry stays the same.
 - In Chinese mode, ordinary lowercase letters build pinyin. Tap a candidate or press space to select; use the arrows/scrolling to reach more candidates.
@@ -51,15 +51,7 @@ See [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md) for the normati
 
 ## Architecture direction
 
-The intended runtime architecture is deliberately small:
-
-```text
-Unexpected Keyboard frontend / gestures
-        -> semantic input layer
-        -> direct path OR Rime composition engine
-        -> Rime worker / JNI / librime
-        -> editor transaction / InputConnection
-```
+The runtime keeps inherited gestures behind a semantic adapter. The controller sends idle literal/English input directly to the editor and serializes Chinese operations through a persistent Rime worker/JNI session. Immutable results update the candidate strip and ordered editor transactions.
 
 MIANCAK does **not** plan to embed Fcitx5 core as a runtime dependency, and it does not plan to provide a general executable plugin system. Word lists and Rime configuration are treated as data.
 
@@ -87,7 +79,7 @@ Changes that do not need to diverge from upstream should remain easy to rebase o
 
 This repository remains licensed under the GNU General Public License v3.0 as inherited from Unexpected Keyboard. See [LICENSE](LICENSE).
 
-Third-party components will be documented when they are actually introduced. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The pinned native libraries, dictionary, licenses and packaged provenance are documented. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Acknowledgement
 

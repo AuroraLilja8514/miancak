@@ -18,41 +18,16 @@ The architecture should optimize for:
 
 ## Runtime shape
 
-```text
-Android IME
-   |
-   v
-Unexpected Keyboard frontend
-KeyboardData / Keyboard2View / Pointers / modifiers
-   |
-   v
-Semantic input layer
-SemanticAction / InputController
-   |                         \
-   |                          \
-   v                           v
-Direct literal/editor path     CompositionEngine
-                                |
-                                v
-                             RimeWorker
-                                |
-                                v
-                               JNI
-                                |
-                                v
-                             librime
-                                |
-                                v
-                         composition/candidates
-   \                          /
-    \                        /
-     v                      v
-        EditorTransaction
-               |
-               v
-       Android InputConnection
-
-CandidateSnapshot -> dedicated candidate strip
+```mermaid
+flowchart TD
+  F["Inherited gestures and modifiers"] --> A["SemanticKeyAdapter"]
+  A --> C["InputController"]
+  C -->|"Engine operations"| W["Serialized Rime worker"]
+  W --> N["JNI / librime"]
+  N -->|"EngineResult"| C
+  C -->|"Confirmed output"| E["EditorTransaction / InputConnection"]
+  C -->|"InputSnapshot"| V["Preedit and candidate strip"]
+  V -->|"Touch action"| C
 ```
 
 ## Frontend

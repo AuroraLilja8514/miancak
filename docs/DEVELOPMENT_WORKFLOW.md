@@ -125,14 +125,7 @@ Their behavior and security policy are documented in [CI.md](CI.md).
 
 The job names are intentionally stable because GitHub branch protection/rulesets may depend on them. Renaming one is a repository-governance change, not cosmetic cleanup.
 
-When Rime/native work begins, add checks such as:
-
-```text
-native-build
-interaction-tests
-```
-
-only when there is real code for them to validate.
+The implemented `interaction-tests (23)` and `interaction-tests (35)` checks validate the native runtime, Android policies, actual IME touches/editor lifecycles and process restart. Native compilation and actual debug/release APK verification are part of `build-debug`. Require passing interaction checks before merging input changes.
 
 PR workflows must not receive release-signing secrets. Do not use `pull_request_target` for build/test workflows that execute PR-controlled code.
 
@@ -195,6 +188,6 @@ Do not silently vendor binaries, schemas, dictionaries, models, or generated nat
 
 ## Release work
 
-For now, CI delivers short-lived debug APK artifacts only.
+CI delivers short-lived installable debug APKs and minified unsigned release APKs; logs/screenshots and test reports accompany them.
 
 Release signing, GitHub Releases, store publishing, and F-Droid-specific automation are intentionally deferred until the application is usable. Future release automation must use protected secrets/environments and remain isolated from pull-request-controlled code.

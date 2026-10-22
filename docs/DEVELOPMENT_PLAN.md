@@ -7,7 +7,7 @@ Reviewed on 2026-10-22 against the committed source, interaction contract, archi
 - Project identity, interaction rules, architecture, Issue/PR workflow and baseline CI exist.
 - The inherited frontend is synchronized through Unexpected Keyboard `c87d9b8fbd501197286eaafeae88278dfbdd56b7`.
 - The semantic routing foundation is merged. Its executor and dedicated touch UI now connect it to the inherited IME frontend.
-- Rime/JNI and packaged pinyin data are implemented and passed native emulator tests. The serialized controller, frontend adapter and touch candidates are implemented on the integration branch; full Android interaction verification is tracked in TESTING.md.
+- M1–M4 are implemented: pinned Rime/JNI, offline pinyin data, serialized controller, frontend adapter, immutable snapshots and touch candidates. The complete input path passed API 23/API 35 emulator tests, process restart and debug/minified-release builds. Actual results and limits are recorded in [TESTING.md](TESTING.md).
 
 The architecture direction is still appropriate: preserve the frontend, add a small semantic boundary and integrate librime directly. A gesture rewrite, Kotlin migration or Fcitx5 runtime would add work without resolving the current gaps.
 
@@ -81,8 +81,18 @@ Measure touch-to-routing, engine, candidate and editor latency on a real device;
 
 Acceptance gate: documented device results, passing generated/unit/debug/native/interaction checks applicable to the implemented code, no known ordering or cross-editor data leak, and a reproducible debug APK demonstrating the complete Chinese-input path.
 
-## Immediate next work
+## Completion and next development
 
-M1 and M2 are merged with passing CI. Complete the integrated M3/M4 emulator matrix and process-restart checks, fix any failures, and record actual M5 validation/measurement scope before merging the MVP. Physical-device performance remains a separately identified follow-up because this execution environment supplies emulators.
+The offline MVP has passed its executable gates. M1–M4 are complete; M5's emulator, build/package, offline/editor/lifecycle and scoped JNI-measurement work is complete. The tests found and fixed preference migration ordering, partial native commits and unsigned release configuration before integration.
+
+The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device touch latency, cold/warm startup, memory and unusual vendor editors still require device evidence. Release signing/store publication remain outside the MVP.
+
+Continue from this working baseline with measured priorities:
+
+1. Collect physical-device observations using the documented scenarios and comparable startup/latency/data-size reports. Do not derive device performance targets from emulator samples.
+2. Optimize initialization/candidate rendering only where measurements identify a bottleneck, retaining the ordering/editor-generation tests.
+3. Design protected signing and durable release delivery separately from PR builds. Any new behavior or schema/data import must have a specific Issue and acceptance tests.
+
+Do not reopen the completed semantic/native/UI architecture stages or introduce a gesture/framework rewrite without a demonstrated requirement.
 
 Chat-only requirements that are not present in the committed specification must be reconciled explicitly before changing the interaction contract. Do not infer that this plan or a passing planner test constitutes a working Chinese keyboard.

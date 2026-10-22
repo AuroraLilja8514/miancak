@@ -25,7 +25,9 @@ with zipfile.ZipFile(apk) as archive:
                 if struct.unpack_from(order + 'I', data, start)[0] == 1:
                     alignment = struct.unpack_from(order + ('Q' if is64 else 'I'), data, start + (48 if is64 else 28))[0]
                     assert alignment >= 16384, (abi, library, alignment)
-    assert archive.getinfo("assets/rime/pinyin_simp.dict.yaml").file_size > 100000
+    dictionary_bytes = archive.getinfo("assets/rime/pinyin_simp.dict.yaml").file_size
+    assert dictionary_bytes > 100000
+    print(f"APK bytes: {apk.stat().st_size}; packaged dictionary bytes: {dictionary_bytes}")
     manifest = json.loads(archive.read("assets/rime/manifest.json"))
     for name, digest in manifest.items():
         assert hashlib.sha256(archive.read("assets/rime/" + name)).hexdigest() == digest, name

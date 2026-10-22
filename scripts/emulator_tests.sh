@@ -17,6 +17,8 @@ for i in sorted(indexes)[-240:]:
 print(Path("test-results/window.xml").read_text() if Path("test-results/window.xml").exists() else "No UI dump")
 PY
   adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  adb shell run-as org.miancak.keyboard.debug du -sk files/rime > test-results/rime-footprint-kib.txt || true
+  cat test-results/rime-footprint-kib.txt
   if [[ -f test-results/device/native-metrics.json ]]; then
     cat test-results/device/native-metrics.json
   fi
