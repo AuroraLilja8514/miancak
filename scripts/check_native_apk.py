@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the shipped APK, not just a successful compiler invocation."""
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -25,7 +26,14 @@ with zipfile.ZipFile(apk) as archive:
                     alignment = struct.unpack_from(order + ('Q' if is64 else 'I'), data, start + (48 if is64 else 28))[0]
                     assert alignment >= 16384, (abi, library, alignment)
     assert archive.getinfo("assets/rime/pinyin_simp.dict.yaml").file_size > 100000
-    assert archive.getinfo("assets/rime/manifest.json").file_size > 0
+    manifest = json.loads(archive.read("assets/rime/manifest.json"))
+    for name, digest in manifest.items():
+        assert hashlib.sha256(archive.read("assets/rime/" + name)).hexdigest() == digest, name
+    if "--release" in sys.argv[2:]:
+        dex = b"".join(archive.read(name) for name in archive.namelist() if name.endswith(".dex"))
+        assert b"Ljuloo/keyboard2/ImeTestActivity;" not in dex, "Debug fixture shipped in release"
+        for descriptor in [b"Ljuloo/keyboard2/input/RimeEngine;", b"Ljuloo/keyboard2/input/EngineResult;"]:
+            assert descriptor in dex, "JNI entry point was removed or renamed"
     assert json.loads(archive.read("assets/native-sources.json"))["librime"] == lock["librime"]
     assert any(name.startswith("assets/third-party/pinyin-simp/LICENSE") for name in archive.namelist())
-print("Verified declared native ABIs, real offline dictionary, manifest and provenance")
+print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

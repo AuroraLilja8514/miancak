@@ -63,7 +63,16 @@ jobs:
         run: python3 scripts/prepare_rime.py
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon test
+        run: |
+          ./gradlew --no-daemon test
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          suites = [ET.parse(path).getroot() for path in Path("build/test-results").rglob("TEST-*.xml")]
+          for suite in suites:
+              print(f"{suite.attrib['name']}: {suite.attrib['tests']} tests, {suite.attrib['failures']} failures, {suite.attrib['errors']} errors")
+          print("Total unit tests:", sum(int(suite.attrib["tests"]) for suite in suites))
+          PY
 
       - name: Verify tests did not leave stale generated files
         run: git diff --exit-code
@@ -118,6 +127,19 @@ jobs:
 
       - name: Verify packaged native runtime
         run: python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
+
+      - name: Build and verify minified release APK
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
+
+      - name: Upload unsigned release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: miancak-unsigned-release-${{ github.sha }}
+          path: build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7

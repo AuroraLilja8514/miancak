@@ -86,6 +86,23 @@ public class ImeInteractionTest
       gesture('e', 1, -1); // Literal 3, never candidate number 3.
       output += first + "3";
       awaitText(activity.first, output);
+      // Candidate paging uses the displayed snapshot; returning restores page one.
+      type("shi"); String pageOne = candidate();
+      assertTrue(find("miancak_next_candidates").isEnabled());
+      find("miancak_next_candidates").click();
+      awaitCandidate(pageOne, false);
+      find("miancak_previous_candidates").click();
+      awaitCandidate(pageOne, true);
+      find("miancak_cancel").click(); awaitIdlePreedit();
+      assertEquals(output, text(activity.first));
+      // Space confirms once, while Backspace edits preedit before editor text.
+      type("nihao"); first = candidate(); tap(5f, 3);
+      output += first; awaitText(activity.first, output); awaitIdlePreedit();
+      type("q"); candidate(); tap(9.25f, 2); awaitIdlePreedit();
+      assertEquals(output, text(activity.first));
+      // Multiline Enter commits the candidate before the editor newline.
+      type("nihao"); first = candidate(); tap(9.15f, 3);
+      output += first + "\n"; awaitText(activity.first, output); awaitIdlePreedit();
       tap(0.75f, 2); tap('q'); // One-finger Shift latch, then q.
       output += "Q"; awaitText(activity.first, output);
       assertEquals("中文", language().getText());
@@ -215,6 +232,17 @@ public class ImeInteractionTest
     }
     fail("No stable Chinese candidate; preedit=" + status);
     return "";
+  }
+  private void awaitCandidate(String text, boolean equal)
+  {
+    long end = SystemClock.uptimeMillis() + 15000;
+    String value = candidate();
+    while (value.equals(text) != equal && SystemClock.uptimeMillis() < end)
+    {
+      SystemClock.sleep(30);
+      value = candidate();
+    }
+    assertEquals("Unexpected candidate page", equal, value.equals(text));
   }
   private void awaitIdlePreedit() { assertTrue(device.wait(Until.gone(By.descStartsWith("Pinyin: ")), 15000)); }
   private void awaitOrientation(int expected)
