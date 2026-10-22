@@ -61,4 +61,20 @@ public class RimeNativeTest
     assertTrue(marker.isFile());
     assertTrue(marker.delete());
   }
+
+  @Test public void privateSchemaDoesNotCreateALearningDatabase() throws Exception
+  {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    RimeData.Paths packaged = RimeData.deploy(context);
+    File privateUser = new File(context.getCacheDir(), "rime-private-test");
+    assertTrue(privateUser.isDirectory() || privateUser.mkdirs());
+    try (RimeEngine engine = new RimeEngine(new RimeData.Paths(packaged.shared, privateUser)))
+    {
+      engine.setLearning(false);
+      assertTrue(engine.processText("nihao").composing);
+      assertFalse(engine.confirm().committed.isEmpty());
+    }
+    for (File file : privateUser.listFiles())
+      assertFalse("Private input must not create a user dictionary", file.getName().contains("userdb"));
+  }
 }

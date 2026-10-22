@@ -32,7 +32,10 @@ android {
         ?: "arm64-v8a,armeabi-v7a,x86_64").split(","))
     }
     externalNativeBuild {
-      cmake { arguments += "-DANDROID_STL=c++_static" }
+      cmake {
+        arguments += "-DANDROID_STL=c++_static"
+        targets += listOf("miancak_rime", "cdict_java")
+      }
     }
   }
 
@@ -49,6 +52,7 @@ android {
     }
     named("androidTest") {
       java.srcDirs("androidTest")
+      res.srcDirs("androidTest/res")
     }
   }
 

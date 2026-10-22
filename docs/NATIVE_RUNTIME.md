@@ -25,7 +25,7 @@ The APK includes the unmodified simplified-pinyin dictionary, MIANCAK schema/def
 
 `RimeData.deploy` verifies/copies assets into a content-versioned credential-protected directory. Matching files retain their timestamps. User/learning data lives in a separate stable `files/rime/user` directory and is never replaced by deployment. Asset work, initialization and Rime maintenance belong to worker startup, outside the UI thread and ordinary key path.
 
-`RimeEngine` owns a persistent session and rejects calls from another thread. A native mutex protects global initialization and multiple sessions; finalization occurs after the final session closes. Immutable results contain commit text, preedit, page-local candidates, selection and composition/page state. Text uses standard UTF-8, including supplementary Unicode characters. Logging and external executable-plugin loading are disabled. Sensitive-field routing/no-learning policy belongs to the controller.
+`RimeEngine` owns a persistent session and rejects calls from another thread. A native mutex protects global initialization and multiple sessions; finalization occurs after the final session closes. Immutable results contain commit text, preedit, page-local candidates, selection and composition/page state. Text uses standard UTF-8, including supplementary Unicode characters. Logging and external executable-plugin loading are disabled. Sessions start with a private schema whose translator disables the user dictionary. Learning is enabled only by deliberately selecting the normal schema; no-learning fields retain the private schema. Sensitive-field routing belongs to the controller.
 
 ## Verification
 

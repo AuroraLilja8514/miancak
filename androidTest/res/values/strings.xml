@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name_debug">MIANCAK Test</string>
+  <string name="app_name_release">MIANCAK Test</string>
+</resources>

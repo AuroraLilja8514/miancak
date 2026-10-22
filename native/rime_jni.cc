@@ -101,7 +101,7 @@ Java_juloo_keyboard2_input_RimeEngine_open(JNIEnv* env, jclass, jstring shared, 
     return 0;
   }
   RimeSessionId id = api->create_session();
-  if (!id || !api->select_schema(id, "miancak_pinyin")) {
+  if (!id || !api->select_schema(id, "miancak_pinyin_private")) {
     if (id) api->destroy_session(id);
     if (sessions.empty()) { api->finalize(); api = nullptr; }
     fail(env, "Offline Chinese schema deployment failed");
@@ -138,7 +138,9 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
 extern "C" JNIEXPORT void JNICALL
 Java_juloo_keyboard2_input_RimeEngine_learning(JNIEnv* env, jclass, jlong id, jboolean enabled) {
   std::lock_guard<std::mutex> lock(mutex);
-  if (valid(env, id)) api->set_option(id, "_no_learning", !enabled);
+  if (valid(env, id) && !api->select_schema(id,
+        enabled ? "miancak_pinyin" : "miancak_pinyin_private"))
+    fail(env, "Cannot select the requested learning policy");
 }
 
 extern "C" JNIEXPORT void JNICALL

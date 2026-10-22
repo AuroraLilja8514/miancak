@@ -38,6 +38,9 @@ set(ENABLE_LOGGING OFF CACHE BOOL "" FORCE)
 set(ENABLE_EXTERNAL_PLUGINS OFF CACHE BOOL "" FORCE)
 set(ENABLE_TIMESTAMP OFF CACHE BOOL "" FORCE)
 add_subdirectory("${SOURCES}/librime" librime EXCLUDE_FROM_ALL)
+# OpenCC's pinned public headers use std::iterator, deprecated in C++17.
+# Keep upstream's other -Werror diagnostics; this is a toolchain compatibility warning.
+target_compile_options(rime-static PRIVATE -Wno-error=deprecated-declarations)
 add_library(miancak_rime SHARED rime_jni.cc)
 target_include_directories(miancak_rime PRIVATE "${SOURCES}/librime/src")
 target_link_libraries(miancak_rime PRIVATE rime-static)
