@@ -10,18 +10,33 @@ dependencies {
   implementation("androidx.window:window-java:1.4.0")
   implementation("androidx.core:core:1.16.0") // Version 1.17.0 available with sdk 36
   testImplementation("junit:junit:4.13.2")
+  androidTestImplementation("androidx.test:runner:1.6.2")
+  androidTestImplementation("androidx.test.ext:junit:1.2.1")
+  androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }
 
 android {
   namespace = "juloo.keyboard2"
   compileSdkVersion = "android-36"
+  ndkVersion = "28.0.13004108"
 
   defaultConfig {
-    applicationId = "juloo.keyboard2"
+    applicationId = "org.miancak.keyboard"
     minSdk = 21
     targetSdk { version = release(36) }
-    versionCode = 56
-    versionName = "2.1.0"
+    versionCode = 1
+    versionName = "0.1.0"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    ndk {
+      abiFilters.addAll((providers.gradleProperty("miancakAbis").orNull
+        ?: "arm64-v8a,armeabi-v7a,x86_64").split(","))
+    }
+    externalNativeBuild {
+      cmake {
+        arguments += "-DANDROID_STL=c++_static"
+        targets += listOf("miancak_rime", "cdict_java")
+      }
+    }
   }
 
   sourceSets {
@@ -29,17 +44,22 @@ android {
       manifest.srcFile("AndroidManifest.xml")
       java.srcDirs("srcs/juloo.keyboard2", "vendor/cdict/java/juloo.cdict")
       res.srcDirs("res", "build/generated-resources")
-      assets.srcDirs("assets")
+      assets.srcDirs("assets", "build/generated-rime-assets")
     }
 
     named("test") {
       java.srcDirs("test")
     }
+    named("androidTest") {
+      java.srcDirs("androidTest")
+      res.srcDirs("androidTest/res")
+    }
   }
 
   externalNativeBuild {
-    ndkBuild {
-      path = file("vendor/Android.mk")
+    cmake {
+      path = file("native/CMakeLists.txt")
+      version = "3.22.1"
     }
   }
 
