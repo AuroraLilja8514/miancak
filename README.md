@@ -8,7 +8,9 @@ This project is primarily developed for self use. It is public so that its sourc
 
 ## Project status
 
-MIANCAK is currently in the **design and bootstrap stage**. The repository still closely follows Unexpected Keyboard, and Chinese input functionality has not yet been implemented.
+MIANCAK is currently in the **early implementation stage**. Project documentation and CI are established, and an Android-independent semantic routing planner has behavioral tests. The planner is not connected to the IME; Rime and Chinese input functionality have not yet been implemented.
+
+See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
 The first implementation target is a minimal Android IME that combines:
 
@@ -60,6 +62,7 @@ Start with:
 - [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
 - [docs/CI.md](docs/CI.md)
 - [docs/UPSTREAM.md](docs/UPSTREAM.md)
+- [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)
 
 ## Upstream
 

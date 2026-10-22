@@ -215,3 +215,9 @@ Performance targets should be based on measurements, not guessed millisecond num
 - Java-to-Kotlin rewrite;
 - wholesale replacement of Unexpected Keyboard's gesture system;
 - broad architecture for hypothetical future engines before the Rime path works.
+
+## Current implementation boundary
+
+`input/SemanticAction` and `input/InputRouter` provide the first Android-independent routing foundation. The router produces immutable ordered operations; it does not execute engine calls, editor transactions or language-mode changes itself. Its caller must use authoritative composition state after earlier engine work has completed, and apply a resulting mode only after successful execution.
+
+The existing IME is not wired to this planner yet. Rime, serialized execution, editor-generation handling and candidate snapshots remain separate implementation gates in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).

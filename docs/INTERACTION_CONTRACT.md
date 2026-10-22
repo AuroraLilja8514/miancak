@@ -107,6 +107,8 @@ It must:
 - not be inferred from text context;
 - not require restarting the Rime runtime/session.
 
+If composition is active, confirm the selected/highlighted candidate before changing language mode. The mode change takes effect only after confirmation succeeds; the next input must not overtake that confirmation.
+
 The exact gesture may be configurable, but it must remain deterministic.
 
 ## 10. Shift and language mode are orthogonal
