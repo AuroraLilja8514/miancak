@@ -100,7 +100,7 @@ android {
       isShrinkResources = true
       isDebuggable = false
       resValue("string", "app_name", "MIANCAK")
-      signingConfig = signingConfigs["release"]
+      signingConfig = signingConfigs["release"].takeIf { it.storeFile != null }
     }
 
     named("debug") {
