@@ -8,11 +8,11 @@ This project is primarily developed for self use. It is public so that its sourc
 
 ## Project status
 
-MIANCAK is currently in the **early implementation stage**. Project documentation and CI are established, and an Android-independent semantic routing planner has behavioral tests. The planner is not connected to the IME; Rime and Chinese input functionality have not yet been implemented.
+MIANCAK now implements an **offline simplified-pinyin MVP**: a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. The inherited gesture frontend and one-finger Shift latch/lock remain in place. Validation scope and results are recorded in [docs/TESTING.md](docs/TESTING.md).
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
-The first implementation target is a minimal Android IME that combines:
+The MVP combines:
 
 - Unexpected Keyboard's existing key layout and swipe interaction model;
 - explicit literal symbols and punctuation;
@@ -20,6 +20,19 @@ The first implementation target is a minimal Android IME that combines:
 - direct, interference-free English input;
 - a touch-oriented Chinese candidate strip;
 - offline operation with no network dependency in the input path.
+
+## Using the MVP
+
+Download the debug APK from a successful [MIANCAK CI run](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml), install it, then enable MIANCAK in Android's input-method settings and select it. The unsigned release artifact is intended for a separate signing step. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
+
+- Tap **中文 / EN** to switch explicitly; key geometry stays the same.
+- In Chinese mode, ordinary lowercase letters build pinyin. Tap a candidate or press space to select; use the arrows/scrolling to reach more candidates.
+- On the default MIANCAK QWERTY layout, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages.
+- Digits and other literal symbols confirm current composition before appending exactly what is shown. Shift latch/lock produces direct uppercase ASCII without leaving Chinese mode.
+- Enter confirms composition before the editor's newline/action; Escape or × cancels composition. Uncommitted pinyin stays in the IME preedit row and is cancelled when changing fields or moving the cursor.
+- Password, numeric and raw-key editors use direct input. No-learning text fields use a schema without a user dictionary. Rime user data is kept locally and excluded from Android backup/transfer rules.
+
+Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).
 
 ## Interaction principles
 
@@ -38,15 +51,7 @@ See [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md) for the normati
 
 ## Architecture direction
 
-The intended runtime architecture is deliberately small:
-
-```text
-Unexpected Keyboard frontend / gestures
-        -> semantic input layer
-        -> direct path OR Rime composition engine
-        -> Rime worker / JNI / librime
-        -> editor transaction / InputConnection
-```
+The runtime keeps inherited gestures behind a semantic adapter. The controller sends idle literal/English input directly to the editor and serializes Chinese operations through a persistent Rime worker/JNI session. Immutable results update the candidate strip and ordered editor transactions.
 
 MIANCAK does **not** plan to embed Fcitx5 core as a runtime dependency, and it does not plan to provide a general executable plugin system. Word lists and Rime configuration are treated as data.
 
@@ -74,7 +79,7 @@ Changes that do not need to diverge from upstream should remain easy to rebase o
 
 This repository remains licensed under the GNU General Public License v3.0 as inherited from Unexpected Keyboard. See [LICENSE](LICENSE).
 
-Third-party components will be documented when they are actually introduced. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The pinned native libraries, dictionary, licenses and packaged provenance are documented. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Acknowledgement
 

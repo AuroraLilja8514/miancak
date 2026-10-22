@@ -212,3 +212,18 @@ These keys are known to do nothing.
 These keys are normally hidden unless the Fn modifier is activated.
 
 `f11_placeholder` | `f12_placeholder`
+
+
+## MIANCAK semantic text
+
+MIANCAK adds explicit fixed text actions for custom layouts:
+
+```xml
+<key c=":engine:'q'" nw=":literal:'q'"/>
+<key c=":literal:'.'" nw=":literal:'。'"/>
+<key c=":engine symbol='Pinyin separator':'\\''"/>
+```
+
+`:engine:'text'` sends text to Rime in Chinese and commits it directly in English. `:literal:'text'` always commits the exact text after confirming any active composition. They can have the same visible label. Explicit text and its label stay fixed under Shift; ordinary alphabet keys retain the inherited Shift latch/lock behavior and uppercase ASCII bypass. A custom `symbol` changes only the label, never routing or payload. Control/Alt/Meta shortcuts retain editor key events for single-character actions.
+
+`language_switch` is a one-finger language-toggle action that may be assigned to a swipe position. The dedicated language button is also always available for ordinary text editors. Default punctuation/digits are literal; engine-specific digit shortcuts require an explicit `:engine:` declaration.

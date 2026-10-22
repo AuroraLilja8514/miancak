@@ -1,0 +1,4 @@
+<data-extraction-rules>
+  <cloud-backup><exclude domain="file" path="rime/"/></cloud-backup>
+  <device-transfer><exclude domain="file" path="rime/"/></device-transfer>
+</data-extraction-rules>

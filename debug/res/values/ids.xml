@@ -1,0 +1,7 @@
+<resources>
+  <item name="test_first_editor" type="id"/>
+  <item name="test_second_editor" type="id"/>
+  <item name="test_password_editor" type="id"/>
+  <item name="test_number_editor" type="id"/>
+  <item name="test_private_editor" type="id"/>
+</resources>

@@ -32,6 +32,9 @@ import juloo.keyboard2.dict.DictionarySwitcher;
 import juloo.keyboard2.prefs.LayoutsPreference;
 import juloo.keyboard2.suggestions.CandidatesView;
 import juloo.keyboard2.suggestions.Suggestions;
+import juloo.keyboard2.input.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Keyboard2 extends InputMethodService
   implements SharedPreferences.OnSharedPreferenceChangeListener
@@ -53,6 +56,14 @@ public class Keyboard2 extends InputMethodService
   private Handler _handler;
 
   private Config _config;
+  private InputController _inputController;
+  private ExecutorService _rimeWorker;
+  private RimeCandidatesView _rimeCandidates;
+  private final EditorSelectionTracker _editorSelection = new EditorSelectionTracker();
+  private EditorInfo _inputEditorInfo;
+  private boolean _editorAttached;
+  private boolean _editorAllowsEngine;
+  private InputRouter.Mode _preferredMode = InputRouter.Mode.CHINESE;
 
   private FoldStateTracker _foldStateTracker;
 
@@ -131,6 +142,7 @@ public class Keyboard2 extends InputMethodService
   {
     super.onCreate();
     SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+    MiancakPreferences.initialize(prefs);
     _handler = new Handler(getMainLooper());
     _foldStateTracker = new FoldStateTracker(this);
     _dictionaries = Dictionaries.instance(this);
@@ -140,6 +152,11 @@ public class Keyboard2 extends InputMethodService
     Receiver recvr = this.new Receiver();
     _suggestions = new Suggestions(recvr, _config);
     _keyeventhandler = new KeyEventHandler(_config, recvr, _suggestions);
+    _preferredMode = prefs.getBoolean("miancak_chinese", true) ? InputRouter.Mode.CHINESE : InputRouter.Mode.ENGLISH;
+    _rimeWorker = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "MIANCAK-Rime"));
+    _inputController = new InputController(_rimeWorker, runnable -> _handler.post(runnable),
+        () -> new RimeEngine(RimeData.deploy(Keyboard2.this)), this::input_snapshot_changed);
+    _keyeventhandler.set_semantic_adapter(new SemanticKeyAdapter(_inputController, this::sync_editor_selection));
     KeyValue.Stateful._handler = recvr;
     _config.handler = _keyeventhandler;
     prefs.registerOnSharedPreferenceChangeListener(this);
@@ -152,8 +169,10 @@ public class Keyboard2 extends InputMethodService
 
   @Override
   public void onDestroy() {
+    if (_inputController != null) _inputController.close();
+    if (_rimeWorker != null) _rimeWorker.shutdown();
+    DirectBootAwarePreferences.get_shared_preferences(this).unregisterOnSharedPreferenceChangeListener(this);
     super.onDestroy();
-
     _foldStateTracker.close();
   }
 
@@ -162,6 +181,8 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view = (ViewGroup)inflate_view(R.layout.keyboard);
     _keyboard_layout_view = (Keyboard2View)_keyboard_container_view.findViewById(R.id.keyboard_view);
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
+    _rimeCandidates = (RimeCandidatesView)_keyboard_container_view.findViewById(R.id.miancak_candidates);
+    if (_inputController != null) _rimeCandidates.attach(_inputController);
   }
 
   InputMethodManager get_imm()
@@ -209,7 +230,7 @@ public class Keyboard2 extends InputMethodService
   private void refresh_candidates_view()
   {
     boolean should_show =
-      _config.suggestions_enabled
+      _inputController == null && _config.suggestions_enabled
       && _config.editor_config.should_show_candidates_view
       && !_config.split_layout;
     if (should_show)
@@ -260,8 +281,93 @@ public class Keyboard2 extends InputMethodService
   }
 
   @Override
+  public void onStartInput(EditorInfo info, boolean restarting)
+  {
+    super.onStartInput(info, restarting);
+    _inputEditorInfo = info;
+    _editorAttached = false;
+    _editorSelection.reset(info.initialSelStart, info.initialSelEnd);
+    attach_input_editor();
+  }
+
+  private void attach_input_editor()
+  {
+    if (_editorAttached || _inputEditorInfo == null || _inputController == null) return;
+    final InputConnection connection = getCurrentInputConnection();
+    if (connection == null) return;
+    EditorPolicy policy = EditorPolicy.from(_inputEditorInfo, this);
+    _editorAllowsEngine = policy.engineAllowed;
+    _editorAttached = true;
+    _inputController.startEditor(transaction -> apply_input_transaction(connection, transaction),
+        _preferredMode, policy.engineAllowed, policy.learning);
+  }
+
+  private boolean apply_input_transaction(InputConnection connection, EditorTransaction transaction)
+  {
+    if (transaction.edits.isEmpty()) return true;
+    connection.beginBatchEdit();
+    boolean success = true;
+    try
+    {
+      for (EditorTransaction.Edit edit : transaction.edits)
+      {
+        if (edit.backspace)
+        {
+          CharSequence before = connection.getTextBeforeCursor(2, 0);
+          int units = before != null && before.length() >= 2
+            && Character.isSurrogatePair(before.charAt(before.length() - 2), before.charAt(before.length() - 1)) ? 2 : 1;
+          _editorSelection.backspace(units);
+          success = connection.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            && connection.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
+        }
+        else
+        {
+          _editorSelection.commit(edit.text);
+          success = connection.commitText(edit.text, 1);
+        }
+        if (!success) break;
+      }
+    }
+    finally { connection.endBatchEdit(); }
+    return success;
+  }
+
+  private void input_snapshot_changed(InputSnapshot snapshot)
+  {
+    if (_rimeCandidates != null) _rimeCandidates.show(snapshot);
+    if (_editorAllowsEngine && snapshot.engineAllowed && snapshot.error.isEmpty() && snapshot.mode != _preferredMode)
+    {
+      _preferredMode = snapshot.mode;
+      // Do not trigger a full keyboard-view refresh for routing state changes.
+      _handler.post(() -> DirectBootAwarePreferences.get_shared_preferences(this).edit()
+          .putBoolean("miancak_chinese", _preferredMode == InputRouter.Mode.CHINESE).apply());
+    }
+  }
+
+  private void sync_editor_selection()
+  {
+    InputConnection connection = getCurrentInputConnection();
+    if (connection == null) return;
+    android.view.inputmethod.ExtractedTextRequest request = new android.view.inputmethod.ExtractedTextRequest();
+    request.hintMaxChars = 0;
+    android.view.inputmethod.ExtractedText text = connection.getExtractedText(request, 0);
+    if (text != null)
+      _editorSelection.expectSelection(text.startOffset + text.selectionStart, text.startOffset + text.selectionEnd);
+  }
+
+  @Override
+  public void onFinishInput()
+  {
+    if (_inputController != null) _inputController.finishEditor();
+    _inputEditorInfo = null;
+    _editorAttached = false;
+    super.onFinishInput();
+  }
+
+  @Override
   public void onStartInputView(EditorInfo info, boolean restarting)
   {
+    attach_input_editor();
     _config.editor_config.refresh(info, getResources());
     refresh_config();
     _currentSpecialLayout = refresh_special_layout();
@@ -365,6 +471,11 @@ public class Keyboard2 extends InputMethodService
   {
     super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
     _keyeventhandler.selection_updated(oldSelStart, newSelStart, newSelEnd);
+    if ((oldSelStart != newSelStart || oldSelEnd != newSelEnd)
+        && !_editorSelection.acknowledge(newSelStart, newSelEnd)
+        && _inputController != null
+        && (_inputController.snapshot().engine.composing || _inputController.hasPendingRequests()))
+      _inputController.selectionChanged();
     if ((oldSelStart == oldSelEnd) != (newSelStart == newSelEnd))
       _keyboard_layout_view.set_selection_state(newSelStart != newSelEnd);
   }
@@ -372,6 +483,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onFinishInputView(boolean finishingInput)
   {
+    if (_inputController != null && !finishingInput) _inputController.cancelComposition();
     super.onFinishInputView(finishingInput);
     _keyboard_layout_view.reset();
   }
@@ -379,6 +491,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onSharedPreferenceChanged(SharedPreferences _prefs, String _key)
   {
+    if (_key.equals("miancak_chinese")) return;
     refresh_config();
     _keyboard_layout_view.setKeyboard(current_layout());
   }
@@ -515,6 +628,10 @@ public class Keyboard2 extends InputMethodService
 
         case HIDE_SELF:
           Keyboard2.this.requestHideSelf(0);
+          break;
+
+        case TOGGLE_LANGUAGE:
+          _inputController.submit(SemanticAction.TOGGLE_LANGUAGE);
           break;
 
         case CHANGE_DICTIONARY:

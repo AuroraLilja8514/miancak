@@ -25,6 +25,7 @@ public final class RimeEngine implements CompositionEngine
   @Override public EngineResult processText(String text)
   {
     check();
+    if (text.isEmpty()) return command(session, 4, 0);
     EngineResult result = EngineResult.EMPTY;
     StringBuilder committed = new StringBuilder();
     for (int i = 0; i < text.length();)
@@ -34,7 +35,7 @@ public final class RimeEngine implements CompositionEngine
       result = key(session, cp < 256 ? cp : cp | 0x01000000);
       committed.append(result.committed);
       if (!result.handled)
-        throw new IllegalStateException("Engine rejected explicitly routed text");
+        return result.withCommitted(committed.toString());
     }
     return result.withCommitted(committed.toString());
   }

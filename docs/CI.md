@@ -1,123 +1,60 @@
 # Continuous Integration
 
-MIANCAK keeps CI intentionally small, deterministic, and useful for a one-maintainer public fork. The baseline checks are designed to protect inherited Unexpected Keyboard behavior while the Rime-specific architecture is still being built.
+MIANCAK CI validates the inherited frontend, offline Rime runtime and complete Android input path. All jobs run on independent GitHub-hosted runners.
 
-## When CI runs
+## Triggers and stable checks
 
-`.github/workflows/ci.yml` runs on:
+`.github/workflows/ci.yml` runs on pull requests, pushes to `master` and manual dispatch. A newer run cancels stale work for the same PR/ref.
 
-- every pull request;
-- every push to `master`;
-- manual `workflow_dispatch` runs.
+Keep the baseline job names `generated`, `unit` and `build-debug` stable. The implemented emulator checks are `interaction-tests (23)` and `interaction-tests (35)`; native compilation belongs to `build-debug`, rather than an empty duplicate job.
 
-Stale runs for the same pull request/ref are cancelled when a newer commit starts another run.
+| Job | What it verifies |
+| --- | --- |
+| `generated` | Regenerates layout/Compose/method outputs and requires a clean diff |
+| `unit` | Java 17/Gradle debug and release unit suites, then a clean diff; publishes XML and per-suite counts |
+| `build-debug` | All declared native ABIs, debug/test APKs, minified unsigned release APK, ELF alignment, hashed offline data and provenance |
+| `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
+| `interaction-tests (35)` | The same scenarios on real API 35 x86_64 |
 
-## Current required jobs
+The emulator action uses a supported SDK platform for provisioning and selects the guest system image separately. The script asserts the guest API before testing, so platform provisioning cannot silently change the tested Android version.
 
-The stable baseline job names are:
+## Build and artifacts
 
-```text
-generated
-unit
-build-debug
-```
+The build jobs initialize inherited submodules and prepare sources/data pinned by `native/sources.lock.json`. Source and native-object caches improve repeat runs; preparation rejects modified Git source caches and verifies downloaded archive hashes.
 
-These names are intended to be used in the `master` branch protection/ruleset.
-
-### `generated`
-
-Regenerates the checked-in files maintained by the inherited Unexpected Keyboard generators and fails if the working tree changes.
-
-The job currently checks:
-
-- layout list generation;
-- layout warnings/check output;
-- Compose key data;
-- generated `method.xml`.
-
-Generated outputs must be committed together with the source data that produced them.
-
-### `unit`
-
-Initializes inherited git submodules, uses Java 17, uses the repository Gradle wrapper, and runs:
+The key commands are:
 
 ```sh
+python3 scripts/prepare_rime.py
 ./gradlew --no-daemon test
+./gradlew --no-daemon assembleDebug assembleDebugAndroidTest assembleRelease
+python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
+python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 ```
 
-The repository currently pins Gradle through `gradle/wrapper/gradle-wrapper.properties`; CI does not select a different Gradle version.
+Actual APK inspection verifies every declared ABI, 16 KiB ELF load-segment alignment, offline asset hashes and dependency provenance. Release inspection also checks that JNI class names survive shrinking and the debug editor fixture is absent.
 
-After the tests, the job also requires a clean git diff so generated files cannot silently become stale.
+Artifacts are retained for seven days:
 
-### `build-debug`
+- `miancak-debug-<sha>`: installable debug APK and its instrumentation APK.
+- `miancak-unsigned-release-<sha>`: minified release APK requiring a signing identity before installation.
+- `unit-results-<sha>`: debug/release JUnit XML reports.
+- `instrumented-results-api-<api>-<sha>`: native/touch/restart logs, screenshots, UI dump, logcat and scoped measurements.
 
-Builds the installable debug APK with:
+PR artifact names contain the synthetic merge SHA. The run metadata identifies the source branch head. See [TESTING.md](TESTING.md) for scenario coverage and measurement limits.
 
-```sh
-./gradlew --no-daemon assembleDebug
-```
+## Debug and release signing
 
-This includes the inherited native build already present in Unexpected Keyboard.
+PR CI consumes no signing secrets. If no debug keystore is supplied, the inherited build creates a temporary one. Debug artifacts from different runs can therefore have different signing identities; reinstalling may be necessary.
 
-The resulting APK is uploaded as a short-lived GitHub Actions artifact with a seven-day retention period.
+Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying the existing release keystore/password/alias environment variables enables signing through the explicit release configuration. No signing key is stored in the repository or exposed to PR code.
 
-## Debug signing
+## Repository rules
 
-Baseline CI deliberately does not consume repository signing secrets.
+Recommended `master` rules require a PR, all five checks above and conversation resolution, and block force pushes/deletion. A mandatory approving review is not required for this single-maintainer workflow. Rules/settings are managed in GitHub; this documentation does not claim to configure them.
 
-The inherited Gradle build can create a temporary debug keystore when one is not supplied. Therefore CI artifacts are suitable for testing, but a debug APK from a different run may not be upgrade-compatible with an already installed debug APK. Reinstalling the debug package may be necessary.
+Build/test workflows must use `contents: read`, avoid `pull_request_target`, and keep protected deployment/signing credentials out of PR execution. New native/data dependencies must have pinned sources and provenance.
 
-A stable CI debug signing identity may be introduced later, but it must not expose signing material to pull-request-controlled code.
+## Delivery boundary
 
-## Security policy
-
-Build/test workflows that execute pull-request code must follow these rules:
-
-- do not use `pull_request_target`;
-- use the minimum GitHub token permissions needed; the baseline workflow uses `contents: read`;
-- do not expose release-signing secrets to pull requests;
-- do not run untrusted PR code in a job that can access protected deployment credentials;
-- pin important native/data dependency sources when they are introduced.
-
-## Branch protection
-
-The `master` ruleset should require a pull request and these checks:
-
-```text
-generated
-unit
-build-debug
-```
-
-Recommended repository-side settings:
-
-- require a pull request before merging;
-- require the three checks above;
-- require conversation resolution;
-- block force pushes;
-- block branch deletion.
-
-A mandatory approving review is not required for the current single-maintainer workflow.
-
-Repository rules/settings are configured in GitHub rather than encoded in this repository because the current project tooling does not manage those administrative settings.
-
-## Future Rime/native checks
-
-When librime integration begins, CI should evolve without casually renaming the existing baseline jobs.
-
-Expected additional checks include:
-
-```text
-native-build
-interaction-tests
-```
-
-`native-build` should verify the pinned Android native toolchain and Rime/JNI integration. `interaction-tests` should exercise the semantic input state machine defined by `docs/INTERACTION_CONTRACT.md` independently of the UI where practical.
-
-Do not add a multi-OS matrix merely for completeness. Android-relevant reproducibility and device/emulator coverage matter more than building the same APK on unrelated host operating systems.
-
-## Continuous delivery
-
-For now, continuous delivery means only producing a debug APK artifact from CI. Release signing, GitHub Releases, store publication, and F-Droid automation are intentionally deferred until MIANCAK is usable as an input method.
-
-When release automation is introduced, it must be a separate protected path with explicit signing/provenance documentation and must not weaken pull-request security.
+CI produces debug and unsigned release artifacts. Protected release signing, GitHub Releases, store publication and F-Droid automation remain separate release work. A passing emulator matrix does not imply physical-device or store-release validation.

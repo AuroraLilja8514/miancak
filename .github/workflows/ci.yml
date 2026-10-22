@@ -63,10 +63,27 @@ jobs:
         run: python3 scripts/prepare_rime.py
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon test
+        run: |
+          ./gradlew --no-daemon test
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          suites = [ET.parse(path).getroot() for path in Path("build/test-results").rglob("TEST-*.xml")]
+          for suite in suites:
+              print(f"{suite.attrib['name']}: {suite.attrib['tests']} tests, {suite.attrib['failures']} failures, {suite.attrib['errors']} errors")
+          print("Total unit tests:", sum(int(suite.attrib["tests"]) for suite in suites))
+          PY
 
       - name: Verify tests did not leave stale generated files
         run: git diff --exit-code
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-results-${{ github.sha }}
+          path: build/test-results/
+          retention-days: 7
 
   build-debug:
     name: build-debug
@@ -111,6 +128,19 @@ jobs:
       - name: Verify packaged native runtime
         run: python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 
+      - name: Build and verify minified release APK
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
+
+      - name: Upload unsigned release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: miancak-unsigned-release-${{ github.sha }}
+          path: build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
@@ -122,7 +152,11 @@ jobs:
           retention-days: 7
 
   interaction-tests:
-    name: interaction-tests
+    name: interaction-tests (${{ matrix.api }})
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 35]
     needs: build-debug
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -146,15 +180,16 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2.35.0
         with:
           api-level: 35
+          system-image-api-level: ${{ matrix.api }}
           arch: x86_64
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -camera-back none
-          script: bash scripts/emulator_tests.sh
+          script: MIANCAK_TEST_API=${{ matrix.api }} bash scripts/emulator_tests.sh
       - name: Upload instrumented test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: instrumented-results-${{ github.sha }}
-          path: instrumentation.log
+          name: instrumented-results-api-${{ matrix.api }}-${{ github.sha }}
+          path: test-results/
           retention-days: 7

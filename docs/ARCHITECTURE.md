@@ -18,41 +18,16 @@ The architecture should optimize for:
 
 ## Runtime shape
 
-```text
-Android IME
-   |
-   v
-Unexpected Keyboard frontend
-KeyboardData / Keyboard2View / Pointers / modifiers
-   |
-   v
-Semantic input layer
-SemanticAction / InputController
-   |                         \
-   |                          \
-   v                           v
-Direct literal/editor path     CompositionEngine
-                                |
-                                v
-                             RimeWorker
-                                |
-                                v
-                               JNI
-                                |
-                                v
-                             librime
-                                |
-                                v
-                         composition/candidates
-   \                          /
-    \                        /
-     v                      v
-        EditorTransaction
-               |
-               v
-       Android InputConnection
-
-CandidateSnapshot -> dedicated candidate strip
+```mermaid
+flowchart TD
+  F["Inherited gestures and modifiers"] --> A["SemanticKeyAdapter"]
+  A --> C["InputController"]
+  C -->|"Engine operations"| W["Serialized Rime worker"]
+  W --> N["JNI / librime"]
+  N -->|"EngineResult"| C
+  C -->|"Confirmed output"| E["EditorTransaction / InputConnection"]
+  C -->|"InputSnapshot"| V["Preedit and candidate strip"]
+  V -->|"Touch action"| C
 ```
 
 ## Frontend
@@ -220,4 +195,4 @@ Performance targets should be based on measurements, not guessed millisecond num
 
 `input/SemanticAction` and `input/InputRouter` provide the first Android-independent routing foundation. The router produces immutable ordered operations; it does not execute engine calls, editor transactions or language-mode changes itself. Its caller must use authoritative composition state after earlier engine work has completed, and apply a resulting mode only after successful execution.
 
-The existing IME is not wired to this planner yet. Rime, serialized execution, editor-generation handling and candidate snapshots remain separate implementation gates in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+The IME now uses `SemanticKeyAdapter`, `InputController`, `RimeEngine` and immutable `InputSnapshot` values. One serialized worker owns engine operations; UI delivery remains pending until editor transactions apply, preventing direct text from overtaking a completed-but-undelivered commit. Editor generations reject stale work and candidate revisions reject stale taps. Preedit is displayed in the dedicated IME row; only confirmed results enter the application editor. Validation is recorded in [TESTING.md](TESTING.md).

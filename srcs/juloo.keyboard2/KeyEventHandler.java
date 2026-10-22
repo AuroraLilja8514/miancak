@@ -34,6 +34,9 @@ public final class KeyEventHandler
   /** Remember the action that was handled. This is used by autocorrect. */
   LastAction _last_action = null;
   LastAction _next_last_action = null;
+  SemanticKeyAdapter _semantic;
+
+  public void set_semantic_adapter(SemanticKeyAdapter adapter) { _semantic = adapter; }
 
   public KeyEventHandler(Config conf, IReceiver recv, Suggestions sg)
   {
@@ -92,7 +95,10 @@ public final class KeyEventHandler
       case Slider:
         // Don't wait for the next key_up and move the cursor right away. This
         // is called after the trigger distance have been travelled.
-        handle_slider(key.getSlider(), key.getSliderRepeat(), true);
+        if (_semantic != null && !_semantic.inLegacy())
+          _semantic.afterLegacy(() -> handle_slider(key.getSlider(), key.getSliderRepeat(), true));
+        else
+          handle_slider(key.getSlider(), key.getSliderRepeat(), true);
         break;
       default: break;
     }
@@ -104,12 +110,29 @@ public final class KeyEventHandler
   {
     if (key == null)
       return;
+    if (_semantic != null && !_semantic.inLegacy())
+    {
+      if (_semantic.handle(key, mods)) return;
+      if (key.getKind() != KeyValue.Kind.Modifier)
+      {
+        if (key.getKind() == KeyValue.Kind.Keyevent && key.getKeyevent() == KeyEvent.KEYCODE_ESCAPE)
+          _semantic.escape(() -> key_up(key, mods));
+        else
+          _semantic.afterLegacy(() -> key_up(key, mods));
+        return;
+      }
+    }
     _next_last_action = LastAction.OTHER;
     Pointers.Modifiers old_mods = _mods;
     update_meta_state(mods);
     switch (key.getKind())
     {
       case Char: send_text(String.valueOf(key.getChar())); break;
+      case Literal: send_text(key.getSemanticText()); break;
+      case Engine:
+        if (_semantic != null) _semantic.engine(key.getSemanticText());
+        else send_text(key.getSemanticText());
+        break;
       case String: send_text(key.getString()); break;
       case Event: _recv.handle_event_key(key.getEvent()); break;
       case Keyevent: send_key_down_up(key.getKeyevent()); break;
@@ -157,11 +180,13 @@ public final class KeyEventHandler
   @Override
   public void currently_typed_word(String word)
   {
+    if (_semantic != null) return;
     _suggestions.currently_typed_word(word);
   }
 
   public void dictionary_changed()
   {
+    if (_semantic != null) return;
     // Refresh the suggestions immediately after dictionary changed.
     _suggestions.currently_typed_word(_typedword.get());
   }
@@ -260,6 +285,11 @@ public final class KeyEventHandler
 
   void send_text(String text)
   {
+    if (_semantic != null && !_semantic.inLegacy())
+    {
+      _semantic.literal(text);
+      return;
+    }
     InputConnection conn = _recv.getCurrentInputConnection();
     if (conn == null)
       return;
@@ -601,6 +631,9 @@ public final class KeyEventHandler
     @Override
     public void update_shift_state(boolean should_enable, boolean should_disable)
     {
+      // Automatic caps must not turn ordinary Chinese engine letters into
+      // shifted ASCII. Manual one-finger latch/lock stays frontend-owned.
+      if (_semantic != null) return;
       if (should_enable)
         _recv.set_shift_state(true, false);
       else if (should_disable)

@@ -321,6 +321,12 @@ public final class KeyModifier
 
   private static KeyValue turn_into_keyevent(KeyValue k)
   {
+    if (k.getKind() == KeyValue.Kind.Engine || k.getKind() == KeyValue.Kind.Literal)
+    {
+      String text = k.getSemanticText();
+      if (text.length() != 1) return k;
+      return turn_into_keyevent(KeyValue.makeCharKey(text.charAt(0), k.getString(), k.getFlags()));
+    }
     int e;
     switch (k.getKind())
     {
