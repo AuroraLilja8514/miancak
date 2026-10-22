@@ -4,10 +4,18 @@ mkdir -p test-results
 collect() {
   adb logcat -d > test-results/logcat.txt || true
   adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  if [[ -f test-results/device/native-metrics.json ]]; then
+    cat test-results/device/native-metrics.json
+  fi
 }
 trap collect EXIT
 adb install -r artifacts/app-debug.apk
 adb install -r artifacts/app-debug-androidTest.apk
+actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ -n "${MIANCAK_TEST_API:-}" && "$actual_api" != "$MIANCAK_TEST_API" ]]; then
+  echo "Unexpected emulator API: $actual_api"
+  exit 1
+fi
 adb shell svc wifi disable
 adb shell svc data disable
 run_tests() {
@@ -19,7 +27,7 @@ run_tests() {
   fi
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
-run_tests native -e class juloo.keyboard2.input.RimeNativeTest
+run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 adb shell am force-stop org.miancak.keyboard.debug
 run_tests restart -e class juloo.keyboard2.ImeInteractionTest -e restartOnly true

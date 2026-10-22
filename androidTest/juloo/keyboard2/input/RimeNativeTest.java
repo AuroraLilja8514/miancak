@@ -80,6 +80,27 @@ public class RimeNativeTest
       assertFalse("Private input must not create a user dictionary", file.getName().contains("userdb"));
   }
 
+  @Test public void emptyTextAndSpacePreserveEngineStateAndPartialCommits() throws Exception
+  {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    try (RimeEngine engine = new RimeEngine(RimeData.deploy(context)))
+    {
+      engine.setLearning(false);
+      EngineResult composing = engine.processText("nihao");
+      String first = composing.candidates.get(0);
+      EngineResult empty = engine.processText("");
+      assertTrue(empty.composing);
+      assertEquals(composing.preedit, empty.preedit);
+      assertTrue(empty.committed.isEmpty());
+      assertEquals(first, engine.space().committed);
+      EngineResult rejected = engine.processText("nihao #");
+      assertFalse(rejected.handled);
+      assertEquals(first, rejected.committed);
+      assertTrue(engine.processText("").committed.isEmpty());
+      engine.clear();
+    }
+  }
+
   @Test public void reportWarmNativeLatencyWithoutGuessingADeviceTarget() throws Exception
   {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();

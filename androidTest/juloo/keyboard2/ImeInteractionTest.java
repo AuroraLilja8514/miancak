@@ -44,7 +44,9 @@ public class ImeInteractionTest
     device.wakeUp();
     device.setOrientationNatural();
     instrumentation.runOnMainSync(() -> {
-      SharedPreferences.Editor prefs = DirectBootAwarePreferences.get_shared_preferences(context).edit();
+      SharedPreferences settings = DirectBootAwarePreferences.get_shared_preferences(context);
+      MiancakPreferences.initialize(settings);
+      SharedPreferences.Editor prefs = settings.edit();
       prefs.putString("physical_keyboard_behavior", "show").putBoolean("miancak_chinese", true)
         .putString("number_row", "no_number_row").putString("number_entry_layout", "number");
       LayoutsPreference.save_to_preferences(prefs,

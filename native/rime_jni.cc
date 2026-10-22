@@ -130,6 +130,7 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
     case 1: api->clear_composition(id); break;
     case 2: handled = arg >= 0 && api->select_candidate_on_current_page(id, arg); break;
     case 3: handled = api->change_page(id, arg != 0); break;
+    case 4: break; // Inspect without changing composition or re-emitting an old commit.
     default: fail(env, "Invalid Rime command"); return nullptr;
   }
   return snapshot(env, id, handled);

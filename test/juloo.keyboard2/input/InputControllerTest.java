@@ -223,6 +223,18 @@ public class InputControllerTest
     assertEquals(1, escaped[0]);
   }
 
+  @Test public void partialEngineFailurePreservesAlreadyConfirmedText()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.partialFailure = true;
+    h.controller.submit(engineText("batch")); h.flush();
+    assertEquals("已确认", h.editor.text());
+    assertEquals("x", h.controller.snapshot().engine.preedit);
+    assertFalse(h.controller.snapshot().error.isEmpty());
+    h.controller.cancelComposition(); h.flush();
+    assertFalse(h.controller.snapshot().engine.composing);
+  }
+
   private static final class Queue implements Executor
   {
     final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
@@ -258,7 +270,7 @@ public class InputControllerTest
     String raw = "";
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
-    boolean failConfirm;
+    boolean failConfirm, partialFailure;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
     EngineResult result(boolean handled, String commit)
@@ -266,7 +278,12 @@ public class InputControllerTest
       return new EngineResult(handled, commit, raw,
           raw.isEmpty() ? new String[0] : new String[] { selected(), "候选" }, 0, !raw.isEmpty(), true);
     }
-    @Override public EngineResult processText(String text) { calls.add("text:" + text); raw += text; return result(true, ""); }
+    @Override public EngineResult processText(String text)
+    {
+      calls.add("text:" + text);
+      if (partialFailure) { raw = "x"; return result(false, "已确认"); }
+      raw += text; return result(true, "");
+    }
     @Override public EngineResult confirm()
     {
       if (failConfirm) return result(false, "");

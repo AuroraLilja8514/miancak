@@ -142,13 +142,7 @@ public class Keyboard2 extends InputMethodService
   {
     super.onCreate();
     SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
-    if (!prefs.contains("layouts"))
-    {
-      SharedPreferences.Editor initial = prefs.edit();
-      LayoutsPreference.save_to_preferences(initial, java.util.Collections.singletonList(
-            new LayoutsPreference.NamedLayout("miancak_qwerty")));
-      initial.commit();
-    }
+    MiancakPreferences.initialize(prefs);
     _handler = new Handler(getMainLooper());
     _foldStateTracker = new FoldStateTracker(this);
     _dictionaries = Dictionaries.instance(this);
