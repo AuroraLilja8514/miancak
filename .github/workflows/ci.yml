@@ -96,6 +96,15 @@ jobs:
       - name: Prepare pinned Rime sources and data
         run: python3 scripts/prepare_rime.py
 
+      - name: Cache native build objects
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cxx
+            build/intermediates/cxx
+          key: native-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
+          restore-keys: native-objects-${{ runner.os }}-
+
       - name: Build debug APK and instrumented tests
         run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
 
