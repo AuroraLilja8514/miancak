@@ -8,11 +8,15 @@ This project is primarily developed for self use. It is public so that its sourc
 
 ## Project status
 
-MIANCAK now implements an **offline simplified-pinyin MVP**: a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. The inherited gesture frontend and one-finger Shift latch/lock remain in place. Validation scope and results are recorded in [docs/TESTING.md](docs/TESTING.md).
+MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted and remains tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
+
+Known gaps include first-install layout initialization and candidate presentation. Opening settings before using the IME can retain the inherited system layout instead of MIANCAK QWERTY; the existing touch tests explicitly select MIANCAK QWERTY and do not validate the normal clean-install journey. Candidates currently use horizontal scrolling/paging, without a measured compact row and expanded panel. Planned Shift/language-key changes, Chinese-focused settings and a future visual key mapper are described in the development plan; they are not implemented in the current APK.
+
+The layout direction is one Chinese-specialized QWERTY main family with Chinese/English profiles, full retirement of the other inherited built-in main layouts, and configurable functional pages including Greek/math, numeric, emoji and clipboard. A shared selector/shortcut model, correct active-key indicators, visual page editing and future direct-output pinyin/Zhuyin pages are specified in [docs/LAYOUT_DESIGN.md](docs/LAYOUT_DESIGN.md). These are planned changes; the current APK still uses inherited layout/page switching.
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
-The MVP combines:
+The prototype integrates:
 
 - Unexpected Keyboard's existing key layout and swipe interaction model;
 - explicit literal symbols and punctuation;
@@ -21,16 +25,23 @@ The MVP combines:
 - a touch-oriented Chinese candidate strip;
 - offline operation with no network dependency in the input path.
 
-## Using the MVP
+## Trying the prototype
 
 Download the debug APK from a successful [MIANCAK CI run](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml), install it, then enable MIANCAK in Android's input-method settings and select it. The unsigned release artifact is intended for a separate signing step. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
 
 - Tap **中文 / EN** to switch explicitly; key geometry stays the same.
 - In Chinese mode, ordinary lowercase letters build pinyin. Tap a candidate or press space to select; use the arrows/scrolling to reach more candidates.
-- On the default MIANCAK QWERTY layout, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages.
+- On MIANCAK QWERTY, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages. If these labels are absent, select **MIANCAK QWERTY** in layout settings; this is a workaround for the initialization issue, not a completed first-run fix.
 - Digits and other literal symbols confirm current composition before appending exactly what is shown. Shift latch/lock produces direct uppercase ASCII without leaving Chinese mode.
 - Enter confirms composition before the editor's newline/action; Escape or × cancels composition. Uncommitted pinyin stays in the IME preedit row and is cancelled when changing fields or moving the cursor.
 - Password, numeric and raw-key editors use direct input. No-learning text fields use a schema without a user dictionary. Rime user data is kept locally and excluded from Android backup/transfer rules.
+
+Current Chinese vocabulary limits:
+
+- Rime user learning is enabled in normal fields; it is separate from manual phrase editing or bulk dictionary import.
+- The app does not yet import, add or switch external Rime word tables. That independent future feature is tracked in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22).
+- Word-table support will retain MIANCAK's input logic and use compatible vocabulary data, including existing prepared MediaWiki-derived or other Rime tables. It does not require the source project's complete input scheme.
+- Manual phrase editing is a separate capability and is not a prerequisite for using an existing word table.
 
 Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).
 

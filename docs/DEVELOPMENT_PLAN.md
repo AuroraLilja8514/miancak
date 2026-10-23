@@ -1,6 +1,6 @@
 # Development Plan
 
-Reviewed on 2026-10-23 against the committed source, interaction contract, architecture and CI. This plan turns the architecture direction into small implementation gates; the interaction contract remains normative.
+Reviewed on 2026-10-24 against the committed source, interaction contract, architecture, CI and maintainer feedback. This plan turns the architecture direction into small implementation gates; the interaction contract remains normative. The U0–U6 work below is planning, not a claim that the current APK implements it. [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md) records the unified page model, layout retirement, switching/indicator rules and future phonetic pages for review.
 
 ## Current state
 
@@ -9,6 +9,9 @@ Reviewed on 2026-10-23 against the committed source, interaction contract, archi
 - The semantic routing foundation is merged. Its executor and dedicated touch UI now connect it to the inherited IME frontend.
 - M1–M4 are implemented: pinned Rime/JNI, offline pinyin data, serialized controller, frontend adapter, immutable snapshots and touch candidates. The complete input path passed API 23/API 35 emulator tests, process restart and debug/minified-release builds. Actual results and limits are recorded in [TESTING.md](TESTING.md).
 - The current APK provides Chinese Rime composition and direct English input. Inherited language layouts remain available, but multilingual suggestions/correction and general dictionary import are not implemented in the new input path.
+- The maintainer observed that Chinese punctuation became accessible after changing the layout: a normal first-install path can select the inherited system layout rather than MIANCAK QWERTY. Source review identifies an initialization-order path consistent with this report; a clean-device UI reproduction and fix remain outstanding. Existing touch tests explicitly select MIANCAK QWERTY and do not establish correct first-run defaults.
+- The current candidate view exposes the engine page through a horizontal scroller; it does not measure a compact row to show only whole candidates that fit, or provide an expanded candidate panel.
+- Shift double-tap locking already exists but defaults to off. The default MIANCAK layout reserves Shift northeast for optional Caps Lock. Custom layouts are edited as XML; the extra-key settings are not a visual editor for individual key positions.
 - A common Rime-compatible dictionary source format is accepted future work, tracked in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18) and [DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md). The possible cdict word-list conversion project is deferred.
 
 The architecture direction is still appropriate: preserve the frontend, add a small semantic boundary and integrate librime directly. A gesture rewrite, Kotlin migration or Fcitx5 runtime would add work without resolving the current gaps.
@@ -83,23 +86,118 @@ Measure touch-to-routing, engine, candidate and editor latency on a real device;
 
 Acceptance gate: documented device results, passing generated/unit/debug/native/interaction checks applicable to the implemented code, no known ordering or cross-editor data leak, and a reproducible debug APK demonstrating the complete Chinese-input path.
 
-## Completion and next development
+## Implementation status and next development
 
-The offline MVP has passed its executable gates. M1–M4 are complete; M5's emulator, build/package, offline/editor/lifecycle and scoped JNI-measurement work is complete. The tests found and fixed preference migration ordering, partial native commits and unsigned release configuration before integration.
+M1–M4 have implementations and the existing automated scenarios pass. Everyday Chinese usability remains open in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The conversation also establishes a missing feature: importing, adding and switching existing Rime word tables. That future feature has its own scope in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22); it is separate from correctness/quality defects and from installing third-party input schemes.
 
-The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device touch latency, cold/warm startup, memory and unusual vendor editors still require device evidence. Release signing/store publication remain outside the MVP.
+The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device behavior/performance still needs device evidence. Record a concrete reproduction for each correctness defect being fixed without making unrelated feature planning depend on a new defect report.
 
-Continue from this working baseline in the following order:
+Keep these workstreams distinct:
 
-| Stage | Next work | Completion evidence |
+| Workstream | Work and acceptance | Scope boundary |
 | --- | --- | --- |
-| M5 remainder | Exercise physical ARM devices and representative application editors; record startup, touch-to-editor latency, memory, offline use, rotation, background return and process restart | Device/Android/app versions, reproducible steps, measured results and linked defects; distinguish runtime evidence from ABI build inspection |
-| Measured fixes | Fix reproducible compatibility, startup or candidate-rendering problems found in M5; keep changes narrow | A regression for each behavioral defect, relevant native/emulator gates and a repeat of the affected device scenario |
-| M6: usable test/release delivery | Define a stable signing identity and version/upgrade policy; prepare protected signing and durable versioned APK delivery | Install/upgrade evidence, preserved settings and Rime user data, identifiable APK/checksum/provenance and signing isolated from PR code |
-| D1–D2: dictionary foundation | Specify one Rime-compatible maintained source format and prototype cdict word-list conversion with English | The format contract, traceable source/license inventory, deterministic conversion, real Rime load/candidate results and measured comparison with cdict |
-| D3–D4: multilingual integration | Add versioned data deployment and explicitly optional language suggestions, then expand from an accented Latin-script pilot | Offline/update/recovery tests, unchanged direct-input semantics, language-specific editor cases and physical ARM-device evidence |
+| Chinese usability: #20 | Exercise representative phrases/names/sentences and editor lifecycles; reproduce/fix verified defects with regressions; collect physical ARM/editor measurements | No dictionary-management or third-party scheme feature is implied |
+| Chinese-focused frontend: U0–U6 below | Fix first-run defaults and Chinese keys; retain one QWERTY main family; retire other inherited main layouts with migration; unify configurable pages, switching and indicators; plan visual editing and phonetic pages | Preserve symbol/dynamic pages and valid user configurations; layout retirement, vocabulary management and source-format conversion are separate work |
+| Existing Rime word tables: #22, future feature | Import compatible existing tables; replace/select a base vocabulary; add/enable/disable supplementary tables; redeploy offline; preserve learning and recover from failure; prove actual candidate/editor changes | MIANCAK retains its own input logic/schema. No complete third-party scheme, Lua, model, crawler or cdict-converter dependency |
+| Common source format/cdict: #18, future work | Define the cross-language maintained source profile, prototype conversion and expand language coverage using D1–D4 | Does not gate use of existing Rime tables in #22; possible separate tooling project remains deferred |
+| Test/release delivery: M6 | After Chinese usability acceptance, define stable signing/version/upgrade policy and durable APK delivery | Release infrastructure is separate from both input correctness and word-table support |
 
-The stages describe follow-up work, not new claims about the current APK. Dictionary format/source research can proceed independently of device collection; application integration waits for the conversion evidence and interaction specification. Signing credentials and production publication are separate implementation work, not supplied by this roadmap.
+The current APK enables Rime user learning in normal fields and packages one fixed vocabulary. It has no word-table import/add/switch UI. #22 should first state the compatible data profile and dependency handling, then add base/add-on selection and deployment, and verify real candidate differences, restart/preservation and failure recovery. A prepared MediaWiki-derived table or vocabulary from any compatible Rime project is a possible input; neither Wanxiang nor a complete external scheme is required.
+
+Manual phrase editing, crawling/preparing MediaWiki data and complete third-party scheme support are separate potential tasks. Do not bundle them into #22 or use their missing components to block vocabulary-data support. #22 can use existing Rime formats before the long-term common-format/cdict migration.
+
+Keep existing semantic/native/UI boundaries while fixing verified behavior. Any vocabulary switch must deliberately handle pending composition/results and preserve the interaction contract.
+
+## Chinese input and frontend follow-up: U0–U6
+
+This section records the current design discussion. Continue reviewing the complete key map and input semantics before implementing runtime changes. Keep the established engine/controller boundaries; refer to Rime, Fcitx5 Android and Trime for interaction behavior where useful, without making a new runtime framework a prerequisite.
+
+| Order | Deliverable | Acceptance boundary |
+| --- | --- | --- |
+| U0, first | First-install defaults and configuration synchronization | The delivered APK works through both normal enablement orders on a previously unused device image; existing explicit layout choices survive upgrades |
+| U1 | Chinese punctuation, language-switch position and Shift behavior | A reviewed normal/Shift key map; exact editor output; usable sequential one-finger actions; no occupied slot silently overwritten |
+| U2, same initial usability batch | Compact candidates and expansion | Whole candidates fit the collapsed row; every remaining candidate stays reachable and selects the correct engine item |
+| U3 | Unified layouts/pages, selector and retirement of inherited main layouts | One Chinese-specialized QWERTY main family; configurable numeric/Greek/math/emoji/clipboard pages; direct and selector navigation with correct indicators; no dangling retired-layout references |
+| U4, with each affected feature | Launcher, settings, introduction and documentation | The shipped instructions and screenshots describe that version's actual defaults, gestures, pages and supported data management |
+| U5, future feature | Visual layout/page settings | Select a page to edit keys or applicable panel/control settings; preview, validate, persist, reset and import/export; no gesture rewrite is required |
+| U6, future feature | Chinese Fn phonetic target | Configurable direct-output pinyin or Zhuyin page; reviewed tone/key budget, punctuation access, return path and indicators |
+
+### U0: first-install defaults are a product path
+
+`SettingsActivity.onCreate()` currently calls `Config.migrate()` directly. On empty preferences, that migration writes a version and the inherited system layout. `MiancakPreferences.initialize()` then sees those keys and skips the MIANCAK first-install default. Settings and IME also use preferences that are copied between credential/device-protected storage on newer Android versions. Verify both settings-first and IME-first entry orders; a later settings visit must not overwrite IME initialization.
+
+Use one coherent initialization policy for all entry points and make preference ownership/synchronization explicit. Do not treat the migration version alone as evidence that a user selected a layout. Do not fix this by forcing MIANCAK QWERTY on every start or by deleting the system-layout resource. Preserve existing supported choices and custom XML in this first-run fix. U3's later, explicit retirement of inherited layouts has its own versioned migration; it is not a side effect of U0. Any repair for previously affected installations must distinguish what can be inferred from what requires a user choice.
+
+The clean-install acceptance suite must use a new device image without restored app data and the actual delivered APK. It must drive enablement/selection through Android UI, not pre-seed preferences or use `ime set` to bypass onboarding. Retain the prepared-layout tests as component/integration coverage. The full route and matrix are specified in [TESTING.md](TESTING.md).
+
+### U1: punctuation, Shift and language switching
+
+The working interpretation of "bottom row" is the lowest letter row, `Shift Z X C V B N M Backspace`, rather than the separate Ctrl/Fn/Space control row. Review a complete table of center/corner assignments, ordinary/Shift output and semantic actions before changing XML or modifier behavior.
+
+- Put Chinese punctuation in northwest positions on that letter row and keep related ASCII symbols on the same key. The existing `c` northwest `。` / southwest `.` and `v` northwest `，` / southwest `,` illustrate the high-co-occurrence pairs: each keeps its own explicit action.
+- For lower-co-occurrence Chinese/ASCII pairs such as parentheses and quotation marks, use the same position with sequential Shift switching. Display the resulting symbol accurately. Specify opening/closing forms separately; do not introduce contextual punctuation guessing. Some related ASCII symbols currently live on other rows, so review their relocation rather than merely adding disconnected Chinese labels.
+- Preferred draft: remove the dedicated Caps Lock corner from the default main layout, put `language_switch` at Shift northeast and enable the existing double-tap Shift lock by default for new installations. Keep tap-to-latch and long-press locking. Tapping locked Shift must unlock it, with a visible lock state. Moving optional Caps Lock to Shift southeast remains an advanced/custom-layout alternative, not another mandatory default key. Preserve an existing user's explicit lock preference and custom slot assignment.
+- The northeast swipe must execute the language action without accidentally latching/locking Shift; double-tap/long-press Shift must not switch languages. Preserve the contract's composition-confirmation ordering when changing modes. Shifting symbols and producing uppercase ASCII must not change the language mode.
+- Use a Chinese single-quote label, proposed `’` (U+2019), for the pinyin syllable-separator action. Map that semantic action to the delimiter required by the current Rime schema (currently ASCII apostrophe); do not substitute curly quotes throughout dictionary codes or commit a quotation mark when requesting separation. Specify idle and English-mode behavior in the key map. Keep literal `‘`, `’` and ASCII apostrophe actions distinguishable from the engine action.
+
+Acceptance includes first-visible key labels, all approved punctuation pairs, composing versus idle input, mixed Chinese/ASCII punctuation, separator/disambiguation examples, latch/lock/unlock and northeast swipes in both language modes. These are proposed defaults until implemented and verified, not current APK instructions.
+
+### U2: compact candidates and expansion
+
+Measure the available width after reserving controls/padding, using the actual font size and touch target dimensions. Show only complete candidate items that fit the collapsed row; define a bounded display for a single overlong item and expose its complete text in expansion. Provide explicit expand/collapse access and keep the IME's allocated height stable, for example by using the letter-key area for the expanded view.
+
+An engine page is not a screen row. Expansion must retain candidates omitted from the compact row as well as access to subsequent engine pages. Keep candidate identity, page-local index, editor generation and snapshot revision associated with each selection; resizing or expansion must not create missing/duplicate entries or turn an old tap into selection of a different candidate.
+
+Acceptance covers narrow/wide screens, portrait/landscape, larger fonts, long phrases, engine paging, expansion/collapse and exact editor commits. Update the candidate interaction contract and instructions in the implementation PR to describe the approved navigation.
+
+### U3: unified configurable pages and one QWERTY main family
+
+The current implementation has separate mechanisms:
+
+| Mechanism | Current implementation | Product implication |
+| --- | --- | --- |
+| Main text layouts | Generated metadata for `srcs/layouts/*.xml`, selected through `LayoutsPreference`; `switch_forward`/`switch_backward` cycle configured layouts | Retain only the MIANCAK QWERTY main family; remove other inherited built-ins with migration |
+| Greek/math and numeric pages | `switch_greekmath` / `switch_numeric` load dedicated XML through `Keyboard2.setSpecialLayout()`; `switch_text` returns to text | Register them as configurable pages with consistent entry/return actions |
+| Emoji and clipboard | Separate panes replace the input view and return to the keyboard container | Expose them in the same page selector/settings, while retaining dynamic content providers |
+| Chinese/English | The semantic `language_switch` action changes routing mode | Present two selectable profiles sharing QWERTY geometry; keep mode and page state distinct internally |
+| Fn | A frontend modifier changes the meaning of other keys; for example, Fn modifies the numeric-switch action into the Greek/math switch | A new Fn page shortcut must be an explicit action, not a leftover modifier latch |
+
+The accepted target is one Chinese-specialized QWERTY main family with Chinese/English profiles, plus separately configurable functional pages. Fully retire the other inherited built-in main layouts rather than keeping the catalog in an advanced menu. This replaces the earlier hide-only proposal. Future user-created variants do not require maintaining that inherited catalog.
+
+Unify enablement, order, shortcuts, names and editing entry points for the available pages. Support dedicated Chinese/English, Fn, Greek and numeric switches as well as a main selector. Enter southeast is the proposed default selector gesture; list all enabled/available pages in the upper keyboard area and provide the same selector through a visible control on dynamic panes. Opening/cancelling the selector must not type Enter, clear composition or change modes.
+
+Use the same transition logic for direct shortcuts and selector choices. Derive Fn/Greek/numeric highlights from the active target, language labels from the effective routing mode, and Shift highlights from its independent latch/lock state. Entering a Fn target through the selector must light Fn; leaving it must not leave an old modifier active. Page-only transitions preserve composition; a language change keeps the existing confirmation-before-switch rule. Resolve inactive-page targets, return paths and editor restrictions explicitly.
+
+Physical retirement must include layout sources, generated metadata/generators, IME subtype/default-layout references, hardcoded fallbacks, tests and saved IDs. Migrate retired built-in/system choices to MIANCAK QWERTY with a notice and retained old selection record; preserve valid independent custom configurations and their definitions. Do not delete learning data or functional pages. U0 preserves then-supported choices; U3 deliberately retires named choices through a separate migration. [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md) defines the transition, indicator and migration draft in detail.
+
+### U4: settings, launcher and documentation are part of delivery
+
+Every affected runtime PR must update its associated user-facing surfaces, not leave that work for an unspecified later documentation pass:
+
+- Launcher/first-run guidance: enabling/selecting MIANCAK, verifying the default layout, trying Chinese input, finding help and recovering the default.
+- Typing settings: the actual Shift latch/double-tap/long-press behavior, lock feedback and language-switch gesture; preserve explicit existing preferences when choosing new defaults.
+- Layout/page settings: the unified page list, enablement/order, shortcut targets, selector, numeric/symbol/Greek/math/emoji/clipboard entry/return, actual indicator states and retirement migration notices.
+- In-app introduction, gesture examples/animations, accessibility descriptions and relevant Chinese/localized strings: use the shipped labels/positions and show the main Chinese operations.
+- Dictionary wording: the inherited launcher currently opens `DictionariesActivity`; do not present cdict management as Rime word-table import. Clearly label its effective scope or remove the misleading normal-flow entry. The actual Rime import/add/switch feature remains #22.
+- README, interaction contract, key-value/custom-layout guidance and testing documentation: record current behavior, compatibility and actual evidence. Planned behavior must remain labeled as planned until shipped.
+
+Acceptance walks through installation, first input, settings/help and return to input using only the shipped UI. Include correct simplified-Chinese text and a fallback-language check, consistent key labels and accessibility descriptions, and screenshots that match that version. U4 ships with U0–U3 where applicable rather than blocking all documentation until every feature is finished.
+
+### U5: future visual key mapper
+
+The inherited XML dialog and extra-key list allow customization but do not offer an approachable visual mapping workflow. Plan a dedicated follow-up issue/short-lived branch after the basic Chinese flow is usable; this editor is not a prerequisite for fixing default punctuation, and it is independent of the word-table workstream.
+
+Start by choosing a registered layout/page. For a static keyboard, tap a key and select center/corner, then choose an exact literal or a named semantic action (language switch, separator, page navigation, editor action). Preview ordinary/Shift output and resolve conflicts explicitly. Chinese/English profiles share geometry. For emoji/clipboard, edit applicable panel/control/entry settings while their content remains dynamic. Preserve a reachable settings/reset/page-return path.
+
+Reuse the existing key representation/parser and semantic boundary. Store stable page identifiers and versioned mappings/overrides so updates do not erase customizations or redirect shortcuts. Include copy, enable/order/target settings, save/cancel, per-key/whole-page reset, import/export, validation and an advanced XML view. The first version need not support freeform geometry dragging or a gesture-engine rewrite. See [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md) for the editable scope of each page type.
+
+Acceptance must prove that saved mappings drive actual key actions and survive restart/upgrade, literals remain exact, separator/language actions keep their semantics, malformed imports do not replace a valid configuration, and reset recovers an operable keyboard.
+
+### U6: future pinyin/Zhuyin page through Chinese Fn
+
+After the basic Chinese flow, add direct-output phonetic pages. The working interpretation is typed pinyin text such as `nǐ hǎo` or Zhuyin symbols, not a new Rime scheme for selecting Hanzi. Settings choose pinyin or Zhuyin as the Chinese profile's Fn target; enabled pages also remain selectable from the main chooser.
+
+The pinyin draft assigns an unmarked final to the center and tones 1–4 consistently to its four corners. Review the full initial/final key inventory and reserve punctuation/control access; tone corners cannot simultaneously hold punctuation. Cover compound finals, `iu`/`ui`, `ü`, neutral-tone spelling and Unicode output/deletion. Zhuyin needs its own symbols/tone conventions. [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md) records examples, state rules, references and outstanding key-map work. Neither page is implemented by this planning update, and neither gates Rime word-table support or cdict conversion.
 
 ## Future dictionary workstream
 
