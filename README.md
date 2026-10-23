@@ -8,11 +8,11 @@ This project is primarily developed for self use. It is public so that its sourc
 
 ## Project status
 
-MIANCAK now implements an **offline simplified-pinyin MVP**: a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. The inherited gesture frontend and one-finger Shift latch/lock remain in place. Validation scope and results are recorded in [docs/TESTING.md](docs/TESTING.md).
+MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted: the maintainer's unresolved report is tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
-The MVP combines:
+The prototype integrates:
 
 - Unexpected Keyboard's existing key layout and swipe interaction model;
 - explicit literal symbols and punctuation;
@@ -21,7 +21,7 @@ The MVP combines:
 - a touch-oriented Chinese candidate strip;
 - offline operation with no network dependency in the input path.
 
-## Using the MVP
+## Trying the prototype
 
 Download the debug APK from a successful [MIANCAK CI run](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml), install it, then enable MIANCAK in Android's input-method settings and select it. The unsigned release artifact is intended for a separate signing step. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
 
@@ -31,6 +31,12 @@ Download the debug APK from a successful [MIANCAK CI run](https://github.com/Aur
 - Digits and other literal symbols confirm current composition before appending exactly what is shown. Shift latch/lock produces direct uppercase ASCII without leaving Chinese mode.
 - Enter confirms composition before the editor's newline/action; Escape or × cancels composition. Uncommitted pinyin stays in the IME preedit row and is cancelled when changing fields or moving the cursor.
 - Password, numeric and raw-key editors use direct input. No-learning text fields use a schema without a user dictionary. Rime user data is kept locally and excluded from Android backup/transfer rules.
+
+Current Chinese vocabulary limits:
+
+- Rime user learning is enabled in normal fields; it is separate from manual phrase editing or bulk dictionary import.
+- The app has no manual add/edit/delete phrase UI, external Rime dictionary import/redeploy UI, or general schema selector.
+- MediaWiki-derived vocabulary and Wanxiang are not integrated. Reusing a dictionary's data requires compatible codes/readings; a complete third-party scheme may also require models and components absent from this build.
 
 Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).
 

@@ -1,6 +1,6 @@
 # Shared Dictionary Roadmap
 
-Accepted on 2026-10-23. Status: **future work; implementation deferred**. Tracking: [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18). This document records the maintainer's requested direction without changing the current MVP.
+Accepted on 2026-10-23. Status: **future work; implementation deferred**. Tracking: [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18). This document records the maintainer's requested direction without changing the current Chinese prototype.
 
 ## Accepted direction
 
@@ -60,7 +60,9 @@ Acceptance: offline use, exact punctuation/digits, editor/cursor changes, rotati
 
 ## Scheduling and tracking
 
-Physical-device MVP validation and reproducible fixes remain the immediate application priority. Stable signing/versioned delivery is a separate follow-up. D1 research and D2 tooling can progress independently; D3 integration depends on a reviewed format, a working pilot and an explicit interaction design.
+Chinese input correctness, usable candidates/sentences and Chinese vocabulary extension are the current application priority, tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The maintainer's Chinese usability report is unresolved; existing emulator scenarios do not establish product acceptance. Manual phrases and Rime dictionary imports must not wait for an English/cdict converter or a separate project.
+
+Physical ARM/editor validation belongs to that Chinese acceptance work. Stable signing/versioned delivery follows usability acceptance. D1 research may inform Chinese data handling, but multilingual conversion/integration remains deferred; D3 still depends on the format, pilot and explicit interaction design. Evaluate MediaWiki-derived data and Wanxiang vocabulary/full-scheme compatibility within the Chinese workstream before making support claims.
 
 Use scoped Issues and short-lived branches for D1–D4. Suggested branch names are `feat/dictionary-source-contract`, `feat/dictionary-converter-pilot`, `feat/dictionary-packages` and `feat/dictionary-language-pilot`. These are future branch names, not pre-created long-lived integration branches.
 

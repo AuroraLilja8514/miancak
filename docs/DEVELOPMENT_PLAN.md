@@ -83,23 +83,28 @@ Measure touch-to-routing, engine, candidate and editor latency on a real device;
 
 Acceptance gate: documented device results, passing generated/unit/debug/native/interaction checks applicable to the implemented code, no known ordering or cross-editor data leak, and a reproducible debug APK demonstrating the complete Chinese-input path.
 
-## Completion and next development
+## Implementation status and next development
 
-The offline MVP has passed its executable gates. M1–M4 are complete; M5's emulator, build/package, offline/editor/lifecycle and scoped JNI-measurement work is complete. The tests found and fixed preference migration ordering, partial native commits and unsigned release configuration before integration.
+M1–M4 have implementations and the existing automated scenarios pass. This establishes those test cases, not acceptance of everyday Chinese input. The maintainer reports that Chinese input is not yet done; the failing sequence and root cause still require reproduction. Chinese usability acceptance remains open in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The tests previously found and fixed preference migration ordering, partial native commits and unsigned release configuration; those fixes do not close the new report.
 
 The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device touch latency, cold/warm startup, memory and unusual vendor editors still require device evidence. Release signing/store publication remain outside the MVP.
 
-Continue from this working baseline in the following order:
+Continue with Chinese usability as the first application priority:
 
 | Stage | Next work | Completion evidence |
 | --- | --- | --- |
-| M5 remainder | Exercise physical ARM devices and representative application editors; record startup, touch-to-editor latency, memory, offline use, rotation, background return and process restart | Device/Android/app versions, reproducible steps, measured results and linked defects; distinguish runtime evidence from ABI build inspection |
-| Measured fixes | Fix reproducible compatibility, startup or candidate-rendering problems found in M5; keep changes narrow | A regression for each behavioral defect, relevant native/emulator gates and a repeat of the affected device scenario |
-| M6: usable test/release delivery | Define a stable signing identity and version/upgrade policy; prepare protected signing and durable versioned APK delivery | Install/upgrade evidence, preserved settings and Rime user data, identifiable APK/checksum/provenance and signing isolated from PR code |
-| D1–D2: dictionary foundation | Specify one Rime-compatible maintained source format and prototype cdict word-list conversion with English | The format contract, traceable source/license inventory, deterministic conversion, real Rime load/candidate results and measured comparison with cdict |
-| D3–D4: multilingual integration | Add versioned data deployment and explicitly optional language suggestions, then expand from an accented Latin-script pilot | Offline/update/recovery tests, unchanged direct-input semantics, language-specific editor cases and physical ARM-device evidence |
+| C0: reproduce and fix Chinese input | Obtain the actual input -> observed result -> expected result, device/editor context; fix initialization, preedit, candidates, confirmation or editing defects identified by that reproduction | Reproducible report, a meaningful regression and a repeat of the affected app/device scenario |
+| C1: Chinese quality and vocabulary control | Evaluate common phrases/names/sentences; add manual phrase editing and persistent external Rime dictionary import/redeployment | A documented Chinese corpus, visible expected candidates, add/edit/delete/restart/upgrade cases, preserved learning and failed-import recovery |
+| C2: external Chinese data compatibility | Prepare a traceable MediaWiki-derived sample; assess Wanxiang data-only reuse separately from full scheme/model/Lua integration | Reviewed readings/weights, source/license metadata, actual engine/editor results and a pinned compatibility report stating unsupported features |
+| M5 acceptance | Validate the corrected Chinese path on physical ARM devices and representative editors; measure startup, latency, memory and lifecycle behavior | Device/Android/app versions and measured results; distinguish real device execution from ABI build inspection |
+| M6: test/release delivery | After Chinese usability acceptance, define stable signing/version/upgrade policy and durable APK delivery | Install/upgrade evidence, preserved settings/user data and signing isolated from PR code |
+| D1–D4: future multilingual dictionaries | Continue the common-source-format/cdict converter workstream and later multilingual integration | The format/conversion/runtime/package/language gates in [DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md) |
 
-The stages describe follow-up work, not new claims about the current APK. Dictionary format/source research can proceed independently of device collection; application integration waits for the conversion evidence and interaction specification. Signing credentials and production publication are separate implementation work, not supplied by this roadmap.
+Track C0–C2 in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The current APK enables Rime user learning in normal fields, but has no manual phrase manager, external dictionary import/redeploy UI or general scheme selector. Its asset loader accepts packaged flat files, the JNI selects two fixed schemas, and the native build does not include librime-lua. Engine capabilities must not be described as shipped app features.
+
+Chinese dictionary extension can use existing Rime formats and must not wait for the English/cdict conversion pilot or a separate data project. Wanxiang vocabulary reuse and complete Wanxiang scheme support are different deliverables; evaluate the selected version's codes, dependency tables, components and models before implementation. No arbitrary executable plugin loader is implied.
+
+Keep existing semantic/native/UI boundaries as a baseline while fixing reported behavior. Necessary interaction/dependency changes require explicit scope and tests; release infrastructure and a framework rewrite do not resolve an unverified Chinese input failure.
 
 ## Future dictionary workstream
 
