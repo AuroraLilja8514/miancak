@@ -16,6 +16,31 @@ The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.m
 
 The instrumented matrix targets API 23 and API 35, x86_64. Each run disables Android guest Wi-Fi/mobile data before testing. Native tests run before UI tests so their isolated initialization/error/learning results do not share a live IME session.
 
+## Known coverage gaps and planned clean-install acceptance
+
+The existing `ImeInteractionTest` initializes preferences, explicitly selects MIANCAK QWERTY and enables/selects the IME using shell commands. It validates actions from that prepared state. It does not establish that installation, launcher/settings visits and Android enablement produce the correct first keyboard for an ordinary user.
+
+The maintainer reported that Chinese punctuation became accessible after changing the layout. Source review identifies a matching path: settings calls inherited migration before MIANCAK initialization, writing a version and system layout that cause the later fresh-install check to skip its default. Preference copying between settings and the IME also needs testing in the opposite entry order. This remains an open defect; an earlier passing preference-migration case is not evidence that the entire first-install journey was fixed.
+
+Candidate tests currently cover the horizontal engine-page view, not whole-item fitting or an expanded panel. Double-tap Shift is implemented but defaults off; the proposed default and language-switch corner have not been shipped or tested.
+
+The following is a required future acceptance suite, not a report of an executed test:
+
+| Phase | UI path and assertions |
+| --- | --- |
+| Previously unused image | Create a fresh emulator guest with no earlier app installation, snapshot/app-data restore or backup contamination. Record Android/API/ABI/locale and the delivered APK version/hash. Installing over a used guest is a separate upgrade case. |
+| Application-first route | Install that APK, open its launcher/settings, then enable and select MIANCAK through Android UI. Do not write preferences, call an initialization helper or use `ime set` to bypass this path. |
+| System-settings-first route | On another clean guest, enable/select from Android settings, use the IME first, then open the app's settings and return to typing. Defaults and later edits must not be overwritten. |
+| First visible keyboard | Open a normal editor outside the debug fixture. Without manually choosing a layout, verify the intended MIANCAK layout, visible punctuation and language status; enter Chinese and compare the actual editor text. |
+| Complete input journey | Exercise the approved punctuation/Shift pairs, separator, language switch and lock/unlock; verify ordered commits with active composition. Check compact candidate bounds and expanded access, including correct selection of candidates omitted from the compact row. |
+| Persistence | Revisit settings, force-stop/reopen, restart the device and rotate. Verify layout/preferences and correct input remain; cover both languages and page entry/return. |
+| Upgrade, separately | Use a signing-compatible upgrade to preserve deliberate system/main/custom layouts, lock settings and user data. Verify new default initialization does not reset existing choices. |
+| Help and accessibility | Follow shipped enablement, gesture/page and reset instructions; verify Chinese text, fallback language, displayed key labels and accessibility descriptions agree with actual actions. |
+
+Cover both entry orders on API 23 and API 35 with Chinese/English system locales; these versions exercise the inherited single-store and protected-storage paths. Add narrow/wide, portrait/landscape and larger-font cases for candidate fitting. Keep prepared-layout native/interaction tests as complementary coverage, not a substitute. Use an independent UI driver where needed so this suite does not initialize or rewrite the application's internal state.
+
+Collect screenshots at enablement, first keyboard, actual committed text, candidate expansion and post-restart, together with step assertions and logs. Record environmental automation failures separately from product failures. ARM APK inspection and physical-device runtime acceptance remain different evidence; no new fresh-install or physical-device result is claimed here.
+
 ## Running
 
 ```sh
@@ -28,7 +53,7 @@ python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 
 For an already running emulator, put the APKs at `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`, then run `bash scripts/emulator_tests.sh`. It runs native, touch/lifecycle and process-restart phases, fails on instrumentation errors, and collects device screenshots, logs and metrics under `test-results/`.
 
-The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. Custom layouts/settings are preserved; only a first install without a selected layout receives MIANCAK QWERTY.
+The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The intended initialization policy preserves custom layouts/settings and assigns MIANCAK QWERTY only on a fresh installation; the settings-first default-layout defect above means this is not yet established for every entry path.
 
 ## Screenshot evidence
 
@@ -45,7 +70,7 @@ Review post-commit editor, private-field, WebView and process-restart images tog
 - Both API 23 and API 35 x86_64 guests passed 9 native/platform tests, the complete touch/lifecycle scenario and the separate force-stop/reopen scenario. Wi-Fi/mobile data were disabled.
 - Debug and minified unsigned release APKs built for all three declared ABIs and passed package inspection. ARM devices were build-checked; runtime interaction coverage is x86_64 emulator only.
 - The complete scenario verifies Chinese/ASCII punctuation, literal digits, one-finger Shift latch/lock, candidate paging/touch/cancel, composing Space/Backspace, multiline Enter, Chinese/English geometry equality, English direct output, theme recreation, cursor/field changes, password/numeric/no-learning fields, rotation and WebView.
-- Fixed failures discovered by these gates: first-install migration ordering, legacy preference type handling in test setup, partial native commit loss, transient accessibility-node reads and unsigned release packaging.
+- Fixed failures discovered by these gates: an IME-initialization migration-order case, legacy preference type handling in test setup, partial native commit loss, transient accessibility-node reads and unsigned release packaging. The settings-first/default-layout path described above was not covered by those prepared-state tests and remains open.
 
 One measured sample from that run (50 warm composition-plus-confirmation operations per guest):
 

@@ -10,6 +10,8 @@ This project is primarily developed for self use. It is public so that its sourc
 
 MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted and remains tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
 
+Known gaps include first-install layout initialization and candidate presentation. Opening settings before using the IME can retain the inherited system layout instead of MIANCAK QWERTY; the existing touch tests explicitly select MIANCAK QWERTY and do not validate the normal clean-install journey. Candidates currently use horizontal scrolling/paging, without a measured compact row and expanded panel. Planned Shift/language-key changes, Chinese-focused settings and a future visual key mapper are described in the development plan; they are not implemented in the current APK.
+
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
 The prototype integrates:
@@ -27,7 +29,7 @@ Download the debug APK from a successful [MIANCAK CI run](https://github.com/Aur
 
 - Tap **中文 / EN** to switch explicitly; key geometry stays the same.
 - In Chinese mode, ordinary lowercase letters build pinyin. Tap a candidate or press space to select; use the arrows/scrolling to reach more candidates.
-- On the default MIANCAK QWERTY layout, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages.
+- On MIANCAK QWERTY, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages. If these labels are absent, select **MIANCAK QWERTY** in layout settings; this is a workaround for the initialization issue, not a completed first-run fix.
 - Digits and other literal symbols confirm current composition before appending exactly what is shown. Shift latch/lock produces direct uppercase ASCII without leaving Chinese mode.
 - Enter confirms composition before the editor's newline/action; Escape or × cancels composition. Uncommitted pinyin stays in the IME preedit row and is cancelled when changing fields or moving the cursor.
 - Password, numeric and raw-key editors use direct input. No-learning text fields use a schema without a user dictionary. Rime user data is kept locally and excluded from Android backup/transfer rules.
