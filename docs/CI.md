@@ -6,15 +6,17 @@ MIANCAK CI validates the inherited frontend, offline Rime runtime and complete A
 
 `.github/workflows/ci.yml` runs on pull requests, pushes to `master` and manual dispatch. A newer run cancels stale work for the same PR/ref.
 
-Keep the baseline job names `generated`, `unit` and `build-debug` stable. The implemented emulator checks are `interaction-tests (23)` and `interaction-tests (35)`; native compilation belongs to `build-debug`, rather than an empty duplicate job.
+Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug and minified release native builds run in parallel so real-APK tests can start after the debug artifact is verified, without waiting for the optimized release build. Both builds remain acceptance gates.
 
 | Job | What it verifies |
 | --- | --- |
 | `generated` | Regenerates layout/Compose/method outputs and requires a clean diff |
 | `unit` | Java 17/Gradle debug and release unit suites, then a clean diff; publishes XML and per-suite counts |
-| `build-debug` | All declared native ABIs, debug/test APKs, minified unsigned release APK, ELF alignment, hashed offline data and provenance |
+| `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
+| `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
 | `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
 | `interaction-tests (35)` | The same scenarios on real API 35 x86_64 |
+| `first-install (<api>, <entry>)` | Four fresh-image APK jobs: API 23/35 and settings-first/IME-first, Android UI enablement/selection and process reopen |
 
 The emulator action uses a supported SDK platform for provisioning and selects the guest system image separately. The script asserts the guest API before testing, so platform provisioning cannot silently change the tested Android version.
 
@@ -40,6 +42,7 @@ Artifacts are retained for seven days:
 - `miancak-unsigned-release-<sha>`: minified release APK requiring a signing identity before installation.
 - `unit-results-<sha>`: debug/release JUnit XML reports.
 - `instrumented-results-api-<api>-<sha>`: native/touch/restart logs, screenshots, UI dump, logcat and scoped measurements.
+- `first-install-api-<api>-<entry>-<sha>`: APK hash, device properties, installation/input/reopen assertions, UI hierarchies and screenshots.
 
 PR artifact names contain the synthetic merge SHA. The run metadata identifies the source branch head. See [TESTING.md](TESTING.md) for scenario coverage and measurement limits.
 
@@ -51,7 +54,7 @@ Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying th
 
 ## Repository rules
 
-Recommended `master` rules require a PR, all five checks above and conversation resolution, and block force pushes/deletion. A mandatory approving review is not required for this single-maintainer workflow. Rules/settings are managed in GitHub; this documentation does not claim to configure them.
+Recommended `master` rules require a PR, all applicable checks above and conversation resolution, and block force pushes/deletion. Input changes must pass both builds, both interaction jobs and all four first-install routes. A mandatory approving review is not required for this single-maintainer workflow. Rules/settings are managed in GitHub; this documentation does not claim to configure them.
 
 Build/test workflows must use `contents: read`, avoid `pull_request_target`, and keep protected deployment/signing credentials out of PR execution. New native/data dependencies must have pinned sources and provenance.
 

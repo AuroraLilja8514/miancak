@@ -42,7 +42,7 @@ run_tests() {
   fi
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
-run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest
+run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 adb shell am force-stop org.miancak.keyboard.debug
 run_tests restart -e class juloo.keyboard2.ImeInteractionTest -e restartOnly true

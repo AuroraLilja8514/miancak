@@ -114,11 +114,30 @@ public class ImeInteractionTest
       screenshot("chinese-punctuation-and-separator");
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();
+      UiObject2 compact = find("miancak_compact_candidates");
+      assertTrue("Compact row must contain a fitting prefix", compact.getChildren().size() > 0);
+      assertTrue("The entire ten-item engine page must not overflow one phone row", compact.getChildren().size() < 8);
+      Rect inputBounds = find("miancak_input_surface").getVisibleBounds();
+      find("miancak_expand_candidates").click();
+      assertNotNull(find("miancak_expanded_candidates"));
+      assertEquals("Expansion must keep the allocated keyboard height", inputBounds, find("miancak_input_surface").getVisibleBounds());
+      screenshot("expanded-candidates");
       assertTrue(find("miancak_next_candidates").isEnabled());
       find("miancak_next_candidates").click();
       awaitCandidate(pageOne, false);
       find("miancak_previous_candidates").click();
       awaitCandidate(pageOne, true);
+      UiObject2 eighth = device.wait(Until.findObject(By.descStartsWith("Candidate 8: ")), 15000);
+      assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
+      String eighthText = eighth.getText();
+      eighth.click(); output += eighthText; awaitText(activity.first, output);
+      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+      type("shi"); candidate();
+      find("miancak_expand_candidates").click();
+      assertNotNull(find("miancak_expanded_candidates"));
+      device.pressBack();
+      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+      assertNotNull(keyboard());
       find("miancak_cancel").click(); awaitIdlePreedit();
       assertEquals(output, text(activity.first));
       // Space confirms once, while Backspace edits preedit before editor text.
@@ -191,6 +210,8 @@ public class ImeInteractionTest
       screenshot("private-field");
       // Rotation creates a fresh editor generation and cancels uncommitted preedit.
       type("nihao"); candidate();
+      find("miancak_expand_candidates").click();
+      assertNotNull(find("miancak_expanded_candidates"));
       device.setOrientationLeft();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
