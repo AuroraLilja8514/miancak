@@ -84,7 +84,9 @@ public class CandidatePresentationTest
       ViewGroup row = view.findViewById(R.id.miancak_compact_candidates);
       assertEquals(1, row.getChildCount());
       TextView first = (TextView)row.getChildAt(0);
-      assertTrue(first.getLayout().getEllipsisCount(0) > 0);
+      assertTrue("Long first candidate must show truncation: cell=" + first.getWidth()
+          + " layout=" + first.getLayout().getWidth() + " text=" + first.getPaint().measureText(longText),
+          first.getLayout().getEllipsisCount(0) > 0);
       KeyboardSurface surface = new KeyboardSurface(context, null);
       View base = new View(context);
       surface.addView(base, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(context, 180)));

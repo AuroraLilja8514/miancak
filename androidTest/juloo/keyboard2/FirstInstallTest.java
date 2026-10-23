@@ -162,13 +162,22 @@ public final class FirstInstallTest
       if (confirm != null) confirm.click();
       device.waitForIdle();
     }
-    label = device.findObject(By.pkg("com.android.settings").text(appName));
-    assertNotNull(label);
-    row = label; toggle = null;
-    for (int i = 0; i < 4 && row != null && toggle == null; i++, row = row.getParent())
-      toggle = row.findObject(By.checkable(true));
-    assertNotNull(toggle);
-    assertTrue("Android did not enable MIANCAK", toggle.isChecked());
+    // The warning dialog's dismissal and Settings' row recreation are separate
+    // frames on Android 15. Re-resolve until the actual switch reports enabled.
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      try
+      {
+        row = device.findObject(By.pkg("com.android.settings").text(appName)); toggle = null;
+        for (int i = 0; i < 4 && row != null && toggle == null; i++, row = row.getParent())
+          toggle = row.findObject(By.checkable(true));
+        if (toggle != null && toggle.isChecked()) return;
+      }
+      catch (androidx.test.uiautomator.StaleObjectException ignored) {}
+      SystemClock.sleep(50);
+    }
+    fail("Android did not enable MIANCAK through its visible settings switch");
   }
 
   private UiObject2 object(String id)
