@@ -352,8 +352,7 @@ public class ImeInteractionTest
   }
   private void choosePage(String id) throws Exception
   {
-    // UiObject2 searches the IME window as well as the focused editor.
-    // The legacy UiScrollable selector searches the active app window only.
+    // Scroll the same IME window node used by the visible-page assertions.
     UiObject2 choice = null;
     for (int attempt = 0; attempt < 12; attempt++)
     {
@@ -361,7 +360,7 @@ public class ImeInteractionTest
       if (choice != null && choice.getVisibleBounds().height() > 16) break;
       UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
       chooser.setGestureMargin(20);
-      if (!chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f)) break;
+      chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f);
     }
     assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
     assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_page_chooser")), 15000));
