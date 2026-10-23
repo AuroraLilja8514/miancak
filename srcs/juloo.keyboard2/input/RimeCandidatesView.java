@@ -27,6 +27,7 @@ public final class RimeCandidatesView extends LinearLayout
   private ScrollView expandedScroll;
   private CandidateFlow expandedFlow;
   private boolean expanded;
+  private int compactWidth;
   private Runnable languageAction, expansionChanged;
   public void setLanguageAction(Runnable action) { languageAction = action; }
   public void setExpansionListener(Runnable action) { expansionChanged = action; }
@@ -71,9 +72,6 @@ public final class RimeCandidatesView extends LinearLayout
     candidates = new LinearLayout(context);
     candidates.setId(R.id.miancak_compact_candidates);
     row.addView(candidates, new LayoutParams(0, LayoutParams.MATCH_PARENT, 1));
-    candidates.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
-      if (r - l != or - ol) renderCandidates();
-    });
     next = text(26);
     next.setId(R.id.miancak_next_candidates);
     next.setText("›");
@@ -113,6 +111,13 @@ public final class RimeCandidatesView extends LinearLayout
 
   public boolean isExpanded() { return expanded; }
   public void collapse() { setExpanded(false); }
+
+  @Override protected void onMeasure(int widthSpec, int heightSpec)
+  {
+    int available = Math.max(0, MeasureSpec.getSize(widthSpec) - dp(120));
+    if (available != compactWidth) { compactWidth = available; renderCandidates(); }
+    super.onMeasure(widthSpec, heightSpec);
+  }
 
   public void show(InputSnapshot snapshot)
   {
@@ -178,7 +183,7 @@ public final class RimeCandidatesView extends LinearLayout
       expandedScroll.scrollTo(0, 0);
       return;
     }
-    int available = candidates.getWidth();
+    int available = compactWidth;
     ArrayList<TextView> cells = new ArrayList<>();
     int[] widths = new int[shown.engine.candidates.size()];
     for (int i = 0; i < widths.length; i++)
