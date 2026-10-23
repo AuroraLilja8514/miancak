@@ -2,6 +2,8 @@
 
 Reviewed on 2026-10-24 against the committed source, interaction contract, architecture, CI and maintainer feedback. This plan turns the architecture direction into small implementation gates; the interaction contract remains normative. The U0–U6 work below is planning, not a claim that the current APK implements it. [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md) records the unified page model, layout retirement, switching/indicator rules and future phonetic pages for review.
 
+Implementation now follows the prioritized C1–C6 milestones in [EXECUTION_PLAN.md](EXECUTION_PLAN.md). Stage completion requires the relevant real-APK checks; see that file for current status rather than inferring delivery from a design section.
+
 ## Current state
 
 - Project identity, interaction rules, architecture, Issue/PR workflow and baseline CI exist.

@@ -23,17 +23,6 @@ public final class DirectBootAwarePreferences
     return prefs;
   }
 
-  /* Copy shared preferences to device protected storage. Not using
-   * [Context.moveSharedPreferencesFrom] because the settings activity still
-   * use [PreferenceActivity], which can't work on a non-default shared
-   * preference file. */
-  public static void copy_preferences_to_protected_storage(Context context,
-      SharedPreferences src)
-  {
-    if (VERSION.SDK_INT >= 24)
-      copy_shared_preferences(src, get_protected_prefs(context));
-  }
-
   /** Load the default preferences. */
   static SharedPreferences get_protected_prefs(Context context)
   {

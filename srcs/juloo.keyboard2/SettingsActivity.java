@@ -1,11 +1,8 @@
 package juloo.keyboard2;
 
-import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceManager;
 
 public class SettingsActivity extends PreferenceActivity
 {
@@ -13,13 +10,14 @@ public class SettingsActivity extends PreferenceActivity
   public void onCreate(Bundle savedInstanceState)
   {
     super.onCreate(savedInstanceState);
-    // The preferences can't be read when in direct-boot mode. Avoid crashing
-    // and don't allow changing the settings.
-    // Run the config migration on this prefs as it might be different from the
-    // one used by the keyboard, which have been migrated.
+    // Settings and the IME must use the same store. Copying the activity's
+    // credential-protected defaults back on stop overwrote IME-first setup.
+    if (Build.VERSION.SDK_INT >= 24)
+      getPreferenceManager().setStorageDeviceProtected();
     try
     {
-      Config.migrate(getPreferenceManager().getSharedPreferences());
+      MiancakPreferences.initialize(
+          DirectBootAwarePreferences.get_shared_preferences(this));
     }
     catch (Exception _e) { fallbackEncrypted(); return; }
     addPreferencesFromResource(R.xml.settings);
@@ -39,11 +37,4 @@ public class SettingsActivity extends PreferenceActivity
     finish();
   }
 
-  protected void onStop()
-  {
-    DirectBootAwarePreferences
-      .copy_preferences_to_protected_storage(this,
-          getPreferenceManager().getSharedPreferences());
-    super.onStop();
-  }
 }

@@ -16,15 +16,17 @@ The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.m
 
 The instrumented matrix targets API 23 and API 35, x86_64. Each run disables Android guest Wi-Fi/mobile data before testing. Native tests run before UI tests so their isolated initialization/error/learning results do not share a live IME session.
 
-## Known coverage gaps and planned clean-install acceptance
+## First-install implementation and acceptance
 
 The existing `ImeInteractionTest` initializes preferences, explicitly selects MIANCAK QWERTY and enables/selects the IME using shell commands. It validates actions from that prepared state. It does not establish that installation, launcher/settings visits and Android enablement produce the correct first keyboard for an ordinary user.
 
-The maintainer reported that Chinese punctuation became accessible after changing the layout. Source review identifies a matching path: settings calls inherited migration before MIANCAK initialization, writing a version and system layout that cause the later fresh-install check to skip its default. Preference copying between settings and the IME also needs testing in the opposite entry order. This remains an open defect; an earlier passing preference-migration case is not evidence that the entire first-install journey was fixed.
+The maintainer reported that Chinese punctuation became accessible after changing the layout. The matching settings-first path has been corrected: SettingsActivity uses the IME's preference store and MIANCAK initializer before inflating preferences. API 24+ settings use device-protected storage directly, so a stale credential-protected settings copy no longer overwrites an IME-first default. Earlier prepared-state migration coverage did not establish this behavior.
+
+`FirstInstallTest` now drives the shipped launcher/settings, Android's enable toggle and input-method picker, and the shipped try-here editor. It checks default-layout UI, actual Chinese/ASCII text, punctuation, default double-tap lock and a later settings visit, then repeats after force-stop/reopen. It never writes app preferences or uses shell IME selection; it only reads rendered geometry after the keyboard appears. `first_install_tests.sh` refuses a guest that already contains the app and records the delivered APK hash. Four independent fresh-image jobs cover both entry orders on API 23/API 35. These checks have been added; this source update does not yet claim a passing run. Chinese-locale, reboot and version-upgrade expansion remain C6 acceptance work.
 
 Candidate tests currently cover the horizontal engine-page view, not whole-item fitting or an expanded panel. Double-tap Shift is implemented but defaults off; the proposed default and language-switch corner have not been shipped or tested.
 
-The following is a required future acceptance suite, not a report of an executed test:
+The following remains the complete acceptance target; implementation/results must distinguish each covered phase from outstanding work:
 
 | Phase | UI path and assertions |
 | --- | --- |
@@ -66,7 +68,7 @@ python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 
 For an already running emulator, put the APKs at `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`, then run `bash scripts/emulator_tests.sh`. It runs native, touch/lifecycle and process-restart phases, fails on instrumentation errors, and collects device screenshots, logs and metrics under `test-results/`.
 
-The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The intended U0 initialization policy preserves then-supported layouts/settings and assigns MIANCAK QWERTY on a fresh installation; the settings-first default-layout defect above means this is not yet established for every entry path. The later U3 plan deliberately retires other built-in main layouts through a separate migration and does not claim they remain available after removal.
+The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The U0 initializer preserves then-supported layouts/settings and assigns MIANCAK QWERTY on a fresh installation; the new first-install suite checks both entry orders. The later U3 plan deliberately retires other built-in main layouts through a separate migration and does not claim they remain available after removal.
 
 ## Screenshot evidence
 
