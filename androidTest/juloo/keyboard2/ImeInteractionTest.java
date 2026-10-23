@@ -169,7 +169,12 @@ public class ImeInteractionTest
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
       awaitIdlePreedit();
+      Rect landscapeChinese = keyboard().getVisibleBounds();
       screenshot("rotation-landscape");
+      language().click(); awaitMode("EN");
+      assertEquals(landscapeChinese, keyboard().getVisibleBounds());
+      screenshot("rotation-landscape-english");
+      language().click(); awaitMode("中文");
       device.setOrientationNatural();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));

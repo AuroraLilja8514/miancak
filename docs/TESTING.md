@@ -32,7 +32,7 @@ The editor fixture is debug-only and not exported. It is absent from release APK
 
 ## Screenshot evidence
 
-Editor/DOM assertions establish input state independently of image capture. Screenshots also wait for UI idleness and two explicit display frames, then require a successful capture; a returned commit or JavaScript value alone does not establish that the new pixels have been presented. The rotation scenario captures both actual landscape and restored portrait states.
+Editor/DOM assertions establish input state independently of image capture. Screenshots also wait for UI idleness and two explicit UI frame callbacks, then require a successful capture; a returned commit or JavaScript value alone does not establish that the new pixels have been presented. The rotation scenario captures actual landscape in both languages and restored portrait states, and checks that language switching preserves landscape keyboard bounds. Inactive inherited English-completion targets are removed from the split gap; a geometry regression ensures the letter keys retain their original positions.
 
 Review post-commit editor, private-field, WebView and process-restart images together with the assertions. A stale or blank image requires investigation before treating it as visual evidence.
 
