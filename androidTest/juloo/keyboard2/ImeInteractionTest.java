@@ -292,11 +292,17 @@ public class ImeInteractionTest
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
   private void choosePage(String id) throws Exception
   {
-    new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
-        .resourceId(pkg + ":id/miancak_page_chooser")).scrollIntoView(
-          new androidx.test.uiautomator.UiSelector().description("Choose page: " + id));
-    UiObject2 choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 15000);
-    assertNotNull(choice); choice.click();
+    // Scroll the same IME window node used by the visible-page assertions.
+    UiObject2 choice = null;
+    for (int attempt = 0; attempt < 12; attempt++)
+    {
+      choice = device.findObject(By.desc("Choose page: " + id));
+      if (choice != null && choice.getVisibleBounds().height() > 16) break;
+      UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
+      chooser.setGestureMargin(20);
+      chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f);
+    }
+    assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
     assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_page_chooser")), 15000));
   }
   private UiObject2 language() { return find("miancak_language"); }
