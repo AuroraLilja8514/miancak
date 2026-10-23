@@ -160,6 +160,12 @@ MIANCAK does not plan to provide a general executable plugin system.
 
 Word lists, dictionaries, schemas, and related Rime configuration are treated as data packages. Future import/update formats may be defined, but they must not imply loading arbitrary executable code.
 
+The accepted future dictionary direction is a shared, maintained Rime-compatible `.dict.yaml` source format across languages, with separate schema and version/provenance manifests. Runtime binary formats may differ; any transitional cdict artifacts should be generated from that common source. The converter must preserve traceable upstream inputs and document unsupported metadata rather than silently discarding it.
+
+The cdict word-list conversion/data tooling may later be extracted into an independent project. Sharing source data does not require identical completion/correction algorithms or make a dictionary change an implicit interaction change. Optional suggestions must preserve the direct English/literal path and the current semantic contract.
+
+This is a deferred workstream, not an implemented import interface or new runtime dependency. See [DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md) and [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18) for the phased gates.
+
 ## Fcitx5 relationship
 
 MIANCAK may study and reuse architectural ideas from fcitx5-android, especially around Android-native builds and data deployment.

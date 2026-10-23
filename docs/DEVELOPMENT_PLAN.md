@@ -1,6 +1,6 @@
 # Development Plan
 
-Reviewed on 2026-10-22 against the committed source, interaction contract, architecture and CI. This plan turns the architecture direction into small implementation gates; the interaction contract remains normative.
+Reviewed on 2026-10-23 against the committed source, interaction contract, architecture and CI. This plan turns the architecture direction into small implementation gates; the interaction contract remains normative.
 
 ## Current state
 
@@ -8,6 +8,8 @@ Reviewed on 2026-10-22 against the committed source, interaction contract, archi
 - The inherited frontend is synchronized through Unexpected Keyboard `c87d9b8fbd501197286eaafeae88278dfbdd56b7`.
 - The semantic routing foundation is merged. Its executor and dedicated touch UI now connect it to the inherited IME frontend.
 - M1–M4 are implemented: pinned Rime/JNI, offline pinyin data, serialized controller, frontend adapter, immutable snapshots and touch candidates. The complete input path passed API 23/API 35 emulator tests, process restart and debug/minified-release builds. Actual results and limits are recorded in [TESTING.md](TESTING.md).
+- The current APK provides Chinese Rime composition and direct English input. Inherited language layouts remain available, but multilingual suggestions/correction and general dictionary import are not implemented in the new input path.
+- A common Rime-compatible dictionary source format is accepted future work, tracked in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18) and [DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md). The possible cdict word-list conversion project is deferred.
 
 The architecture direction is still appropriate: preserve the frontend, add a small semantic boundary and integrate librime directly. A gesture rewrite, Kotlin migration or Fcitx5 runtime would add work without resolving the current gaps.
 
@@ -87,11 +89,25 @@ The offline MVP has passed its executable gates. M1–M4 are complete; M5's emul
 
 The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device touch latency, cold/warm startup, memory and unusual vendor editors still require device evidence. Release signing/store publication remain outside the MVP.
 
-Continue from this working baseline with measured priorities:
+Continue from this working baseline in the following order:
 
-1. Collect physical-device observations using the documented scenarios and comparable startup/latency/data-size reports. Do not derive device performance targets from emulator samples.
-2. Optimize initialization/candidate rendering only where measurements identify a bottleneck, retaining the ordering/editor-generation tests.
-3. Design protected signing and durable release delivery separately from PR builds. Any new behavior or schema/data import must have a specific Issue and acceptance tests.
+| Stage | Next work | Completion evidence |
+| --- | --- | --- |
+| M5 remainder | Exercise physical ARM devices and representative application editors; record startup, touch-to-editor latency, memory, offline use, rotation, background return and process restart | Device/Android/app versions, reproducible steps, measured results and linked defects; distinguish runtime evidence from ABI build inspection |
+| Measured fixes | Fix reproducible compatibility, startup or candidate-rendering problems found in M5; keep changes narrow | A regression for each behavioral defect, relevant native/emulator gates and a repeat of the affected device scenario |
+| M6: usable test/release delivery | Define a stable signing identity and version/upgrade policy; prepare protected signing and durable versioned APK delivery | Install/upgrade evidence, preserved settings and Rime user data, identifiable APK/checksum/provenance and signing isolated from PR code |
+| D1–D2: dictionary foundation | Specify one Rime-compatible maintained source format and prototype cdict word-list conversion with English | The format contract, traceable source/license inventory, deterministic conversion, real Rime load/candidate results and measured comparison with cdict |
+| D3–D4: multilingual integration | Add versioned data deployment and explicitly optional language suggestions, then expand from an accented Latin-script pilot | Offline/update/recovery tests, unchanged direct-input semantics, language-specific editor cases and physical ARM-device evidence |
+
+The stages describe follow-up work, not new claims about the current APK. Dictionary format/source research can proceed independently of device collection; application integration waits for the conversion evidence and interaction specification. Signing credentials and production publication are separate implementation work, not supplied by this roadmap.
+
+## Future dictionary workstream
+
+The accepted long-term target is a common Rime-compatible `.dict.yaml` source format across maintained language dictionaries. Language schemas and provenance/package manifests remain separate data. Versioned runtime artifacts may differ by backend; if cdict remains during transition, generate its compatibility artifacts from the same maintained source rather than editing two independent word lists.
+
+[DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md) defines D1–D4, acceptance criteria and possible extraction of the conversion/data tooling into an independent project. This is a data-pipeline investigation, not a promise that Rime automatically reproduces cdict correction or that existing binary `.dict` files can be renamed/imported. Preserve original source inputs and document metadata that conversion cannot represent.
+
+Tracking: [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18) remains open for implementation. When a phase starts, create a scoped child Issue and a short-lived branch such as `feat/dictionary-source-contract`, `feat/dictionary-converter-pilot` or `feat/dictionary-packages`; link it back to the tracking Issue. A planning branch does not establish a long-lived integration branch.
 
 Do not reopen the completed semantic/native/UI architecture stages or introduce a gesture/framework rewrite without a demonstrated requirement.
 
