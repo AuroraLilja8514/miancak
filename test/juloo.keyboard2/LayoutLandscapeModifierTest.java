@@ -14,7 +14,8 @@ public class LayoutLandscapeModifierTest
 
   public LayoutLandscapeModifierTest()
   {
-    // Same as [res/xml/split_middle_column.xml].
+    // Exercise inherited optional completion-column geometry. MIANCAK's
+    // runtime column is intentionally empty because English input is direct.
     LayoutModifier.split_middle_column = row_of(
         key("complete_emoji", 1f),
         key("complete_first", 3f),
@@ -102,6 +103,38 @@ public class LayoutLandscapeModifierTest
     assertEquals(1f, split.rows.get(1).keys.get(5).width, EPS);
     assertEquals(3f, split.rows.get(0).keys.get(5).width, EPS);
     assertEquals(kw.keysHeight, split.keysHeight, EPS);
+  }
+
+  @Test
+  public void empty_middle_column_removes_targets_without_moving_letter_keys()
+  {
+    KeyboardData.Row row = row_of_widths(1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+    KeyboardData.Row with_column = LayoutLandscapeModifier.split_row(row, 1);
+    KeyboardData.Row original = LayoutModifier.split_middle_column;
+    try
+    {
+      LayoutModifier.split_middle_column = row_of();
+      KeyboardData.Row empty_gap = LayoutLandscapeModifier.split_row(row, 1);
+      assertEquals(row.keys.size(), empty_gap.keys.size());
+      assertEquals(with_column.keysWidth, empty_gap.keysWidth, EPS);
+      assertEquals(normal_key_centers(with_column), normal_key_centers(empty_gap));
+      for (KeyboardData.Key key : empty_gap.keys)
+        assertNotEquals(KeyboardData.Key.Role.Suggestion, key.role);
+    }
+    finally { LayoutModifier.split_middle_column = original; }
+  }
+
+  static List<Float> normal_key_centers(KeyboardData.Row row)
+  {
+    List<Float> centers = new ArrayList<Float>();
+    float x = 0;
+    for (KeyboardData.Key key : row.keys)
+    {
+      x += key.shift;
+      if (key.role != KeyboardData.Key.Role.Suggestion) centers.add(x + key.width / 2);
+      x += key.width;
+    }
+    return centers;
   }
 
   static KeyboardData.Key key(String name, float width)
