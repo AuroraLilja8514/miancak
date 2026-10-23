@@ -227,3 +227,5 @@ MIANCAK adds explicit fixed text actions for custom layouts:
 `:engine:'text'` sends text to Rime in Chinese and commits it directly in English. `:literal:'text'` always commits the exact text after confirming any active composition. They can have the same visible label. Explicit text and its label stay fixed under Shift; ordinary alphabet keys retain the inherited Shift latch/lock behavior and uppercase ASCII bypass. A custom `symbol` changes only the label, never routing or payload. Control/Alt/Meta shortcuts retain editor key events for single-character actions.
 
 `language_switch` is a one-finger language-toggle action that may be assigned to a swipe position. The dedicated language button is also always available for ordinary text editors. Default punctuation/digits are literal; engine-specific digit shortcuts require an explicit `:engine:` declaration.
+
+`pinyin_separator` displays `’`. During Chinese composition it sends the ASCII syllable delimiter without confirming; otherwise it inputs literal `’`. Shift can explicitly map it to an ASCII apostrophe. See the [default key map](../docs/KEYMAP.md) for positions and literal quotation marks.

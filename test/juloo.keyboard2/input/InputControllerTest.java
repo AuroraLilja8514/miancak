@@ -12,6 +12,21 @@ import juloo.keyboard2.input.InputRouter.Mode;
 
 public class InputControllerTest
 {
+  @Test public void separatorUsesQueuedEngineTruthRatherThanTheOldUiPreedit()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.controller.submit(engineText("xi"));
+    h.controller.submit(PINYIN_SEPARATOR);
+    h.controller.submit(engineText("an"));
+    h.flush();
+    assertEquals("xi'an", h.controller.snapshot().engine.preedit);
+    assertEquals("", h.editor.text());
+    assertTrue(h.engine.calls.contains("text:'"));
+    h.controller.cancelComposition(); h.flush();
+    h.controller.submit(PINYIN_SEPARATOR);
+    assertEquals("’", h.editor.text());
+  }
+
   @Test public void englishIdlePathIsImmediateAndNeverInitializesRime()
   {
     Harness h = new Harness(Mode.ENGLISH);

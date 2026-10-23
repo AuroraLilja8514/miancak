@@ -134,6 +134,8 @@ The clean-install acceptance suite must use a new device image without restored 
 
 ### U1: punctuation, Shift and language switching
 
+The C1 key-map implementation now has a concrete table in [KEYMAP.md](KEYMAP.md), including idle/English separator behavior. Real-APK verification remains a completion gate in [EXECUTION_PLAN.md](EXECUTION_PLAN.md).
+
 The working interpretation of "bottom row" is the lowest letter row, `Shift Z X C V B N M Backspace`, rather than the separate Ctrl/Fn/Space control row. Review a complete table of center/corner assignments, ordinary/Shift output and semantic actions before changing XML or modifier behavior.
 
 - Put Chinese punctuation in northwest positions on that letter row and keep related ASCII symbols on the same key. The existing `c` northwest `。` / southwest `.` and `v` northwest `，` / southwest `,` illustrate the high-co-occurrence pairs: each keeps its own explicit action.

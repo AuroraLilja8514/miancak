@@ -40,6 +40,18 @@ Useful links.
 
 -->
 <keyboard name="MIANCAK QWERTY" script="latin">
+  <modmap>
+    <shift a="（" b="("/>
+    <shift a="）" b=")"/>
+    <shift a="、" b="/"/>
+    <shift a="！" b="!"/>
+    <shift a="？" b="\?"/>
+    <shift a="；" b="："/>
+    <shift a="pinyin_separator" b="'"/>
+    <shift a="'" b="‘"/>
+    <shift a="&quot;" b="“"/>
+    <shift a="”" b="&quot;"/>
+  </modmap>
   <row>
     <key c="q" ne="1" se="loc esc"/>
     <key c="w" nw="~" ne="2" sw="\@"/>
@@ -64,14 +76,14 @@ Useful links.
     <key c="l" ne="|" sw="\\"/>
   </row>
   <row>
-    <key width="1.5" role="action" c="shift" ne="loc capslock"/>
-    <key c="z"/>
-    <key c="x" ne="loc †"/>
+    <key width="1.5" role="action" c="shift" nw="（" ne="language_switch"/>
+    <key c="z" nw="、"/>
+    <key c="x" nw="！" ne="loc †"/>
     <key c="c" nw="。" ne="&lt;" sw="."/>
     <key c="v" nw="，" ne="&gt;" sw=","/>
-    <key c="b" ne="\?" sw="/"/>
-    <key c="n" ne=":" sw=";"/>
-    <key c="m" ne="&quot;" sw="'"/>
-    <key width="1.5" role="action" c="backspace" ne="delete"/>
+    <key c="b" nw="？" ne="\?" sw="/"/>
+    <key c="n" nw="；" ne=":" sw=";"/>
+    <key c="m" nw="pinyin_separator" ne="&quot;" sw="'" se="”"/>
+    <key width="1.5" role="action" c="backspace" nw="）" ne="delete"/>
   </row>
 </keyboard>

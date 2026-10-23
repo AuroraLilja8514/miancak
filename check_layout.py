@@ -104,7 +104,13 @@ def check_layout(layout):
     unexpected_keys(keys, ["f11_placeholder", "f12_placeholder"], "These keys are now added automatically")
 
     if root.get("script", "latin") == "latin":
-        missing_required(keys, ["shift", "loc capslock"], "Missing important key")
+        missing_required(keys, ["shift"], "Missing important key")
+        if root.get("name") == "MIANCAK QWERTY":
+            # MIANCAK deliberately uses long-press/double-tap Shift locking;
+            # the former Caps Lock corner is the explicit language switch.
+            missing_required(keys, ["language_switch", "pinyin_separator"], "Missing MIANCAK action")
+        else:
+            missing_required(keys, ["loc capslock"], "Missing important key")
         missing_required(keys, ["loc esc", "loc tab"], "Missing programming keys")
 
     _, bottom_row_keys_map = parse_row("res/xml/bottom_row.xml")

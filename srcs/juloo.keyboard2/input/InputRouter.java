@@ -71,6 +71,12 @@ public final class InputRouter
       case LITERAL_TEXT:
         appendLiteral(operations, hasComposition, action.text);
         break;
+      case PINYIN_SEPARATOR:
+        if (mode == Mode.CHINESE && hasComposition)
+          operations.add(new Operation(OperationType.ENGINE_TEXT, "'"));
+        else
+          appendLiteral(operations, hasComposition, "’");
+        break;
       case BACKSPACE:
         operations.add(new Operation(hasComposition ?
               OperationType.ENGINE_BACKSPACE : OperationType.EDITOR_BACKSPACE, ""));
