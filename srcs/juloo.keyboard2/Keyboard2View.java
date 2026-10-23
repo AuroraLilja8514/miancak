@@ -50,6 +50,7 @@ public class Keyboard2View extends View
     int flags = _pointers.getKeyFlags(KeyValue.SHIFT);
     return flags != -1 && (flags & Pointers.FLAG_P_LOCKED) != 0;
   }
+  public boolean shiftLatched() { return _pointers.getKeyFlags(KeyValue.SHIFT) != -1; }
 
   private static int _currentWhat = 0;
 

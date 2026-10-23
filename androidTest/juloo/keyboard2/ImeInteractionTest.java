@@ -72,6 +72,7 @@ public class ImeInteractionTest
       {
         gesture('c', -1, -1);
         awaitText(activity.first, first + "。");
+        gesture('q', -1, -1); awaitText(activity.first, first + "。测试");
         screenshot("process-restart");
         return;
       }
@@ -145,6 +146,23 @@ public class ImeInteractionTest
       assertNotNull(dynamicPicker); screenshot("clipboard-page");
       dynamicPicker.click(); choosePage("zh");
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      // Edit through the shipped settings and visual editor, then use the
+      // resulting actual key on the IME. The restart phase reuses this edit.
+      device.pressBack();
+      instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      UiObject2 editLayout = device.wait(Until.findObject(By.desc("Edit layout: zh")), 15000);
+      assertNotNull(editLayout); editLayout.click();
+      device.wait(Until.findObject(By.desc("Edit key: zh:0:0")), 15000).click();
+      screenshot("visual-key-editor");
+      device.wait(Until.findObject(By.desc("Edit position: 1")), 15000).click();
+      device.wait(Until.findObject(By.text(context.getString(R.string.page_literal))), 15000).click();
+      UiObject2 value = device.wait(Until.findObject(By.desc("Key output text")), 15000);
+      assertNotNull(value); value.setText("测试");
+      device.findObject(By.res("android", "button1")).click();
+      device.wait(Until.findObject(By.desc("Save layout")), 15000).click();
+      device.pressBack(); focus(activity.first); ensureChinese();
+      gesture('q', -1, -1); output += "测试"; awaitText(activity.first, output);
+      screenshot("edited-key-output");
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();
       UiObject2 compact = find("miancak_compact_candidates");

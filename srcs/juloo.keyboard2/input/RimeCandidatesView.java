@@ -28,8 +28,9 @@ public final class RimeCandidatesView extends LinearLayout
   private CandidateFlow expandedFlow;
   private boolean expanded;
   private int compactWidth;
-  private Runnable languageAction, expansionChanged;
+  private Runnable languageAction, pageAction, expansionChanged;
   public void setLanguageAction(Runnable action) { languageAction = action; }
+  public void setPageAction(Runnable action) { pageAction = action; }
   public void setExpansionListener(Runnable action) { expansionChanged = action; }
 
   public RimeCandidatesView(Context context, AttributeSet attrs)
@@ -49,6 +50,10 @@ public final class RimeCandidatesView extends LinearLayout
     language.setTypeface(null, android.graphics.Typeface.BOLD);
     clickable(language);
     top.addView(language, new LayoutParams(dp(72), LayoutParams.MATCH_PARENT));
+    TextView pages = text(22); pages.setId(R.id.miancak_pages); pages.setText("▦");
+    pages.setContentDescription(context.getString(R.string.pages_title)); clickable(pages);
+    pages.setOnClickListener(view -> { if (pageAction != null) pageAction.run(); });
+    top.addView(pages, new LayoutParams(dp(40), LayoutParams.MATCH_PARENT));
     preedit = text(15);
     preedit.setId(R.id.miancak_preedit);
     preedit.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
