@@ -85,26 +85,24 @@ Acceptance gate: documented device results, passing generated/unit/debug/native/
 
 ## Implementation status and next development
 
-M1–M4 have implementations and the existing automated scenarios pass. This establishes those test cases, not acceptance of everyday Chinese input. The maintainer reports that Chinese input is not yet done; the failing sequence and root cause still require reproduction. Chinese usability acceptance remains open in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The tests previously found and fixed preference migration ordering, partial native commits and unsigned release configuration; those fixes do not close the new report.
+M1–M4 have implementations and the existing automated scenarios pass. Everyday Chinese usability remains open in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The conversation also establishes a missing feature: importing, adding and switching existing Rime word tables. That future feature has its own scope in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22); it is separate from correctness/quality defects and from installing third-party input schemes.
 
-The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device touch latency, cold/warm startup, memory and unusual vendor editors still require device evidence. Release signing/store publication remain outside the MVP.
+The plan should keep implementation completion separate from validation scope. API 23/API 35 x86_64 interaction coverage and three-ABI builds are established; physical ARM-device behavior/performance still needs device evidence. Record a concrete reproduction for each correctness defect being fixed without making unrelated feature planning depend on a new defect report.
 
-Continue with Chinese usability as the first application priority:
+Keep these workstreams distinct:
 
-| Stage | Next work | Completion evidence |
+| Workstream | Work and acceptance | Scope boundary |
 | --- | --- | --- |
-| C0: reproduce and fix Chinese input | Obtain the actual input -> observed result -> expected result, device/editor context; fix initialization, preedit, candidates, confirmation or editing defects identified by that reproduction | Reproducible report, a meaningful regression and a repeat of the affected app/device scenario |
-| C1: Chinese quality and vocabulary control | Evaluate common phrases/names/sentences; add manual phrase editing and persistent external Rime dictionary import/redeployment | A documented Chinese corpus, visible expected candidates, add/edit/delete/restart/upgrade cases, preserved learning and failed-import recovery |
-| C2: external Chinese data compatibility | Prepare a traceable MediaWiki-derived sample; assess Wanxiang data-only reuse separately from full scheme/model/Lua integration | Reviewed readings/weights, source/license metadata, actual engine/editor results and a pinned compatibility report stating unsupported features |
-| M5 acceptance | Validate the corrected Chinese path on physical ARM devices and representative editors; measure startup, latency, memory and lifecycle behavior | Device/Android/app versions and measured results; distinguish real device execution from ABI build inspection |
-| M6: test/release delivery | After Chinese usability acceptance, define stable signing/version/upgrade policy and durable APK delivery | Install/upgrade evidence, preserved settings/user data and signing isolated from PR code |
-| D1–D4: future multilingual dictionaries | Continue the common-source-format/cdict converter workstream and later multilingual integration | The format/conversion/runtime/package/language gates in [DICTIONARY_ROADMAP.md](DICTIONARY_ROADMAP.md) |
+| Chinese usability: #20 | Exercise representative phrases/names/sentences and editor lifecycles; reproduce/fix verified defects with regressions; collect physical ARM/editor measurements | No dictionary-management or third-party scheme feature is implied |
+| Existing Rime word tables: #22, future feature | Import compatible existing tables; replace/select a base vocabulary; add/enable/disable supplementary tables; redeploy offline; preserve learning and recover from failure; prove actual candidate/editor changes | MIANCAK retains its own input logic/schema. No complete third-party scheme, Lua, model, crawler or cdict-converter dependency |
+| Common source format/cdict: #18, future work | Define the cross-language maintained source profile, prototype conversion and expand language coverage using D1–D4 | Does not gate use of existing Rime tables in #22; possible separate tooling project remains deferred |
+| Test/release delivery: M6 | After Chinese usability acceptance, define stable signing/version/upgrade policy and durable APK delivery | Release infrastructure is separate from both input correctness and word-table support |
 
-Track C0–C2 in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The current APK enables Rime user learning in normal fields, but has no manual phrase manager, external dictionary import/redeploy UI or general scheme selector. Its asset loader accepts packaged flat files, the JNI selects two fixed schemas, and the native build does not include librime-lua. Engine capabilities must not be described as shipped app features.
+The current APK enables Rime user learning in normal fields and packages one fixed vocabulary. It has no word-table import/add/switch UI. #22 should first state the compatible data profile and dependency handling, then add base/add-on selection and deployment, and verify real candidate differences, restart/preservation and failure recovery. A prepared MediaWiki-derived table or vocabulary from any compatible Rime project is a possible input; neither Wanxiang nor a complete external scheme is required.
 
-Chinese dictionary extension can use existing Rime formats and must not wait for the English/cdict conversion pilot or a separate data project. Wanxiang vocabulary reuse and complete Wanxiang scheme support are different deliverables; evaluate the selected version's codes, dependency tables, components and models before implementation. No arbitrary executable plugin loader is implied.
+Manual phrase editing, crawling/preparing MediaWiki data and complete third-party scheme support are separate potential tasks. Do not bundle them into #22 or use their missing components to block vocabulary-data support. #22 can use existing Rime formats before the long-term common-format/cdict migration.
 
-Keep existing semantic/native/UI boundaries as a baseline while fixing reported behavior. Necessary interaction/dependency changes require explicit scope and tests; release infrastructure and a framework rewrite do not resolve an unverified Chinese input failure.
+Keep existing semantic/native/UI boundaries while fixing verified behavior. Any vocabulary switch must deliberately handle pending composition/results and preserve the interaction contract.
 
 ## Future dictionary workstream
 

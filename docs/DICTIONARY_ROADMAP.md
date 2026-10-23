@@ -1,6 +1,6 @@
-# Shared Dictionary Roadmap
+# Dictionary Roadmap
 
-Accepted on 2026-10-23. Status: **future work; implementation deferred**. Tracking: [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18). This document records the maintainer's requested direction without changing the current Chinese prototype.
+Accepted on 2026-10-23. Status: **future work; implementation deferred**. Track existing Rime word-table support in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22), and long-term cross-language source-format/cdict migration in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18). Chinese usability remains a separate workstream in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). This roadmap does not add runtime features.
 
 ## Accepted direction
 
@@ -15,6 +15,21 @@ Investigate converting the source word lists used by cdict. The converter/data p
 - The inherited catalog is not evidence that multilingual completion/correction is implemented in MIANCAK's new input path. A layout, a word list and an input algorithm are separate deliverables.
 - A compiled cdict `.dict` file is not a Rime dictionary source. Start conversion from traceable source word lists, not a renamed binary.
 - Preserve original upstream inputs and notices. The common-format requirement applies to maintained dictionary data; upstream originals remain archived or reproducibly fetchable as provenance inputs.
+
+## R: existing Rime word-table support
+
+This is an independent future application feature (#22), not installation of a third-party input scheme. Keep MIANCAK's own schema, gestures, candidate interaction and punctuation/digit behavior while changing vocabulary data.
+
+Planned steps:
+
+1. Define the supported Rime dictionary-source profile and handling of referenced word tables. Validate names, fields, encoding and input-code compatibility; explain unsupported data clearly.
+2. Import existing word tables without rebuilding the APK. Allow replacement/selection of a base vocabulary, enable/disable supplementary tables, remove imported data and restore the bundled vocabulary.
+3. Compile/deploy changes outside ordinary key handling, preserve personal learning/settings, and retain the previous working selection when import or deployment fails.
+4. Verify two distinct base vocabularies and an add-on combination with actual engine candidates and committed editor text, then cover restart/upgrade preservation and invalid/missing-dependency cases.
+
+Prepared MediaWiki-derived tables and vocabulary from other Rime projects are source examples. Wanxiang is optional, and its complete scheme, Lua functions and models are not requirements. Manual phrase editing and data crawling/preparation are also separate tasks. A supported data profile must not be described as universal compatibility with every encoding used by Rime schemes.
+
+#22 does not wait for the cdict converter/new project in #18 or for reproduction of an unrelated input defect in #20. When implementation starts, use a scoped Issue/PR and a branch such as `feat/rime-word-tables`.
 
 ## D1: common source-format contract
 
@@ -42,9 +57,9 @@ Acceptance:
 
 Any temporary cdict compatibility build should consume the same maintained common-format data. Do not introduce independently edited cdict and Rime word lists.
 
-## D3: application data packages and optional suggestions
+## D3: multilingual data packages and optional suggestions
 
-After the pilot, specify the app's data-package boundary, deployment lifecycle and explicit language/suggestion settings. Package validation must cover declared versions/hashes, supported data components, resource limits and invalid/interrupted update recovery. Keep stable user-learning data separate from replaceable shared dictionaries.
+After the multilingual conversion pilot, reuse or extend #22's word-table deployment boundary for the added language data and explicit language/suggestion settings. This D3 gate does not postpone Chinese import/switching of existing tables. Validate language-package versions/hashes, supported data components, resource limits and update recovery. Keep stable user-learning data separate from replaceable shared dictionaries.
 
 Retain direct English as a complete mode. Suggestions/composition for another language must be explicitly selected and must not silently add autocorrect, punctuation conversion or mandatory candidate confirmation to the direct path. Preserve exact literals, literal digits, one-finger Shift, explicit language switching, editor generations and sensitive/no-learning policy.
 
@@ -60,10 +75,8 @@ Acceptance: offline use, exact punctuation/digits, editor/cursor changes, rotati
 
 ## Scheduling and tracking
 
-Chinese input correctness, usable candidates/sentences and Chinese vocabulary extension are the current application priority, tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The maintainer's Chinese usability report is unresolved; existing emulator scenarios do not establish product acceptance. Manual phrases and Rime dictionary imports must not wait for an English/cdict converter or a separate project.
+Keep the three accepted workstreams separate: Chinese input correctness/quality (#20), existing Rime word-table import/addition/switching (#22), and long-term common-source/cdict migration (#18). #22 is a future feature in its own right, with no complete external scheme, plugin/model, crawler or converter prerequisite.
 
-Physical ARM/editor validation belongs to that Chinese acceptance work. Stable signing/versioned delivery follows usability acceptance. D1 research may inform Chinese data handling, but multilingual conversion/integration remains deferred; D3 still depends on the format, pilot and explicit interaction design. Evaluate MediaWiki-derived data and Wanxiang vocabulary/full-scheme compatibility within the Chinese workstream before making support claims.
+Physical ARM/editor validation belongs to Chinese usability acceptance. Stable signing/versioned delivery follows usability acceptance. The cross-language converter or a separate data project must not delay use of existing compatible Rime word tables.
 
-Use scoped Issues and short-lived branches for D1–D4. Suggested branch names are `feat/dictionary-source-contract`, `feat/dictionary-converter-pilot`, `feat/dictionary-packages` and `feat/dictionary-language-pilot`. These are future branch names, not pre-created long-lived integration branches.
-
-Keep issue #18 open when this roadmap is merged. Close it only when the implementation gates are delivered or its scope is explicitly revised. Follow [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md); the [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) remains normative.
+Use scoped Issues and short-lived implementation branches. Keep #18, #20 and #22 open when this roadmap is merged: documentation does not deliver their runtime or acceptance gates. Follow [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md); the [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) remains normative.

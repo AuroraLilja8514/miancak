@@ -8,7 +8,7 @@ This project is primarily developed for self use. It is public so that its sourc
 
 ## Project status
 
-MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted: the maintainer's unresolved report is tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
+MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted and remains tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
@@ -35,8 +35,9 @@ Download the debug APK from a successful [MIANCAK CI run](https://github.com/Aur
 Current Chinese vocabulary limits:
 
 - Rime user learning is enabled in normal fields; it is separate from manual phrase editing or bulk dictionary import.
-- The app has no manual add/edit/delete phrase UI, external Rime dictionary import/redeploy UI, or general schema selector.
-- MediaWiki-derived vocabulary and Wanxiang are not integrated. Reusing a dictionary's data requires compatible codes/readings; a complete third-party scheme may also require models and components absent from this build.
+- The app does not yet import, add or switch external Rime word tables. That independent future feature is tracked in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22).
+- Word-table support will retain MIANCAK's input logic and use compatible vocabulary data, including existing prepared MediaWiki-derived or other Rime tables. It does not require the source project's complete input scheme.
+- Manual phrase editing is a separate capability and is not a prerequisite for using an existing word table.
 
 Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).
 
