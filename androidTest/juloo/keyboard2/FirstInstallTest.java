@@ -63,9 +63,13 @@ public final class FirstInstallTest
         screenshot("android-keyboard-enabled");
         launch();
         object("launcher_select").click();
-        UiObject2 choice = device.wait(Until.findObject(By.textContains("MIANCAK")), 15000);
-        assertNotNull("Android input-method picker did not list MIANCAK", choice);
-        choice.click();
+        String appName = context.getString(R.string.app_name);
+        assertTrue("Android input-method picker did not list MIANCAK",
+            device.wait(Until.hasObject(By.pkg("android").text(appName)), 15000));
+        // A selector-backed UiObject re-resolves after the dialog's layout;
+        // a cached launcher text node can disappear while the picker opens.
+        device.findObject(new UiSelector().packageName("android").text(appName)).click();
+        assertTrue(device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
       }
       launch();
       focusEditor();
@@ -113,7 +117,7 @@ public final class FirstInstallTest
   private void launch()
   {
     context.startActivity(new Intent(context, LauncherActivity.class)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertNotNull(object("launcher_enable"));
   }
 
@@ -133,11 +137,14 @@ public final class FirstInstallTest
 
   private void enableThroughAndroidUi() throws Exception
   {
-    UiObject2 label = device.wait(Until.findObject(By.textContains("MIANCAK")), 15000);
+    String appName = context.getString(R.string.app_name);
+    assertTrue("Android keyboard settings did not open",
+        device.wait(Until.hasObject(By.pkg("com.android.settings")), 15000));
+    UiObject2 label = device.wait(Until.findObject(By.pkg("com.android.settings").text(appName)), 15000);
     if (label == null)
     {
-      new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("MIANCAK"));
-      label = device.findObject(By.textContains("MIANCAK"));
+      new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text(appName));
+      label = device.findObject(By.pkg("com.android.settings").text(appName));
     }
     assertNotNull("MIANCAK absent from Android's enabled-keyboard settings", label);
     UiObject2 row = label;
@@ -152,7 +159,7 @@ public final class FirstInstallTest
       if (confirm != null) confirm.click();
       device.waitForIdle();
     }
-    label = device.findObject(By.textContains("MIANCAK"));
+    label = device.findObject(By.pkg("com.android.settings").text(appName));
     assertNotNull(label);
     row = label; toggle = null;
     for (int i = 0; i < 4 && row != null && toggle == null; i++, row = row.getParent())
