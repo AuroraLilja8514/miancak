@@ -30,6 +30,12 @@ For an already running emulator, put the APKs at `artifacts/app-debug.apk` and `
 
 The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. Custom layouts/settings are preserved; only a first install without a selected layout receives MIANCAK QWERTY.
 
+## Screenshot evidence
+
+Editor/DOM assertions establish input state independently of image capture. Screenshots also wait for UI idleness and two explicit display frames, then require a successful capture; a returned commit or JavaScript value alone does not establish that the new pixels have been presented. The rotation scenario captures both actual landscape and restored portrait states.
+
+Review post-commit editor, private-field, WebView and process-restart images together with the assertions. A stale or blank image requires investigation before treating it as visual evidence.
+
 ## Current results
 
 - M1: 14 semantic planner tests and baseline CI passed.

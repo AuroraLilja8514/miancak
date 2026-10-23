@@ -169,6 +169,7 @@ public class ImeInteractionTest
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
       awaitIdlePreedit();
+      screenshot("rotation-landscape");
       device.setOrientationNatural();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
@@ -321,10 +322,22 @@ public class ImeInteractionTest
     }
     assertEquals(org.json.JSONObject.quote(expected), value);
   }
-  private void screenshot(String name)
+  private void screenshot(String name) throws Exception
   {
+    // Editor/DOM assertions can finish before their next frame is presented.
+    // Use Choreographer rather than the cached Activity, which rotation replaces.
+    instrumentation.waitForIdleSync();
+    device.waitForIdle();
+    CountDownLatch rendered = new CountDownLatch(1);
+    instrumentation.runOnMainSync(() -> {
+      android.view.Choreographer frames = android.view.Choreographer.getInstance();
+      frames.postFrameCallback(first -> frames.postFrameCallback(second -> rendered.countDown()));
+    });
+    assertTrue("UI frames did not advance before screenshot", rendered.await(5, TimeUnit.SECONDS));
+    instrumentation.waitForIdleSync();
+    device.waitForIdle();
     File directory = context.getExternalFilesDir("test-results");
-    directory.mkdirs();
-    device.takeScreenshot(new File(directory, name + ".png"));
+    assertTrue(directory.isDirectory() || directory.mkdirs());
+    assertTrue("Screenshot capture failed: " + name, device.takeScreenshot(new File(directory, name + ".png")));
   }
 }
