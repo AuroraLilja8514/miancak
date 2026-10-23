@@ -49,6 +49,14 @@ public class LauncherActivity extends Activity implements Handler.Callback
         android.graphics.Insets bars = insets.getInsets(
             android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.ime());
         view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+        view.post(() -> {
+          View focused = view.findFocus();
+          if (focused != null)
+          {
+            android.graphics.Rect rect = new android.graphics.Rect();
+            focused.getDrawingRect(rect); focused.requestRectangleOnScreen(rect, false);
+          }
+        });
         return android.view.WindowInsets.CONSUMED;
       });
       content.requestApplyInsets();
