@@ -34,12 +34,25 @@ The following is a required future acceptance suite, not a report of an executed
 | First visible keyboard | Open a normal editor outside the debug fixture. Without manually choosing a layout, verify the intended MIANCAK layout, visible punctuation and language status; enter Chinese and compare the actual editor text. |
 | Complete input journey | Exercise the approved punctuation/Shift pairs, separator, language switch and lock/unlock; verify ordered commits with active composition. Check compact candidate bounds and expanded access, including correct selection of candidates omitted from the compact row. |
 | Persistence | Revisit settings, force-stop/reopen, restart the device and rotate. Verify layout/preferences and correct input remain; cover both languages and page entry/return. |
-| Upgrade, separately | Use a signing-compatible upgrade to preserve deliberate system/main/custom layouts, lock settings and user data. Verify new default initialization does not reset existing choices. |
+| Upgrade, separately | For U0, use a signing-compatible upgrade to preserve then-supported system/main/custom choices, lock settings and user data. For U3's explicit retirement, verify old built-in/system IDs migrate to MIANCAK QWERTY with a notice and retained selection record, valid independent custom configurations remain usable, and learning data is preserved. |
 | Help and accessibility | Follow shipped enablement, gesture/page and reset instructions; verify Chinese text, fallback language, displayed key labels and accessibility descriptions agree with actual actions. |
 
 Cover both entry orders on API 23 and API 35 with Chinese/English system locales; these versions exercise the inherited single-store and protected-storage paths. Add narrow/wide, portrait/landscape and larger-font cases for candidate fitting. Keep prepared-layout native/interaction tests as complementary coverage, not a substitute. Use an independent UI driver where needed so this suite does not initialize or rewrite the application's internal state.
 
 Collect screenshots at enablement, first keyboard, actual committed text, candidate expansion and post-restart, together with step assertions and logs. Record environmental automation failures separately from product failures. ARM APK inspection and physical-device runtime acceptance remain different evidence; no new fresh-install or physical-device result is claimed here.
+
+## Planned unified-page and phonetic acceptance
+
+These future cases follow [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md); none are reported as executed by this documentation update.
+
+| Case | Required result |
+| --- | --- |
+| Retired main layouts | No old built-in catalog/source/resource references remain in the shipped layout system; generated metadata, subtype defaults and fallback paths resolve. Test migration separately from U0 first-run defaults. |
+| Selector gesture | Enter southeast opens the page selector without a newline/editor action; cancel restores the original page and preedit. All enabled/available pages are listed, and dynamic panes expose the same selector. |
+| Equivalent navigation | Reach each target by its shortcut and by the selector; compare page ID, effective language, return target, Shift/legacy-Fn state, indicators and actual output. Selecting the configured Fn target lights Fn regardless of route. |
+| Composition and return | Page-only switching preserves composition; an explicit literal confirms before appending; Chinese/English profile changes honor confirmation ordering. Repeated Fn/Greek/numeric switches, selector cancel, rotation and view recreation must not strand a page or retain an unintended modifier. |
+| Configuration/editor policy | Disable/reorder/edit pages and change shortcut targets; validate unavailable targets and recover defaults. Respect password/numeric/no-learning policies. Persist valid edits across restart/upgrade and reject malformed imports without replacing the prior configuration. |
+| Future phonetic pages | Select the Chinese Fn target as pinyin or Zhuyin, check tone directions and reviewed compound-final/Unicode outputs, punctuation/control reachability, Fn indicators and return. Compare exact literal output, not Hanzi candidates. Verify editable static keys and applicable dynamic-panel controls against real touches. |
 
 ## Running
 
@@ -53,7 +66,7 @@ python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 
 For an already running emulator, put the APKs at `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`, then run `bash scripts/emulator_tests.sh`. It runs native, touch/lifecycle and process-restart phases, fails on instrumentation errors, and collects device screenshots, logs and metrics under `test-results/`.
 
-The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The intended initialization policy preserves custom layouts/settings and assigns MIANCAK QWERTY only on a fresh installation; the settings-first default-layout defect above means this is not yet established for every entry path.
+The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The intended U0 initialization policy preserves then-supported layouts/settings and assigns MIANCAK QWERTY on a fresh installation; the settings-first default-layout defect above means this is not yet established for every entry path. The later U3 plan deliberately retires other built-in main layouts through a separate migration and does not claim they remain available after removal.
 
 ## Screenshot evidence
 

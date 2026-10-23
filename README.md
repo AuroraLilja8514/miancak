@@ -12,6 +12,8 @@ MIANCAK has an **experimental offline simplified-pinyin implementation** with a 
 
 Known gaps include first-install layout initialization and candidate presentation. Opening settings before using the IME can retain the inherited system layout instead of MIANCAK QWERTY; the existing touch tests explicitly select MIANCAK QWERTY and do not validate the normal clean-install journey. Candidates currently use horizontal scrolling/paging, without a measured compact row and expanded panel. Planned Shift/language-key changes, Chinese-focused settings and a future visual key mapper are described in the development plan; they are not implemented in the current APK.
 
+The layout direction is one Chinese-specialized QWERTY main family with Chinese/English profiles, full retirement of the other inherited built-in main layouts, and configurable functional pages including Greek/math, numeric, emoji and clipboard. A shared selector/shortcut model, correct active-key indicators, visual page editing and future direct-output pinyin/Zhuyin pages are specified in [docs/LAYOUT_DESIGN.md](docs/LAYOUT_DESIGN.md). These are planned changes; the current APK still uses inherited layout/page switching.
+
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
 The prototype integrates:
