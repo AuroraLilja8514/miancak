@@ -29,6 +29,9 @@ public final class PagePreferences
       case "greek": return R.string.page_greek;
       case "emoji": return R.string.page_emoji;
       case "clipboard": return R.string.page_clipboard;
+      case "pinyin": return R.string.page_pinyin;
+      case "pinyin_finals": return R.string.page_pinyin_finals;
+      case "zhuyin": return R.string.page_zhuyin;
       default: throw new IllegalArgumentException(id);
     }
   }

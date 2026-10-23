@@ -27,6 +27,8 @@ jobs:
         shell: bash
         run: |
           python3 gen_layouts.py
+          python3 scripts/gen_phonetic_pages.py
+          python3 scripts/test_phonetic_pages.py
           python3 check_layout.py
           python3 srcs/compose/compile.py srcs/compose/{*.json,compose} > srcs/juloo.keyboard2/ComposeKeyData.java
           python3 gen_method_xml.py > res/xml/method.xml

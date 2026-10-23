@@ -163,6 +163,34 @@ public class ImeInteractionTest
       device.pressBack(); focus(activity.first); ensureChinese();
       gesture('q', -1, -1); output += "测试"; awaitText(activity.first, output);
       screenshot("edited-key-output");
+      find("miancak_pages").click(); choosePage("pinyin");
+      tap('n'); gesture('i', -1, 1); tap(5f, 3);
+      tap('h'); gesture('a', -1, 1); tap('o');
+      tap(7.75f, 3); output += "nǐ hǎo。"; awaitText(activity.first, output);
+      for (int[] direction : new int[][] {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}}) gesture('a', direction[0], direction[1]);
+      for (int[] direction : new int[][] {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}}) gesture('v', direction[0], direction[1]);
+      output += "āáǎàǖǘǚǜ"; awaitText(activity.first, output); screenshot("pinyin-tones");
+      find("miancak_pages").click(); choosePage("pinyin_finals");
+      phoneticGesture("pinyin_finals", 3, 1, 1, 1); output += "uì"; awaitText(activity.first, output);
+      screenshot("pinyin-finals");
+      find("miancak_pages").click(); choosePage("zhuyin");
+      phoneticGesture("zhuyin", 0, 6, 0, 0);
+      phoneticGesture("zhuyin", 2, 0, -1, 1);
+      output += "ㄋㄧˇ"; awaitText(activity.first, output); screenshot("zhuyin-text");
+      device.pressBack();
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      device.pressBack();
+      instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
+      device.findObject(By.desc("fn-target-zh")).click();
+      device.wait(Until.findObject(By.text(context.getString(R.string.page_pinyin))), 15000).click();
+      device.pressBack(); focus(activity.first); ensureChinese();
+      tap(2.25f, 3);
+      assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
+      tap('n'); output += "n"; awaitText(activity.first, output);
+      screenshot("configured-pinyin-fn");
+      tap(2.25f, 3); assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();
       UiObject2 compact = find("miancak_compact_candidates");
@@ -308,13 +336,34 @@ public class ImeInteractionTest
   }
 
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
+  private void phoneticGesture(String page, int row, int col, int dx, int dy)
+  {
+    KeyboardData data = PageLayouts.base(context.getResources(), page);
+    Config config = Config.globalConfig(); Rect bounds = keyboard().getVisibleBounds();
+    float unit = (bounds.width() - 2 * config.horizontal_margin) / data.keysWidth;
+    float rowSize = Math.min(config.keyboard_rows_height_pixels, (config.screenHeightPixels - config.keyboard_rows_height_pixels) / data.keysHeight);
+    float x = bounds.left + config.horizontal_margin, y = bounds.top + config.marginTop;
+    for (int r = 0; r < row; r++) y += (data.rows.get(r).height + data.rows.get(r).shift) * rowSize;
+    KeyboardData.Row line = data.rows.get(row); y += (line.shift + line.height / 2) * rowSize;
+    for (int c = 0; c < col; c++) x += (line.keys.get(c).width + line.keys.get(c).shift) * unit;
+    KeyboardData.Key key = line.keys.get(col); x += (key.shift + key.width / 2) * unit;
+    if (dx == 0 && dy == 0) assertTrue(device.click(Math.round(x), Math.round(y)));
+    else assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + dx * key.width * unit * 0.85f), Math.round(y + dy * rowSize * 0.65f), 12));
+  }
   private void choosePage(String id) throws Exception
   {
-    new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
-        .resourceId(pkg + ":id/miancak_page_chooser")).scrollIntoView(
-          new androidx.test.uiautomator.UiSelector().description("Choose page: " + id));
-    UiObject2 choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 15000);
-    assertNotNull(choice); choice.click();
+    // UiObject2 searches the IME window as well as the focused editor.
+    // The legacy UiScrollable selector searches the active app window only.
+    UiObject2 choice = null;
+    for (int attempt = 0; attempt < 12; attempt++)
+    {
+      choice = device.findObject(By.desc("Choose page: " + id));
+      if (choice != null && choice.getVisibleBounds().height() > 16) break;
+      UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
+      chooser.setGestureMargin(20);
+      if (!chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f)) break;
+    }
+    assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
     assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_page_chooser")), 15000));
   }
   private UiObject2 language() { return find("miancak_language"); }

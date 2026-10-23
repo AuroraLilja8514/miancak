@@ -79,7 +79,7 @@ public class PageSettingsActivity extends Activity
           catch (Exception error) { error(error.getMessage()); }
         }).show()); content.addView(restore);
     android.widget.TextView note = new android.widget.TextView(this);
-    note.setText(R.string.pages_explanation); content.addView(note);
+    note.setText(getString(R.string.pages_explanation) + "\n\n" + getString(R.string.page_phonetic_help)); content.addView(note);
   }
   private void fnButton(InputRouter.Mode mode)
   {

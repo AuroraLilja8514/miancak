@@ -11,7 +11,7 @@ import java.util.Set;
 public final class PageConfig
 {
   public static final List<String> IDS = Collections.unmodifiableList(Arrays.asList(
-      "zh", "en", "symbols", "numeric", "greek", "emoji", "clipboard"));
+      "zh", "en", "symbols", "numeric", "greek", "emoji", "clipboard", "pinyin", "pinyin_finals", "zhuyin"));
   public final List<String> order;
   public final Set<String> enabled;
   public final String chineseFn, englishFn;

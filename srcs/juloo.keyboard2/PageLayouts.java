@@ -17,6 +17,9 @@ public final class PageLayouts
       case "greek": id = R.xml.greekmath; break;
       case "emoji": id = R.xml.emoji_bottom_row; break;
       case "clipboard": id = R.xml.clipboard_bottom_row; break;
+      case "pinyin": id = R.xml.miancak_pinyin; break;
+      case "pinyin_finals": id = R.xml.miancak_pinyin_finals; break;
+      case "zhuyin": id = R.xml.miancak_zhuyin; break;
       default: throw new IllegalArgumentException(page);
     }
     return complete(resources, KeyboardData.load(resources, id));

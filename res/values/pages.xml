@@ -63,5 +63,12 @@
     <item>Up</item>
     <item>Down</item>
     <item>Pinyin separator</item>
+    <item>Pinyin text</item>
+    <item>Pinyin finals</item>
+    <item>Zhuyin text</item>
   </string-array>
+  <string name="page_pinyin">Pinyin text</string>
+  <string name="page_pinyin_finals">Pinyin finals and tones</string>
+  <string name="page_zhuyin">Zhuyin text</string>
+  <string name="page_phonetic_help">Phonetic pages output literal text. Vowel/final corners: NW first, NE second, SW third, SE fourth tone. Center is unmarked. Punctuation has its own bottom key. On the finals page, Space NW is Backspace.</string>
 </resources>

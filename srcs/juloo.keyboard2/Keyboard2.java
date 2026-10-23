@@ -631,6 +631,8 @@ public class Keyboard2 extends InputMethodService
       case "numeric": _currentSpecialLayout = loadNumericLayout(); break;
       case "greek": _currentSpecialLayout = LayoutModifier.modify_numpad(_keyOverrides.apply("greek", PageLayouts.base(getResources(), "greek")), current_layout_unmodified()); break;
       case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply("symbols", PageLayouts.base(getResources(), "symbols"))); break;
+      case "pinyin": case "pinyin_finals": case "zhuyin":
+        _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active()))); break;
       default: _currentSpecialLayout = null; break;
     }
     _keyboard_layout_view.setKeyboard(current_layout());
@@ -681,6 +683,7 @@ public class Keyboard2 extends InputMethodService
     if (_page.active().equals("greek")) events.add(KeyValue.Event.SWITCH_GREEKMATH);
     if (_pageChooser != null) events.add(KeyValue.Event.LAYOUT_PICKER);
     _keyboard_layout_view.setActivePageEvents(events);
+    _rimeCandidates.setPageLabel(PageConfig.isText(_page.active()) ? null : getString(PagePreferences.label(_page.active())));
     _keyboard_layout_view.setContentDescription("Page: " + _page.active()
         + "; Fn: " + events.contains(KeyValue.Event.SWITCH_FN));
   }
@@ -792,6 +795,10 @@ public class Keyboard2 extends InputMethodService
         case LAYOUT_PICKER:
           show_page_chooser();
           break;
+
+        case SWITCH_PINYIN: toggle_page("pinyin"); break;
+        case SWITCH_PINYIN_FINALS: toggle_page("pinyin_finals"); break;
+        case SWITCH_ZHUYIN: toggle_page("zhuyin"); break;
 
         case CAPS_LOCK:
           set_shift_state(true, true);

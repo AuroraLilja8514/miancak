@@ -1,0 +1,236 @@
+<?xml version='1.0' encoding='utf-8'?>
+<keyboard name="Pinyin finals" script="phonetic" bottom_row="false">
+  <modmap>
+    <shift a=":literal:'a'" b=":literal:'A'" />
+    <shift a=":literal:'ā'" b=":literal:'Ā'" />
+    <shift a=":literal:'á'" b=":literal:'Á'" />
+    <shift a=":literal:'ǎ'" b=":literal:'Ǎ'" />
+    <shift a=":literal:'à'" b=":literal:'À'" />
+    <shift a=":literal:'o'" b=":literal:'O'" />
+    <shift a=":literal:'ō'" b=":literal:'Ō'" />
+    <shift a=":literal:'ó'" b=":literal:'Ó'" />
+    <shift a=":literal:'ǒ'" b=":literal:'Ǒ'" />
+    <shift a=":literal:'ò'" b=":literal:'Ò'" />
+    <shift a=":literal:'e'" b=":literal:'E'" />
+    <shift a=":literal:'ē'" b=":literal:'Ē'" />
+    <shift a=":literal:'é'" b=":literal:'É'" />
+    <shift a=":literal:'ě'" b=":literal:'Ě'" />
+    <shift a=":literal:'è'" b=":literal:'È'" />
+    <shift a=":literal:'i'" b=":literal:'I'" />
+    <shift a=":literal:'ī'" b=":literal:'Ī'" />
+    <shift a=":literal:'í'" b=":literal:'Í'" />
+    <shift a=":literal:'ǐ'" b=":literal:'Ǐ'" />
+    <shift a=":literal:'ì'" b=":literal:'Ì'" />
+    <shift a=":literal:'u'" b=":literal:'U'" />
+    <shift a=":literal:'ū'" b=":literal:'Ū'" />
+    <shift a=":literal:'ú'" b=":literal:'Ú'" />
+    <shift a=":literal:'ǔ'" b=":literal:'Ǔ'" />
+    <shift a=":literal:'ù'" b=":literal:'Ù'" />
+    <shift a=":literal:'ü'" b=":literal:'Ü'" />
+    <shift a=":literal:'ǖ'" b=":literal:'Ǖ'" />
+    <shift a=":literal:'ǘ'" b=":literal:'Ǘ'" />
+    <shift a=":literal:'ǚ'" b=":literal:'Ǚ'" />
+    <shift a=":literal:'ǜ'" b=":literal:'Ǜ'" />
+    <shift a=":literal:'ai'" b=":literal:'AI'" />
+    <shift a=":literal:'āi'" b=":literal:'ĀI'" />
+    <shift a=":literal:'ái'" b=":literal:'ÁI'" />
+    <shift a=":literal:'ǎi'" b=":literal:'ǍI'" />
+    <shift a=":literal:'ài'" b=":literal:'ÀI'" />
+    <shift a=":literal:'ei'" b=":literal:'EI'" />
+    <shift a=":literal:'ēi'" b=":literal:'ĒI'" />
+    <shift a=":literal:'éi'" b=":literal:'ÉI'" />
+    <shift a=":literal:'ěi'" b=":literal:'ĚI'" />
+    <shift a=":literal:'èi'" b=":literal:'ÈI'" />
+    <shift a=":literal:'ao'" b=":literal:'AO'" />
+    <shift a=":literal:'āo'" b=":literal:'ĀO'" />
+    <shift a=":literal:'áo'" b=":literal:'ÁO'" />
+    <shift a=":literal:'ǎo'" b=":literal:'ǍO'" />
+    <shift a=":literal:'ào'" b=":literal:'ÀO'" />
+    <shift a=":literal:'ou'" b=":literal:'OU'" />
+    <shift a=":literal:'ōu'" b=":literal:'ŌU'" />
+    <shift a=":literal:'óu'" b=":literal:'ÓU'" />
+    <shift a=":literal:'ǒu'" b=":literal:'ǑU'" />
+    <shift a=":literal:'òu'" b=":literal:'ÒU'" />
+    <shift a=":literal:'an'" b=":literal:'AN'" />
+    <shift a=":literal:'ān'" b=":literal:'ĀN'" />
+    <shift a=":literal:'án'" b=":literal:'ÁN'" />
+    <shift a=":literal:'ǎn'" b=":literal:'ǍN'" />
+    <shift a=":literal:'àn'" b=":literal:'ÀN'" />
+    <shift a=":literal:'en'" b=":literal:'EN'" />
+    <shift a=":literal:'ēn'" b=":literal:'ĒN'" />
+    <shift a=":literal:'én'" b=":literal:'ÉN'" />
+    <shift a=":literal:'ěn'" b=":literal:'ĚN'" />
+    <shift a=":literal:'èn'" b=":literal:'ÈN'" />
+    <shift a=":literal:'ang'" b=":literal:'ANG'" />
+    <shift a=":literal:'āng'" b=":literal:'ĀNG'" />
+    <shift a=":literal:'áng'" b=":literal:'ÁNG'" />
+    <shift a=":literal:'ǎng'" b=":literal:'ǍNG'" />
+    <shift a=":literal:'àng'" b=":literal:'ÀNG'" />
+    <shift a=":literal:'eng'" b=":literal:'ENG'" />
+    <shift a=":literal:'ēng'" b=":literal:'ĒNG'" />
+    <shift a=":literal:'éng'" b=":literal:'ÉNG'" />
+    <shift a=":literal:'ěng'" b=":literal:'ĚNG'" />
+    <shift a=":literal:'èng'" b=":literal:'ÈNG'" />
+    <shift a=":literal:'ong'" b=":literal:'ONG'" />
+    <shift a=":literal:'ōng'" b=":literal:'ŌNG'" />
+    <shift a=":literal:'óng'" b=":literal:'ÓNG'" />
+    <shift a=":literal:'ǒng'" b=":literal:'ǑNG'" />
+    <shift a=":literal:'òng'" b=":literal:'ÒNG'" />
+    <shift a=":literal:'er'" b=":literal:'ER'" />
+    <shift a=":literal:'ēr'" b=":literal:'ĒR'" />
+    <shift a=":literal:'ér'" b=":literal:'ÉR'" />
+    <shift a=":literal:'ěr'" b=":literal:'ĚR'" />
+    <shift a=":literal:'èr'" b=":literal:'ÈR'" />
+    <shift a=":literal:'ia'" b=":literal:'IA'" />
+    <shift a=":literal:'iā'" b=":literal:'IĀ'" />
+    <shift a=":literal:'iá'" b=":literal:'IÁ'" />
+    <shift a=":literal:'iǎ'" b=":literal:'IǍ'" />
+    <shift a=":literal:'ià'" b=":literal:'IÀ'" />
+    <shift a=":literal:'ie'" b=":literal:'IE'" />
+    <shift a=":literal:'iē'" b=":literal:'IĒ'" />
+    <shift a=":literal:'ié'" b=":literal:'IÉ'" />
+    <shift a=":literal:'iě'" b=":literal:'IĚ'" />
+    <shift a=":literal:'iè'" b=":literal:'IÈ'" />
+    <shift a=":literal:'iao'" b=":literal:'IAO'" />
+    <shift a=":literal:'iāo'" b=":literal:'IĀO'" />
+    <shift a=":literal:'iáo'" b=":literal:'IÁO'" />
+    <shift a=":literal:'iǎo'" b=":literal:'IǍO'" />
+    <shift a=":literal:'iào'" b=":literal:'IÀO'" />
+    <shift a=":literal:'iu'" b=":literal:'IU'" />
+    <shift a=":literal:'iū'" b=":literal:'IŪ'" />
+    <shift a=":literal:'iú'" b=":literal:'IÚ'" />
+    <shift a=":literal:'iǔ'" b=":literal:'IǓ'" />
+    <shift a=":literal:'iù'" b=":literal:'IÙ'" />
+    <shift a=":literal:'ian'" b=":literal:'IAN'" />
+    <shift a=":literal:'iān'" b=":literal:'IĀN'" />
+    <shift a=":literal:'ián'" b=":literal:'IÁN'" />
+    <shift a=":literal:'iǎn'" b=":literal:'IǍN'" />
+    <shift a=":literal:'iàn'" b=":literal:'IÀN'" />
+    <shift a=":literal:'in'" b=":literal:'IN'" />
+    <shift a=":literal:'īn'" b=":literal:'ĪN'" />
+    <shift a=":literal:'ín'" b=":literal:'ÍN'" />
+    <shift a=":literal:'ǐn'" b=":literal:'ǏN'" />
+    <shift a=":literal:'ìn'" b=":literal:'ÌN'" />
+    <shift a=":literal:'iang'" b=":literal:'IANG'" />
+    <shift a=":literal:'iāng'" b=":literal:'IĀNG'" />
+    <shift a=":literal:'iáng'" b=":literal:'IÁNG'" />
+    <shift a=":literal:'iǎng'" b=":literal:'IǍNG'" />
+    <shift a=":literal:'iàng'" b=":literal:'IÀNG'" />
+    <shift a=":literal:'ing'" b=":literal:'ING'" />
+    <shift a=":literal:'īng'" b=":literal:'ĪNG'" />
+    <shift a=":literal:'íng'" b=":literal:'ÍNG'" />
+    <shift a=":literal:'ǐng'" b=":literal:'ǏNG'" />
+    <shift a=":literal:'ìng'" b=":literal:'ÌNG'" />
+    <shift a=":literal:'iong'" b=":literal:'IONG'" />
+    <shift a=":literal:'iōng'" b=":literal:'IŌNG'" />
+    <shift a=":literal:'ióng'" b=":literal:'IÓNG'" />
+    <shift a=":literal:'iǒng'" b=":literal:'IǑNG'" />
+    <shift a=":literal:'iòng'" b=":literal:'IÒNG'" />
+    <shift a=":literal:'ua'" b=":literal:'UA'" />
+    <shift a=":literal:'uā'" b=":literal:'UĀ'" />
+    <shift a=":literal:'uá'" b=":literal:'UÁ'" />
+    <shift a=":literal:'uǎ'" b=":literal:'UǍ'" />
+    <shift a=":literal:'uà'" b=":literal:'UÀ'" />
+    <shift a=":literal:'uo'" b=":literal:'UO'" />
+    <shift a=":literal:'uō'" b=":literal:'UŌ'" />
+    <shift a=":literal:'uó'" b=":literal:'UÓ'" />
+    <shift a=":literal:'uǒ'" b=":literal:'UǑ'" />
+    <shift a=":literal:'uò'" b=":literal:'UÒ'" />
+    <shift a=":literal:'uai'" b=":literal:'UAI'" />
+    <shift a=":literal:'uāi'" b=":literal:'UĀI'" />
+    <shift a=":literal:'uái'" b=":literal:'UÁI'" />
+    <shift a=":literal:'uǎi'" b=":literal:'UǍI'" />
+    <shift a=":literal:'uài'" b=":literal:'UÀI'" />
+    <shift a=":literal:'ui'" b=":literal:'UI'" />
+    <shift a=":literal:'uī'" b=":literal:'UĪ'" />
+    <shift a=":literal:'uí'" b=":literal:'UÍ'" />
+    <shift a=":literal:'uǐ'" b=":literal:'UǏ'" />
+    <shift a=":literal:'uì'" b=":literal:'UÌ'" />
+    <shift a=":literal:'uan'" b=":literal:'UAN'" />
+    <shift a=":literal:'uān'" b=":literal:'UĀN'" />
+    <shift a=":literal:'uán'" b=":literal:'UÁN'" />
+    <shift a=":literal:'uǎn'" b=":literal:'UǍN'" />
+    <shift a=":literal:'uàn'" b=":literal:'UÀN'" />
+    <shift a=":literal:'un'" b=":literal:'UN'" />
+    <shift a=":literal:'ūn'" b=":literal:'ŪN'" />
+    <shift a=":literal:'ún'" b=":literal:'ÚN'" />
+    <shift a=":literal:'ǔn'" b=":literal:'ǓN'" />
+    <shift a=":literal:'ùn'" b=":literal:'ÙN'" />
+    <shift a=":literal:'uang'" b=":literal:'UANG'" />
+    <shift a=":literal:'uāng'" b=":literal:'UĀNG'" />
+    <shift a=":literal:'uáng'" b=":literal:'UÁNG'" />
+    <shift a=":literal:'uǎng'" b=":literal:'UǍNG'" />
+    <shift a=":literal:'uàng'" b=":literal:'UÀNG'" />
+    <shift a=":literal:'ueng'" b=":literal:'UENG'" />
+    <shift a=":literal:'uēng'" b=":literal:'UĒNG'" />
+    <shift a=":literal:'uéng'" b=":literal:'UÉNG'" />
+    <shift a=":literal:'uěng'" b=":literal:'UĚNG'" />
+    <shift a=":literal:'uèng'" b=":literal:'UÈNG'" />
+    <shift a=":literal:'üe'" b=":literal:'ÜE'" />
+    <shift a=":literal:'üē'" b=":literal:'ÜĒ'" />
+    <shift a=":literal:'üé'" b=":literal:'ÜÉ'" />
+    <shift a=":literal:'üě'" b=":literal:'ÜĚ'" />
+    <shift a=":literal:'üè'" b=":literal:'ÜÈ'" />
+    <shift a=":literal:'üan'" b=":literal:'ÜAN'" />
+    <shift a=":literal:'üān'" b=":literal:'ÜĀN'" />
+    <shift a=":literal:'üán'" b=":literal:'ÜÁN'" />
+    <shift a=":literal:'üǎn'" b=":literal:'ÜǍN'" />
+    <shift a=":literal:'üàn'" b=":literal:'ÜÀN'" />
+    <shift a=":literal:'ün'" b=":literal:'ÜN'" />
+    <shift a=":literal:'ǖn'" b=":literal:'ǕN'" />
+    <shift a=":literal:'ǘn'" b=":literal:'ǗN'" />
+    <shift a=":literal:'ǚn'" b=":literal:'ǙN'" />
+    <shift a=":literal:'ǜn'" b=":literal:'ǛN'" />
+  </modmap>
+  <row>
+    <key c=":literal:'a'" width="1.1111111111111112" nw=":literal:'ā'" ne=":literal:'á'" sw=":literal:'ǎ'" se=":literal:'à'" />
+    <key c=":literal:'o'" width="1.1111111111111112" nw=":literal:'ō'" ne=":literal:'ó'" sw=":literal:'ǒ'" se=":literal:'ò'" />
+    <key c=":literal:'e'" width="1.1111111111111112" nw=":literal:'ē'" ne=":literal:'é'" sw=":literal:'ě'" se=":literal:'è'" />
+    <key c=":literal:'i'" width="1.1111111111111112" nw=":literal:'ī'" ne=":literal:'í'" sw=":literal:'ǐ'" se=":literal:'ì'" />
+    <key c=":literal:'u'" width="1.1111111111111112" nw=":literal:'ū'" ne=":literal:'ú'" sw=":literal:'ǔ'" se=":literal:'ù'" />
+    <key c=":literal:'ü'" width="1.1111111111111112" nw=":literal:'ǖ'" ne=":literal:'ǘ'" sw=":literal:'ǚ'" se=":literal:'ǜ'" />
+    <key c=":literal:'ai'" width="1.1111111111111112" nw=":literal:'āi'" ne=":literal:'ái'" sw=":literal:'ǎi'" se=":literal:'ài'" />
+    <key c=":literal:'ei'" width="1.1111111111111112" nw=":literal:'ēi'" ne=":literal:'éi'" sw=":literal:'ěi'" se=":literal:'èi'" />
+    <key c=":literal:'ao'" width="1.1111111111111112" nw=":literal:'āo'" ne=":literal:'áo'" sw=":literal:'ǎo'" se=":literal:'ào'" />
+  </row>
+  <row>
+    <key c=":literal:'ou'" width="1.1111111111111112" nw=":literal:'ōu'" ne=":literal:'óu'" sw=":literal:'ǒu'" se=":literal:'òu'" />
+    <key c=":literal:'an'" width="1.1111111111111112" nw=":literal:'ān'" ne=":literal:'án'" sw=":literal:'ǎn'" se=":literal:'àn'" />
+    <key c=":literal:'en'" width="1.1111111111111112" nw=":literal:'ēn'" ne=":literal:'én'" sw=":literal:'ěn'" se=":literal:'èn'" />
+    <key c=":literal:'ang'" width="1.1111111111111112" nw=":literal:'āng'" ne=":literal:'áng'" sw=":literal:'ǎng'" se=":literal:'àng'" />
+    <key c=":literal:'eng'" width="1.1111111111111112" nw=":literal:'ēng'" ne=":literal:'éng'" sw=":literal:'ěng'" se=":literal:'èng'" />
+    <key c=":literal:'ong'" width="1.1111111111111112" nw=":literal:'ōng'" ne=":literal:'óng'" sw=":literal:'ǒng'" se=":literal:'òng'" />
+    <key c=":literal:'er'" width="1.1111111111111112" nw=":literal:'ēr'" ne=":literal:'ér'" sw=":literal:'ěr'" se=":literal:'èr'" />
+    <key c=":literal:'ia'" width="1.1111111111111112" nw=":literal:'iā'" ne=":literal:'iá'" sw=":literal:'iǎ'" se=":literal:'ià'" />
+    <key c=":literal:'ie'" width="1.1111111111111112" nw=":literal:'iē'" ne=":literal:'ié'" sw=":literal:'iě'" se=":literal:'iè'" />
+  </row>
+  <row>
+    <key c=":literal:'iao'" width="1.1111111111111112" nw=":literal:'iāo'" ne=":literal:'iáo'" sw=":literal:'iǎo'" se=":literal:'iào'" />
+    <key c=":literal:'iu'" width="1.1111111111111112" nw=":literal:'iū'" ne=":literal:'iú'" sw=":literal:'iǔ'" se=":literal:'iù'" />
+    <key c=":literal:'ian'" width="1.1111111111111112" nw=":literal:'iān'" ne=":literal:'ián'" sw=":literal:'iǎn'" se=":literal:'iàn'" />
+    <key c=":literal:'in'" width="1.1111111111111112" nw=":literal:'īn'" ne=":literal:'ín'" sw=":literal:'ǐn'" se=":literal:'ìn'" />
+    <key c=":literal:'iang'" width="1.1111111111111112" nw=":literal:'iāng'" ne=":literal:'iáng'" sw=":literal:'iǎng'" se=":literal:'iàng'" />
+    <key c=":literal:'ing'" width="1.1111111111111112" nw=":literal:'īng'" ne=":literal:'íng'" sw=":literal:'ǐng'" se=":literal:'ìng'" />
+    <key c=":literal:'iong'" width="1.1111111111111112" nw=":literal:'iōng'" ne=":literal:'ióng'" sw=":literal:'iǒng'" se=":literal:'iòng'" />
+    <key c=":literal:'ua'" width="1.1111111111111112" nw=":literal:'uā'" ne=":literal:'uá'" sw=":literal:'uǎ'" se=":literal:'uà'" />
+    <key c=":literal:'uo'" width="1.1111111111111112" nw=":literal:'uō'" ne=":literal:'uó'" sw=":literal:'uǒ'" se=":literal:'uò'" />
+  </row>
+  <row>
+    <key c=":literal:'uai'" width="1.1111111111111112" nw=":literal:'uāi'" ne=":literal:'uái'" sw=":literal:'uǎi'" se=":literal:'uài'" />
+    <key c=":literal:'ui'" width="1.1111111111111112" nw=":literal:'uī'" ne=":literal:'uí'" sw=":literal:'uǐ'" se=":literal:'uì'" />
+    <key c=":literal:'uan'" width="1.1111111111111112" nw=":literal:'uān'" ne=":literal:'uán'" sw=":literal:'uǎn'" se=":literal:'uàn'" />
+    <key c=":literal:'un'" width="1.1111111111111112" nw=":literal:'ūn'" ne=":literal:'ún'" sw=":literal:'ǔn'" se=":literal:'ùn'" />
+    <key c=":literal:'uang'" width="1.1111111111111112" nw=":literal:'uāng'" ne=":literal:'uáng'" sw=":literal:'uǎng'" se=":literal:'uàng'" />
+    <key c=":literal:'ueng'" width="1.1111111111111112" nw=":literal:'uēng'" ne=":literal:'uéng'" sw=":literal:'uěng'" se=":literal:'uèng'" />
+    <key c=":literal:'üe'" width="1.1111111111111112" nw=":literal:'üē'" ne=":literal:'üé'" sw=":literal:'üě'" se=":literal:'üè'" />
+    <key c=":literal:'üan'" width="1.1111111111111112" nw=":literal:'üān'" ne=":literal:'üán'" sw=":literal:'üǎn'" se=":literal:'üàn'" />
+    <key c=":literal:'ün'" width="1.1111111111111112" nw=":literal:'ǖn'" ne=":literal:'ǘn'" sw=":literal:'ǚn'" se=":literal:'ǜn'" />
+  </row>
+  <row height="0.95">
+    <key width="1.7" role="action" key0="shift" key1="switch_greekmath" key2="language_switch" key3="switch_clipboard" key4="switch_numeric" />
+    <key width="1.1" role="action" key0="fn_page" key1="loc alt" key2="loc change_method" key3="switch_emoji" key4="config" />
+    <key width="4.4" role="space_bar" key0="space" key7="switch_pinyin" key8="switch_zhuyin" key5="cursor_left" key6="cursor_right" key1="backspace" key2="delete" />
+    <key width="1.1" c=":literal:'。'" nw=":literal:'，'" ne=":literal:'？'" sw=":literal:'！'" se=":literal:'；'" n=":literal:'：'" s=":literal:'、'" w=":literal:'\''" e=":literal:'˙'" />
+    <key width="1.7" role="action" key0="enter" key1="loc voice_typing" key2="action" key4="layout_picker" />
+  </row>
+</keyboard>
