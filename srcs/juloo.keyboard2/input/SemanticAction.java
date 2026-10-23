@@ -7,7 +7,8 @@ public final class SemanticAction
 {
   public enum Type
   {
-    ENGINE_TEXT, LITERAL_TEXT, BACKSPACE, SPACE, TOGGLE_LANGUAGE, PINYIN_SEPARATOR
+    ENGINE_TEXT, LITERAL_TEXT, BACKSPACE, SPACE, TOGGLE_LANGUAGE, PINYIN_SEPARATOR,
+    SET_CHINESE, SET_ENGLISH
   }
 
   public static final SemanticAction BACKSPACE =
@@ -18,6 +19,13 @@ public final class SemanticAction
     new SemanticAction(Type.TOGGLE_LANGUAGE, "");
   public static final SemanticAction PINYIN_SEPARATOR =
     new SemanticAction(Type.PINYIN_SEPARATOR, "");
+  public static final SemanticAction SET_CHINESE = new SemanticAction(Type.SET_CHINESE, "");
+  public static final SemanticAction SET_ENGLISH = new SemanticAction(Type.SET_ENGLISH, "");
+
+  public boolean changesLanguage()
+  {
+    return type == Type.TOGGLE_LANGUAGE || type == Type.SET_CHINESE || type == Type.SET_ENGLISH;
+  }
 
   public final Type type;
   /** Exact text for text actions; empty for control actions. */

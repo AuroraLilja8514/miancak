@@ -27,6 +27,9 @@ public final class RimeCandidatesView extends LinearLayout
   private ScrollView expandedScroll;
   private CandidateFlow expandedFlow;
   private boolean expanded;
+  private Runnable languageAction, expansionChanged;
+  public void setLanguageAction(Runnable action) { languageAction = action; }
+  public void setExpansionListener(Runnable action) { expansionChanged = action; }
 
   public RimeCandidatesView(Context context, AttributeSet attrs)
   {
@@ -119,7 +122,10 @@ public final class RimeCandidatesView extends LinearLayout
     language.setEnabled(snapshot.engineAllowed);
     language.setAlpha(snapshot.engineAllowed ? 1f : 0.55f);
     language.setContentDescription(getContext().getString(chinese ? R.string.miancak_switch_english : R.string.miancak_switch_chinese));
-    language.setOnClickListener(view -> { if (controller != null) controller.submit(SemanticAction.TOGGLE_LANGUAGE); });
+    language.setOnClickListener(view -> {
+      if (languageAction != null) languageAction.run();
+      else if (controller != null) controller.submit(SemanticAction.TOGGLE_LANGUAGE);
+    });
     preedit.setText(!snapshot.error.isEmpty() ? getContext().getString(snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus)
         : snapshot.engine.composing ? snapshot.engine.preedit
         : getContext().getString(chinese ? R.string.miancak_pinyin : R.string.miancak_direct));
@@ -153,6 +159,8 @@ public final class RimeCandidatesView extends LinearLayout
     if (keyboard != null) keyboard.setVisibility(expanded ? INVISIBLE : VISIBLE);
     if (expandedScroll != null) expandedScroll.setVisibility(expanded ? VISIBLE : GONE);
     if (expanded && expandedScroll != null) expandedScroll.requestApplyInsets();
+    if (expandedScroll != null && expanded) expandedScroll.bringToFront();
+    if (expansionChanged != null) expansionChanged.run();
   }
 
   private void renderCandidates()

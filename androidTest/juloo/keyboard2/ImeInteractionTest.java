@@ -112,6 +112,39 @@ public class ImeInteractionTest
       type("ok"); output += "ok"; awaitText(activity.first, output);
       gesture(0.75f, 2, 1, -1); awaitMode("中文");
       screenshot("chinese-punctuation-and-separator");
+      // Opening the chooser and auxiliary pages preserves preedit. Selecting
+      // the Fn target through the chooser must light Fn just as its key does.
+      type("nihao"); String beforePages = candidate();
+      gesture(9.15f, 3, 1, 1);
+      assertNotNull(find("miancak_page_chooser"));
+      assertEquals(output, text(activity.first));
+      screenshot("page-chooser");
+      choosePage("symbols");
+      assertTrue(keyboard().getContentDescription().contains("Fn: true"));
+      assertEquals(beforePages, candidate());
+      tap(2.25f, 3); // Fn target returns to Chinese main page.
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      assertEquals(beforePages, candidate());
+      tap(2.25f, 3); // Direct Fn reaches exactly the same symbols page.
+      assertTrue(keyboard().getContentDescription().contains("Fn: true"));
+      screenshot("fn-symbols-active");
+      device.pressBack();
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      assertEquals(beforePages, candidate());
+      find("miancak_cancel").click(); awaitIdlePreedit();
+      gesture(9.15f, 3, 1, 1); choosePage("greek");
+      assertTrue(keyboard().getContentDescription().startsWith("Page: greek;"));
+      tap(0.5f, 0); output += "θ"; awaitText(activity.first, output);
+      screenshot("greek-page");
+      device.pressBack();
+      gesture(9.15f, 3, 1, 1); choosePage("emoji");
+      UiObject2 dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
+      assertNotNull(dynamicPicker); screenshot("emoji-page");
+      dynamicPicker.click(); choosePage("clipboard");
+      dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
+      assertNotNull(dynamicPicker); screenshot("clipboard-page");
+      dynamicPicker.click(); choosePage("zh");
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();
       UiObject2 compact = find("miancak_compact_candidates");
@@ -257,6 +290,15 @@ public class ImeInteractionTest
   }
 
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
+  private void choosePage(String id) throws Exception
+  {
+    new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
+        .resourceId(pkg + ":id/miancak_page_chooser")).scrollIntoView(
+          new androidx.test.uiautomator.UiSelector().description("Choose page: " + id));
+    UiObject2 choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 15000);
+    assertNotNull(choice); choice.click();
+    assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_page_chooser")), 15000));
+  }
   private UiObject2 language() { return find("miancak_language"); }
   private UiObject2 keyboard() { return find("keyboard_view"); }
   private void awaitMode(String mode) { assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_language").text(mode)), 15000)); }

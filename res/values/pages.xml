@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="pages_title">Layouts and pages</string>
+  <string name="pages_summary">MIANCAK QWERTY · page order, enabled pages and Fn targets</string>
+  <string name="page_zh">Chinese · QWERTY</string>
+  <string name="page_en">English · QWERTY</string>
+  <string name="page_symbols">Punctuation and symbols</string>
+  <string name="page_numeric">Numbers</string>
+  <string name="page_greek">Greek and mathematics</string>
+  <string name="page_emoji">Emoji</string>
+  <string name="page_clipboard">Clipboard</string>
+  <string name="page_move_up">Move %s up</string>
+  <string name="page_none">None</string>
+  <string name="page_chinese_fn">Chinese Fn: %s</string>
+  <string name="page_english_fn">English Fn: %s</string>
+  <string name="page_fn_target">Choose Fn target</string>
+  <string name="pages_reset">Reset page settings</string>
+  <string name="pages_reset_confirm">Reset page order, enabled pages and Fn targets?</string>
+  <string name="pages_explanation">Chinese and English share MIANCAK QWERTY. Swipe southeast on Enter for all enabled pages. Fn toggles its configured page; select the same page again to return. Shift double tap or long press locks capitals.</string>
+</resources>

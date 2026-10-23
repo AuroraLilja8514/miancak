@@ -91,6 +91,12 @@ public final class InputRouter
           operations.add(new Operation(OperationType.CONFIRM_COMPOSITION, ""));
         resultingMode = mode == Mode.CHINESE ? Mode.ENGLISH : Mode.CHINESE;
         break;
+      case SET_CHINESE:
+      case SET_ENGLISH:
+        resultingMode = action.type == SemanticAction.Type.SET_CHINESE ? Mode.CHINESE : Mode.ENGLISH;
+        if (mode != resultingMode && hasComposition)
+          operations.add(new Operation(OperationType.CONFIRM_COMPOSITION, ""));
+        break;
       default:
         throw new AssertionError(action.type);
     }

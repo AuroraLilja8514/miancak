@@ -42,26 +42,36 @@ public class MiancakPlatformTest
     assertFalse(prefs.getBoolean("lock_double_tap", true));
   }
 
-  @Test public void legacyLayoutsAndBooleanNumberRowArePreservedByMigration()
+  @Test public void retiredLayoutsAreBackedUpAndBooleanNumberRowIsPreserved()
   {
     SharedPreferences prefs = isolated("legacy");
     prefs.edit().putString("layout", "latn_dvorak").putBoolean("number_row", true).commit();
     MiancakPreferences.initialize(prefs);
-    assertTrue(prefs.getString("layouts", "").contains("latn_dvorak"));
-    assertFalse(prefs.getString("layouts", "").contains("miancak_qwerty"));
+    assertTrue(prefs.getString("miancak_previous_layouts", "").contains("latn_dvorak"));
+    assertEquals("[\"miancak_qwerty\"]", prefs.getString("layouts", ""));
     assertEquals("no_symbols", prefs.getString("number_row", ""));
   }
 
-  @Test public void modernSelectedLayoutIsNotOverwritten()
+  @Test public void validCustomLayoutsAndTheirSelectionSurviveRetirement()
   {
     SharedPreferences prefs = isolated("modern");
     MiancakPreferences.initialize(prefs);
     SharedPreferences.Editor editor = prefs.edit();
-    LayoutsPreference.save_to_preferences(editor, Collections.singletonList(new LayoutsPreference.NamedLayout("latn_colemak")));
+    String xml = "<keyboard name=\"Custom\"><row><key c=\"q\"/></row></keyboard>";
+    LayoutsPreference.save_to_preferences(editor, java.util.Arrays.asList(
+          new LayoutsPreference.NamedLayout("latn_colemak"), LayoutsPreference.CustomLayout.parse(xml)));
+    editor.remove("miancak_layout_version").remove("miancak_previous_layouts").putInt("current_layout_portrait", 1);
     editor.commit();
     String layout = prefs.getString("layouts", "");
     MiancakPreferences.initialize(prefs);
-    assertEquals(layout, prefs.getString("layouts", ""));
+    assertEquals(layout, prefs.getString("miancak_previous_layouts", ""));
+    assertTrue(prefs.getString("layouts", "").contains("miancak_qwerty"));
+    assertTrue(prefs.getString("layouts", "").contains("Custom"));
+    assertFalse(prefs.getString("layouts", "").contains("latn_colemak"));
+    assertEquals(1, prefs.getInt("current_layout_portrait", -1));
+    String migrated = prefs.getString("layouts", "");
+    MiancakPreferences.initialize(prefs);
+    assertEquals(migrated, prefs.getString("layouts", ""));
   }
 
   @Test public void protectedAndNoLearningFlagsUseTheExpectedPolicy()

@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="pages_title">布局与页面</string>
+  <string name="pages_summary">MIANCAK QWERTY · 页面顺序、启用页面和 Fn 目标</string>
+  <string name="page_zh">中文 · QWERTY</string>
+  <string name="page_en">英文 · QWERTY</string>
+  <string name="page_symbols">标点与符号</string>
+  <string name="page_numeric">数字</string>
+  <string name="page_greek">希腊字母与数学</string>
+  <string name="page_emoji">表情</string>
+  <string name="page_clipboard">剪贴板</string>
+  <string name="page_move_up">上移%s</string>
+  <string name="page_none">无</string>
+  <string name="page_chinese_fn">中文 Fn：%s</string>
+  <string name="page_english_fn">英文 Fn：%s</string>
+  <string name="page_fn_target">选择 Fn 目标</string>
+  <string name="pages_reset">重置页面设置</string>
+  <string name="pages_reset_confirm">重置页面顺序、启用页面与 Fn 目标？</string>
+  <string name="pages_explanation">中英文共用 MIANCAK QWERTY。在 Enter 键向右下滑动可选择所有已启用页面；Fn 切换到设置的页面，再次按下返回。双击或长按 Shift 锁定大写。</string>
+</resources>

@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<keyboard name="MIANCAK symbols" script="symbols">
+  <row>
+    <key c=":literal:'，'" />
+    <key c=":literal:'。'" />
+    <key c=":literal:'、'" />
+    <key c=":literal:'；'" />
+    <key c=":literal:'：'" />
+    <key c=":literal:'？'" />
+    <key c=":literal:'！'" />
+    <key c=":literal:'…'" />
+    <key c=":literal:'—'" />
+    <key c=":literal:'·'" />
+  </row>
+  <row>
+    <key c=":literal:'（'" />
+    <key c=":literal:'）'" />
+    <key c=":literal:'【'" />
+    <key c=":literal:'】'" />
+    <key c=":literal:'《'" />
+    <key c=":literal:'》'" />
+    <key c=":literal:'〈'" />
+    <key c=":literal:'〉'" />
+    <key c=":literal:'「'" />
+    <key c=":literal:'」'" />
+  </row>
+  <row>
+    <key c="shift" role="action" ne="language_switch" />
+    <key c=":literal:'‘'" />
+    <key c=":literal:'’'" />
+    <key c=":literal:'“'" />
+    <key c=":literal:'”'" />
+    <key c=":literal:'〔'" />
+    <key c=":literal:'〕'" />
+    <key c=":literal:'『'" />
+    <key c=":literal:'』'" />
+    <key c="backspace" role="action" ne="delete" />
+  </row>
+</keyboard>

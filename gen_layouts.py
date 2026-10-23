@@ -9,7 +9,7 @@ import xml.etree.ElementTree as XML
 
 # Layouts first in the list (these are the programming layouts). Other layouts
 # are sorted alphabetically.
-FIRST_LAYOUTS = [ "latn_qwerty_us", "latn_colemak", "latn_dvorak" ]
+FIRST_LAYOUTS = [ "miancak_qwerty" ]
 
 # Read a layout from a file. Returns [None] if [fname] is not a layout.
 def read_layout(fname):
@@ -47,7 +47,7 @@ def generate_arrays(out, layouts):
             item.text = s
             elem.append(item)
         return elem
-    system_item = [ ("system", "@string/pref_layout_e_system") ]
+    system_item = []
     custom_item = [ ("custom", "@string/pref_layout_e_custom") ]
     values_items, entries_items = zip(*(system_item + layouts + custom_item)) # unzip
     ids_items = map(lambda s: "@xml/%s" % s if s not in ["system", "custom"] else "-1", values_items)

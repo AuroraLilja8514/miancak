@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
   <PreferenceCategory android:title="@string/pref_category_layout">
-    <juloo.keyboard2.prefs.LayoutsPreference/>
+    <Preference android:key="pages" android:title="@string/pages_title" android:summary="@string/pages_summary"/>
     <PreferenceScreen android:title="@string/pref_extra_keys_title">
       <PreferenceCategory android:title="@string/pref_extra_keys_custom">
         <juloo.keyboard2.prefs.CustomExtraKeysPreference/>

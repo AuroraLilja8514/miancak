@@ -35,6 +35,21 @@ public class Keyboard2View extends View
   private Pointers _pointers;
 
   private Pointers.Modifiers _mods;
+  private java.util.Set<KeyValue.Event> _activeEvents = java.util.Collections.emptySet();
+
+  public void setActivePageEvents(java.util.Set<KeyValue.Event> events)
+  {
+    _activeEvents = events; invalidate();
+  }
+  private boolean activePageKey(KeyValue key)
+  {
+    return key != null && key.getKind() == KeyValue.Kind.Event && _activeEvents.contains(key.getEvent());
+  }
+  public boolean shiftLocked()
+  {
+    int flags = _pointers.getKeyFlags(KeyValue.SHIFT);
+    return flags != -1 && (flags & Pointers.FLAG_P_LOCKED) != 0;
+  }
 
   private static int _currentWhat = 0;
 
@@ -360,7 +375,7 @@ public class Keyboard2View extends View
       {
         x += k.shift * _keyWidth;
         float keyW = _keyWidth * k.width - _tc.horizontal_margin;
-        boolean isKeyDown = _pointers.isKeyDown(k);
+        boolean isKeyDown = _pointers.isKeyDown(k) || activePageKey(k.keys[0]);
         Theme.Computed.Key tc_key;
         if (isKeyDown)
           tc_key = _tc.key_activated;
@@ -427,6 +442,7 @@ public class Keyboard2View extends View
 
   private int labelColor(KeyValue k, boolean isKeyDown, boolean sublabel)
   {
+    if (activePageKey(k)) return _theme.activatedColor;
     if (isKeyDown)
     {
       int flags = _pointers.getKeyFlags(k);

@@ -28,6 +28,7 @@ public final class KeyValue implements Comparable<KeyValue>
     CHANGE_DICTIONARY,
     TOGGLE_LANGUAGE,
     PINYIN_SEPARATOR,
+    SWITCH_FN, LAYOUT_PICKER,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -617,6 +618,8 @@ public final class KeyValue implements Comparable<KeyValue>
       case "arrows": return modifierKey("Arr", Modifier.ARROWS, 0);
       case "box": return modifierKey("Box", Modifier.BOX, 0);
       case "fn": return modifierKey("Fn", Modifier.FN, 0);
+      case "fn_page": return eventKey("Fn", Event.SWITCH_FN, FLAG_SMALLER_FONT);
+      case "layout_picker": return eventKey("▦", Event.LAYOUT_PICKER, FLAG_SMALLER_FONT);
       case "meta": return modifierKey("Meta", Modifier.META, 0);
 
       /* Combining diacritics */

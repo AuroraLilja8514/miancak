@@ -99,3 +99,7 @@ Runtime-open cost includes native initialization/maintenance in this test sequen
 ## Measurement limits
 
 `native-metrics.json` reports the measured deployment verification/runtime-open cost, warm JNI composition-and-confirmation p50/p95 and test-process PSS. Those are debug/emulator observations, not physical-device touch-to-editor performance or production memory guarantees. The full UI scenario duration is also recorded, including deliberate test waits/gestures. CI logs record actual APK/dictionary bytes; the emulator report records allocated Rime-directory KiB after testing, including compiled data and test learning. These are not a production user-data size guarantee. No physical-device benchmark, release signing or store publication is claimed.
+
+### C3 统一页面 APK 场景
+
+真实触控从主键盘 Enter 右下打开选择器，检查拼音与编辑器未变化；从选择器进入 Fn 目标后检查 Fn 状态，再按 Fn 返回主页面。检查希腊字母实际提交、表情／剪贴板的可见选择器入口以及返回。组件层另验旧内置布局备份、自定义 XML 与选择位置保留和重复迁移幂等。以上仍需 CI 运行结果，不以已有截图或测试代码代替通过。
