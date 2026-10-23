@@ -192,7 +192,9 @@ public final class RimeCandidatesView extends LinearLayout
     String value = snapshot.engine.candidates.get(index);
     cell.setText(value);
     cell.setContentDescription("Candidate " + (index + 1) + ": " + value);
-    cell.setSingleLine(!full);
+    cell.setSingleLine(false);
+    cell.setHorizontallyScrolling(false);
+    if (!full) cell.setMaxLines(1);
     cell.setEllipsize(full ? null : TextUtils.TruncateAt.END);
     cell.setPadding(dp(14), full ? dp(6) : 0, dp(14), full ? dp(6) : 0);
     cell.setMinWidth(dp(64));

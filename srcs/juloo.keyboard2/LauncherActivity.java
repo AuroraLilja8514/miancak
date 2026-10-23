@@ -38,6 +38,21 @@ public class LauncherActivity extends Activity implements Handler.Callback
   {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.launcher_activity);
+    // Android 15 enforces edge-to-edge for this activity. Include the IME
+    // inset so the real try-here field scrolls above the keyboard as it opens.
+    if (VERSION.SDK_INT >= 35)
+    {
+      getWindow().setDecorFitsSystemWindows(false);
+      View content = ((android.view.ViewGroup)findViewById(android.R.id.content)).getChildAt(0);
+      content.setFitsSystemWindows(false);
+      content.setOnApplyWindowInsetsListener((view, insets) -> {
+        android.graphics.Insets bars = insets.getInsets(
+            android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.ime());
+        view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+        return android.view.WindowInsets.CONSUMED;
+      });
+      content.requestApplyInsets();
+    }
     _tryhere_text = (TextView)findViewById(R.id.launcher_tryhere_text);
     _tryhere_area = (EditText)findViewById(R.id.launcher_tryhere_area);
     if (VERSION.SDK_INT >= 28)

@@ -61,6 +61,10 @@ public final class FirstInstallTest
         }
         enableThroughAndroidUi();
         screenshot("android-keyboard-enabled");
+      }
+        // Android can select its fallback IME after a force-stop (and after
+        // instrumentation terminates the app). Re-select through the same
+        // visible system picker on reopen; never set the default via shell.
         launch();
         object("launcher_select").click();
         String appName = context.getString(R.string.app_name);
@@ -70,7 +74,6 @@ public final class FirstInstallTest
         // a cached launcher text node can disappear while the picker opens.
         device.findObject(new UiSelector().packageName("android").text(appName)).click();
         assertTrue(device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
-      }
       launch();
       focusEditor();
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
