@@ -135,10 +135,24 @@ jobs:
             native-objects-${{ runner.os }}-
 
       - name: Build debug APK and instrumented tests
-        run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
+        run: |
+          ./gradlew --no-daemon -PmiancakVersionCode=2 assembleDebug
+          mkdir -p build/word-upgrade-fixture
+          cp build/outputs/apk/debug/*.apk build/word-upgrade-fixture/baseline.apk
+          ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
 
       - name: Verify packaged native runtime
-        run: python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
+        run: |
+          python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
+          python3 scripts/check_native_apk.py build/word-upgrade-fixture/baseline.apk
+
+      - name: Upload feature-enabled upgrade fixture
+        uses: actions/upload-artifact@v7
+        with:
+          name: miancak-word-baseline-${{ github.sha }}
+          path: build/word-upgrade-fixture/baseline.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
@@ -285,6 +299,57 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: first-install-api-${{ matrix.api }}-${{ matrix.entry }}-${{ github.sha }}
+          path: test-results/
+          retention-days: 7
+
+  word-table-tests:
+    name: word-table-tests (${{ matrix.api }})
+    needs: build-debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 35]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: miancak-debug-${{ github.sha }}
+          path: artifacts-download/current
+      - uses: actions/download-artifact@v8
+        with:
+          name: miancak-word-baseline-${{ github.sha }}
+          path: artifacts-download/fixture
+      - name: Gather actual APKs
+        run: |
+          mkdir -p artifacts
+          find artifacts-download/current -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
+          find artifacts-download/current -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+          cp artifacts-download/fixture/baseline.apk artifacts/word-baseline.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Import actual tables, replace APK and reboot
+        uses: reactivecircus/android-emulator-runner@v2.35.0
+        with:
+          api-level: 35
+          system-image-api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          avd-name: miancak-words
+          force-avd-creation: true
+          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-words.avd/config.ini"
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
+          script: bash scripts/word_table_apk_tests.sh
+      - name: Upload vocabulary acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: word-table-results-api-${{ matrix.api }}-${{ github.sha }}
           path: test-results/
           retention-days: 7
 

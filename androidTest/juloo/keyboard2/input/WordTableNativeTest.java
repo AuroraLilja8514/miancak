@@ -89,7 +89,7 @@ public class WordTableNativeTest
     String before = store.view().selection.slot;
     expectFailure(() -> store.apply(id("root"), Collections.emptyList()), "Missing dependency");
     assertEquals(before, store.view().selection.slot);
-    store.importTables(Arrays.asList(text("leaf", "---\nname: leaf\n...\n依赖词条\tce shi\t100\n")));
+    store.importTables(Arrays.asList(text("leaf", "---\nname: leaf\n...\n测\tce\t1\n试\tshi\t1\n依赖词条\tce shi\t100\n")));
     store.apply(id("root"), Collections.emptyList()); assertTrue(candidates("ceshi").contains("依赖词条"));
     expectFailure(() -> store.remove(id("leaf")), "in use");
     store.importTables(Arrays.asList(text("cycle_a", "---\nname: cycle_a\nimport_tables: [cycle_b]\n...\n"), text("cycle_b", "---\nname: cycle_b\nimport_tables: [cycle_a]\n...\n")));

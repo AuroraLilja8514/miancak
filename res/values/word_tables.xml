@@ -2,6 +2,13 @@
   <item type="id" name="word_tables_status"/>
   <item type="id" name="word_tables_list"/>
   <item type="id" name="word_tables_apply"/>
+  <item type="id" name="word_tables_import"/>
+  <item type="id" name="word_tables_restore"/>
+  <item type="id" name="word_tables_help"/>
+  <string name="words_base_choice">Base vocabulary: %s</string>
+  <string name="words_extra_choice">Supplementary vocabulary: %s</string>
+  <string name="words_details_choice">Details for %s</string>
+  <string name="words_remove_choice">Remove %s</string>
   <string name="words_title">Chinese word tables</string>
   <string name="words_summary">Import Rime vocabulary, choose a base and supplementary tables</string>
   <string name="words_unlock">Unlock the device to manage vocabulary</string>

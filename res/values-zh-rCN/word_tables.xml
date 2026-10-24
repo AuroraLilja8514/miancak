@@ -1,4 +1,8 @@
 <resources>
+  <string name="words_base_choice">基础词表：%s</string>
+  <string name="words_extra_choice">附加词表：%s</string>
+  <string name="words_details_choice">查看 %s 的详情</string>
+  <string name="words_remove_choice">移除 %s</string>
   <string name="words_title">中文词表</string>
   <string name="words_summary">导入 Rime 词表，选择基础词表与附加词表</string>
   <string name="words_unlock">请解锁设备后管理词表</string>

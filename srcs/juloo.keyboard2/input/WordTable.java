@@ -69,8 +69,8 @@ public final class WordTable
           ended = true;
           if (!fields.containsKey("name") || !validName(fields.get("name")))
             throw error(number, "Invalid dictionary name / 词表名称无效");
-          if (fields.getOrDefault("version", "").length() > 256) throw error(number, "Version too long / 版本说明过长");
-          String sort = fields.getOrDefault("sort", "by_weight");
+          if (value(fields, "version", "").length() > 256) throw error(number, "Version too long / 版本说明过长");
+          String sort = value(fields, "sort", "by_weight");
           if (!sort.equals("by_weight") && !sort.equals("by_original")) throw error(number, "Unsupported sort / 不支持的排序");
           if (fields.containsKey("use_preset_vocabulary") && !fields.get("use_preset_vocabulary").equals("false"))
             throw error(number, "Preset vocabulary needs conversion / 请先将预设词频转换为明确权重");
@@ -122,16 +122,19 @@ public final class WordTable
       try { frequency = Double.parseDouble(weight); } catch (NumberFormatException invalid) { throw error(number, "Invalid weight / 权重无效"); }
       if (Double.isInfinite(frequency) || frequency > 1e12) throw error(number, "Weight exceeds limit / 权重超过上限");
       rows++;
-      if (fields.getOrDefault("sort", "by_weight").equals("by_original")) weight = Double.toString(1e9 / rows);
+      if (value(fields, "sort", "by_weight").equals("by_original")) weight = Double.toString(1e9 / rows);
       normalized.write(text); normalized.write('\t'); normalized.write(code); normalized.write('\t'); normalized.write(weight); normalized.write('\n');
     }
     if (!ended) throw error(number, "Missing ... / 缺少表头结束标记");
-    List<String> imports = lists.getOrDefault("import_tables", Collections.emptyList());
+    List<String> imports = lists.containsKey("import_tables") ? lists.get("import_tables") : Collections.emptyList();
     if (imports.size() > 64) throw error(number, "Too many dependencies / 依赖过多");
     for (String dependency : imports) if (!validReference(dependency)) throw error(number, "Invalid dependency / 依赖名称无效: " + dependency);
     if (rows == 0 && imports.isEmpty()) throw error(number, "Empty dictionary / 空词表");
-    return new WordTable(fields.get("name"), fields.getOrDefault("version", ""), imports, rows);
+    return new WordTable(fields.get("name"), value(fields, "version", ""), imports, rows);
   }
+
+  private static String value(Map<String, String> values, String key, String fallback)
+  { String found = values.get(key); return found == null ? fallback : found; }
 
   public static boolean validName(String name) { return name.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}"); }
   public static boolean validReference(String value)

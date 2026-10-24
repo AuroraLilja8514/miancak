@@ -38,6 +38,37 @@ bool valid(JNIEnv* env, jlong id) {
   return true;
 }
 
+// Memory::OnCommit leaves an undoable user-dictionary transaction pending.
+// Rime's unhandled-key notification commits it. VoidSymbol is sent only while
+// idle, so it cannot confirm or change a composition or emit literal text.
+void flush_idle_learning(RimeSessionId id) {
+  RIME_STRUCT(RimeContext, context);
+  bool found = api->get_context(id, &context);
+  bool idle = !found || context.composition.length == 0;
+  if (found) api->free_context(&context);
+  if (idle) api->process_key(id, 0xffffff /* XK_VoidSymbol */, 0);
+}
+
+// Confirm the displayed selection before committing. A raw commit_composition
+// can bypass the confirmed-segment notification used by Rime's memorizer.
+bool confirm_selection(RimeSessionId id) {
+  bool selected = false;
+  for (int step = 0; step < 256; ++step) {
+    RIME_STRUCT(RimeContext, context);
+    bool found = api->get_context(id, &context);
+    bool composing = found && context.composition.length > 0;
+    int count = found ? context.menu.num_candidates : 0;
+    int index = found ? context.menu.highlighted_candidate_index : 0;
+    if (found) api->free_context(&context);
+    if (!composing) return selected || api->commit_composition(id);
+    if (count == 0) return api->commit_composition(id);
+    if (index < 0 || index >= count) index = 0;
+    if (!api->select_candidate_on_current_page(id, index)) return false;
+    selected = true;
+  }
+  return false;
+}
+
 jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
   RIME_STRUCT(RimeCommit, commit);
   std::string committed;
@@ -45,6 +76,7 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
     if (commit.text) committed = commit.text;
     api->free_commit(&commit);
   }
+  if (!committed.empty()) flush_idle_learning(id);
   RIME_STRUCT(RimeContext, context);
   bool has_context = api->get_context(id, &context);
   int count = has_context ? context.menu.num_candidates : 0;
@@ -138,8 +170,8 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
   if (!valid(env, id)) return nullptr;
   bool handled = true;
   switch (cmd) {
-    case 0: handled = api->commit_composition(id); break;
-    case 1: api->clear_composition(id); break;
+    case 0: handled = confirm_selection(id); break;
+    case 1: api->clear_composition(id); flush_idle_learning(id); break;
     case 2: handled = arg >= 0 && api->select_candidate_on_current_page(id, arg); break;
     case 3: handled = api->change_page(id, arg != 0); break;
     case 4: break; // Inspect without changing composition or re-emitting an old commit.
@@ -151,15 +183,19 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
 extern "C" JNIEXPORT void JNICALL
 Java_juloo_keyboard2_input_RimeEngine_learning(JNIEnv* env, jclass, jlong id, jboolean enabled) {
   std::lock_guard<std::mutex> lock(mutex);
-  if (valid(env, id) && !api->select_schema(id,
-        enabled ? "miancak_pinyin" : "miancak_pinyin_private"))
+  if (!valid(env, id)) return;
+  flush_idle_learning(id);
+  if (!api->select_schema(id, enabled ? "miancak_pinyin" : "miancak_pinyin_private"))
     fail(env, "Cannot select the requested learning policy");
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_juloo_keyboard2_input_RimeEngine_destroy(JNIEnv*, jclass, jlong id) {
   std::lock_guard<std::mutex> lock(mutex);
-  if (!api || !sessions.erase(id)) return;
+  if (!api || !sessions.count(id)) return;
+  api->clear_composition(id);
+  flush_idle_learning(id);
+  sessions.erase(id);
   api->destroy_session(id);
   if (sessions.empty()) { api->finalize(); api = nullptr; }
 }
