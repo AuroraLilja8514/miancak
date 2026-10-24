@@ -119,27 +119,16 @@ jobs:
           path: |
             .cxx
             build/intermediates/cxx
-          key: native-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
-          restore-keys: native-objects-${{ runner.os }}-
+          key: native-debug-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
+          restore-keys: |
+            native-debug-objects-${{ runner.os }}-
+            native-objects-${{ runner.os }}-
 
       - name: Build debug APK and instrumented tests
         run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
 
       - name: Verify packaged native runtime
         run: python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
-
-      - name: Build and verify minified release APK
-        run: |
-          ./gradlew --no-daemon assembleRelease
-          python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
-
-      - name: Upload unsigned release APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: miancak-unsigned-release-${{ github.sha }}
-          path: build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 7
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
@@ -148,6 +137,51 @@ jobs:
           path: |
             build/outputs/apk/debug/*.apk
             build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  build-release:
+    name: build-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Cache locked native sources
+        uses: actions/cache@v4
+        with:
+          path: .native
+          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+      - name: Prepare pinned Rime sources and data
+        run: python3 scripts/prepare_rime.py
+      - name: Cache release native build objects
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cxx
+            build/intermediates/cxx
+          key: native-release-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
+          restore-keys: |
+            native-release-objects-${{ runner.os }}-
+            native-objects-${{ runner.os }}-
+      - name: Build and verify minified release APK
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
+      - name: Upload unsigned release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: miancak-unsigned-release-${{ github.sha }}
+          path: build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
