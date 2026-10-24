@@ -345,10 +345,10 @@ public final class KeyValue implements Comparable<KeyValue>
   public int compareTo(KeyValue snd)
   {
     // Compare the kind and value first, then the flags.
-    int d = (_code & ~FLAGS_BITS) - (snd._code & ~FLAGS_BITS);
+    int d = Integer.compare(_code & ~FLAGS_BITS, snd._code & ~FLAGS_BITS);
     if (d != 0)
       return d;
-    d = _code - snd._code;
+    d = Integer.compare(_code, snd._code);
     if (d != 0)
       return d;
     // Calls [compareTo] assuming that if [_code] matches, then [_payload] are

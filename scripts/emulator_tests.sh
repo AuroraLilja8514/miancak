@@ -31,6 +31,7 @@ if [[ -n "${MIANCAK_TEST_API:-}" && "$actual_api" != "$MIANCAK_TEST_API" ]]; the
   echo "Unexpected emulator API: $actual_api"
   exit 1
 fi
+if [[ "$actual_api" -ge 35 ]]; then adb shell settings put system font_scale 1.3; fi
 adb shell svc wifi disable
 adb shell svc data disable
 run_tests() {
@@ -44,5 +45,6 @@ run_tests() {
 }
 run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
+run_tests layout-files -e class juloo.keyboard2.PageFilesUiTest
 adb shell am force-stop org.miancak.keyboard.debug
 run_tests restart -e class juloo.keyboard2.ImeInteractionTest -e restartOnly true

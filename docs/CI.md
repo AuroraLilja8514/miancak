@@ -61,3 +61,9 @@ Build/test workflows must use `contents: read`, avoid `pull_request_target`, and
 ## Delivery boundary
 
 CI produces debug and unsigned release artifacts. Protected release signing, GitHub Releases, store publication and F-Droid automation remain separate release work. A passing emulator matrix does not imply physical-device or store-release validation.
+
+## Final APK acceptance jobs
+
+`build-upgrade-baseline` builds the pinned old application at `c939309635ee80c058d59ca712eae4ef1b3acb14` for x86_64. `upgrade-tests (23/35)` install that actual APK, exercise Chinese input, seed a retiring layout selection, replace it with the new APK without clearing data, and reboot the guest. Test copies of the old/new/test APKs are re-signed with one ephemeral local test identity; original delivery APKs and signing workflows are unchanged. Logs record both original and test-copy hashes. The test verifies configuration/data-directory preservation and Chinese input; it does not claim a production signing upgrade path.
+
+API 35 interaction tests use system font scale 1.3. The API 35 settings-first fresh-install case also uses Android application locale `zh-CN`, without preselecting a layout. Android DocumentsUI is exercised for layout export/import, including cancelled edits, saved resets and disabled Fn-target recovery. All applicable jobs remain acceptance gates.

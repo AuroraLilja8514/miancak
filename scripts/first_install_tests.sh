@@ -16,6 +16,11 @@ sha256sum artifacts/app-debug.apk > test-results/apk-sha256.txt
 adb shell getprop > test-results/device-properties.txt
 adb install artifacts/app-debug.apk
 adb install artifacts/app-debug-androidTest.apk
+if [[ "$actual_api" -ge 33 && "$MIANCAK_ENTRY_ORDER" == settings-first ]]; then
+  adb shell cmd locale set-app-locales org.miancak.keyboard.debug --locales zh-CN
+  adb shell cmd locale get-app-locales org.miancak.keyboard.debug > test-results/app-locale.txt
+  grep -qi 'zh' test-results/app-locale.txt
+fi
 adb shell svc wifi disable
 adb shell svc data disable
 run_phase() {

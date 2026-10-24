@@ -116,7 +116,7 @@
     <string name="launcher_button_imesettings">Enable keyboard</string>
     <string name="launcher_button_imepicker">Select keyboard</string>
     <string name="launcher_button_dictionaries">Install dictionaries</string>
-    <string name="launcher_description">MIANCAK is an offline Chinese and English keyboard. Enable it below, select it, then try typing. First installation selects MIANCAK QWERTY. Swipe c toward the upper left for 。 and v toward the upper left for ，. Tap Shift for one uppercase letter; double-tap or hold it to lock uppercase, and tap again to unlock.</string>
+    <string name="launcher_description">MIANCAK adds Chinese Pinyin input to QWERTY. Enable it, select it, then try typing below. Tap a key or swipe toward a corner. Swipe Shift northeast for Chinese/English, or Enter southeast for the layout chooser. Double-tap or long-press Shift to lock capitals.</string>
     <string name="launcher_sourcecode">This is a free and open source application. You can find the source code or report bugs on GitHub.</string>
     <string name="launcher_tryhere">After enabling, you can try the keyboard here:</string>
     <string name="launcher_tryhere_hint">Try here</string>

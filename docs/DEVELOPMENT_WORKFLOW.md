@@ -191,3 +191,5 @@ Do not silently vendor binaries, schemas, dictionaries, models, or generated nat
 CI delivers short-lived installable debug APKs and minified unsigned release APKs; logs/screenshots and test reports accompany them.
 
 Release signing, GitHub Releases, store publishing, and F-Droid-specific automation are intentionally deferred until the application is usable. Future release automation must use protected secrets/environments and remain isolated from pull-request-controlled code.
+
+C6 adds `build-upgrade-baseline` and `upgrade-tests (23/35)` as applicable APK acceptance gates. These tests use local ephemeral signing only; they receive no release credentials.

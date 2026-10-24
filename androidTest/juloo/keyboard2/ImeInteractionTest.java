@@ -206,7 +206,14 @@ public class ImeInteractionTest
       awaitCandidate(pageOne, false);
       find("miancak_previous_candidates").click();
       awaitCandidate(pageOne, true);
-      UiObject2 eighth = device.wait(Until.findObject(By.descStartsWith("Candidate 8: ")), 15000);
+      UiObject2 eighth = null;
+      for (int attempt = 0; attempt < 10; attempt++)
+      {
+        eighth = device.findObject(By.descStartsWith("Candidate 8: "));
+        if (eighth != null && eighth.getVisibleBounds().height() > 16) break;
+        UiObject2 panel = find("miancak_expanded_candidates"); assertNotNull(panel);
+        panel.setGestureMargin(20); panel.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f);
+      }
       assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
       String eighthText = eighth.getText();
       eighth.click(); output += eighthText; awaitText(activity.first, output);
@@ -504,5 +511,6 @@ public class ImeInteractionTest
     File directory = context.getExternalFilesDir("test-results");
     assertTrue(directory.isDirectory() || directory.mkdirs());
     assertTrue("Screenshot capture failed: " + name, device.takeScreenshot(new File(directory, name + ".png")));
+    device.dumpWindowHierarchy(new File(directory, name + ".xml"));
   }
 }
