@@ -31,14 +31,32 @@ run_phase() {
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/upgrade-$phase.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/upgrade-$phase.log"
 }
+record_ime_state() {
+  local phase="$1"
+  adb shell settings get secure default_input_method | tr -d '\r' > "test-results/default-ime-$phase.txt"
+  grep -Fxq 'org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2' "test-results/default-ime-$phase.txt"
+  adb shell settings get secure enabled_input_methods | tr -d '\r' > "test-results/enabled-ime-$phase.txt"
+  python3 - "$phase" <<'PYCODE'
+from pathlib import Path
+import sys
+methods = (Path('test-results') / ('enabled-ime-' + sys.argv[1] + '.txt')).read_text().strip().split(':')
+assert 'org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2' in {value.split(';')[0] for value in methods}
+PYCODE
+}
 run_phase prepare
+# Restore the test precondition after instrumentation ends its target process.
+adb shell am start -n org.miancak.keyboard.debug/juloo.keyboard2.LauncherActivity
+adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
+record_ime_state before-install
 adb install --no-incremental -r upgrade-signed/app-debug.apk
+# Observe retention before a new instrumentation can stop/rebind the IME.
+record_ime_state after-install
+cmp test-results/default-ime-before-install.txt test-results/default-ime-after-install.txt
 run_phase verify
 adb shell am start -n org.miancak.keyboard.debug/juloo.keyboard2.LauncherActivity
 adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
 adb shell input keyevent KEYCODE_HOME
-adb shell settings get secure default_input_method | tr -d '\r' > test-results/default-ime-before-reboot.txt
-grep -qx 'org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2' test-results/default-ime-before-reboot.txt
+record_ime_state before-reboot
 echo 'Rebooting the guest after verified APK replacement'
 timeout 30s adb reboot
 timeout 90s adb wait-for-device
@@ -53,6 +71,6 @@ if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
 else
   adb shell input keyevent 82
 fi
-adb shell settings get secure default_input_method | tr -d '\r' > test-results/default-ime-after-reboot.txt
+record_ime_state after-reboot
 cmp test-results/default-ime-before-reboot.txt test-results/default-ime-after-reboot.txt
 run_phase reboot

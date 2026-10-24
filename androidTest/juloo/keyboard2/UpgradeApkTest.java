@@ -98,8 +98,24 @@ public final class UpgradeApkTest
   }
   private void selectThroughShippedLauncher() throws Exception
   {
+    boolean restored = !InstrumentationRegistry.getArguments().getString("upgradePhase", "verify").equals("prepare");
+    if (restored)
+    {
+      // am instrument force-stops its target. The host has already asserted
+      // retained default/enabled IME state before starting this instrumentation.
+      String component = pkg + "/juloo.keyboard2.Keyboard2";
+      device.executeShellCommand("ime set " + component);
+      assertEquals(component, device.executeShellCommand("settings get secure default_input_method").trim());
+    }
     instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    if (restored)
+    {
+      UiObject2 field = device.wait(Until.findObject(By.res(pkg, "launcher_tryhere_area")), 15000);
+      assertNotNull(field); field.click();
+      assertNotNull("Rebound IME did not serve the real launcher editor",
+          device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000));
+    }
     int label = context.getResources().getIdentifier("launcher_button_imepicker", "string", pkg);
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
     // Use the same selector-backed, ordinary task route as the independent
