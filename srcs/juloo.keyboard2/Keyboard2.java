@@ -183,6 +183,7 @@ public class Keyboard2 extends InputMethodService
     _keyboard_layout_view = (Keyboard2View)_keyboard_container_view.findViewById(R.id.keyboard_view);
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
     _rimeCandidates = (RimeCandidatesView)_keyboard_container_view.findViewById(R.id.miancak_candidates);
+    _rimeCandidates.attachSurface((FrameLayout)_keyboard_container_view.findViewById(R.id.miancak_keyboard_surface), _keyboard_layout_view);
     if (_inputController != null) _rimeCandidates.attach(_inputController);
   }
 
@@ -368,6 +369,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onStartInputView(EditorInfo info, boolean restarting)
   {
+    if (_rimeCandidates != null) _rimeCandidates.collapse();
     attach_input_editor();
     _config.editor_config.refresh(info, getResources());
     refresh_config();
@@ -499,6 +501,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onFinishInputView(boolean finishingInput)
   {
+    if (_rimeCandidates != null) _rimeCandidates.collapse();
     if (_inputController != null && !finishingInput) _inputController.cancelComposition();
     super.onFinishInputView(finishingInput);
     _keyboard_layout_view.reset();
@@ -517,6 +520,16 @@ public class Keyboard2 extends InputMethodService
   {
     /* Entirely disable fullscreen mode. */
     return false;
+  }
+
+  @Override public boolean onKeyDown(int code, KeyEvent event)
+  {
+    if (code == KeyEvent.KEYCODE_BACK && _rimeCandidates != null && _rimeCandidates.isExpanded())
+    {
+      _rimeCandidates.collapse();
+      return true;
+    }
+    return super.onKeyDown(code, event);
   }
 
   @Override

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:hardwareAccelerated="false" android:orientation="vertical" android:background="?attr/colorKeyboard">
-  <juloo.keyboard2.input.RimeCandidatesView android:id="@id/miancak_candidates" android:layout_width="match_parent" android:layout_height="76dp"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/miancak_input_surface" android:hardwareAccelerated="false" android:orientation="vertical" android:background="?attr/colorKeyboard">
+  <juloo.keyboard2.input.RimeCandidatesView android:id="@id/miancak_candidates" android:layout_width="match_parent" android:layout_height="wrap_content"/>
   <juloo.keyboard2.suggestions.CandidatesView android:id="@+id/candidates_view" style="@style/candidates_view">
     <TextView android:id="@+id/candidates_emoji" style="@style/candidates_emoji"/>
     <TextView android:id="@+id/candidates_left" style="@style/candidates_item"/>
@@ -9,5 +9,7 @@
     <TextView android:id="@+id/candidates_lang_name" style="@style/candidates_lang_name"/>
     <Button android:id="@+id/dictionary_switch" style="@style/change_dictionary"/>
   </juloo.keyboard2.suggestions.CandidatesView>
-  <juloo.keyboard2.Keyboard2View android:id="@+id/keyboard_view" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+  <juloo.keyboard2.KeyboardSurface android:id="@+id/miancak_keyboard_surface" android:layout_width="match_parent" android:layout_height="wrap_content">
+    <juloo.keyboard2.Keyboard2View android:id="@+id/keyboard_view" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+  </juloo.keyboard2.KeyboardSurface>
 </LinearLayout>

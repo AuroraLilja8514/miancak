@@ -125,7 +125,7 @@ Their behavior and security policy are documented in [CI.md](CI.md).
 
 The job names are intentionally stable because GitHub branch protection/rulesets may depend on them. Renaming one is a repository-governance change, not cosmetic cleanup.
 
-The implemented `interaction-tests (23)` and `interaction-tests (35)` checks validate the native runtime, Android policies, actual IME touches/editor lifecycles and process restart. Native compilation and actual debug/release APK verification are part of `build-debug`. Require passing interaction checks before merging input changes.
+The implemented `interaction-tests (23)` and `interaction-tests (35)` checks validate the native runtime, Android policies, actual IME touches/editor lifecycles and process restart. Four `first-install` jobs additionally drive normal Android enablement/selection from clean images. Native compilation and APK inspection run in `build-debug` and `build-release` in parallel. Require all applicable build, interaction and first-install checks before merging input changes.
 
 PR workflows must not receive release-signing secrets. Do not use `pull_request_target` for build/test workflows that execute PR-controlled code.
 

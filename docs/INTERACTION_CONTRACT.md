@@ -99,10 +99,17 @@ The Chinese candidate strip should:
 
 - rank candidates left to right;
 - select a candidate by tapping it;
-- allow access to additional candidates with horizontal navigation;
+- measure a ranked prefix of complete candidate items that fit the available row width;
+- expose omitted candidates through an explicit expanded panel, with engine-page navigation distinct from screen-row fitting;
+- allow a single overlong first item to be ellipsized in the compact row, with complete text available in expansion;
+- bind selections in either view to the original snapshot revision and page-local candidate index;
 - keep a stable allocated height so the keyboard does not jump vertically when composition starts or ends.
 
 The candidate strip should not become a general-purpose toolbar.
+
+Expansion uses the keyboard area without increasing its allocated height. Selecting
+a candidate or explicitly collapsing restores the keys. Opening expansion is a
+presentation change and does not commit or clear composition.
 
 ## 9. Language switching is explicit
 
