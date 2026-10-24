@@ -57,10 +57,10 @@ public class ImeInteractionTest
     device.executeShellCommand("ime enable " + pkg + "/juloo.keyboard2.Keyboard2");
     device.executeShellCommand("ime set " + pkg + "/juloo.keyboard2.Keyboard2");
     activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-    focus(activity.first);
     String output = "";
     try
     {
+      focus(activity.first);
       ensureChinese();
       Rect chineseGeometry = keyboard().getVisibleBounds();
       long began = SystemClock.elapsedRealtime();
@@ -285,11 +285,15 @@ public class ImeInteractionTest
   }
   private void focus(EditText edit)
   {
+    UiObject2 field = device.wait(Until.findObject(By.desc(edit.getContentDescription().toString())), 15000);
+    assertNotNull("Editor field is not visible", field); field.click();
     instrumentation.runOnMainSync(() -> {
-      edit.requestFocus();
-      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT);
+      edit.requestFocus(); edit.setSelection(edit.getText().length());
+      edit.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
+          .showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT));
     });
-    assertNotNull(keyboard());
+    instrumentation.waitForIdleSync();
+    assertNotNull("Selected IME did not appear for the visible editor", keyboard());
     device.waitForIdle();
   }
   private String text(EditText edit)
