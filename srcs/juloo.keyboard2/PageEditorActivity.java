@@ -155,7 +155,7 @@ public final class PageEditorActivity extends Activity
   {
     String[] ids = {"shift", "backspace", "delete", "enter", "space", "fn_page", "layout_picker", "language_switch",
       "switch_text", "switch_numeric", "switch_greekmath", "switch_emoji", "switch_clipboard", "config",
-      "ctrl", "alt", "meta", "left", "right", "up", "down", "pinyin_separator"};
+      "ctrl", "alt", "meta", "left", "right", "up", "down", "pinyin_separator", "switch_pinyin", "switch_pinyin_finals", "switch_zhuyin"};
     String[] labels = getResources().getStringArray(R.array.page_action_labels);
     new AlertDialog.Builder(this).setTitle(R.string.page_action).setItems(labels,
         (dialog, which) -> change(row, col, direction, ids[which])).setNegativeButton(android.R.string.cancel, null).show();

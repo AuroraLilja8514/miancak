@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<keyboard name="Zhuyin text" script="phonetic" bottom_row="false">
+  <row>
+    <key c=":literal:'ㄅ'" width="1.1" />
+    <key c=":literal:'ㄆ'" width="1.1" />
+    <key c=":literal:'ㄇ'" width="1.1" />
+    <key c=":literal:'ㄈ'" width="1.1" />
+    <key c=":literal:'ㄉ'" width="1.1" />
+    <key c=":literal:'ㄊ'" width="1.1" />
+    <key c=":literal:'ㄋ'" width="1.1" />
+    <key c=":literal:'ㄌ'" width="1.1" />
+    <key c=":literal:'ㄍ'" width="1.1" />
+    <key c=":literal:'ㄎ'" width="1.1" />
+  </row>
+  <row>
+    <key c=":literal:'ㄏ'" width="1.0" />
+    <key c=":literal:'ㄐ'" width="1.0" />
+    <key c=":literal:'ㄑ'" width="1.0" />
+    <key c=":literal:'ㄒ'" width="1.0" />
+    <key c=":literal:'ㄓ'" width="1.0" />
+    <key c=":literal:'ㄔ'" width="1.0" />
+    <key c=":literal:'ㄕ'" width="1.0" />
+    <key c=":literal:'ㄖ'" width="1.0" />
+    <key c=":literal:'ㄗ'" width="1.0" />
+    <key c=":literal:'ㄘ'" width="1.0" />
+    <key c=":literal:'ㄙ'" width="1.0" />
+  </row>
+  <row>
+    <key c=":literal:'ㄧ'" width="1.375" nw=":literal:'ㄧ'" ne=":literal:'ㄧˊ'" sw=":literal:'ㄧˇ'" se=":literal:'ㄧˋ'" />
+    <key c=":literal:'ㄨ'" width="1.375" nw=":literal:'ㄨ'" ne=":literal:'ㄨˊ'" sw=":literal:'ㄨˇ'" se=":literal:'ㄨˋ'" />
+    <key c=":literal:'ㄩ'" width="1.375" nw=":literal:'ㄩ'" ne=":literal:'ㄩˊ'" sw=":literal:'ㄩˇ'" se=":literal:'ㄩˋ'" />
+    <key c=":literal:'ㄚ'" width="1.375" nw=":literal:'ㄚ'" ne=":literal:'ㄚˊ'" sw=":literal:'ㄚˇ'" se=":literal:'ㄚˋ'" />
+    <key c=":literal:'ㄛ'" width="1.375" nw=":literal:'ㄛ'" ne=":literal:'ㄛˊ'" sw=":literal:'ㄛˇ'" se=":literal:'ㄛˋ'" />
+    <key c=":literal:'ㄜ'" width="1.375" nw=":literal:'ㄜ'" ne=":literal:'ㄜˊ'" sw=":literal:'ㄜˇ'" se=":literal:'ㄜˋ'" />
+    <key c=":literal:'ㄝ'" width="1.375" nw=":literal:'ㄝ'" ne=":literal:'ㄝˊ'" sw=":literal:'ㄝˇ'" se=":literal:'ㄝˋ'" />
+    <key c=":literal:'ㄞ'" width="1.375" nw=":literal:'ㄞ'" ne=":literal:'ㄞˊ'" sw=":literal:'ㄞˇ'" se=":literal:'ㄞˋ'" />
+  </row>
+  <row>
+    <key c="shift" ne="language_switch" role="action" width="1.5" />
+    <key c=":literal:'ㄟ'" width="1" nw=":literal:'ㄟ'" ne=":literal:'ㄟˊ'" sw=":literal:'ㄟˇ'" se=":literal:'ㄟˋ'" />
+    <key c=":literal:'ㄠ'" width="1" nw=":literal:'ㄠ'" ne=":literal:'ㄠˊ'" sw=":literal:'ㄠˇ'" se=":literal:'ㄠˋ'" />
+    <key c=":literal:'ㄡ'" width="1" nw=":literal:'ㄡ'" ne=":literal:'ㄡˊ'" sw=":literal:'ㄡˇ'" se=":literal:'ㄡˋ'" />
+    <key c=":literal:'ㄢ'" width="1" nw=":literal:'ㄢ'" ne=":literal:'ㄢˊ'" sw=":literal:'ㄢˇ'" se=":literal:'ㄢˋ'" />
+    <key c=":literal:'ㄣ'" width="1" nw=":literal:'ㄣ'" ne=":literal:'ㄣˊ'" sw=":literal:'ㄣˇ'" se=":literal:'ㄣˋ'" />
+    <key c=":literal:'ㄤ'" width="1" nw=":literal:'ㄤ'" ne=":literal:'ㄤˊ'" sw=":literal:'ㄤˇ'" se=":literal:'ㄤˋ'" />
+    <key c=":literal:'ㄥ'" width="1" nw=":literal:'ㄥ'" ne=":literal:'ㄥˊ'" sw=":literal:'ㄥˇ'" se=":literal:'ㄥˋ'" />
+    <key c=":literal:'ㄦ'" width="1" nw=":literal:'ㄦ'" ne=":literal:'ㄦˊ'" sw=":literal:'ㄦˇ'" se=":literal:'ㄦˋ'" />
+    <key c="backspace" ne="delete" role="action" width="1.5" />
+  </row>
+  <row height="0.95">
+    <key width="1.87" role="action" key0="ctrl" key1="switch_greekmath" key2="loc meta" key3="switch_clipboard" key4="switch_numeric" />
+    <key width="1.2100000000000002" role="action" key0="fn_page" key1="loc alt" key2="loc change_method" key3="switch_emoji" key4="config" />
+    <key width="4.840000000000001" role="space_bar" key0="space" key7="switch_pinyin" key8="switch_pinyin_finals" key5="cursor_left" key6="cursor_right" />
+    <key width="1.2100000000000002" c=":literal:'。'" nw=":literal:'，'" ne=":literal:'？'" sw=":literal:'！'" se=":literal:'；'" n=":literal:'：'" s=":literal:'、'" w=":literal:'\''" e=":literal:'˙'" />
+    <key width="1.87" role="action" key0="enter" key1="loc voice_typing" key2="action" key4="layout_picker" />
+  </row>
+</keyboard>

@@ -63,5 +63,12 @@
     <item>上</item>
     <item>下</item>
     <item>拼音分音符</item>
+    <item>拼音文字</item>
+    <item>拼音韵母</item>
+    <item>注音文字</item>
   </string-array>
+  <string name="page_pinyin">拼音文字</string>
+  <string name="page_pinyin_finals">拼音韵母与声调</string>
+  <string name="page_zhuyin">注音文字</string>
+  <string name="page_phonetic_help">拼音／注音页原样输出文字。元音／韵母四角分别为左上一声、右上二声、左下三声、右下四声；中心不标调。底部有独立标点键；韵母页空格左上为退格。</string>
 </resources>

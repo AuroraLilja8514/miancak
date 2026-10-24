@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='utf-8'?>
+<keyboard name="Pinyin text" script="phonetic" bottom_row="false">
+  <modmap>
+    <shift a="（" b="(" />
+    <shift a="）" b=")" />
+    <shift a="、" b="/" />
+    <shift a="！" b="!" />
+    <shift a="？" b="\?" />
+    <shift a="；" b="：" />
+    <shift a="pinyin_separator" b="'" />
+    <shift a="'" b="‘" />
+    <shift a="&quot;" b="“" />
+    <shift a="”" b="&quot;" />
+    <shift a=":literal:'a'" b=":literal:'A'" />
+    <shift a=":literal:'b'" b=":literal:'B'" />
+    <shift a=":literal:'c'" b=":literal:'C'" />
+    <shift a=":literal:'d'" b=":literal:'D'" />
+    <shift a=":literal:'e'" b=":literal:'E'" />
+    <shift a=":literal:'f'" b=":literal:'F'" />
+    <shift a=":literal:'g'" b=":literal:'G'" />
+    <shift a=":literal:'h'" b=":literal:'H'" />
+    <shift a=":literal:'i'" b=":literal:'I'" />
+    <shift a=":literal:'j'" b=":literal:'J'" />
+    <shift a=":literal:'k'" b=":literal:'K'" />
+    <shift a=":literal:'l'" b=":literal:'L'" />
+    <shift a=":literal:'m'" b=":literal:'M'" />
+    <shift a=":literal:'n'" b=":literal:'N'" />
+    <shift a=":literal:'o'" b=":literal:'O'" />
+    <shift a=":literal:'p'" b=":literal:'P'" />
+    <shift a=":literal:'q'" b=":literal:'Q'" />
+    <shift a=":literal:'r'" b=":literal:'R'" />
+    <shift a=":literal:'s'" b=":literal:'S'" />
+    <shift a=":literal:'t'" b=":literal:'T'" />
+    <shift a=":literal:'u'" b=":literal:'U'" />
+    <shift a=":literal:'w'" b=":literal:'W'" />
+    <shift a=":literal:'x'" b=":literal:'X'" />
+    <shift a=":literal:'y'" b=":literal:'Y'" />
+    <shift a=":literal:'z'" b=":literal:'Z'" />
+    <shift a=":literal:'à'" b=":literal:'À'" />
+    <shift a=":literal:'á'" b=":literal:'Á'" />
+    <shift a=":literal:'è'" b=":literal:'È'" />
+    <shift a=":literal:'é'" b=":literal:'É'" />
+    <shift a=":literal:'ì'" b=":literal:'Ì'" />
+    <shift a=":literal:'í'" b=":literal:'Í'" />
+    <shift a=":literal:'ò'" b=":literal:'Ò'" />
+    <shift a=":literal:'ó'" b=":literal:'Ó'" />
+    <shift a=":literal:'ù'" b=":literal:'Ù'" />
+    <shift a=":literal:'ú'" b=":literal:'Ú'" />
+    <shift a=":literal:'ü'" b=":literal:'Ü'" />
+    <shift a=":literal:'ā'" b=":literal:'Ā'" />
+    <shift a=":literal:'ē'" b=":literal:'Ē'" />
+    <shift a=":literal:'ě'" b=":literal:'Ě'" />
+    <shift a=":literal:'ī'" b=":literal:'Ī'" />
+    <shift a=":literal:'ō'" b=":literal:'Ō'" />
+    <shift a=":literal:'ū'" b=":literal:'Ū'" />
+    <shift a=":literal:'ǎ'" b=":literal:'Ǎ'" />
+    <shift a=":literal:'ǐ'" b=":literal:'Ǐ'" />
+    <shift a=":literal:'ǒ'" b=":literal:'Ǒ'" />
+    <shift a=":literal:'ǔ'" b=":literal:'Ǔ'" />
+    <shift a=":literal:'ǖ'" b=":literal:'Ǖ'" />
+    <shift a=":literal:'ǘ'" b=":literal:'Ǘ'" />
+    <shift a=":literal:'ǚ'" b=":literal:'Ǚ'" />
+    <shift a=":literal:'ǜ'" b=":literal:'Ǜ'" />
+  </modmap>
+  <row>
+    <key c=":literal:'q'" ne="1" se="loc esc" />
+    <key c=":literal:'w'" nw="~" ne="2" sw="\@" />
+    <key c=":literal:'e'" nw=":literal:'ē'" ne=":literal:'é'" sw=":literal:'ě'" se=":literal:'è'" />
+    <key c=":literal:'r'" ne="4" sw="$" />
+    <key c=":literal:'t'" ne="5" sw="%" />
+    <key c=":literal:'y'" ne="6" sw="^" />
+    <key c=":literal:'u'" ne=":literal:'ú'" sw=":literal:'ǔ'" nw=":literal:'ū'" se=":literal:'ù'" />
+    <key c=":literal:'i'" ne=":literal:'í'" sw=":literal:'ǐ'" nw=":literal:'ī'" se=":literal:'ì'" />
+    <key c=":literal:'o'" ne=":literal:'ó'" sw=":literal:'ǒ'" se=":literal:'ò'" nw=":literal:'ō'" />
+    <key c=":literal:'p'" ne="0" />
+  </row>
+  <row>
+    <key shift="0.5" c=":literal:'a'" nw=":literal:'ā'" ne=":literal:'á'" sw=":literal:'ǎ'" se=":literal:'à'" />
+    <key c=":literal:'s'" ne="loc §" sw="loc ß" />
+    <key c=":literal:'d'" />
+    <key c=":literal:'f'" />
+    <key c=":literal:'g'" ne="-" sw="_" />
+    <key c=":literal:'h'" ne="=" sw="+" />
+    <key c=":literal:'j'" se="}" sw="{" />
+    <key c=":literal:'k'" sw="[" se="]" />
+    <key c=":literal:'l'" ne="|" sw="\\" />
+  </row>
+  <row>
+    <key width="1.5" role="action" c="shift" nw="（" ne="language_switch" />
+    <key c=":literal:'z'" nw="、" />
+    <key c=":literal:'x'" nw="！" ne="loc †" />
+    <key c=":literal:'c'" nw="。" ne="&lt;" sw="." />
+    <key c=":literal:'ü'" nw=":literal:'ǖ'" ne=":literal:'ǘ'" sw=":literal:'ǚ'" se=":literal:'ǜ'" />
+    <key c=":literal:'b'" nw="？" ne="\?" sw="/" />
+    <key c=":literal:'n'" nw="；" ne=":" sw=";" />
+    <key c=":literal:'m'" nw=":literal:'\''" ne="&quot;" sw="'" se="”" />
+    <key width="1.5" role="action" c="backspace" nw="）" ne="delete" />
+  </row>
+  <row height="0.95">
+    <key width="1.7" role="action" key0="ctrl" key1="switch_greekmath" key2="loc meta" key3="switch_clipboard" key4="switch_numeric" />
+    <key width="1.1" role="action" key0="fn_page" key1="loc alt" key2="loc change_method" key3="switch_emoji" key4="config" />
+    <key width="4.4" role="space_bar" key0="space" key7="switch_pinyin_finals" key8="switch_zhuyin" key5="cursor_left" key6="cursor_right" />
+    <key width="1.1" c=":literal:'。'" nw=":literal:'，'" ne=":literal:'？'" sw=":literal:'！'" se=":literal:'；'" n=":literal:'：'" s=":literal:'、'" w=":literal:'\''" e=":literal:'˙'" />
+    <key width="1.7" role="action" key0="enter" key1="loc voice_typing" key2="action" key4="layout_picker" />
+  </row>
+</keyboard>

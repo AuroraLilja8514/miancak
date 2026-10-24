@@ -29,6 +29,7 @@ public final class KeyValue implements Comparable<KeyValue>
     TOGGLE_LANGUAGE,
     PINYIN_SEPARATOR,
     SWITCH_FN, LAYOUT_PICKER,
+    SWITCH_PINYIN, SWITCH_PINYIN_FINALS, SWITCH_ZHUYIN,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -637,6 +638,9 @@ public final class KeyValue implements Comparable<KeyValue>
       case "fn": return modifierKey("Fn", Modifier.FN, 0);
       case "fn_page": return eventKey("Fn", Event.SWITCH_FN, FLAG_SMALLER_FONT);
       case "layout_picker": return eventKey("▦", Event.LAYOUT_PICKER, FLAG_SMALLER_FONT);
+      case "switch_pinyin": return eventKey("拼音", Event.SWITCH_PINYIN, FLAG_SMALLER_FONT);
+      case "switch_pinyin_finals": return eventKey("韵母", Event.SWITCH_PINYIN_FINALS, FLAG_SMALLER_FONT);
+      case "switch_zhuyin": return eventKey("注音", Event.SWITCH_ZHUYIN, FLAG_SMALLER_FONT);
       case "meta": return modifierKey("Meta", Modifier.META, 0);
 
       /* Combining diacritics */

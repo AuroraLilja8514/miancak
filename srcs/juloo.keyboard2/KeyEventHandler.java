@@ -163,6 +163,7 @@ public final class KeyEventHandler
     switch (event)
     {
       case SWITCH_FN: case LAYOUT_PICKER: case SWITCH_TEXT:
+      case SWITCH_PINYIN: case SWITCH_PINYIN_FINALS: case SWITCH_ZHUYIN:
       case SWITCH_NUMERIC: case SWITCH_GREEKMATH: case SWITCH_EMOJI:
       case SWITCH_CLIPBOARD: case SWITCH_BACK_EMOJI: case SWITCH_BACK_CLIPBOARD:
       case SWITCH_FORWARD: case SWITCH_BACKWARD: case TOGGLE_LANGUAGE:

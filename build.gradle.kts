@@ -189,6 +189,14 @@ val compileComposeSequences by tasks.registering(Exec::class) {
   doFirst { standardOutput = FileOutputStream(out) }
 }
 
+val genPhoneticPages by tasks.registering(Exec::class) {
+  inputs.files("scripts/gen_phonetic_pages.py", "srcs/layouts/miancak_qwerty.xml", "res/xml/bottom_row.xml")
+  outputs.files("res/xml/miancak_pinyin.xml", "res/xml/miancak_pinyin_finals.xml", "res/xml/miancak_zhuyin.xml")
+  workingDir = projectDir
+  commandLine("python3", "scripts/gen_phonetic_pages.py")
+}
+tasks.named("preBuild") { dependsOn(genPhoneticPages) }
+
 tasks.withType(Test::class).configureEach {
   dependsOn(genLayoutsList, checkKeyboardLayouts, compileComposeSequences, genMethodXml)
 }
