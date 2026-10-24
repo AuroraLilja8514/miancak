@@ -27,6 +27,7 @@ public final class KeyValue implements Comparable<KeyValue>
     HIDE_SELF,
     CHANGE_DICTIONARY,
     TOGGLE_LANGUAGE,
+    PINYIN_SEPARATOR,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -682,6 +683,7 @@ public final class KeyValue implements Comparable<KeyValue>
       case "change_method_next": return CHANGE_METHOD_NEXT;
       case "action": return eventKey("Action", Event.ACTION, FLAG_SMALLER_FONT); // Will always be replaced
       case "capslock": return eventKey(0xE012, Event.CAPS_LOCK, 0);
+      case "pinyin_separator": return eventKey("’", Event.PINYIN_SEPARATOR, 0);
       case "voice_typing": return eventKey(0xE015, Event.SWITCH_VOICE_TYPING, FLAG_SMALLER_FONT);
       case "voice_typing_chooser": return VOICE_TYPING_CHOOSER;
       case "complete_first": return statefulKey(Stateful.Complete_first);

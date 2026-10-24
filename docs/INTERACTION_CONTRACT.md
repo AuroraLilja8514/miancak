@@ -27,6 +27,14 @@ A key action must be able to express at least these two concepts:
 
 They may display the same character while having different semantics.
 
+The named `pinyin_separator` action is a composition-aware control, displayed as
+`’`: with an active Chinese composition it sends the schema's ASCII delimiter
+without confirmation; otherwise it commits the displayed right single quote.
+An explicit Literal("’") remains literal and follows normal confirmation
+ordering. Shift may explicitly map the separator control to a literal ASCII
+apostrophe. This does not change dictionary encoding or infer literal punctuation
+from surrounding text.
+
 Example:
 
 ```text

@@ -86,6 +86,32 @@ public class ImeInteractionTest
       gesture('e', 1, -1); // Literal 3, never candidate number 3.
       output += first + "3";
       awaitText(activity.first, output);
+      // Default Chinese NW punctuation and sequential, one-finger Shift pairs.
+      gesture('z', -1, -1); gesture('x', -1, -1); gesture('b', -1, -1);
+      gesture('n', -1, -1); tap(0.75f, 2); gesture('n', -1, -1);
+      gesture(0.75f, 2, -1, -1); gesture(9.25f, 2, -1, -1);
+      output += "、！？；：（）"; awaitText(activity.first, output);
+      tap(0.75f, 2); gesture(0.75f, 2, -1, -1);
+      tap(0.75f, 2); gesture(9.25f, 2, -1, -1);
+      tap(0.75f, 2); gesture('x', -1, -1);
+      tap(0.75f, 2); gesture('b', -1, -1);
+      output += "()!?"; awaitText(activity.first, output);
+      gesture('m', -1, -1);
+      tap(0.75f, 2); gesture('m', -1, -1);
+      tap(0.75f, 2); gesture('m', -1, 1);
+      tap(0.75f, 2); gesture('m', 1, -1);
+      gesture('m', 1, 1);
+      output += "’'‘“”"; awaitText(activity.first, output);
+      // The visible Chinese quote separates xi'an without committing xi.
+      type("xi"); candidate(); gesture('m', -1, -1); type("an");
+      first = candidate();
+      assertEquals("西安", first);
+      assertEquals(output, text(activity.first));
+      gesture(0.75f, 2, 1, -1);
+      output += first; awaitText(activity.first, output); awaitMode("EN");
+      type("ok"); output += "ok"; awaitText(activity.first, output);
+      gesture(0.75f, 2, 1, -1); awaitMode("中文");
+      screenshot("chinese-punctuation-and-separator");
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();
       assertTrue(find("miancak_next_candidates").isEnabled());
@@ -311,8 +337,13 @@ public class ImeInteractionTest
   private void type(String text) { for (char c : text.toCharArray()) tap(c); }
   private void gesture(char c, int dx, int dy)
   {
-    pointGeometry(); float[] p = position(c);
-    int x = Math.round(left + p[0] * keyWidth), y = Math.round(top + (p[1] + 0.5f) * rowHeight);
+    float[] p = position(c);
+    gesture(p[0], (int)p[1], dx, dy);
+  }
+  private void gesture(float column, int row, int dx, int dy)
+  {
+    pointGeometry();
+    int x = Math.round(left + column * keyWidth), y = Math.round(top + (row + 0.5f) * rowHeight);
     assertTrue(device.swipe(x, y, Math.round(x + dx * keyWidth * 0.85f), Math.round(y + dy * rowHeight * 0.65f), 12));
   }
   private void awaitWeb(String expected) throws Exception

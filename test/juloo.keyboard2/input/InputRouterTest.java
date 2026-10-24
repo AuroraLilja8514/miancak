@@ -10,6 +10,24 @@ import juloo.keyboard2.input.InputRouter.Mode;
 
 public class InputRouterTest
 {
+  @Test public void chineseSingleQuoteSeparatesOnlyAnActiveChineseComposition()
+  {
+    InputRouter.Plan composing = InputRouter.route(Mode.CHINESE, true, PINYIN_SEPARATOR);
+    assertEquals(1, composing.operations.size());
+    assertEquals(InputRouter.OperationType.ENGINE_TEXT, composing.operations.get(0).type);
+    assertEquals("'", composing.operations.get(0).text);
+    for (Mode mode : Mode.values())
+    {
+      InputRouter.Plan idle = InputRouter.route(mode, false, PINYIN_SEPARATOR);
+      assertEquals(1, idle.operations.size());
+      assertEquals(InputRouter.OperationType.COMMIT_TEXT, idle.operations.get(0).type);
+      assertEquals("’", idle.operations.get(0).text);
+    }
+    InputRouter.Plan literal = InputRouter.route(Mode.CHINESE, true, literalText("’"));
+    assertEquals(InputRouter.OperationType.CONFIRM_COMPOSITION, literal.operations.get(0).type);
+    assertEquals("’", literal.operations.get(1).text);
+  }
+
   @Test
   public void englishTextCommitsWithoutEngineOrSuggestions()
   {

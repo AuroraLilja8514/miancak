@@ -7,7 +7,7 @@ public final class SemanticAction
 {
   public enum Type
   {
-    ENGINE_TEXT, LITERAL_TEXT, BACKSPACE, SPACE, TOGGLE_LANGUAGE
+    ENGINE_TEXT, LITERAL_TEXT, BACKSPACE, SPACE, TOGGLE_LANGUAGE, PINYIN_SEPARATOR
   }
 
   public static final SemanticAction BACKSPACE =
@@ -16,6 +16,8 @@ public final class SemanticAction
     new SemanticAction(Type.SPACE, "");
   public static final SemanticAction TOGGLE_LANGUAGE =
     new SemanticAction(Type.TOGGLE_LANGUAGE, "");
+  public static final SemanticAction PINYIN_SEPARATOR =
+    new SemanticAction(Type.PINYIN_SEPARATOR, "");
 
   public final Type type;
   /** Exact text for text actions; empty for control actions. */

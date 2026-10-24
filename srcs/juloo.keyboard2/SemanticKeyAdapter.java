@@ -44,8 +44,11 @@ public final class SemanticKeyAdapter
         else return false;
         return true;
       case Event:
-        if (key.getEvent() != KeyValue.Event.TOGGLE_LANGUAGE) return false;
-        controller.submit(SemanticAction.TOGGLE_LANGUAGE);
+        if (key.getEvent() == KeyValue.Event.TOGGLE_LANGUAGE)
+          controller.submit(SemanticAction.TOGGLE_LANGUAGE);
+        else if (key.getEvent() == KeyValue.Event.PINYIN_SEPARATOR)
+          controller.submit(SemanticAction.PINYIN_SEPARATOR);
+        else return false;
         return true;
       default: return false;
     }
