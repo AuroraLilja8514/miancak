@@ -2,8 +2,9 @@
 set -euo pipefail
 mkdir -p test-results upgrade-signed
 collect() {
-  adb logcat -d > test-results/logcat.txt || true
-  adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  adb devices -l > test-results/adb-devices.txt || true
+  timeout 15s adb logcat -d > test-results/logcat.txt || true
+  timeout 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
 sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/baseline.apk > test-results/original-apk-sha256.txt
@@ -24,7 +25,8 @@ adb shell svc wifi disable
 adb shell svc data disable
 run_phase() {
   local phase="$1"
-  adb shell am instrument -w -e class juloo.keyboard2.UpgradeApkTest -e upgradePhase "$phase" \
+  echo "Running actual APK upgrade phase: $phase"
+  timeout 180s adb shell am instrument -w -e class juloo.keyboard2.UpgradeApkTest -e upgradePhase "$phase" \
     org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/upgrade-$phase.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/upgrade-$phase.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/upgrade-$phase.log"
@@ -37,13 +39,14 @@ adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
 adb shell input keyevent KEYCODE_HOME
 adb shell settings get secure default_input_method | tr -d '\r' > test-results/default-ime-before-reboot.txt
 grep -qx 'org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2' test-results/default-ime-before-reboot.txt
-adb reboot
-adb wait-for-device
+echo 'Rebooting the guest after verified APK replacement'
+timeout 30s adb reboot
+timeout 90s adb wait-for-device
 for attempt in $(seq 1 60); do
-  if [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
+  if [[ "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
   sleep 1
 done
-test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+test "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" = 1
 adb shell input keyevent KEYCODE_WAKEUP
 if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
   adb shell wm dismiss-keyguard

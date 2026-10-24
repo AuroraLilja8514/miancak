@@ -39,12 +39,16 @@ public final class PageFilesUiTest
     try
     {
       clickText(R.string.page_export);
+      UiObject2 initialSave = device.wait(Until.findObject(By.text(Pattern.compile("(?i)^save$"))), 15000);
+      assertNotNull("Android file picker Save missing", initialSave);
+      // API 23 starts on Recent with its root drawer open; that is not a writable folder.
+      if (!initialSave.isEnabled()) chooseDownloads();
       UiObject2 filename = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 15000);
       assertNotNull(filename);
       String name = "miancak-layouts-api" + android.os.Build.VERSION.SDK_INT + ".json";
       filename.setText(name); screenshot("layout-file-export-picker");
-      UiObject2 save = device.wait(Until.findObject(By.text(Pattern.compile("(?i)^save$"))), 15000);
-      assertNotNull("Android file picker Save missing", save); assertTrue(save.isEnabled()); save.click();
+      UiObject2 save = device.wait(Until.findObject(By.text(Pattern.compile("(?i)^save$")).enabled(true)), 15000);
+      assertNotNull("Android file picker Save did not become enabled", save); save.click();
       assertTrue(device.wait(Until.gone(By.text(name)), 15000));
       waitSettings();
       // Reset in a draft then cancel: no preference may change.
@@ -64,8 +68,7 @@ public final class PageFilesUiTest
       UiObject2 file = device.wait(Until.findObject(By.text(name)), 15000);
       if (file == null)
       {
-        UiObject2 downloads = device.findObject(By.text("Downloads"));
-        if (downloads != null) downloads.click();
+        chooseDownloads();
         file = device.wait(Until.findObject(By.text(name)), 15000);
       }
       assertNotNull("Exported file missing from Android document picker", file); file.click();
@@ -77,6 +80,18 @@ public final class PageFilesUiTest
       screenshot("layout-file-import-restored");
     }
     finally { screenshot("layout-files-final"); device.pressBack(); }
+  }
+  private void chooseDownloads()
+  {
+    UiObject2 downloads = device.findObject(By.text("Downloads"));
+    if (downloads == null)
+    {
+      UiObject2 roots = device.findObject(By.desc("Show roots"));
+      if (roots == null) roots = device.findObject(By.desc("Open navigation drawer"));
+      assertNotNull("Android document roots button missing", roots); roots.click();
+      downloads = device.wait(Until.findObject(By.text("Downloads")), 15000);
+    }
+    assertNotNull("Android Downloads folder missing", downloads); downloads.click(); device.waitForIdle();
   }
   private void resetDraft() throws Exception
   {

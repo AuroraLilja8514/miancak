@@ -104,20 +104,28 @@ public final class UpgradeApkTest
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
     for (int attempt = 0; attempt < 3; attempt++)
     {
-      UiObject2 select = device.wait(Until.findObject(By.text(context.getString(label))), 15000);
-      assertNotNull(select); select.click(); device.waitForIdle();
-      androidx.test.uiautomator.UiObject choice = device.findObject(new androidx.test.uiautomator.UiSelector()
-          .packageName("android").text(name));
-      if (choice.waitForExists(15000))
+      if (!device.hasObject(By.res("android", "select_dialog_listview")))
       {
-        try { choice.click(); }
-        catch (androidx.test.uiautomator.UiObjectNotFoundException changed) { continue; }
-        assertTrue(choice.waitUntilGone(15000)); return;
+        UiObject2 select = device.wait(Until.findObject(By.text(context.getString(label))), 15000);
+        assertNotNull(select); select.click();
       }
-      device.pressBack(); device.waitForIdle();
+      device.waitForIdle();
+      UiObject2 choice = device.wait(Until.findObject(By.pkg("android").text(name)), 15000);
+      if (choice == null) { device.pressBack(); device.waitForIdle(); continue; }
+      try
+      {
+        // The label is a non-clickable secondary line. Touch its actual row,
+        // whose centre stays inside the dialog throughout the reveal animation.
+        while (choice != null && !choice.isClickable()) choice = choice.getParent();
+        assertNotNull("Enabled IME has no clickable picker row", choice);
+        choice.click();
+        if (device.wait(Until.gone(By.res("android", "select_dialog_listview")), 5000)) return;
+      }
+      catch (androidx.test.uiautomator.StaleObjectException changed) { /* Resolve the visible row again. */ }
     }
-    fail("Android's picker did not expose the enabled updated IME: " + name);
+    fail("Android's picker did not accept the enabled updated IME: " + name);
   }
+
   private void tap(char letter, boolean northwest)
   {
     String[] rows = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
