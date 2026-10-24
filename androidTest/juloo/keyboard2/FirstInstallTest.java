@@ -193,6 +193,7 @@ public final class FirstInstallTest
     assertNotNull(editor);
     editor.click();
     assertNotNull("First keyboard did not appear", object("keyboard_view"));
+    device.pressKeyCode(android.view.KeyEvent.KEYCODE_MOVE_END);
     device.waitForIdle();
   }
 
@@ -232,23 +233,28 @@ public final class FirstInstallTest
 
   private String candidate()
   {
-    UiObject2 view = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ")), 20000);
-    assertNotNull("No first-install Chinese candidate", view);
-    String value = view.getText();
-    long deadline = SystemClock.uptimeMillis() + 20000;
-    long stable = SystemClock.uptimeMillis();
-    while (SystemClock.uptimeMillis() < deadline)
+    long end = SystemClock.uptimeMillis() + 20000;
+    long stableSince = 0;
+    String previous = "", status = "";
+    while (SystemClock.uptimeMillis() < end)
     {
-      view = device.findObject(By.descStartsWith("Candidate 1: "));
-      if (view != null)
+      try
       {
-        String next = view.getText();
-        if (!next.equals(value)) { value = next; stable = SystemClock.uptimeMillis(); }
-        if (!value.isEmpty() && SystemClock.uptimeMillis() - stable > 300) return value;
+        UiObject2 node = device.findObject(By.descStartsWith("Candidate 1: "));
+        UiObject2 preedit = device.findObject(By.res(pkg, "miancak_preedit"));
+        status = preedit == null ? "keyboard is absent" : preedit.getText();
+        String value = node == null ? "" : node.getText();
+        if (!value.equals(previous)) { previous = value; stableSince = SystemClock.uptimeMillis(); }
+        if (!value.isEmpty() && SystemClock.uptimeMillis() - stableSince >= 250) return value;
+      }
+      catch (androidx.test.uiautomator.StaleObjectException ex)
+      {
+        stableSince = SystemClock.uptimeMillis();
       }
       SystemClock.sleep(30);
     }
-    throw new AssertionError("First-install candidate did not settle");
+    fail("No stable Chinese candidate; preedit=" + status);
+    return "";
   }
 
   // Read actual rendered geometry only. No configuration is initialized or set.
