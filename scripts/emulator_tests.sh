@@ -2,7 +2,8 @@
 set -euo pipefail
 mkdir -p test-results
 collect() {
-  adb logcat -d > test-results/logcat.txt || true
+  adb logcat -b all -d > test-results/logcat.txt || true
+  adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   adb shell uiautomator dump /sdcard/miancak-window.xml || true
   adb pull /sdcard/miancak-window.xml test-results/window.xml || true
   python3 - <<'PY'

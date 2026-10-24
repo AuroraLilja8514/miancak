@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,6 +18,7 @@ public final class WordTableRuntime
   private static final Handler UI = new Handler(Looper.getMainLooper());
   private static WeakReference<InputController> controller = new WeakReference<>(null);
   private static final List<Runnable> listeners = new ArrayList<>();
+  private static final ArrayDeque<Runnable> queued = new ArrayDeque<>();
   public static WordTableStore.View view;
   public static boolean busy;
   private static boolean updating;
@@ -41,7 +43,9 @@ public final class WordTableRuntime
   public static void run(Context context, boolean changesEngine, Operation operation)
   {
     if (Looper.myLooper() != Looper.getMainLooper()) throw new IllegalStateException("Settings API belongs to UI");
-    if (busy) return;
+    // Returning from DocumentsUI starts the activity (and its refresh) before
+    // onActivityResult. Never discard that explicit import behind a refresh.
+    if (busy) { queued.add(() -> run(context.getApplicationContext(), changesEngine, operation)); return; }
     Context app = context.getApplicationContext(); busy = true; updating = changesEngine; error = ""; publish();
     InputController current = controller.get();
     if (changesEngine && current != null)
@@ -64,7 +68,7 @@ public final class WordTableRuntime
       UI.post(() -> {
         view = result; error = message; busy = false; updating = false;
         InputController current = controller.get(); if (current != null) current.releaseExternalUpdate();
-        publish();
+        if (queued.isEmpty()) publish(); else queued.remove().run();
       });
     });
   }

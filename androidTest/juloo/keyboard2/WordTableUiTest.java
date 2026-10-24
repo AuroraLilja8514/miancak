@@ -76,6 +76,7 @@ public final class WordTableUiTest
         input("biang", "𰻝", true, true); input("ceshi", "MIANCAK·附加词表", true, true);
         openManager(); apply(); // release native handles before the host fingerprints learning data
       }
+      writeLearningIndex();
       screenshot("word-tables-" + phase + "-ready");
     }
     finally { screenshot("word-tables-" + phase + "-final"); device.unfreezeRotation(); }
@@ -86,6 +87,22 @@ public final class WordTableUiTest
     try (InputStream in = new FileInputStream(new File(context.getFilesDir(), "word-ui-expected.json")))
     { byte[] b = new byte[8192]; int n; while ((n = in.read(b)) != -1) out.write(b, 0, n); }
     return new JSONObject(new String(out.toByteArray(), StandardCharsets.UTF_8));
+  }
+  private void writeLearningIndex() throws Exception
+  {
+    List<String> files = new ArrayList<>();
+    learningFiles(new File(context.getFilesDir(), "rime/user"), false, files);
+    assertFalse("Real learning database is missing", files.isEmpty()); Collections.sort(files);
+    try (Writer writer = new OutputStreamWriter(new FileOutputStream(new File(context.getFilesDir(), "word-learning-index.txt")), StandardCharsets.UTF_8))
+    { for (String path : files) writer.write(path + "\n"); }
+  }
+  private void learningFiles(File file, boolean inDatabase, List<String> out) throws Exception
+  {
+    boolean database = inDatabase || file.getName().contains(".userdb");
+    if (file.isDirectory())
+    { for (File child : file.listFiles()) learningFiles(child, database, out); }
+    else if (database)
+      out.add("files/" + file.getCanonicalPath().substring(context.getFilesDir().getCanonicalPath().length() + 1));
   }
   private String id(String name) throws Exception
   { for (WordTableStore.Entry entry : store.view().entries) if (entry.name.equals(name)) return entry.id; throw new AssertionError(name); }
@@ -119,8 +136,12 @@ public final class WordTableUiTest
     {
       String name = description.substring(5), label = uiString(R.string.words_bundled);
       if (!name.equals("bundled"))
+      {
+        boolean found = false;
         for (WordTableStore.Entry entry : store.view().entries)
-          if (entry.name.equals(name)) label = entry.name + (entry.version.isEmpty() ? "" : " · " + entry.version);
+          if (entry.name.equals(name)) { label = entry.name + (entry.version.isEmpty() ? "" : " · " + entry.version); found = true; }
+        assertTrue("Imported table absent before choosing its radio: " + name, found);
+      }
       description = uiString(R.string.words_base_choice, label);
     }
     else if (description.startsWith("Supplement ")) description = uiString(R.string.words_extra_choice, description.substring(11));

@@ -344,7 +344,7 @@ jobs:
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-words.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: bash scripts/word_table_apk_tests.sh
+          script: MIANCAK_TEST_API=${{ matrix.api }} bash scripts/word_table_apk_tests.sh
       - name: Upload vocabulary acceptance evidence
         if: always()
         uses: actions/upload-artifact@v7

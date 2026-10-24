@@ -2,10 +2,17 @@
 set -euo pipefail
 mkdir -p test-results word-test-data
 collect() {
-  timeout 15s adb logcat -d > test-results/logcat.txt || true
+  timeout 15s adb logcat -b all -d > test-results/logcat.txt || true
+  timeout 10s adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   timeout 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
+actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ -n "${MIANCAK_TEST_API:-}" && "$actual_api" != "$MIANCAK_TEST_API" ]]; then
+  echo "Unexpected guest API: $actual_api"
+  exit 1
+fi
+adb shell getprop > test-results/device-properties.txt
 sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/word-baseline.apk > test-results/actual-apk-sha256.txt
 python3 - <<'PY'
 from pathlib import Path
@@ -21,7 +28,7 @@ adb install --no-incremental artifacts/app-debug-androidTest.apk
 adb shell svc wifi disable
 adb shell svc data disable
 adb shell settings put secure show_ime_with_hard_keyboard 1
-if [[ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" -ge 35 ]]; then
+if [[ "$actual_api" -ge 35 ]]; then
   adb shell settings put system font_scale 1.3
   adb shell cmd locale set-app-locales org.miancak.keyboard.debug --locales zh-CN
 fi
@@ -37,13 +44,15 @@ run_test() {
 record_learning() {
   python3 - "$1" <<'PY'
 from pathlib import Path
-import hashlib,io,json,subprocess,sys,tarfile
-data=subprocess.check_output(['adb','exec-out','run-as','org.miancak.keyboard.debug','tar','-cf','-','files/rime/user'])
+import hashlib,json,re,subprocess,sys
+def read(path):
+    return subprocess.check_output(['adb','exec-out','run-as','org.miancak.keyboard.debug','cat',path])
+paths=read('files/word-learning-index.txt').decode().splitlines()
 files={}
-with tarfile.open(fileobj=io.BytesIO(data)) as archive:
-    for item in archive:
-        if item.isfile() and any('.userdb' in part for part in Path(item.name).parts):
-            files[item.name]={'bytes':item.size,'sha256':hashlib.sha256(archive.extractfile(item).read()).hexdigest()}
+for path in paths:
+    assert path.startswith('files/rime/user/') and '..' not in path.split('/') and re.fullmatch(r'[A-Za-z0-9_./-]+',path)
+    data=read(path)
+    files[path]={'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
 assert files and any(value['bytes']>0 for value in files.values()),'Expected real persisted learning database'
 Path('test-results','learning-'+sys.argv[1]+'.json').write_text(json.dumps(files,sort_keys=True,indent=2)+'\n')
 PY

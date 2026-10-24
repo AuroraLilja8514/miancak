@@ -342,7 +342,9 @@ public final class WordTableStore
   {
     MessageDigest digest = MessageDigest.getInstance("SHA-256"); byte[] buffer = new byte[16384]; int n;
     try (InputStream input = new FileInputStream(file)) { while ((n = input.read(buffer)) != -1) digest.update(buffer, 0, n); }
-    StringBuilder result = new StringBuilder(); for (byte b : digest.digest()) result.append(String.format(Locale.ROOT, "%02x", b & 255)); return result.toString();
+    StringBuilder result = new StringBuilder(); String hex = "0123456789abcdef";
+    for (byte b : digest.digest()) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));
+    return result.toString();
   }
   private void erase(File file) throws IOException
   {

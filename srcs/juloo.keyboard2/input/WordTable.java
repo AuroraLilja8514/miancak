@@ -15,11 +15,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** The documented, data-only Rime profile. No external YAML reaches librime. */
 public final class WordTable
 {
   public static final long MAX_BYTES = 64L * 1024 * 1024;
+  private static final Pattern CODE = Pattern.compile("[a-z]{1,8}( [a-z]{1,8})*");
+  private static final Pattern WEIGHT = Pattern.compile("[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
+  private static final Pattern SPACES = Pattern.compile(" +");
+  private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}");
   public final String name, version;
   public final List<String> imports;
   public final long rows;
@@ -43,6 +49,9 @@ public final class WordTable
         StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
           .onUnmappableCharacter(CodingErrorAction.REPORT)));
     Map<String, String> fields = new HashMap<>();
+    // Older Android regex objects allocate native ICU state. Reuse matchers for
+    // every row rather than relying on Java GC to release thousands of them.
+    Matcher codeMatcher = CODE.matcher(""), weightMatcher = WEIGHT.matcher(""), spaceMatcher = SPACES.matcher("");
     Map<String, List<String>> lists = new HashMap<>();
     String list = null, line;
     boolean started = false, ended = false;
@@ -110,14 +119,14 @@ public final class WordTable
       if (line.trim().isEmpty() || line.trim().startsWith("#")) continue;
       String[] values = line.split("\t", -1);
       if (values.length > columns.size()) throw error(number, "Too many columns / 数据列过多");
-      String text = at(values, columns.indexOf("text")), code = at(values, columns.indexOf("code")).trim().replaceAll(" +", " ");
+      String text = at(values, columns.indexOf("text")), code = spaceMatcher.reset(at(values, columns.indexOf("code")).trim()).replaceAll(" ");
       if (text.isEmpty() || text.codePointCount(0, text.length()) > 256) throw error(number, "Empty or long text / 词条为空或过长");
       for (int i = 0; i < text.length(); i++) if (Character.isISOControl(text.charAt(i))) throw error(number, "Control character / 词条包含控制字符");
-      if (!code.matches("[a-z]{1,8}( [a-z]{1,8})*")) throw error(number, "Expected untoned Pinyin / 需要小写无声调拼音: " + code);
+      if (!codeMatcher.reset(code).matches()) throw error(number, "Expected untoned Pinyin / 需要小写无声调拼音: " + code);
       if (!at(values, columns.indexOf("stem")).trim().isEmpty()) throw error(number, "Non-empty stem is unsupported / 不支持非空造词码");
       String weight = at(values, columns.indexOf("weight")).trim();
       if (weight.isEmpty()) weight = "1";
-      if (!weight.matches("[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")) throw error(number, "Invalid weight / 需要明确的非负权重");
+      if (!weightMatcher.reset(weight).matches()) throw error(number, "Invalid weight / 需要明确的非负权重");
       double frequency;
       try { frequency = Double.parseDouble(weight); } catch (NumberFormatException invalid) { throw error(number, "Invalid weight / 权重无效"); }
       if (Double.isInfinite(frequency) || frequency > 1e12) throw error(number, "Weight exceeds limit / 权重超过上限");
@@ -136,7 +145,7 @@ public final class WordTable
   private static String value(Map<String, String> values, String key, String fallback)
   { String found = values.get(key); return found == null ? fallback : found; }
 
-  public static boolean validName(String name) { return name.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,79}"); }
+  public static boolean validName(String name) { return NAME.matcher(name).matches(); }
   public static boolean validReference(String value)
   {
     if (value.length() > 256 || value.startsWith("/") || value.endsWith("/")) return false;

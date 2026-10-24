@@ -57,7 +57,15 @@ public class WordTableNativeTest
   }
   @Test public void completeExistingBasesAndSupplementChangeRealCandidatesAndCommits() throws Exception
   {
+    long before = android.os.Debug.getNativeHeapAllocatedSize();
+    android.util.Log.i("MIANCAK-WordTables", "Complete-table import begins; native heap bytes=" + before);
     store.importTables(Arrays.asList(asset("pinyin_simp.dict.yaml"), asset("8105.dict.yaml"), asset("miancak_addon.dict.yaml")));
+    org.json.JSONObject memory = new org.json.JSONObject().put("api", android.os.Build.VERSION.SDK_INT)
+      .put("nativeHeapBeforeImportBytes", before).put("nativeHeapAfterImportBytes", android.os.Debug.getNativeHeapAllocatedSize())
+      .put("processPssAfterImportKiB", android.os.Debug.getPss()).put("scope", "Complete pinned test tables on emulator; no physical-device memory guarantee");
+    File reports = app.getExternalFilesDir("test-results"); assertTrue(reports.isDirectory() || reports.mkdirs());
+    try (FileOutputStream report = new FileOutputStream(new File(reports, "word-import-memory.json")))
+    { report.write(memory.toString(2).getBytes(StandardCharsets.UTF_8)); }
     assertEquals(3, store.view().entries.size());
     for (WordTableStore.Entry entry : store.view().entries)
       if (entry.name.equals("pinyin_simp")) assertTrue(entry.bytes > 1000000);

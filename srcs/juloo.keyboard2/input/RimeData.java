@@ -100,8 +100,8 @@ public final class RimeData
     {
       byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
       StringBuilder result = new StringBuilder();
-      for (byte b : digest)
-        result.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
+      String hex = "0123456789abcdef";
+      for (byte b : digest) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));
       return result.toString();
     }
     catch (NoSuchAlgorithmException ex) { throw new AssertionError(ex); }
