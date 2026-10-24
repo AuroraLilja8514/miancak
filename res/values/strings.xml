@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="miancak_settings">MIANCAK settings</string>
     <string name="app_name_release">MIANCAK</string>
     <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="short_description">Lightweight and privacy-conscious virtual keyboard for Android.</string>
@@ -115,7 +116,7 @@
     <string name="launcher_button_imesettings">Enable keyboard</string>
     <string name="launcher_button_imepicker">Select keyboard</string>
     <string name="launcher_button_dictionaries">Install dictionaries</string>
-    <string name="launcher_description">This application is a virtual keyboard. Go to the system settings by clicking on the button below and enable Unexpected-Keyboard.</string>
+    <string name="launcher_description">MIANCAK is an offline Chinese and English keyboard. Enable it below, select it, then try typing. First installation selects MIANCAK QWERTY. Swipe c toward the upper left for 。 and v toward the upper left for ，. Tap Shift for one uppercase letter; double-tap or hold it to lock uppercase, and tap again to unlock.</string>
     <string name="launcher_sourcecode">This is a free and open source application. You can find the source code or report bugs on GitHub.</string>
     <string name="launcher_tryhere">After enabling, you can try the keyboard here:</string>
     <string name="launcher_tryhere_hint">Try here</string>

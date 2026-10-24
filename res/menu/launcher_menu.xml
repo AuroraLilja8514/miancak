@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/btnLaunchSettingsActivity"
-        android:title=""
+        android:title="@string/miancak_settings"
         android:icon="@drawable/cog_outline"
         android:showAsAction="always" />
 </menu>

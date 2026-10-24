@@ -19,6 +19,8 @@ public final class MiancakPreferences
       SharedPreferences.Editor editor = preferences.edit();
       LayoutsPreference.save_to_preferences(editor, Collections.singletonList(
             new LayoutsPreference.NamedLayout("miancak_qwerty")));
+      if (!preferences.contains("lock_double_tap"))
+        editor.putBoolean("lock_double_tap", true);
       editor.apply();
     }
   }

@@ -31,6 +31,15 @@ public class MiancakPlatformTest
     assertTrue(prefs.getInt("version", 0) > 0);
     assertEquals("no_number_row", prefs.getString("number_row", ""));
     assertTrue(prefs.getString("layouts", "").contains("miancak_qwerty"));
+    assertTrue(prefs.getBoolean("lock_double_tap", false));
+  }
+
+  @Test public void explicitShiftLockPreferenceSurvivesInitialization()
+  {
+    SharedPreferences prefs = isolated("shift-preference");
+    prefs.edit().putBoolean("lock_double_tap", false).commit();
+    MiancakPreferences.initialize(prefs);
+    assertFalse(prefs.getBoolean("lock_double_tap", true));
   }
 
   @Test public void legacyLayoutsAndBooleanNumberRowArePreservedByMigration()
