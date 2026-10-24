@@ -132,12 +132,32 @@ public class LauncherActivity extends Activity implements Handler.Callback
     };
     // AUTO picker contents depend on whether the current IME is shown. Wait
     // for that request so auxiliary/voice rows do not move underneath a tap.
-    editor.post(() -> imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT,
-        new android.os.ResultReceiver(_handler) {
-          @Override protected void onReceiveResult(int result, Bundle data) { picker.run(); }
-        }));
+    Runnable waitForIme = new Runnable() {
+      @Override public void run() {
+        if (opened.get() || !editor.isAttachedToWindow()) return;
+        if (is_ime_visible(editor)) picker.run();
+        else editor.postOnAnimation(this);
+      }
+    };
+    editor.post(() -> {
+      imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
+      editor.postOnAnimation(waitForIme);
+    });
     // A disabled or unresponsive current IME must not trap the setup button.
     editor.postDelayed(picker, 2000);
+  }
+
+  private boolean is_ime_visible(View view)
+  {
+    if (VERSION.SDK_INT >= 30)
+    {
+      android.view.WindowInsets insets = view.getRootWindowInsets();
+      return insets != null && insets.isVisible(android.view.WindowInsets.Type.ime());
+    }
+    android.graphics.Rect frame = new android.graphics.Rect();
+    view.getWindowVisibleDisplayFrame(frame);
+    return getResources().getDisplayMetrics().heightPixels - frame.bottom
+      > Math.round(100 * getResources().getDisplayMetrics().density);
   }
 
   public void launch_dictionaries_activity(View v)
