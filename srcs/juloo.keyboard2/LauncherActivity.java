@@ -117,7 +117,13 @@ public class LauncherActivity extends Activity implements Handler.Callback
   {
     InputMethodManager imm =
       (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
-    imm.showInputMethodPicker();
+    // A replaced/stopped IME may leave Android 15's IME container attached to
+    // the previous task. Establish this activity's editor target before opening
+    // the picker so its dialog is displayed above the current application.
+    android.widget.EditText editor = (android.widget.EditText)findViewById(R.id.launcher_tryhere_area);
+    editor.requestFocus();
+    imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
+    editor.post(imm::showInputMethodPicker);
   }
 
   public void launch_dictionaries_activity(View v)

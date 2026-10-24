@@ -96,7 +96,7 @@ public final class UpgradeApkTest
     }
     finally { screenshot("upgrade-" + phase + "-final"); device.unfreezeRotation(); }
   }
-  private void selectThroughShippedLauncher()
+  private void selectThroughShippedLauncher() throws Exception
   {
     instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
@@ -108,6 +108,7 @@ public final class UpgradeApkTest
     assertNotNull("Shipped input-method picker action missing", select); select.click();
     assertTrue("Updated IME missing from Android's picker",
         device.wait(Until.hasObject(By.pkg("android").text(name)), 15000));
+    screenshot("upgrade-" + InstrumentationRegistry.getArguments().getString("upgradePhase", "verify") + "-picker");
     try
     {
       device.findObject(new androidx.test.uiautomator.UiSelector().packageName("android").text(name)).click();

@@ -299,7 +299,7 @@ public final class FirstInstallTest
   {
     float[] p = key(c);
     assertTrue(device.swipe(Math.round(p[0]), Math.round(p[1]),
-        Math.round(p[0] + dx * p[2] * 0.85f), Math.round(p[1] + dy * p[3] * 0.65f), 12));
+        Math.round(p[0] + dx * p[2] * 0.85f), Math.round(p[1] + dy * p[3] * 0.65f), 5));
   }
 
   private void screenshot(String name) throws Exception
