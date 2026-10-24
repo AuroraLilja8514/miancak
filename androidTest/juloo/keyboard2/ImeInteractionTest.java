@@ -184,7 +184,11 @@ public class ImeInteractionTest
       new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
         .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
       device.findObject(By.desc("fn-target-zh")).click();
-      device.wait(Until.findObject(By.text(context.getString(R.string.page_pinyin))), 15000).click();
+      device.waitForIdle();
+      androidx.test.uiautomator.UiObject pinyinTarget = device.findObject(new androidx.test.uiautomator.UiSelector()
+          .className("android.widget.CheckedTextView").text(context.getString(R.string.page_pinyin)));
+      assertTrue("Pinyin target missing from the actual Fn dialog", pinyinTarget.waitForExists(15000));
+      pinyinTarget.click();
       resumeEditor(); ensureChinese();
       tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
@@ -354,14 +358,14 @@ public class ImeInteractionTest
   {
     // Scroll the same IME window node used by the visible-page assertions.
     UiObject2 choice = null;
-    for (int attempt = 0; attempt < 20; attempt++)
+    for (int attempt = 0; attempt < 28; attempt++)
     {
       choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 400);
       if (choice != null && choice.getVisibleBounds().height() > 16) break;
       UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
       chooser.setGestureMargin(Math.round(32 * context.getResources().getDisplayMetrics().density));
-      chooser.scroll(attempt < 10 ? androidx.test.uiautomator.Direction.DOWN : androidx.test.uiautomator.Direction.UP,
-          0.2f, Math.round(160 * context.getResources().getDisplayMetrics().density));
+      chooser.scroll(attempt < 14 ? androidx.test.uiautomator.Direction.DOWN : androidx.test.uiautomator.Direction.UP,
+          0.5f, Math.round(120 * context.getResources().getDisplayMetrics().density));
       device.waitForIdle();
     }
     assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
