@@ -202,6 +202,34 @@ public final class FirstInstallTest
         device.wait(Until.hasObject(By.res(pkg, "launcher_tryhere_area").text(expected)), 20000));
   }
 
+  private String launcherState()
+  {
+    StringBuilder state = new StringBuilder();
+    instrumentation.runOnMainSync(() -> {
+      for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+          .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
+      {
+        state.append(activity.getClass().getName()).append(" softInput=")
+          .append(activity.getWindow().getAttributes().softInputMode);
+        android.view.View root = activity.findViewById(android.R.id.content);
+        Rect visible = new Rect(); root.getWindowVisibleDisplayFrame(visible);
+        state.append(" rootHeight=").append(root.getHeight()).append(" visibleFrame=").append(visible);
+        android.widget.EditText editor = activity.findViewById(R.id.launcher_tryhere_area);
+        if (editor != null)
+        {
+          Rect rectangle = new Rect(); boolean shown = editor.getGlobalVisibleRect(rectangle);
+          state.append(" text=[").append(editor.getText()).append("] shown=").append(shown).append(" editor=").append(rectangle);
+          android.view.View viewport = (android.view.View)editor.getParent().getParent();
+          state.append(" viewportHeight=").append(viewport.getHeight()).append(" bottomPadding=").append(viewport.getPaddingBottom());
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 30 && root.getRootWindowInsets() != null)
+          state.append(" imeInset=").append(root.getRootWindowInsets().getInsets(android.view.WindowInsets.Type.ime()).bottom);
+        state.append('\n');
+      }
+    });
+    return state.toString();
+  }
+
   private String candidate()
   {
     UiObject2 view = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ")), 20000);
@@ -278,6 +306,8 @@ public final class FirstInstallTest
     assertTrue(frames.await(5, TimeUnit.SECONDS));
     File dir = context.getExternalFilesDir("test-results");
     assertTrue(dir.isDirectory() || dir.mkdirs());
+    try (java.io.FileOutputStream stream = new java.io.FileOutputStream(new File(dir, name + "-state.txt")))
+    { stream.write(launcherState().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
     assertTrue(device.takeScreenshot(new File(dir, name + ".png")));
     device.dumpWindowHierarchy(new File(dir, name + ".xml"));
   }
