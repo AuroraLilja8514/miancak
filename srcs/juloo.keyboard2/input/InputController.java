@@ -119,6 +119,11 @@ public final class InputController implements AutoCloseable
     checkUi();
     Handle handle = active;
     if (!current(handle) || (target == Mode.CHINESE && !handle.allowed)) return false;
+    if (!hasPendingRequests() && snapshot.mode == target)
+    {
+      if (applied != null) applied.run();
+      return true;
+    }
     SemanticAction action = target == Mode.CHINESE ? SemanticAction.SET_CHINESE : SemanticAction.SET_ENGLISH;
     queue(handle, edits -> executeAction(handle, action, edits), applied);
     return true;

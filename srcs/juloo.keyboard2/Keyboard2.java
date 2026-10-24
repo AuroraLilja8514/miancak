@@ -41,6 +41,7 @@ public class Keyboard2 extends InputMethodService
 {
   /** The view containing the keyboard and candidates view. */
   private ViewGroup _keyboard_container_view;
+  private View _activeInputView;
   private Keyboard2View _keyboard_layout_view;
   private CandidatesView _candidates_view;
   private Suggestions _suggestions;
@@ -406,9 +407,24 @@ public class Keyboard2 extends InputMethodService
       super.setExtractViewShown(false);
   }
 
+  /** Report the actual keyboard top. The full-height IME host frame is not
+   * the occupied content area, especially with Android 15 edge-to-edge. */
+  @Override public void onComputeInsets(android.inputmethodservice.InputMethodService.Insets insets)
+  {
+    super.onComputeInsets(insets);
+    if (_activeInputView != null && _activeInputView.getHeight() > 0 && isInputViewShown())
+    {
+      int[] location = new int[2]; _activeInputView.getLocationInWindow(location);
+      insets.contentTopInsets = location[1];
+      insets.visibleTopInsets = location[1];
+      insets.touchableInsets = android.inputmethodservice.InputMethodService.Insets.TOUCHABLE_INSETS_CONTENT;
+    }
+  }
+
   @Override
   public void setInputView(View v)
   {
+    _activeInputView = v;
     ViewParent parent = v.getParent();
     if (parent != null && parent instanceof ViewGroup)
       ((ViewGroup)parent).removeView(v);
@@ -694,6 +710,7 @@ public class Keyboard2 extends InputMethodService
 
   private void show_page_chooser()
   {
+    _pageRequest++;
     if (_pageChooser != null) { close_page_chooser(); return; }
     _rimeCandidates.collapse();
     android.widget.ScrollView scroll = new android.widget.ScrollView(this);
