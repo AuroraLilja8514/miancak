@@ -19,9 +19,12 @@ public final class KeyModifier
   {
     if (k == null)
       return null;
+    boolean layered = k.getKind() == KeyValue.Kind.Layered;
+    if (layered) k = k.layer(mods.has(KeyValue.Modifier.SHIFT));
     int n_mods = mods.size();
     KeyValue r = k;
     for (int i = 0; i < n_mods; i++)
+      if (!(layered && mods.get(i).equals(KeyValue.SHIFT)))
       r = modify(r, mods.get(i));
     /* Keys with an empty string are placeholder keys. */
     if (r.getString().length() == 0)
@@ -60,6 +63,8 @@ public final class KeyModifier
 
   public static KeyValue modify(KeyValue k, KeyValue.Modifier mod)
   {
+    if (k.getKind() == KeyValue.Kind.Layered)
+      return mod == KeyValue.Modifier.SHIFT ? k.layer(true) : modify(k.layer(false), mod);
     switch (mod)
     {
       case CTRL: return apply_ctrl(k);

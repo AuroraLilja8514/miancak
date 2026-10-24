@@ -111,6 +111,7 @@ public final class KeyValue implements Comparable<KeyValue>
     Macro, // [_payload] is a [KeyValue.Macro], value is unused.
     Stateful, // [_payload] is a [KeyValue.Stateful], value is the query.
     Literal, Engine, // [_payload] is SemanticText: fixed exact text plus display label.
+    Layered, // Per-position normal/Shift actions; resolved before dispatch.
   }
 
   private static final int FLAGS_OFFSET = 20;
@@ -179,6 +180,22 @@ public final class KeyValue implements Comparable<KeyValue>
   }
 
   public String getSemanticText() { return ((SemanticText)_payload).text; }
+  public static KeyValue layered(KeyValue normal, KeyValue shifted)
+  {
+    if (normal == null) normal = makeStringKey("");
+    if (shifted == null) shifted = makeStringKey("");
+    return new KeyValue(new Layers(normal, shifted), Kind.Layered, 0, normal.getFlags());
+  }
+  public KeyValue layer(boolean shift) { Layers value = (Layers)_payload; return shift ? value.shifted : value.normal; }
+  private static final class Layers implements Comparable<Layers>
+  {
+    final KeyValue normal, shifted;
+    Layers(KeyValue normal, KeyValue shifted) { this.normal = normal; this.shifted = shifted; }
+    @Override public String toString() { return normal.getString(); }
+    @Override public int hashCode() { return 31 * normal.hashCode() + shifted.hashCode(); }
+    @Override public int compareTo(Layers other)
+    { int first = normal.compareTo(other.normal); return first == 0 ? shifted.compareTo(other.shifted) : first; }
+  }
 
   private static final class SemanticText implements Comparable<SemanticText>
   {

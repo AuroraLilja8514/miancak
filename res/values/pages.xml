@@ -17,4 +17,51 @@
   <string name="pages_reset">Reset page settings</string>
   <string name="pages_reset_confirm">Reset page order, enabled pages and Fn targets?</string>
   <string name="pages_explanation">Chinese and English share MIANCAK QWERTY. Swipe southeast on Enter for all enabled pages. Fn toggles its configured page; select the same page again to return. Shift double tap or long press locks capitals.</string>
+  <string name="page_save">Save</string>
+  <string name="page_changed_elsewhere">Layout settings changed while editing. Reopen the editor before saving.</string>
+  <string name="page_shift_preview">Preview and edit Shift layer</string>
+  <string name="page_dynamic_controls">This page displays dynamic content. Edit its control row here; emoji and clipboard contents are managed on their own pages. The layout chooser is always available in the header.</string>
+  <string name="page_editor_help">Tap a key, then choose its center or swipe direction. Changes take effect only after Save. The header layout chooser remains available even if you change the Enter key.</string>
+  <string name="page_reset_layout">Restore this layout to defaults</string>
+  <string name="page_reset_layout_confirm">Restore this page in the draft? Save to apply.</string>
+  <string name="page_choose_position">Choose center or swipe direction</string>
+  <string name="page_literal">Exact output text</string>
+  <string name="page_engine">Send text to Chinese engine</string>
+  <string name="page_action">Keyboard action</string>
+  <string name="page_empty">Leave empty</string>
+  <string name="page_inherit">Use built-in action</string>
+  <string name="page_key_action">Set key output</string>
+  <string name="page_edit_layout">Edit key positions</string>
+  <string name="page_export">Export layouts and page settings</string>
+  <string name="page_import">Import layout file</string>
+  <string name="page_restore_previous">Restore previous layout settings</string>
+  <string name="page_restore_confirm">Restore the configuration before the last key edit or import?</string>
+  <string name="page_exported">Layout file exported</string>
+  <string name="page_import_too_large">Layout file exceeds 256 KiB</string>
+  <string name="page_import_confirm">Import this file and replace page settings and key edits? The current configuration will be backed up.</string>
+  <string name="page_import_error">Could not read layout settings</string>
+  <string-array name="page_action_labels">
+    <item>Shift</item>
+    <item>Backspace</item>
+    <item>Delete forward</item>
+    <item>Enter</item>
+    <item>Space</item>
+    <item>Fn page</item>
+    <item>Layout chooser</item>
+    <item>Chinese / English</item>
+    <item>Return to text</item>
+    <item>Numbers</item>
+    <item>Greek / mathematics</item>
+    <item>Emoji</item>
+    <item>Clipboard</item>
+    <item>Settings</item>
+    <item>Ctrl</item>
+    <item>Alt</item>
+    <item>Meta</item>
+    <item>Left</item>
+    <item>Right</item>
+    <item>Up</item>
+    <item>Down</item>
+    <item>Pinyin separator</item>
+  </string-array>
 </resources>

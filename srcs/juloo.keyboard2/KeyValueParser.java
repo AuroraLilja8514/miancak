@@ -217,7 +217,7 @@ public final class KeyValueParser
     {
       if (!match(m, QUOTED_PAT))
         parseError("Expected quoted string", m);
-      return m.group(1).replace("\\'", "'");
+      return remove_escaping(m.group(1));
     }
 
     static String parsePayloadWord(Matcher m) throws ParseError
@@ -255,7 +255,7 @@ public final class KeyValueParser
         return;
       START_PAT = Pattern.compile(":(\\w+)");
       ATTR_PAT = Pattern.compile("\\s*(\\w+)\\s*=");
-      QUOTED_PAT = Pattern.compile("'(([^'\\\\]+|\\\\')*)'");
+      QUOTED_PAT = Pattern.compile("'((?:[^'\\\\]+|\\\\.)*)'");
       PAYLOAD_START_PAT = Pattern.compile("\\s*:");
       WORD_PAT = Pattern.compile("[a-zA-Z0-9_]*");
     }

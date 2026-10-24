@@ -23,4 +23,5 @@
   <string name="miancak_next">Next candidates</string>
   <string name="miancak_previous">Previous candidates</string>
   <item name="miancak_page_chooser" type="id"/>
+  <item name="miancak_pages" type="id"/>
 </resources>

@@ -71,6 +71,7 @@ public class Keyboard2 extends InputMethodService
   private View _pageChooser;
   private long _pageRequest;
   private boolean _shiftLock;
+  private PageKeyOverrides _keyOverrides;
 
   private FoldStateTracker _foldStateTracker;
 
@@ -95,7 +96,9 @@ public class Keyboard2 extends InputMethodService
   {
     if (_currentSpecialLayout != null)
       return _currentSpecialLayout;
-    return LayoutModifier.modify_layout(current_layout_unmodified());
+    KeyboardData data = PageLayouts.complete(getResources(), current_layout_unmodified());
+    if (_keyOverrides != null) data = _keyOverrides.apply(_page.active(), data);
+    return LayoutModifier.modify_layout(data);
   }
 
   void setTextLayout(int l)
@@ -134,8 +137,7 @@ public class Keyboard2 extends InputMethodService
 
   KeyboardData loadNumericLayout()
   {
-    return loadNumpad(_config.orientation_landscape ?
-        R.xml.numeric_landscape : R.xml.numeric);
+    return LayoutModifier.modify_numpad(_keyOverrides.apply("numeric", PageLayouts.base(getResources(), "numeric")), current_layout_unmodified());
   }
 
   KeyboardData loadPinentry(int layout_id)
@@ -192,7 +194,9 @@ public class Keyboard2 extends InputMethodService
     _rimeCandidates.attachSurface((FrameLayout)_keyboard_container_view.findViewById(R.id.miancak_keyboard_surface), _keyboard_layout_view);
     _surface = (FrameLayout)_keyboard_container_view.findViewById(R.id.miancak_keyboard_surface);
     _pages = PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(this));
+    _keyOverrides = PageKeyOverrides.load(DirectBootAwarePreferences.get_shared_preferences(this));
     _rimeCandidates.setLanguageAction(this::toggle_language_page);
+    _rimeCandidates.setPageAction(this::show_page_chooser);
     _rimeCandidates.setExpansionListener(this::page_visibility);
     if (_inputController != null) _rimeCandidates.attach(_inputController);
   }
@@ -531,6 +535,7 @@ public class Keyboard2 extends InputMethodService
     if (_key.equals("miancak_chinese")) return;
     refresh_config();
     _pages = PagePreferences.load(_prefs);
+    _keyOverrides = PageKeyOverrides.load(_prefs);
     if (!_pages.enabled.contains(_page.active())) _page.reset(_inputController.snapshot().mode);
     apply_page();
   }
@@ -622,7 +627,9 @@ public class Keyboard2 extends InputMethodService
         if (request != _pageRequest) return;
         boolean sameGeometry = PageConfig.isText(_page.active());
         _page.select(id); close_page_chooser();
-        if (!sameGeometry) apply_page(); else page_indicators();
+        boolean latched = _keyboard_layout_view.shiftLatched(), locked = _keyboard_layout_view.shiftLocked();
+        apply_page();
+        if (sameGeometry && latched) _keyboard_layout_view.set_shift_state(true, locked);
       });
     }
     else
@@ -638,8 +645,8 @@ public class Keyboard2 extends InputMethodService
     switch (_page.active())
     {
       case "numeric": _currentSpecialLayout = loadNumericLayout(); break;
-      case "greek": _currentSpecialLayout = loadNumpad(R.xml.greekmath); break;
-      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(loadLayout(R.xml.miancak_symbols)); break;
+      case "greek": _currentSpecialLayout = LayoutModifier.modify_numpad(_keyOverrides.apply("greek", PageLayouts.base(getResources(), "greek")), current_layout_unmodified()); break;
+      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply("symbols", PageLayouts.base(getResources(), "symbols"))); break;
       default: _currentSpecialLayout = null; break;
     }
     _keyboard_layout_view.setKeyboard(current_layout());
@@ -648,6 +655,8 @@ public class Keyboard2 extends InputMethodService
       _emojiPane = create_auxiliary_pane(R.layout.emoji_pane);
     if (_page.active().equals("clipboard") && _clipboard_pane == null)
       _clipboard_pane = create_auxiliary_pane(R.layout.clipboard_pane);
+    if (_page.active().equals("emoji")) update_pane_controls(_emojiPane, "emoji");
+    if (_page.active().equals("clipboard")) update_pane_controls(_clipboard_pane, "clipboard");
     page_visibility(); page_indicators();
   }
 
@@ -660,6 +669,13 @@ public class Keyboard2 extends InputMethodService
     pane.addView(picker, 0, new LinearLayout.LayoutParams(-1, -2));
     _surface.addView(pane, new FrameLayout.LayoutParams(-1, -1));
     return pane;
+  }
+
+  private void update_pane_controls(ViewGroup pane, String id)
+  {
+    for (int i = 0; i < pane.getChildCount(); i++)
+      if (pane.getChildAt(i) instanceof Keyboard2View)
+        ((Keyboard2View)pane.getChildAt(i)).setKeyboard(_keyOverrides.apply(id, PageLayouts.base(getResources(), id)));
   }
 
   private void page_visibility()

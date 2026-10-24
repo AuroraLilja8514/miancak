@@ -17,4 +17,51 @@
   <string name="pages_reset">重置页面设置</string>
   <string name="pages_reset_confirm">重置页面顺序、启用页面与 Fn 目标？</string>
   <string name="pages_explanation">中英文共用 MIANCAK QWERTY。在 Enter 键向右下滑动可选择所有已启用页面；Fn 切换到设置的页面，再次按下返回。双击或长按 Shift 锁定大写。</string>
+  <string name="page_save">保存</string>
+  <string name="page_changed_elsewhere">编辑期间布局设置已变化，请重新打开编辑器。</string>
+  <string name="page_shift_preview">预览与编辑 Shift 层</string>
+  <string name="page_dynamic_controls">此页面内容动态生成；在此编辑底部控制行，表情与剪贴板内容在各自页面管理。顶部始终保留布局选择入口。</string>
+  <string name="page_editor_help">点选按键后选择中心或滑动方向，保存后生效。即使修改 Enter，顶部仍保留布局选择入口。</string>
+  <string name="page_reset_layout">恢复此布局默认键位</string>
+  <string name="page_reset_layout_confirm">在草稿中恢复此页面？保存后生效。</string>
+  <string name="page_choose_position">选择中心或滑动方向</string>
+  <string name="page_literal">原样输出文字</string>
+  <string name="page_engine">将文字送入中文引擎</string>
+  <string name="page_action">键盘功能</string>
+  <string name="page_empty">留空</string>
+  <string name="page_inherit">使用默认功能</string>
+  <string name="page_key_action">设置按键输出</string>
+  <string name="page_edit_layout">编辑键位</string>
+  <string name="page_export">导出布局与页面设置</string>
+  <string name="page_import">导入布局文件</string>
+  <string name="page_restore_previous">恢复上次布局设置</string>
+  <string name="page_restore_confirm">恢复上次键位编辑或导入之前的设置？</string>
+  <string name="page_exported">布局文件已导出</string>
+  <string name="page_import_too_large">布局文件超过 256 KiB</string>
+  <string name="page_import_confirm">导入此文件并替换页面设置与键位修改？当前配置会先备份。</string>
+  <string name="page_import_error">无法读取布局设置</string>
+  <string-array name="page_action_labels">
+    <item>Shift</item>
+    <item>退格</item>
+    <item>向后删除</item>
+    <item>Enter</item>
+    <item>空格</item>
+    <item>Fn 页面</item>
+    <item>布局选择器</item>
+    <item>中英切换</item>
+    <item>返回文字页</item>
+    <item>数字</item>
+    <item>希腊／数学</item>
+    <item>表情</item>
+    <item>剪贴板</item>
+    <item>设置</item>
+    <item>Ctrl</item>
+    <item>Alt</item>
+    <item>Meta</item>
+    <item>左</item>
+    <item>右</item>
+    <item>上</item>
+    <item>下</item>
+    <item>拼音分音符</item>
+  </string-array>
 </resources>

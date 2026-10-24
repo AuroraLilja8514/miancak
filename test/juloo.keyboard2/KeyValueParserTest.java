@@ -10,6 +10,18 @@ public class KeyValueParserTest
 {
   public KeyValueParserTest() {}
 
+  @Test public void semanticTextEscapesQuotesAndBackslashesExactly() throws Exception
+  {
+    String text = "a'\\‘中文’";
+    String escaped = text.replace("\\", "\\\\").replace("'", "\\'");
+    KeyValue literal = KeyValueParser.parse(":literal:'" + escaped + "'");
+    KeyValue engine = KeyValueParser.parse(":engine:'" + escaped + "'");
+    assertEquals(text, literal.getSemanticText());
+    assertEquals(text, engine.getSemanticText());
+    assertEquals(KeyValue.Kind.Literal, literal.getKind());
+    assertEquals(KeyValue.Kind.Engine, engine.getKind());
+  }
+
   @Test
   public void parse_key_value() throws Exception
   {

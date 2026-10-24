@@ -311,6 +311,12 @@ public final class KeyboardData
         locale_extra_keys);
   }
 
+  public KeyboardData with_bottom_row(boolean value)
+  {
+    return new KeyboardData(rows, keysWidth, modmap, script, numpad_script,
+        name, value, embedded_number_row, locale_extra_keys);
+  }
+
   public static class Row
   {
     public final List<Key> keys;
