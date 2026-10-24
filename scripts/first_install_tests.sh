@@ -3,6 +3,8 @@ set -euo pipefail
 mkdir -p test-results
 collect() {
   adb logcat -d > test-results/logcat.txt || true
+  adb shell dumpsys window windows > test-results/windows.txt || true
+  adb shell dumpsys input_method > test-results/input-method.txt || true
   adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
