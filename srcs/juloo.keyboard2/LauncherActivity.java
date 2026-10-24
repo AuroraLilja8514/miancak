@@ -48,7 +48,17 @@ public class LauncherActivity extends Activity implements Handler.Callback
       content.setOnApplyWindowInsetsListener((view, insets) -> {
         android.graphics.Insets bars = insets.getInsets(
             android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.ime());
-        view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+        android.view.ViewGroup.LayoutParams raw = view.getLayoutParams();
+        if (raw instanceof android.view.ViewGroup.MarginLayoutParams)
+        {
+          android.view.ViewGroup.MarginLayoutParams margins = (android.view.ViewGroup.MarginLayoutParams)raw;
+          if (margins.leftMargin != bars.left || margins.topMargin != bars.top
+              || margins.rightMargin != bars.right || margins.bottomMargin != bars.bottom)
+          {
+            margins.setMargins(bars.left, bars.top, bars.right, bars.bottom);
+            view.setLayoutParams(margins);
+          }
+        }
         view.post(() -> {
           View focused = view.findFocus();
           if (focused != null)
