@@ -2,4 +2,10 @@
   <string name="miancak_expand_candidates">展开候选</string>
   <string name="miancak_collapse_candidates">收起候选</string>
   <string name="miancak_all_candidates">全部候选</string>
+  <string name="miancak_direct">英文直输</string>
+  <string name="miancak_switch_chinese">切换到中文</string>
+  <string name="miancak_switch_english">切换到英文</string>
+  <string name="miancak_cancel_composition">取消组词</string>
+  <string name="miancak_next">下一页候选</string>
+  <string name="miancak_previous">上一页候选</string>
 </resources>
