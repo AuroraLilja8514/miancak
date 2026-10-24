@@ -29,13 +29,13 @@ public class WordTableTest
   }
   @Test public void originalOrderProducesExplicitDecreasingWeights() throws Exception
   {
-    StringWriter out = new StringWriter(); parse("---\nname: ordered\nsort: by_original\ncolumns:\n  - text\n  - code\n...\n甲\tjia\n乙\tyi\n", out);
+    StringWriter out = new StringWriter(); parse("---\nname: ordered\nsort: original\ncolumns:\n  - text\n  - code\n...\n甲\tjia\n乙\tyi\n", out);
     String[] rows = out.toString().split("\n");
     assertTrue(Double.parseDouble(rows[0].split("\t")[2]) > Double.parseDouble(rows[1].split("\t")[2]));
   }
   @Test public void rejectsExecutableOrUnsupportedYamlAndAmbiguousFields() throws Exception
   {
-    for (String header : Arrays.asList("name: test\nname: again", "name: !!java/object bad", "name: &anchor test", "name: test\nencoder: {}", "name: test\nuse_preset_vocabulary: true", "name: ../escape", "name: test\ncolumns: [text, weight]"))
+    for (String header : Arrays.asList("name: test\nname: again", "name: !!java/object bad", "name: &anchor test", "name: test\nencoder: {}", "name: test\nuse_preset_vocabulary: true", "name: ../escape", "name: test\ncolumns: [text, weight]", "name: test\nsort: by_original"))
       rejects("---\n" + header + "\n...\n你好\tni hao\t1\n");
     rejects("---\nname: root\nimport_tables: [../bad]\n...\n");
     rejects("---\nname: root\nimport_tables: [/absolute]\n...\n");

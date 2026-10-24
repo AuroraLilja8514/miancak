@@ -80,7 +80,7 @@ public final class WordTable
             throw error(number, "Invalid dictionary name / 词表名称无效");
           if (value(fields, "version", "").length() > 256) throw error(number, "Version too long / 版本说明过长");
           String sort = value(fields, "sort", "by_weight");
-          if (!sort.equals("by_weight") && !sort.equals("by_original")) throw error(number, "Unsupported sort / 不支持的排序");
+          if (!sort.equals("by_weight") && !sort.equals("original")) throw error(number, "Unsupported sort / 不支持的排序");
           if (fields.containsKey("use_preset_vocabulary") && !fields.get("use_preset_vocabulary").equals("false"))
             throw error(number, "Preset vocabulary needs conversion / 请先将预设词频转换为明确权重");
           if (lists.containsKey("columns")) columns = lists.get("columns");
@@ -131,7 +131,7 @@ public final class WordTable
       try { frequency = Double.parseDouble(weight); } catch (NumberFormatException invalid) { throw error(number, "Invalid weight / 权重无效"); }
       if (Double.isInfinite(frequency) || frequency > 1e12) throw error(number, "Weight exceeds limit / 权重超过上限");
       rows++;
-      if (value(fields, "sort", "by_weight").equals("by_original")) weight = Double.toString(1e9 / rows);
+      if (value(fields, "sort", "by_weight").equals("original")) weight = Double.toString(1e9 / rows);
       normalized.write(text); normalized.write('\t'); normalized.write(code); normalized.write('\t'); normalized.write(weight); normalized.write('\n');
     }
     if (!ended) throw error(number, "Missing ... / 缺少表头结束标记");
