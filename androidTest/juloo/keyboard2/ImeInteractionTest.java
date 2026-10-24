@@ -138,14 +138,44 @@ public class ImeInteractionTest
       tap(0.5f, 0); output += "θ"; awaitText(activity.first, output);
       screenshot("greek-page");
       device.pressBack();
+      type("nihao"); String emojiCandidate = candidate();
       gesture(9.15f, 3, 1, 1); choosePage("emoji");
       UiObject2 dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
       assertNotNull(dynamicPicker); screenshot("emoji-page");
+      UiObject2 grid = find("emoji_grid"); assertNotNull(grid);
+      assertFalse(grid.getChildren().isEmpty());
+      UiObject2 emoji = grid.getChildren().get(0); String emojiText = emoji.getText();
+      assertNotNull(emojiText); emoji.click();
+      output += emojiCandidate + emojiText; awaitText(activity.first, output); awaitIdlePreedit();
       dynamicPicker.click(); choosePage("clipboard");
       dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
       assertNotNull(dynamicPicker); screenshot("clipboard-page");
       dynamicPicker.click(); choosePage("zh");
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      type("nihao"); String clipboardCandidate = candidate();
+      find("miancak_pages").click(); choosePage("clipboard");
+      UiObject2 history = find("miancak_clipboard_history"); assertNotNull(history);
+      if (!history.isChecked()) history.click();
+      String clipboardText = "剪贴板α🙂";
+      instrumentation.runOnMainSync(() -> ((android.content.ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE))
+          .setPrimaryClip(android.content.ClipData.newPlainText("APK test", clipboardText)));
+      UiObject2 paste = null;
+      for (int attempt = 0; attempt < 8; attempt++)
+      {
+        paste = device.findObject(By.res(pkg, "clipboard_entry_paste"));
+        if (paste != null && paste.getVisibleBounds().height() > 16) break;
+        UiObject2 clips = find("miancak_clipboard_scroll"); assertNotNull(clips);
+        clips.setGestureMargin(4); clips.scroll(androidx.test.uiautomator.Direction.DOWN, 0.8f);
+      }
+      assertNotNull(device.wait(Until.findObject(By.res(pkg, "clipboard_entry_text").text(clipboardText)), 15000));
+      assertNotNull(paste); paste.click();
+      output += clipboardCandidate + clipboardText; awaitText(activity.first, output); awaitIdlePreedit();
+      screenshot("clipboard-composition-paste");
+      UiObject2 clips = find("miancak_clipboard_scroll"); clips.setGestureMargin(4);
+      clips.scroll(androidx.test.uiautomator.Direction.UP, 1f);
+      history = find("miancak_clipboard_history"); if (history.isChecked()) history.click();
+      device.pressBack();
+      assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: zh;")), 15000));
       // Edit through the shipped settings and visual editor, then use the
       // resulting actual key on the IME. The restart phase reuses this edit.
       device.pressBack();
@@ -160,7 +190,7 @@ public class ImeInteractionTest
       assertNotNull(value); value.setText("测试");
       device.findObject(By.res("android", "button1")).click();
       device.wait(Until.findObject(By.desc("Save layout")), 15000).click();
-      device.pressBack(); focus(activity.first); ensureChinese();
+      resumeEditor(); ensureChinese();
       gesture('q', -1, -1); output += "测试"; awaitText(activity.first, output);
       screenshot("edited-key-output");
       find("miancak_pages").click(); choosePage("pinyin");
@@ -185,7 +215,7 @@ public class ImeInteractionTest
         .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
       device.findObject(By.desc("fn-target-zh")).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_pinyin))), 15000).click();
-      device.pressBack(); focus(activity.first); ensureChinese();
+      resumeEditor(); ensureChinese();
       tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
       tap('n'); output += "n"; awaitText(activity.first, output);
@@ -418,6 +448,19 @@ public class ImeInteractionTest
     long end = SystemClock.uptimeMillis() + 15000;
     while (context.getResources().getConfiguration().orientation != expected && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
     assertEquals(expected, context.getResources().getConfiguration().orientation);
+  }
+  private void resumeEditor()
+  {
+    context.startActivity(new Intent(context, ImeTestActivity.class)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    assertTrue("Editor activity did not resume after settings", device.wait(Until.hasObject(By.desc("first_editor")), 15000));
+    device.waitForIdle();
+    instrumentation.runOnMainSync(() -> {
+      for (android.app.Activity resumed : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+          .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
+        if (resumed instanceof ImeTestActivity) activity = (ImeTestActivity)resumed;
+    });
+    focus(activity.first);
   }
   private void focus(EditText edit)
   {

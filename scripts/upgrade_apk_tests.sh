@@ -32,7 +32,9 @@ run_phase() {
 run_phase prepare
 adb install -r upgrade-signed/app-debug.apk
 run_phase verify
+adb shell am start -n org.miancak.keyboard.debug/juloo.keyboard2.LauncherActivity
 adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
+adb shell input keyevent KEYCODE_HOME
 adb shell settings get secure default_input_method | tr -d '\r' > test-results/default-ime-before-reboot.txt
 grep -qx 'org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2' test-results/default-ime-before-reboot.txt
 adb reboot
@@ -43,7 +45,11 @@ for attempt in $(seq 1 60); do
 done
 test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
 adb shell input keyevent KEYCODE_WAKEUP
-adb shell wm dismiss-keyguard
+if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
+  adb shell wm dismiss-keyguard
+else
+  adb shell input keyevent 82
+fi
 adb shell settings get secure default_input_method | tr -d '\r' > test-results/default-ime-after-reboot.txt
 cmp test-results/default-ime-before-reboot.txt test-results/default-ime-after-reboot.txt
 run_phase reboot

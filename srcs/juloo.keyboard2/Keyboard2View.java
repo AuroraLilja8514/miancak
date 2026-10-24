@@ -62,6 +62,15 @@ public class Keyboard2View extends View
   private float _marginRight;
   private float _marginLeft;
   private float _marginBottom;
+  private boolean _embeddedControls;
+
+  /** A pane control row shares its parent's bottom inset. */
+  public void setEmbeddedControls()
+  {
+    _embeddedControls = true;
+    _insets_bottom = 0;
+    requestLayout();
+  }
   private int _insets_left = 0;
   private int _insets_right = 0;
   private int _insets_bottom = 0;
@@ -286,7 +295,7 @@ public class Keyboard2View extends View
     int width = dm.widthPixels;
     _marginLeft = Math.max(_config.horizontal_margin, _insets_left);
     _marginRight = Math.max(_config.horizontal_margin, _insets_right);
-    _marginBottom = _config.margin_bottom + _insets_bottom;
+    _marginBottom = _embeddedControls ? 0 : _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
     // Compute the size of labels based on the width or the height of keys. The
@@ -330,7 +339,7 @@ public class Keyboard2View extends View
   public WindowInsets onApplyWindowInsets(WindowInsets wi)
   {
     // LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS is set in [Keyboard2#updateSoftInputWindowLayoutParams] for SDK_INT >= 35.
-    if (VERSION.SDK_INT < 35)
+    if (VERSION.SDK_INT < 35 || _embeddedControls)
       return wi;
     int insets_types =
       WindowInsets.Type.systemBars()
