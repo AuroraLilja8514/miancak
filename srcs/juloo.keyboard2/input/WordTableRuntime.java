@@ -19,8 +19,10 @@ public final class WordTableRuntime
   private static final List<Runnable> listeners = new ArrayList<>();
   public static WordTableStore.View view;
   public static boolean busy;
+  private static boolean updating;
   public static String error = "";
-  public static void register(InputController value) { controller = new WeakReference<>(value); }
+  public static void register(InputController value)
+  { controller = new WeakReference<>(value); if (updating) value.holdForExternalUpdate(); }
   public static void unregister(InputController value) { if (controller.get() == value) controller.clear(); }
   public static void observe(Runnable listener) { listeners.add(listener); listener.run(); }
   public static void forget(Runnable listener) { listeners.remove(listener); }
@@ -29,11 +31,10 @@ public final class WordTableRuntime
   public static CompositionEngine createEngine(Context context) throws Exception
   {
     WordTableStore store = new WordTableStore(context);
-    try { return new RimeEngine(store.currentPaths()); }
-    catch (RuntimeException unavailable)
+    for (int attempt = 0; ; attempt++)
     {
-      store.recover();
-      return new RimeEngine(store.currentPaths());
+      try { return new RimeEngine(store.currentPaths()); }
+      catch (RuntimeException unavailable) { if (attempt == 2) throw unavailable; store.recover(); }
     }
   }
   public static void refresh(Context context) { if (!busy) run(context, false, store -> {}); }
@@ -41,7 +42,7 @@ public final class WordTableRuntime
   {
     if (Looper.myLooper() != Looper.getMainLooper()) throw new IllegalStateException("Settings API belongs to UI");
     if (busy) return;
-    Context app = context.getApplicationContext(); busy = true; error = ""; publish();
+    Context app = context.getApplicationContext(); busy = true; updating = changesEngine; error = ""; publish();
     InputController current = controller.get();
     if (changesEngine && current != null)
       current.reconfigure(() -> operation.run(new WordTableStore(app)), failure -> finish(app, failure));
@@ -60,7 +61,11 @@ public final class WordTableRuntime
       try { next = new WordTableStore(context).view(); }
       catch (Exception invalid) { if (issue.isEmpty()) issue = detail(invalid); }
       final WordTableStore.View result = next; final String message = issue;
-      UI.post(() -> { view = result; error = message; busy = false; publish(); });
+      UI.post(() -> {
+        view = result; error = message; busy = false; updating = false;
+        InputController current = controller.get(); if (current != null) current.releaseExternalUpdate();
+        publish();
+      });
     });
   }
   private static String detail(Throwable failure)

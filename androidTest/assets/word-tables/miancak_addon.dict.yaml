@@ -1,0 +1,7 @@
+# MIANCAK synthetic acceptance data; GPL-3.0.
+---
+name: miancak_addon
+version: '1'
+sort: by_weight
+...
+MIANCAK·附加词表	ce shi	1000000000

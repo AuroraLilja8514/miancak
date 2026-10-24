@@ -136,7 +136,10 @@ public final class WordTableStore
     for (Entry entry : resolve(all, current.base, current.extras))
       if (entry.id.equals(id)) throw new IOException("Table is in use; switch away first / 词表正在使用，请先切换离开");
     Selection previous = selection(saved.getJSONObject("previous"));
-    if (previous.base.equals(id) || previous.extras.contains(id))
+    boolean previousUses = false;
+    try { for (Entry entry : resolve(all, previous.base, previous.extras)) if (entry.id.equals(id)) previousUses = true; }
+    catch (IOException invalid) { previousUses = true; }
+    if (previousUses)
     { saved.put("previous", bundledSelection().json()); atomic(state, saved); }
     List<Entry> remaining = new ArrayList<>(); for (Entry entry : all) if (!entry.id.equals(id)) remaining.add(entry);
     if (remaining.size() == all.size()) throw new IOException("Table no longer exists / 词表已不存在");
@@ -202,7 +205,14 @@ public final class WordTableStore
       Selection active = selection(saved.getJSONObject("current"));
       if (active.slot.isEmpty()) return packaged;
       if (!saved.optString("packaged").equals(packaged.shared.getName()))
-      { apply(active.base, active.extras); active = selection(state().getJSONObject("current")); }
+      {
+        try { apply(active.base, active.extras); active = selection(state().getJSONObject("current")); }
+        catch (Exception failure)
+        {
+          saved.put("recovery", "Update rebuild failed; retained working vocabulary / 更新后重编译失败，已保留可用词表");
+          atomic(state, saved);
+        }
+      }
       return new RimeData.Paths(new File(versions, active.slot), packaged.user);
     }
     catch (Exception invalid) { if (invalid instanceof IOException) throw (IOException)invalid; throw new IOException(invalid); }
@@ -210,7 +220,8 @@ public final class WordTableStore
   /** Used only after a failed native open, before returning an engine to input. */
   public void recover() throws Exception
   {
-    JSONObject saved = state(); Selection fallback = selection(saved.getJSONObject("previous"));
+    JSONObject saved = state(); Selection fallback;
+    try { fallback = selection(saved.getJSONObject("previous")); } catch (Exception invalid) { fallback = bundledSelection(); }
     if (!valid(fallback)) fallback = bundledSelection();
     atomic(state, new JSONObject().put("format", 1).put("current", fallback.json()).put("previous", bundledSelection().json())
       .put("packaged", RimeData.bundled(context).shared.getName()).put("recovery", "Deployment recovered / 已恢复上一可用词表或内置词表"));

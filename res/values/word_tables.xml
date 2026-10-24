@@ -4,6 +4,7 @@
   <item type="id" name="word_tables_apply"/>
   <string name="words_title">Chinese word tables</string>
   <string name="words_summary">Import Rime vocabulary, choose a base and supplementary tables</string>
+  <string name="words_unlock">Unlock the device to manage vocabulary</string>
   <string name="words_import">Import .dict.yaml</string>
   <string name="words_help">Help</string>
   <string name="words_base">Choose a base vocabulary; supplementary tables are optional.</string>

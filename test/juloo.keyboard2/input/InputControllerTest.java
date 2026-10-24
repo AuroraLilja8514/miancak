@@ -345,6 +345,25 @@ public class InputControllerTest
     assertEquals(0, updates[0]); assertFalse(errors.get(0).isEmpty()); assertFalse(h.controller.snapshot().engineAllowed);
   }
 
+  @Test public void aNewControllerWaitsForAnExistingDeploymentBeforeInitializing()
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor(); int[] creations = {0};
+    InputController controller = new InputController(worker, ui, () -> { creations[0]++; return new FakeEngine(); }, snapshot -> {});
+    controller.holdForExternalUpdate(); controller.startEditor(editor, Mode.CHINESE, true, true);
+    controller.submit(engineText("nihao")); worker.all(); ui.all();
+    assertEquals(0, creations[0]); assertEquals("", editor.text()); assertTrue(controller.hasPendingRequests());
+    controller.releaseExternalUpdate(); worker.all(); ui.all();
+    assertEquals(1, creations[0]); assertFalse(controller.hasPendingRequests());
+  }
+  @Test public void closingANewControllerDuringExternalMaintenanceDoesNotInitializeIt()
+  {
+    Queue worker = new Queue(), ui = new Queue(); int[] creations = {0};
+    InputController controller = new InputController(worker, ui, () -> { creations[0]++; return new FakeEngine(); }, snapshot -> {});
+    controller.holdForExternalUpdate(); controller.startEditor(new Editor(), Mode.CHINESE, true, true);
+    controller.close(); controller.releaseExternalUpdate(); worker.all(); ui.all();
+    assertEquals(0, creations[0]); assertFalse(controller.hasPendingRequests());
+  }
+
   private static final class Queue implements Executor
   {
     final ArrayDeque<Runnable> tasks = new ArrayDeque<>();

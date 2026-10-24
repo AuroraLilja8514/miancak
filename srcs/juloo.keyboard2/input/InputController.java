@@ -49,6 +49,7 @@ public final class InputController implements AutoCloseable
   private volatile Handle active;
   private volatile boolean closed;
   private volatile boolean maintenance;
+  private boolean externalHold;
   private volatile InputSnapshot snapshot = new InputSnapshot(0, 0, Mode.ENGLISH, false, EngineResult.EMPTY, "");
 
   // Worker-confined state. Never derive this from the possibly older UI snapshot.
@@ -68,6 +69,16 @@ public final class InputController implements AutoCloseable
 
   public InputSnapshot snapshot() { return snapshot; }
   public boolean hasPendingRequests() { return maintenance || pending.get() != 0; }
+
+  /** A newly created IME waits for an already-running vocabulary transaction. */
+  public void holdForExternalUpdate()
+  { checkUi(); if (!closed) { externalHold = true; maintenance = true; } }
+  public void releaseExternalUpdate()
+  {
+    checkUi(); if (!externalHold) return; externalHold = false; maintenance = false;
+    Handle now = active;
+    if (current(now)) startEditor(now.editor, snapshot.mode, now.allowed, now.learning);
+  }
 
   public void startEditor(Editor editor, Mode initialMode, boolean engineAllowed, boolean learning)
   {
@@ -297,6 +308,7 @@ public final class InputController implements AutoCloseable
     checkUi();
     if (closed) return;
     closed = true;
+    if (externalHold) { externalHold = false; maintenance = false; }
     active = null;
     generation.incrementAndGet();
     worker.execute(() -> {
