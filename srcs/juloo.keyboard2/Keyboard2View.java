@@ -119,6 +119,8 @@ public class Keyboard2View extends View
     setSystemUiVisibility(uiFlags);
   }
 
+  public int systemBottomInset() { return _insets_bottom; }
+
   public void setKeyboard(KeyboardData kw)
   {
     _keyboard = kw;
