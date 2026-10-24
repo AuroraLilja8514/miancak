@@ -1,0 +1,20 @@
+<resources>
+  <string name="words_title">中文词表</string>
+  <string name="words_summary">导入 Rime 词表，选择基础词表与附加词表</string>
+  <string name="words_unlock">请解锁设备后管理词表</string>
+  <string name="words_import">导入 .dict.yaml</string>
+  <string name="words_help">使用说明</string>
+  <string name="words_base">选择一套基础词表，也可勾选附加词表。</string>
+  <string name="words_bundled">内置拼音词表</string>
+  <string name="words_extra">附加词表</string>
+  <string name="words_details">详情</string>
+  <string name="words_remove">移除</string>
+  <string name="words_remove_confirm">移除已导入的“%s”？原始来源文件仍会保留。</string>
+  <string name="words_apply">应用词表</string>
+  <string name="words_restore">恢复内置词表</string>
+  <string name="words_busy">正在离线处理… 应用词表时会暂停键盘输入，完成部署后恢复。</string>
+  <string name="words_ready">已就绪。选择后需点击“应用词表”。个人学习与布局设置会保留。</string>
+  <string name="words_error">未能完成本次操作：%s</string>
+  <string name="words_metadata">来源文件：%1$s\n版本：%2$s\n词条数：%3$d\n字节数：%4$d\nSHA-256：%5$s\n依赖：%6$s\n\n来源与许可说明保留在原始词表文件中。导入词表不会安装它所属的输入方案。</string>
+  <string name="words_profile">请选择 UTF-8 编码的 Rime .dict.yaml 文件，可多选。依赖词表也需导入；目录引用按最后一段词表名匹配。压缩包请先解压。\n\n词条必须有文字与明确的小写无声调拼音，以 Tab 分列。支持 text/code/weight 列和 import_tables；缺省权重为 1。拼音音节用空格分开，需要时用 v 表示 ü。不支持预设 essay 词频、百分比权重、非空造词码、声调数字、辅助码规则、脚本、模型或第三方完整方案。\n\n最多 64 张表，单表 64 MiB，总计 256 MiB。同名更新需先切换离开并移除旧表。应用时单独编译新版本；失败继续使用上一套表。正在使用的表及其依赖不可删除。布局 JSON 与词表相互独立。</string>
+</resources>

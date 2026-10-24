@@ -286,6 +286,84 @@ public class InputControllerTest
     assertFalse(h.controller.snapshot().engine.composing);
   }
 
+  @Test public void maintenanceConfirmsAndDeliversBeforeClosingAndUpdating()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao"));
+    List<String> completed = new ArrayList<>();
+    h.controller.reconfigure(() -> { assertEquals("你好", h.editor.text()); assertEquals(1, h.engine.closes); }, completed::add);
+    h.controller.submit(literalText("ignored while applying"));
+    h.flush();
+    assertEquals(Arrays.asList(""), completed); assertEquals("你好", h.editor.text());
+    assertEquals(2, h.creations); assertFalse(h.controller.hasPendingRequests());
+    h.controller.submit(engineText("di")); h.controller.submit(SPACE); h.flush();
+    assertEquals("你好第", h.editor.text());
+  }
+  @Test public void maintenanceFailureReopensThePriorFactoryAndReportsFailure()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush();
+    List<String> errors = new ArrayList<>();
+    h.controller.reconfigure(() -> { throw new java.io.IOException("deployment failed"); }, errors::add); h.flush();
+    assertEquals(Arrays.asList("deployment failed"), errors); assertEquals("你好", h.editor.text());
+    h.controller.submit(engineText("di")); h.controller.submit(SPACE); h.flush(); assertEquals("你好第", h.editor.text());
+  }
+  @Test public void failedConfirmationPreventsAnyDeployment()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush(); h.engine.failConfirm = true;
+    int[] updates = {0}; List<String> errors = new ArrayList<>();
+    h.controller.reconfigure(() -> updates[0]++, errors::add); h.flush();
+    assertEquals(0, updates[0]); assertEquals(0, h.engine.closes); assertTrue(h.controller.snapshot().engine.composing);
+    assertFalse(errors.get(0).isEmpty()); assertFalse(h.controller.hasPendingRequests());
+  }
+  @Test public void maintenanceDoesNotDeliverAnOldCommitToAReplacementEditor()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush();
+    int[] updates = {0}; List<String> errors = new ArrayList<>();
+    h.controller.reconfigure(() -> updates[0]++, errors::add); h.worker.all();
+    Editor replacement = new Editor(); h.controller.startEditor(replacement, Mode.CHINESE, true, true);
+    h.flush(); assertEquals(1, updates[0]); assertEquals(Arrays.asList(""), errors);
+    assertEquals("", h.editor.text()); assertEquals("", replacement.text());
+    h.controller.submit(engineText("di")); h.controller.submit(SPACE); h.flush(); assertEquals("第", replacement.text());
+  }
+  @Test public void oldCandidatesCannotSelectFromTheReplacementDictionary()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush(); InputSnapshot old = h.controller.snapshot();
+    h.controller.reconfigure(() -> {}, error -> assertEquals("", error)); h.flush();
+    h.controller.submit(engineText("di")); h.flush(); h.controller.select(old, 1); h.flush();
+    assertEquals("di", h.controller.snapshot().engine.preedit); assertEquals("你好", h.editor.text());
+  }
+  @Test public void closingDuringMaintenanceStillCompletesTheAuthorizedUpdate()
+  {
+    Harness h = new Harness(Mode.CHINESE); int[] updates = {0}; List<String> errors = new ArrayList<>();
+    h.controller.reconfigure(() -> updates[0]++, errors::add); h.controller.close(); h.flush();
+    assertEquals(1, updates[0]); assertEquals(Arrays.asList(""), errors); assertFalse(h.controller.hasPendingRequests());
+  }
+  @Test public void rejectingTheOldCommitPreventsDeploymentAndRequiresRefocus()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush(); h.editor.reject = true;
+    int[] updates = {0}; List<String> errors = new ArrayList<>();
+    h.controller.reconfigure(() -> updates[0]++, errors::add); h.flush();
+    assertEquals(0, updates[0]); assertFalse(errors.get(0).isEmpty()); assertFalse(h.controller.snapshot().engineAllowed);
+  }
+
+  @Test public void aNewControllerWaitsForAnExistingDeploymentBeforeInitializing()
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor(); int[] creations = {0};
+    InputController controller = new InputController(worker, ui, () -> { creations[0]++; return new FakeEngine(); }, snapshot -> {});
+    controller.holdForExternalUpdate(); controller.startEditor(editor, Mode.CHINESE, true, true);
+    controller.submit(engineText("nihao")); worker.all(); ui.all();
+    assertEquals(0, creations[0]); assertEquals("", editor.text()); assertTrue(controller.hasPendingRequests());
+    controller.releaseExternalUpdate(); worker.all(); ui.all();
+    assertEquals(1, creations[0]); assertFalse(controller.hasPendingRequests());
+  }
+  @Test public void closingANewControllerDuringExternalMaintenanceDoesNotInitializeIt()
+  {
+    Queue worker = new Queue(), ui = new Queue(); int[] creations = {0};
+    InputController controller = new InputController(worker, ui, () -> { creations[0]++; return new FakeEngine(); }, snapshot -> {});
+    controller.holdForExternalUpdate(); controller.startEditor(new Editor(), Mode.CHINESE, true, true);
+    controller.close(); controller.releaseExternalUpdate(); worker.all(); ui.all();
+    assertEquals(0, creations[0]); assertFalse(controller.hasPendingRequests());
+  }
+
   private static final class Queue implements Executor
   {
     final ArrayDeque<Runnable> tasks = new ArrayDeque<>();

@@ -8,8 +8,12 @@ public final class RimeEngine implements CompositionEngine
   private long session;
 
   public RimeEngine(RimeData.Paths paths)
+  { this(paths, false); }
+
+  RimeEngine(RimeData.Paths paths, boolean verifyDeployment)
   {
-    session = open(paths.shared.getAbsolutePath(), paths.user.getAbsolutePath());
+    if (!paths.build.isDirectory() && !paths.build.mkdirs()) throw new IllegalStateException("Cannot create Rime build directory");
+    session = open(paths.shared.getAbsolutePath(), paths.user.getAbsolutePath(), paths.build.getAbsolutePath(), verifyDeployment);
     if (session == 0)
       throw new IllegalStateException("Cannot initialize offline Chinese engine");
   }
@@ -55,7 +59,7 @@ public final class RimeEngine implements CompositionEngine
     session = 0;
   }
 
-  private static native long open(String shared, String user);
+  private static native long open(String shared, String user, String build, boolean verifyDeployment);
   private static native EngineResult key(long session, int code);
   private static native EngineResult command(long session, int command, int argument);
   private static native void learning(long session, boolean enabled);
