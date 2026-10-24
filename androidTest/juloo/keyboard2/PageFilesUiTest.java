@@ -35,6 +35,7 @@ public final class PageFilesUiTest
     String before = PageKeyOverrides.export(preferences);
     assertNotNull("Touch test must have saved its real key edit", PageKeyOverrides.load(preferences).action("zh", 0, 0, 1, false));
     context.startActivity(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    waitSettings();
     try
     {
       clickText(R.string.page_export);
@@ -44,14 +45,17 @@ public final class PageFilesUiTest
       filename.setText(name); screenshot("layout-file-export-picker");
       UiObject2 save = device.wait(Until.findObject(By.text(Pattern.compile("(?i)^save$"))), 15000);
       assertNotNull("Android file picker Save missing", save); assertTrue(save.isEnabled()); save.click();
-      assertTrue(device.wait(Until.hasObject(By.desc("Edit layout: zh")), 15000));
+      assertTrue(device.wait(Until.gone(By.text(name)), 15000));
+      waitSettings();
       // Reset in a draft then cancel: no preference may change.
       resetDraft();
       device.wait(Until.findObject(By.desc("Cancel layout edit")), 15000).click();
+      waitSettings();
       assertEquals(before, PageKeyOverrides.export(preferences));
       // Saving the same reset removes the edit. File import must restore it.
       resetDraft();
       device.wait(Until.findObject(By.desc("Save layout")), 15000).click();
+      waitSettings();
       assertNull(PageKeyOverrides.load(preferences).action("zh", 0, 0, 1, false));
       new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("page-enabled-pinyin"));
       device.findObject(By.desc("page-enabled-pinyin")).click();
@@ -76,11 +80,17 @@ public final class PageFilesUiTest
   }
   private void resetDraft() throws Exception
   {
+    waitSettings();
     new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("Edit layout: zh"));
     device.findObject(By.desc("Edit layout: zh")).click();
     new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("Reset this layout"));
     device.findObject(By.desc("Reset this layout")).click();
     device.wait(Until.findObject(By.res("android", "button1")), 15000).click();
+  }
+  private void waitSettings()
+  {
+    assertTrue("Page settings did not become visible", device.wait(
+        Until.hasObject(By.res(context.getPackageName(), "miancak_page_settings")), 15000));
   }
   private void clickText(int resource) throws Exception
   {

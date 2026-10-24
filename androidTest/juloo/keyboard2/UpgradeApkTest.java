@@ -44,6 +44,7 @@ public final class UpgradeApkTest
     context = instrumentation.getTargetContext(); pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation); device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("upgradePhase", "verify");
+    assertEquals(phase.equals("prepare") ? 1 : 2, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       if (phase.equals("prepare"))
@@ -100,12 +101,22 @@ public final class UpgradeApkTest
     context.startActivity(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
     int label = context.getResources().getIdentifier("launcher_button_imepicker", "string", pkg);
-    UiObject2 select = device.wait(Until.findObject(By.text(context.getString(label))), 15000);
-    assertNotNull(select); select.click();
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
-    UiObject2 choice = device.wait(Until.findObject(By.pkg("android").text(name)), 15000);
-    assertNotNull(choice); choice.click();
-    assertTrue(device.wait(Until.gone(By.pkg("android").text(name)), 15000));
+    for (int attempt = 0; attempt < 3; attempt++)
+    {
+      UiObject2 select = device.wait(Until.findObject(By.text(context.getString(label))), 15000);
+      assertNotNull(select); select.click(); device.waitForIdle();
+      androidx.test.uiautomator.UiObject choice = device.findObject(new androidx.test.uiautomator.UiSelector()
+          .packageName("android").text(name));
+      if (choice.waitForExists(15000))
+      {
+        try { choice.click(); }
+        catch (androidx.test.uiautomator.UiObjectNotFoundException changed) { continue; }
+        assertTrue(choice.waitUntilGone(15000)); return;
+      }
+      device.pressBack(); device.waitForIdle();
+    }
+    fail("Android's picker did not expose the enabled updated IME: " + name);
   }
   private void tap(char letter, boolean northwest)
   {

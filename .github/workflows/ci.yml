@@ -66,7 +66,14 @@ jobs:
 
       - name: Run unit tests
         run: |
+          mkdir -p build/generated-resources/xml build/generated-resources/raw
+          echo '<keyboard/>' > build/generated-resources/xml/latn_legacy_probe.xml
+          echo '<keyboard/>' > build/generated-resources/raw/latn_legacy_probe.xml
           ./gradlew --no-daemon test
+          test ! -e build/generated-resources/xml/latn_legacy_probe.xml
+          test ! -e build/generated-resources/raw/latn_legacy_probe.xml
+          cmp srcs/layouts/miancak_qwerty.xml build/generated-resources/xml/miancak_qwerty.xml
+          cmp srcs/layouts/miancak_qwerty.xml build/generated-resources/raw/miancak_qwerty.xml
           python3 - <<'PY'
           from pathlib import Path
           import xml.etree.ElementTree as ET
@@ -219,8 +226,11 @@ jobs:
           system-image-api-level: ${{ matrix.api }}
           arch: x86_64
           target: google_apis
+          avd-name: miancak-interactions
+          force-avd-creation: true
+          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-interactions.avd/config.ini"
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
           script: MIANCAK_TEST_API=${{ matrix.api }} bash scripts/emulator_tests.sh
       - name: Upload instrumented test results
         if: always()
@@ -358,6 +368,7 @@ jobs:
           target: google_apis
           avd-name: miancak-upgrade
           force-avd-creation: true
+          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-upgrade.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
           script: bash scripts/upgrade_apk_tests.sh

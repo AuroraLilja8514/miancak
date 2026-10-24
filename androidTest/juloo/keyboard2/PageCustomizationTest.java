@@ -67,4 +67,14 @@ public final class PageCustomizationTest
     catch (IllegalArgumentException expected) {}
     assertEquals(before, PageKeyOverrides.export(preferences));
   }
+  @Test public void savedEditsCannotOutgrowTheirOwnPortableFileLimit() throws Exception
+  {
+    SharedPreferences preferences = prefs(); String before = PageKeyOverrides.export(preferences);
+    PageKeyOverrides edits = new PageKeyOverrides();
+    String payload = new String(new char[1600]).replace('\0', '中');
+    for (int i = 0; i < 60; i++) edits.set("zh", 0, i / 9, i % 9, false, PageKeyOverrides.literal(payload));
+    try { edits.save(preferences); fail("Oversized configuration was saved"); }
+    catch (IllegalArgumentException expected) {}
+    assertEquals(before, PageKeyOverrides.export(preferences));
+  }
 }

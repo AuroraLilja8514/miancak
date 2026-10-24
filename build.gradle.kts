@@ -24,8 +24,8 @@ android {
     applicationId = "org.miancak.keyboard"
     minSdk = 21
     targetSdk { version = release(36) }
-    versionCode = 1
-    versionName = "0.1.0"
+    versionCode = 2
+    versionName = "0.2.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     ndk {
       abiFilters.addAll((providers.gradleProperty("miancakAbis").orNull
@@ -209,12 +209,12 @@ val initDebugKeystore by tasks.registering(Exec::class) {
 }
 
 // miancak_qwerty is used as a raw resource by the custom layout option.
-val copyRawQwertyUS by tasks.registering(Copy::class) {
+val copyRawQwertyUS by tasks.registering(Sync::class) {
   from("srcs/layouts/miancak_qwerty.xml")
   into("build/generated-resources/raw")
 }
 
-val copyLayoutDefinitions by tasks.registering(Copy::class) {
+val copyLayoutDefinitions by tasks.registering(Sync::class) {
   from("srcs/layouts")
   include("*.xml")
   into("build/generated-resources/xml")

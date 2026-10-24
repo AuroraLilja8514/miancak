@@ -30,6 +30,7 @@ public class PageSettingsActivity extends Activity
   {
     config = PagePreferences.load(preferences);
     ScrollView scroll = new ScrollView(this);
+    scroll.setId(R.id.miancak_page_settings);
     scroll.setFitsSystemWindows(true);
     content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
     int padding = Math.round(12 * getResources().getDisplayMetrics().density);

@@ -57,10 +57,10 @@ public class ImeInteractionTest
     device.executeShellCommand("ime enable " + pkg + "/juloo.keyboard2.Keyboard2");
     device.executeShellCommand("ime set " + pkg + "/juloo.keyboard2.Keyboard2");
     activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-    focus(activity.first);
     String output = "";
     try
     {
+      focus(activity.first);
       ensureChinese();
       Rect chineseGeometry = keyboard().getVisibleBounds();
       long began = SystemClock.elapsedRealtime();
@@ -391,13 +391,15 @@ public class ImeInteractionTest
   {
     // Scroll the same IME window node used by the visible-page assertions.
     UiObject2 choice = null;
-    for (int attempt = 0; attempt < 12; attempt++)
+    for (int attempt = 0; attempt < 20; attempt++)
     {
-      choice = device.findObject(By.desc("Choose page: " + id));
+      choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 400);
       if (choice != null && choice.getVisibleBounds().height() > 16) break;
       UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
-      chooser.setGestureMargin(Math.round(40 * context.getResources().getDisplayMetrics().density));
-      chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f);
+      chooser.setGestureMargin(Math.round(32 * context.getResources().getDisplayMetrics().density));
+      chooser.scroll(attempt < 10 ? androidx.test.uiautomator.Direction.DOWN : androidx.test.uiautomator.Direction.UP,
+          0.2f, Math.round(160 * context.getResources().getDisplayMetrics().density));
+      device.waitForIdle();
     }
     assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
     assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_page_chooser")), 15000));
@@ -451,8 +453,8 @@ public class ImeInteractionTest
   }
   private void resumeEditor()
   {
-    context.startActivity(new Intent(context, ImeTestActivity.class)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    instrumentation.runOnMainSync(() -> activity.startActivity(new Intent(activity, ImeTestActivity.class)
+        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)));
     assertTrue("Editor activity did not resume after settings", device.wait(Until.hasObject(By.desc("first_editor")), 15000));
     device.waitForIdle();
     instrumentation.runOnMainSync(() -> {
@@ -464,11 +466,15 @@ public class ImeInteractionTest
   }
   private void focus(EditText edit)
   {
+    UiObject2 field = device.wait(Until.findObject(By.desc(edit.getContentDescription().toString())), 15000);
+    assertNotNull("Editor field is not visible", field); field.click();
     instrumentation.runOnMainSync(() -> {
-      edit.requestFocus();
-      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT);
+      edit.requestFocus(); edit.setSelection(edit.getText().length());
+      edit.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
+          .showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT));
     });
-    assertNotNull(keyboard());
+    instrumentation.waitForIdleSync();
+    assertNotNull("Selected IME did not appear for the visible editor", keyboard());
     device.waitForIdle();
   }
   private String text(EditText edit)

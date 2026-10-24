@@ -59,7 +59,8 @@ public final class PageEditorActivity extends Activity
     actions.addView(button(getString(R.string.page_save), "Save layout", () -> {
       if (!original.equals(preferences.getString(PageKeyOverrides.KEY, "{}")))
       { error(getString(R.string.page_changed_elsewhere)); return; }
-      draft.save(preferences); setResult(RESULT_OK); finish();
+      try { draft.save(preferences); setResult(RESULT_OK); finish(); }
+      catch (Exception invalid) { error(invalid.getMessage()); }
     }), new LinearLayout.LayoutParams(0, -2, 1));
     actions.addView(button(getString(android.R.string.cancel), "Cancel layout edit", this::finish), new LinearLayout.LayoutParams(0, -2, 1));
     content.addView(actions);
