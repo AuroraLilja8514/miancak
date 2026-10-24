@@ -118,7 +118,14 @@ public final class WordTableUiTest
       if (keyboard && !method.getId().equals(component) && method.getId().matches("[a-zA-Z0-9_./]+")) { alternate = method.getId(); break; }
     }
     assertNotNull("Prepared fixture needs a fallback keyboard", alternate);
-    device.executeShellCommand("ime set " + alternate); device.executeShellCommand("ime set " + component);
+    instrumentation.startActivitySync(new Intent(context, LauncherActivity.class)
+      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    UiObject2 field = device.wait(Until.findObject(By.res(pkg, "launcher_tryhere_area")), 15000); assertNotNull(field); field.click();
+    device.executeShellCommand("ime set " + alternate);
+    assertTrue("Fallback IME did not finish binding",
+      device.wait(Until.hasObject(By.pkg(alternate.substring(0, alternate.indexOf('/')))), 15000));
+    device.executeShellCommand("ime set " + component);
+    assertNotNull("Prepared IME did not finish binding", device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000));
   }
   private void openManager() throws Exception
   {
@@ -244,7 +251,7 @@ public final class WordTableUiTest
       // arbitrary adb-pushed files. Browse the real external-storage provider
       // through its public UI; keep the application's granted-URI import path.
       UiObject2 menu = device.findObject(By.desc("More options")); assertNotNull(menu); menu.click();
-      UiObject2 show = device.wait(Until.findObject(By.text("Show internal storage")), 3000);
+      UiObject2 show = device.wait(Until.findObject(By.text(Pattern.compile("Show (internal storage|SD card)"))), 3000);
       if (show != null) show.click(); else device.pressBack();
       UiObject2 roots = device.findObject(By.desc("Show roots")); assertNotNull(roots); roots.click();
       UiObject2 storage = device.wait(Until.findObject(By.text(Pattern.compile("Internal storage|Internal shared storage|SD card"))), 15000);
