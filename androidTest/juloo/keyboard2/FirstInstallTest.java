@@ -72,8 +72,15 @@ public final class FirstInstallTest
             device.wait(Until.hasObject(By.pkg("android").text(appName)), 15000));
         // A selector-backed UiObject re-resolves after the dialog's layout;
         // a cached launcher text node can disappear while the picker opens.
-        device.findObject(new UiSelector().packageName("android").text(appName)).click();
-        assertTrue(device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
+        boolean selected = false;
+        for (int attempt = 0; attempt < 3 && !selected; attempt++)
+        {
+          device.waitForIdle();
+          try { device.findObject(new UiSelector().packageName("android").text(appName)).click(); }
+          catch (androidx.test.uiautomator.UiObjectNotFoundException changed) { continue; }
+          selected = device.wait(Until.gone(By.pkg("android").text(appName)), 4000);
+        }
+        assertTrue("Android did not select MIANCAK through its visible picker", selected);
       launch();
       focusEditor();
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");

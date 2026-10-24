@@ -122,8 +122,22 @@ public class LauncherActivity extends Activity implements Handler.Callback
     // the picker so its dialog is displayed above the current application.
     android.widget.EditText editor = (android.widget.EditText)findViewById(R.id.launcher_tryhere_area);
     editor.requestFocus();
-    imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
-    editor.post(imm::showInputMethodPicker);
+    v.setEnabled(false);
+    java.util.concurrent.atomic.AtomicBoolean opened = new java.util.concurrent.atomic.AtomicBoolean();
+    Runnable picker = () -> {
+      if (!opened.compareAndSet(false, true)) return;
+      v.setEnabled(true);
+      if (!isFinishing() && !isDestroyed() && getWindow().getDecorView().hasWindowFocus())
+        imm.showInputMethodPicker();
+    };
+    // AUTO picker contents depend on whether the current IME is shown. Wait
+    // for that request so auxiliary/voice rows do not move underneath a tap.
+    editor.post(() -> imm.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT,
+        new android.os.ResultReceiver(_handler) {
+          @Override protected void onReceiveResult(int result, Bundle data) { picker.run(); }
+        }));
+    // A disabled or unresponsive current IME must not trap the setup button.
+    editor.postDelayed(picker, 2000);
   }
 
   public void launch_dictionaries_activity(View v)
