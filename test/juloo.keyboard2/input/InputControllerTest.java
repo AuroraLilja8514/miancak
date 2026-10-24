@@ -12,6 +12,42 @@ import juloo.keyboard2.input.InputRouter.Mode;
 
 public class InputControllerTest
 {
+  @Test public void returningToTheCurrentProfileIsImmediateAndKeepsCandidateRevision()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.controller.submit(engineText("nihao")); h.flush();
+    InputSnapshot before = h.controller.snapshot();
+    int calls = h.engine.calls.size(); int[] applied = {0};
+    assertTrue(h.controller.setLanguage(Mode.CHINESE, () -> applied[0]++));
+    assertEquals(1, applied[0]);
+    assertSame(before, h.controller.snapshot());
+    assertEquals(calls, h.engine.calls.size());
+    assertEquals("", h.editor.text());
+  }
+  @Test public void explicitProfileSelectionCannotAccidentallyToggleBack()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    int[] callbacks = {0};
+    h.controller.submit(engineText("nihao"));
+    h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
+    h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
+    h.flush();
+    assertEquals("你好", h.editor.text());
+    assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
+    assertEquals(2, callbacks[0]);
+  }
+  @Test public void failedConfirmationDoesNotApplyTheSelectedProfile()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.failConfirm = true;
+    int[] callbacks = {0};
+    h.controller.submit(engineText("nihao"));
+    h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
+    h.flush();
+    assertEquals("", h.editor.text());
+    assertEquals(Mode.CHINESE, h.controller.snapshot().mode);
+    assertEquals(0, callbacks[0]);
+  }
   @Test public void separatorUsesQueuedEngineTruthRatherThanTheOldUiPreedit()
   {
     Harness h = new Harness(Mode.CHINESE);

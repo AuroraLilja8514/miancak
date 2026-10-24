@@ -112,6 +112,11 @@ public final class KeyEventHandler
       return;
     if (_semantic != null && !_semantic.inLegacy())
     {
+      if (key.getKind() == KeyValue.Kind.Event && presentationEvent(key.getEvent()))
+      {
+        _recv.handle_event_key(key.getEvent());
+        return;
+      }
       if (_semantic.handle(key, mods)) return;
       if (key.getKind() != KeyValue.Kind.Modifier)
       {
@@ -151,6 +156,19 @@ public final class KeyEventHandler
   public void mods_changed(Pointers.Modifiers mods)
   {
     update_meta_state(mods);
+  }
+
+  private boolean presentationEvent(KeyValue.Event event)
+  {
+    switch (event)
+    {
+      case SWITCH_FN: case LAYOUT_PICKER: case SWITCH_TEXT:
+      case SWITCH_NUMERIC: case SWITCH_GREEKMATH: case SWITCH_EMOJI:
+      case SWITCH_CLIPBOARD: case SWITCH_BACK_EMOJI: case SWITCH_BACK_CLIPBOARD:
+      case SWITCH_FORWARD: case SWITCH_BACKWARD: case TOGGLE_LANGUAGE:
+        return true;
+      default: return false;
+    }
   }
 
   @Override

@@ -101,7 +101,7 @@ public final class InputController implements AutoCloseable
     InputSnapshot current = snapshot;
     // This fast path has neither engine work nor an outstanding UI transaction.
     if (!hasPendingRequests() && !current.engine.composing
-        && action.type != SemanticAction.Type.TOGGLE_LANGUAGE
+        && !action.changesLanguage()
         && (action.type != SemanticAction.Type.ENGINE_TEXT || current.mode == Mode.ENGLISH))
     {
       List<Edit> edits = directEdits(InputRouter.route(current.mode, false, action));
@@ -109,7 +109,28 @@ public final class InputController implements AutoCloseable
             handle.allowed, current.engine, current.error), edits, null);
       return;
     }
-    queue(handle, edits -> {
+    queue(handle, edits -> executeAction(handle, action, edits), null);
+  }
+
+  /** Explicit profile selection is idempotent; callback runs after successful
+   * confirmation and editor delivery, and is rejected with an old editor. */
+  public boolean setLanguage(Mode target, Runnable applied)
+  {
+    checkUi();
+    Handle handle = active;
+    if (!current(handle) || (target == Mode.CHINESE && !handle.allowed)) return false;
+    if (!hasPendingRequests() && snapshot.mode == target)
+    {
+      if (applied != null) applied.run();
+      return true;
+    }
+    SemanticAction action = target == Mode.CHINESE ? SemanticAction.SET_CHINESE : SemanticAction.SET_ENGLISH;
+    queue(handle, edits -> executeAction(handle, action, edits), applied);
+    return true;
+  }
+
+  private void executeAction(Handle handle, SemanticAction action, List<Edit> edits) throws Exception
+  {
       InputRouter.Plan plan = InputRouter.route(mode, state.composing, action);
       if (plan.resultingMode == Mode.CHINESE && mode != Mode.CHINESE)
       {
@@ -128,7 +149,6 @@ public final class InputController implements AutoCloseable
           default: throw new AssertionError(op.type);
         }
       mode = plan.resultingMode;
-    }, null);
   }
 
   public void select(InputSnapshot displayed, int index)

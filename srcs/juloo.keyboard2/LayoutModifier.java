@@ -167,9 +167,8 @@ public final class LayoutModifier
           case ACTION:
             return ec.action_key_replacement;
           case SWITCH_FORWARD:
-            return (globalConfig.layouts.size() > 1) ? orig : null;
           case SWITCH_BACKWARD:
-            return (globalConfig.layouts.size() > 2) ? orig : null;
+            return orig;
           case SWITCH_VOICE_TYPING:
           case SWITCH_VOICE_TYPING_CHOOSER:
             return globalConfig.shouldOfferVoiceTyping ? orig : null;
