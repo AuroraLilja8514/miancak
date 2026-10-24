@@ -159,6 +159,8 @@ public final class LayoutModifier
     EditorConfig ec = globalConfig.editor_config;
     switch (orig.getKind())
     {
+      case Layered:
+        return KeyValue.layered(modify_key(orig.layer(false)), modify_key(orig.layer(true)));
       case Event:
         switch (orig.getEvent())
         {

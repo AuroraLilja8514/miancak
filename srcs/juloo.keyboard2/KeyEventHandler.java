@@ -193,7 +193,8 @@ public final class KeyEventHandler
   @Override
   public void paste_from_clipboard_pane(String content)
   {
-    send_text(content);
+    if (_semantic != null && !_semantic.inLegacy()) _semantic.literal(content);
+    else send_text(content);
   }
 
   @Override

@@ -59,8 +59,10 @@ public class MiancakPlatformTest
     SharedPreferences.Editor editor = prefs.edit();
     String xml = "<keyboard name=\"Custom\"><row><key c=\"q\"/></row></keyboard>";
     LayoutsPreference.save_to_preferences(editor, java.util.Arrays.asList(
-          new LayoutsPreference.NamedLayout("latn_colemak"), LayoutsPreference.CustomLayout.parse(xml)));
-    editor.remove("miancak_layout_version").remove("miancak_previous_layouts").putInt("current_layout_portrait", 1);
+          new LayoutsPreference.NamedLayout("latn_colemak"), new LayoutsPreference.NamedLayout("latn_dvorak"),
+          LayoutsPreference.CustomLayout.parse(xml)));
+    editor.remove("miancak_layout_version").remove("miancak_previous_layouts")
+      .putInt("current_layout_portrait", 2).putInt("current_layout_landscape", 0);
     editor.commit();
     String layout = prefs.getString("layouts", "");
     MiancakPreferences.initialize(prefs);
@@ -69,6 +71,7 @@ public class MiancakPlatformTest
     assertTrue(prefs.getString("layouts", "").contains("Custom"));
     assertFalse(prefs.getString("layouts", "").contains("latn_colemak"));
     assertEquals(1, prefs.getInt("current_layout_portrait", -1));
+    assertEquals(0, prefs.getInt("current_layout_landscape", -1));
     String migrated = prefs.getString("layouts", "");
     MiancakPreferences.initialize(prefs);
     assertEquals(migrated, prefs.getString("layouts", ""));

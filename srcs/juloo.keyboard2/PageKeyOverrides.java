@@ -85,10 +85,15 @@ public final class PageKeyOverrides
   {
     try
     {
-      preferences.edit().putString(KEY + "_previous_bundle", export(preferences))
+      String before = export(preferences);
+      JSONObject next = new JSONObject(before).put("pages", pages);
+      if (next.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES)
+        throw new IllegalArgumentException("Layout settings exceed the 256 KiB file limit");
+      preferences.edit().putString(KEY + "_previous_bundle", before)
         .putString(KEY + "_previous", preferences.getString(KEY, "{}"))
         .putString(KEY, pages.toString()).apply();
     }
+    catch (IllegalArgumentException error) { throw error; }
     catch (Exception error) { throw new IllegalStateException(error); }
   }
   public static String export(SharedPreferences preferences) throws Exception

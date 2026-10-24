@@ -59,6 +59,9 @@ def generate_arrays(out, layouts):
     XML.indent(root)
     XML.ElementTree(element=root).write(out, encoding="utf-8", xml_declaration=True)
 
-layouts = sort_layouts(read_layouts(glob.glob("srcs/layouts/*.xml")))
+main_files = glob.glob("srcs/layouts/*.xml")
+if {os.path.basename(path) for path in main_files} != {"miancak_qwerty.xml"}:
+    raise RuntimeError("MIANCAK ships only the QWERTY main family; auxiliary pages belong in res/xml")
+layouts = sort_layouts(read_layouts(main_files))
 with open("res/values/layouts.xml", "wb") as out:
     generate_arrays(out, layouts)

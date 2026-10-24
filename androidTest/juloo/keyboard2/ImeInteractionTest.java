@@ -138,14 +138,44 @@ public class ImeInteractionTest
       tap(0.5f, 0); output += "θ"; awaitText(activity.first, output);
       screenshot("greek-page");
       device.pressBack();
+      type("nihao"); String emojiCandidate = candidate();
       gesture(9.15f, 3, 1, 1); choosePage("emoji");
       UiObject2 dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
       assertNotNull(dynamicPicker); screenshot("emoji-page");
+      UiObject2 grid = find("emoji_grid"); assertNotNull(grid);
+      assertFalse(grid.getChildren().isEmpty());
+      UiObject2 emoji = grid.getChildren().get(0); String emojiText = emoji.getText();
+      assertNotNull(emojiText); emoji.click();
+      output += emojiCandidate + emojiText; awaitText(activity.first, output); awaitIdlePreedit();
       dynamicPicker.click(); choosePage("clipboard");
       dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
       assertNotNull(dynamicPicker); screenshot("clipboard-page");
       dynamicPicker.click(); choosePage("zh");
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
+      type("nihao"); String clipboardCandidate = candidate();
+      find("miancak_pages").click(); choosePage("clipboard");
+      UiObject2 history = find("miancak_clipboard_history"); assertNotNull(history);
+      if (!history.isChecked()) history.click();
+      String clipboardText = "剪贴板α🙂";
+      instrumentation.runOnMainSync(() -> ((android.content.ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE))
+          .setPrimaryClip(android.content.ClipData.newPlainText("APK test", clipboardText)));
+      UiObject2 paste = null;
+      for (int attempt = 0; attempt < 8; attempt++)
+      {
+        paste = device.findObject(By.res(pkg, "clipboard_entry_paste"));
+        if (paste != null && paste.getVisibleBounds().height() > 16) break;
+        UiObject2 clips = find("miancak_clipboard_scroll"); assertNotNull(clips);
+        clips.setGestureMargin(4); clips.scroll(androidx.test.uiautomator.Direction.DOWN, 0.8f);
+      }
+      assertNotNull(device.wait(Until.findObject(By.res(pkg, "clipboard_entry_text").text(clipboardText)), 15000));
+      assertNotNull(paste); paste.click();
+      output += clipboardCandidate + clipboardText; awaitText(activity.first, output); awaitIdlePreedit();
+      screenshot("clipboard-composition-paste");
+      UiObject2 clips = find("miancak_clipboard_scroll"); clips.setGestureMargin(4);
+      clips.scroll(androidx.test.uiautomator.Direction.UP, 1f);
+      history = find("miancak_clipboard_history"); if (history.isChecked()) history.click();
+      device.pressBack();
+      assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: zh;")), 15000));
       // Edit through the shipped settings and visual editor, then use the
       // resulting actual key on the IME. The restart phase reuses this edit.
       device.pressBack();
@@ -210,7 +240,14 @@ public class ImeInteractionTest
       awaitCandidate(pageOne, false);
       find("miancak_previous_candidates").click();
       awaitCandidate(pageOne, true);
-      UiObject2 eighth = device.wait(Until.findObject(By.descStartsWith("Candidate 8: ")), 15000);
+      UiObject2 eighth = null;
+      for (int attempt = 0; attempt < 10; attempt++)
+      {
+        eighth = device.findObject(By.descStartsWith("Candidate 8: "));
+        if (eighth != null && eighth.getVisibleBounds().height() > 16) break;
+        UiObject2 panel = find("miancak_expanded_candidates"); assertNotNull(panel);
+        panel.setGestureMargin(20); panel.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f);
+      }
       assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
       String eighthText = eighth.getText();
       eighth.click(); output += eighthText; awaitText(activity.first, output);
@@ -527,5 +564,6 @@ public class ImeInteractionTest
     File directory = context.getExternalFilesDir("test-results");
     assertTrue(directory.isDirectory() || directory.mkdirs());
     assertTrue("Screenshot capture failed: " + name, device.takeScreenshot(new File(directory, name + ".png")));
+    device.dumpWindowHierarchy(new File(directory, name + ".xml"));
   }
 }

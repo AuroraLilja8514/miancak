@@ -11,14 +11,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 import juloo.keyboard2.dict.DictionariesActivity;
@@ -26,9 +23,6 @@ import juloo.keyboard2.R;
 
 public class LauncherActivity extends Activity implements Handler.Callback
 {
-  /** Text is replaced when receiving key events. */
-  TextView _tryhere_text;
-  EditText _tryhere_area;
   /** Periodically restart the animations. */
   List<Animatable> _animations;
   Handler _handler;
@@ -71,11 +65,6 @@ public class LauncherActivity extends Activity implements Handler.Callback
       });
       content.requestApplyInsets();
     }
-    _tryhere_text = (TextView)findViewById(R.id.launcher_tryhere_text);
-    _tryhere_area = (EditText)findViewById(R.id.launcher_tryhere_area);
-    if (VERSION.SDK_INT >= 28)
-      _tryhere_area.addOnUnhandledKeyEventListener(
-          this.new Tryhere_OnUnhandledKeyEventListener());
     _handler = new Handler(getMainLooper(), this);
   }
 
@@ -142,26 +131,4 @@ public class LauncherActivity extends Activity implements Handler.Callback
     return (Animatable)img.getDrawable();
   }
 
-  final class Tryhere_OnUnhandledKeyEventListener implements View.OnUnhandledKeyEventListener
-  {
-    public boolean onUnhandledKeyEvent(View v, KeyEvent ev)
-    {
-      // Don't handle the back key
-      if (ev.getKeyCode() == KeyEvent.KEYCODE_BACK)
-        return false;
-      // Key release of modifiers would erase interesting data
-      if (KeyEvent.isModifierKey(ev.getKeyCode()))
-        return false;
-      StringBuilder s = new StringBuilder();
-      if (ev.isAltPressed()) s.append("Alt+");
-      if (ev.isShiftPressed()) s.append("Shift+");
-      if (ev.isCtrlPressed()) s.append("Ctrl+");
-      if (ev.isMetaPressed()) s.append("Meta+");
-      // s.append(ev.getDisplayLabel());
-      String kc = KeyEvent.keyCodeToString(ev.getKeyCode());
-      s.append(kc.replaceFirst("^KEYCODE_", ""));
-      _tryhere_text.setText(s.toString());
-      return false;
-    }
-  }
 }

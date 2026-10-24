@@ -229,3 +229,7 @@ MIANCAK adds explicit fixed text actions for custom layouts:
 `language_switch` is a one-finger language-toggle action that may be assigned to a swipe position. The dedicated language button is also always available for ordinary text editors. Default punctuation/digits are literal; engine-specific digit shortcuts require an explicit `:engine:` declaration.
 
 `pinyin_separator` displays `’`. During Chinese composition it sends the ASCII syllable delimiter without confirming; otherwise it inputs literal `’`. Shift can explicitly map it to an ASCII apostrophe. See the [default key map](../docs/KEYMAP.md) for positions and literal quotation marks.
+
+## MIANCAK page actions
+
+`fn_page` toggles the configured page target; the inherited `fn` modifier remains available for custom XML. `layout_picker` opens the unified chooser. `switch_pinyin`, `switch_pinyin_finals` and `switch_zhuyin` select literal phonetic pages; these do not introduce an additional Hanzi conversion scheme. All page-only navigation preserves active composition. Selecting a Chinese/English profile confirms once before applying that mode. The header chooser remains available after key edits.

@@ -665,6 +665,9 @@ public class Keyboard2 extends InputMethodService
   private ViewGroup create_auxiliary_pane(int resource)
   {
     ViewGroup pane = (ViewGroup)inflate_view(resource);
+    for (int i = 0; i < pane.getChildCount(); i++)
+      if (pane.getChildAt(i) instanceof Keyboard2View)
+        ((Keyboard2View)pane.getChildAt(i)).setEmbeddedControls();
     android.widget.Button picker = new android.widget.Button(this);
     picker.setText(R.string.pages_title); picker.setContentDescription("Open layout chooser");
     picker.setOnClickListener(view -> show_page_chooser());

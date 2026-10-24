@@ -162,3 +162,7 @@ Rime data preparation belongs to initialization/update paths, not the key path.
 When there is a conflict between a clever context-sensitive behavior and a predictable explicit gesture, prefer the predictable explicit gesture.
 
 MIANCAK should use Unexpected Keyboard's dense swipe surface to expose more exact actions rather than compensating with hidden heuristics.
+
+## Implemented page navigation
+
+The ordered enabled-page registry is the single source for direct page keys, Fn targets and the chooser. Opening/cancelling the chooser and entering auxiliary pages do not confirm composition. Explicit profile selection is idempotent and applies after successful engine confirmation/editor delivery. Page indicators derive from presentation state and the effective language. Per-position normal/Shift edits are resolved before dispatch; literal payloads, including apostrophes and backslashes, remain exact.

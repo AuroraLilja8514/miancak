@@ -11,7 +11,7 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | Job | What it verifies |
 | --- | --- |
 | `generated` | Regenerates layout/Compose/method outputs and requires a clean diff |
-| `unit` | Java 17/Gradle debug and release unit suites, then a clean diff; publishes XML and per-suite counts |
+| `unit` | Java 17/Gradle debug and release unit suites and Android test-driver compilation, then a clean diff; publishes XML and per-suite counts |
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
 | `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
@@ -28,13 +28,15 @@ The key commands are:
 
 ```sh
 python3 scripts/prepare_rime.py
-./gradlew --no-daemon test
+./gradlew --no-daemon test compileDebugAndroidTestJavaWithJavac
 ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest assembleRelease
 python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 ```
 
 Actual APK inspection verifies every declared ABI, 16 KiB ELF load-segment alignment, offline asset hashes and dependency provenance. Release inspection also checks that JNI class names survive shrinking and the debug editor fixture is absent.
+
+The unit job also compiles the Android test driver against the public SDK so API/type errors fail before emulator provisioning. The emulator jobs still execute that driver against the installed APKs.
 
 Artifacts are retained for seven days:
 
@@ -61,3 +63,9 @@ Build/test workflows must use `contents: read`, avoid `pull_request_target`, and
 ## Delivery boundary
 
 CI produces debug and unsigned release artifacts. Protected release signing, GitHub Releases, store publication and F-Droid automation remain separate release work. A passing emulator matrix does not imply physical-device or store-release validation.
+
+## Final APK acceptance jobs
+
+`build-upgrade-baseline` builds the pinned old application at `c939309635ee80c058d59ca712eae4ef1b3acb14` for x86_64. `upgrade-tests (23/35)` install that actual APK, exercise Chinese input, seed a retiring layout selection, replace it with the new APK without clearing data, and reboot the guest. Test copies of the old/new/test APKs are re-signed with one ephemeral local test identity; original delivery APKs and signing workflows are unchanged. Logs record both original and test-copy hashes. The test verifies configuration/data-directory preservation and Chinese input; it does not claim a production signing upgrade path.
+
+API 35 interaction tests use system font scale 1.3. The API 35 settings-first fresh-install case also uses Android application locale `zh-CN`, without preselecting a layout. Android DocumentsUI is exercised for layout export/import, including cancelled edits, saved resets and disabled Fn-target recovery. All applicable jobs remain acceptance gates.
