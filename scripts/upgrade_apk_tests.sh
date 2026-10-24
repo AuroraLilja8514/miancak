@@ -18,8 +18,8 @@ for name in baseline app-debug app-debug-androidTest; do
   "$apksigner" verify "upgrade-signed/$name.apk"
 done
 sha256sum upgrade-signed/*.apk > test-results/upgrade-apk-sha256.txt
-adb install upgrade-signed/baseline.apk
-adb install upgrade-signed/app-debug-androidTest.apk
+adb install --no-incremental upgrade-signed/baseline.apk
+adb install --no-incremental upgrade-signed/app-debug-androidTest.apk
 adb shell ime enable org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
 adb shell svc wifi disable
 adb shell svc data disable
@@ -32,7 +32,7 @@ run_phase() {
   grep -Eq 'OK \(' "test-results/upgrade-$phase.log"
 }
 run_phase prepare
-adb install -r upgrade-signed/app-debug.apk
+adb install --no-incremental -r upgrade-signed/app-debug.apk
 run_phase verify
 adb shell am start -n org.miancak.keyboard.debug/juloo.keyboard2.LauncherActivity
 adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2

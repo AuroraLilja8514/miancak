@@ -98,8 +98,14 @@ public final class PageFilesUiTest
     waitSettings();
     new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("Edit layout: zh"));
     device.findObject(By.desc("Edit layout: zh")).click();
-    new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("Reset this layout"));
-    device.findObject(By.desc("Reset this layout")).click();
+    assertTrue("Visual editor did not become visible", device.wait(Until.hasObject(By.desc("Save layout")), 15000));
+    UiObject2 reset = device.findObject(By.desc("Reset this layout"));
+    if (reset == null || reset.getVisibleBounds().height() < 24)
+    {
+      new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("Reset this layout"));
+      reset = device.wait(Until.findObject(By.desc("Reset this layout")), 15000);
+    }
+    assertNotNull("Visual editor reset action missing", reset); reset.click();
     device.wait(Until.findObject(By.res("android", "button1")), 15000).click();
   }
   private void waitSettings()

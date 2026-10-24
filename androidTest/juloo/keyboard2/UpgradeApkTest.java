@@ -98,32 +98,23 @@ public final class UpgradeApkTest
   }
   private void selectThroughShippedLauncher()
   {
-    context.startActivity(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+    instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     int label = context.getResources().getIdentifier("launcher_button_imepicker", "string", pkg);
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
-    for (int attempt = 0; attempt < 3; attempt++)
+    // Use the same selector-backed, ordinary task route as the independent
+    // fresh-install/reopen suite, after waiting for the launcher to resume.
+    UiObject2 select = device.wait(Until.findObject(By.pkg(pkg).text(context.getString(label))), 15000);
+    assertNotNull("Shipped input-method picker action missing", select); select.click();
+    assertTrue("Updated IME missing from Android's picker",
+        device.wait(Until.hasObject(By.pkg("android").text(name)), 15000));
+    try
     {
-      if (!device.hasObject(By.res("android", "select_dialog_listview")))
-      {
-        UiObject2 select = device.wait(Until.findObject(By.text(context.getString(label))), 15000);
-        assertNotNull(select); select.click();
-      }
-      device.waitForIdle();
-      UiObject2 choice = device.wait(Until.findObject(By.pkg("android").text(name)), 15000);
-      if (choice == null) { device.pressBack(); device.waitForIdle(); continue; }
-      try
-      {
-        // The label is a non-clickable secondary line. Touch its actual row,
-        // whose centre stays inside the dialog throughout the reveal animation.
-        while (choice != null && !choice.isClickable()) choice = choice.getParent();
-        assertNotNull("Enabled IME has no clickable picker row", choice);
-        choice.click();
-        if (device.wait(Until.gone(By.res("android", "select_dialog_listview")), 5000)) return;
-      }
-      catch (androidx.test.uiautomator.StaleObjectException changed) { /* Resolve the visible row again. */ }
+      device.findObject(new androidx.test.uiautomator.UiSelector().packageName("android").text(name)).click();
     }
-    fail("Android's picker did not accept the enabled updated IME: " + name);
+    catch (androidx.test.uiautomator.UiObjectNotFoundException missing) { throw new AssertionError(missing); }
+    assertTrue("Android's picker did not close after selecting the updated IME",
+        device.wait(Until.gone(By.pkg("android").text(name)), 15000));
   }
 
   private void tap(char letter, boolean northwest)
@@ -150,5 +141,8 @@ public final class UpgradeApkTest
     File dir = context.getExternalFilesDir("test-results"); assertTrue(dir.isDirectory() || dir.mkdirs());
     assertTrue(device.takeScreenshot(new File(dir, name + ".png")));
     device.dumpWindowHierarchy(new File(dir, name + ".xml"));
+    for (String service : new String[] {"window", "input_method"})
+      try (FileOutputStream output = new FileOutputStream(new File(dir, name + "-" + service + ".txt")))
+      { output.write(device.executeShellCommand("dumpsys " + service).getBytes(StandardCharsets.UTF_8)); }
   }
 }
