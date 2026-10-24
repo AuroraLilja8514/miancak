@@ -11,7 +11,7 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | Job | What it verifies |
 | --- | --- |
 | `generated` | Regenerates layout/Compose/method outputs and requires a clean diff |
-| `unit` | Java 17/Gradle debug and release unit suites, then a clean diff; publishes XML and per-suite counts |
+| `unit` | Java 17/Gradle debug and release unit suites and Android test-driver compilation, then a clean diff; publishes XML and per-suite counts |
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
 | `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
@@ -28,13 +28,15 @@ The key commands are:
 
 ```sh
 python3 scripts/prepare_rime.py
-./gradlew --no-daemon test
+./gradlew --no-daemon test compileDebugAndroidTestJavaWithJavac
 ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest assembleRelease
 python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 ```
 
 Actual APK inspection verifies every declared ABI, 16 KiB ELF load-segment alignment, offline asset hashes and dependency provenance. Release inspection also checks that JNI class names survive shrinking and the debug editor fixture is absent.
+
+The unit job also compiles the Android test driver against the public SDK so API/type errors fail before emulator provisioning. The emulator jobs still execute that driver against the installed APKs.
 
 Artifacts are retained for seven days:
 

@@ -64,12 +64,12 @@ jobs:
       - name: Prepare pinned Rime sources and data
         run: python3 scripts/prepare_rime.py
 
-      - name: Run unit tests
+      - name: Run unit tests and compile Android test driver
         run: |
           mkdir -p build/generated-resources/xml build/generated-resources/raw
           echo '<keyboard/>' > build/generated-resources/xml/latn_legacy_probe.xml
           echo '<keyboard/>' > build/generated-resources/raw/latn_legacy_probe.xml
-          ./gradlew --no-daemon test
+          ./gradlew --no-daemon test compileDebugAndroidTestJavaWithJavac
           test ! -e build/generated-resources/xml/latn_legacy_probe.xml
           test ! -e build/generated-resources/raw/latn_legacy_probe.xml
           cmp srcs/layouts/miancak_qwerty.xml build/generated-resources/xml/miancak_qwerty.xml

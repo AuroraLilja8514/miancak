@@ -7,6 +7,9 @@ import android.content.SharedPreferences;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.SystemClock;
+import android.view.inputmethod.InputMethodInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
@@ -104,12 +107,20 @@ public final class UpgradeApkTest
       // am instrument force-stops its target. The host has already asserted
       // retained default/enabled IME state before starting this instrumentation.
       String component = pkg + "/juloo.keyboard2.Keyboard2";
-      android.view.inputmethod.InputMethodManager manager = (android.view.inputmethod.InputMethodManager)
+      InputMethodManager manager = (InputMethodManager)
           context.getSystemService(Context.INPUT_METHOD_SERVICE);
       String alternate = null;
-      for (android.view.inputmethod.InputMethodInfo method : manager.getEnabledInputMethodList())
-        if (!method.getId().equals(component) && !method.isAuxiliaryIme()
+      for (InputMethodInfo method : manager.getEnabledInputMethodList())
+      {
+        boolean keyboard = false;
+        for (int i = 0; i < method.getSubtypeCount(); i++)
+        {
+          InputMethodSubtype subtype = method.getSubtypeAt(i);
+          if ("keyboard".equals(subtype.getMode()) && !subtype.isAuxiliary()) keyboard = true;
+        }
+        if (!method.getId().equals(component) && keyboard
             && method.getId().matches("[a-zA-Z0-9_./]+")) { alternate = method.getId(); break; }
+      }
       assertNotNull("Upgrade fixture needs an enabled non-auxiliary fallback IME", alternate);
       // Selecting the same id can retain a stale pending binding after the
       // instrumentation force-stop. Change away and back to rebuild it.
