@@ -160,7 +160,7 @@ public class ImeInteractionTest
       assertNotNull(value); value.setText("测试");
       device.findObject(By.res("android", "button1")).click();
       device.wait(Until.findObject(By.desc("Save layout")), 15000).click();
-      device.pressBack(); focus(activity.first); ensureChinese();
+      resumeEditor(); ensureChinese();
       gesture('q', -1, -1); output += "测试"; awaitText(activity.first, output);
       screenshot("edited-key-output");
       find("miancak_pages").click(); choosePage("pinyin");
@@ -185,7 +185,7 @@ public class ImeInteractionTest
         .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
       device.findObject(By.desc("fn-target-zh")).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_pinyin))), 15000).click();
-      device.pressBack(); focus(activity.first); ensureChinese();
+      resumeEditor(); ensureChinese();
       tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
       tap('n'); output += "n"; awaitText(activity.first, output);
@@ -411,6 +411,19 @@ public class ImeInteractionTest
     long end = SystemClock.uptimeMillis() + 15000;
     while (context.getResources().getConfiguration().orientation != expected && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
     assertEquals(expected, context.getResources().getConfiguration().orientation);
+  }
+  private void resumeEditor()
+  {
+    context.startActivity(new Intent(context, ImeTestActivity.class)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    assertTrue("Editor activity did not resume after settings", device.wait(Until.hasObject(By.desc("first_editor")), 15000));
+    device.waitForIdle();
+    instrumentation.runOnMainSync(() -> {
+      for (android.app.Activity resumed : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+          .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
+        if (resumed instanceof ImeTestActivity) activity = (ImeTestActivity)resumed;
+    });
+    focus(activity.first);
   }
   private void focus(EditText edit)
   {
