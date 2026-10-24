@@ -124,11 +124,31 @@ public final class WordTableUiTest
   {
     context.startActivity(new Intent(context, LauncherActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     UiObject2 settings = device.wait(Until.findObject(By.res(pkg, "btnLaunchSettingsActivity")), 15000); assertNotNull(settings); settings.click();
+    // The launcher's resources can still have the preceding editor's locale
+    // until Settings has resumed with Android's per-app language override.
+    awaitActivity(SettingsActivity.class);
     String label = uiString(R.string.words_title);
+    new UiScrollable(new UiSelector().scrollable(true)).scrollToBeginning(30);
     UiObject2 entry = device.wait(Until.findObject(By.text(label)), 15000);
     if (entry == null)
     { new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text(label)); entry = device.findObject(By.text(label)); }
     assertNotNull("Shipped vocabulary settings entry missing", entry); entry.click(); ready(false);
+  }
+  private void awaitActivity(Class<?> expected)
+  {
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      boolean[] resumed = {false};
+      instrumentation.runOnMainSync(() -> {
+        for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+            .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
+          if (expected.isInstance(activity)) resumed[0] = true;
+      });
+      if (resumed[0]) return;
+      SystemClock.sleep(100);
+    }
+    fail("Activity did not resume: " + expected.getSimpleName());
   }
   private void choose(String description) throws Exception
   {
@@ -176,7 +196,9 @@ public final class WordTableUiTest
           String success = uiString(R.string.words_ready), failure = uiString(R.string.words_error, "");
           String text = status.getText();
           if (text.startsWith(failure)) { assertTrue(text, expectError); return; }
-          if (text.startsWith(success)) { assertFalse("Invalid import unexpectedly succeeded", expectError); return; }
+          // A provider return may expose the preceding Ready frame before
+          // onActivityResult. A rejected source must actually report an error.
+          if (text.startsWith(success) && !expectError) return;
         }
       }
       catch (StaleObjectException changed) {}
@@ -200,6 +222,7 @@ public final class WordTableUiTest
   }
   private void importFile(String filename, boolean invalid) throws Exception
   {
+    int previousCount = store.view().entries.size();
     click("Import Rime word tables"); documents();
     UiObject2 file = device.wait(Until.findObject(By.text(filename)), 4000);
     if (file == null)
@@ -215,7 +238,28 @@ public final class WordTableUiTest
       assertNotNull(downloads); downloads.click(); device.waitForIdle();
       file = device.wait(Until.findObject(By.text(filename)), 15000);
     }
+    if (file == null && android.os.Build.VERSION.SDK_INT <= 23)
+    {
+      // Marshmallow's DownloadsProvider lists DownloadManager records, not
+      // arbitrary adb-pushed files. Browse the real external-storage provider
+      // through its public UI; keep the application's granted-URI import path.
+      UiObject2 menu = device.findObject(By.desc("More options")); assertNotNull(menu); menu.click();
+      UiObject2 show = device.wait(Until.findObject(By.text("Show internal storage")), 3000);
+      if (show != null) show.click(); else device.pressBack();
+      UiObject2 roots = device.findObject(By.desc("Show roots")); assertNotNull(roots); roots.click();
+      UiObject2 storage = device.wait(Until.findObject(By.text(Pattern.compile("Internal storage|Internal shared storage|SD card"))), 15000);
+      assertNotNull("Physical storage root absent", storage); storage.click();
+      UiObject2 download = device.wait(Until.findObject(By.text("Download")), 15000); assertNotNull(download); download.click();
+      file = device.wait(Until.findObject(By.text(filename)), 15000);
+    }
     assertNotNull("Real source file absent from Downloads: " + filename, file); file.click(); ready(invalid);
+    if (!invalid)
+    {
+      long deadline = SystemClock.uptimeMillis() + 120000;
+      while (store.view().entries.size() == previousCount && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100);
+      assertEquals("A successful import must add the selected source", previousCount + 1, store.view().entries.size());
+      ready(false);
+    }
     screenshot("word-import-" + filename.replace('.', '-') + (invalid ? "-rejected" : ""));
   }
   private void input(String code, String expected, boolean privateField, boolean present) throws Exception

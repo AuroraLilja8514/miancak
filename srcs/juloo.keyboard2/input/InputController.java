@@ -260,6 +260,8 @@ public final class InputController implements AutoCloseable
         if (!confirmationError.isEmpty() || (wasCurrent && !current(before)))
         {
           maintenance = false;
+          Handle now = active;
+          if (now != before && current(now)) startEditor(now.editor, snapshot.mode, now.allowed, now.learning);
           completion.completed(confirmationError.isEmpty() ? "Editor rejected composition / 编辑器未接受组词" : confirmationError);
           return;
         }

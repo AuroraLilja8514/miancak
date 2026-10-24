@@ -364,6 +364,21 @@ public class InputControllerTest
     assertEquals(0, creations[0]); assertFalse(controller.hasPendingRequests());
   }
 
+  @Test public void aFailedConfirmationDuringEditorReplacementCannotCarryOldComposition()
+  {
+    for (boolean learning : new boolean[] {true, false})
+    {
+      Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush(); h.engine.failConfirm = true;
+      int[] updates = {0}; List<String> errors = new ArrayList<>();
+      h.controller.reconfigure(() -> updates[0]++, errors::add); h.worker.all();
+      Editor replacement = new Editor(); h.controller.startEditor(replacement, Mode.CHINESE, true, learning); h.flush();
+      assertEquals(0, updates[0]); assertFalse(errors.get(0).isEmpty()); assertEquals("", replacement.text());
+      h.engine.failConfirm = false;
+      h.controller.submit(engineText("di")); h.controller.submit(SPACE); h.flush();
+      assertEquals("第", replacement.text()); assertEquals("", h.editor.text());
+    }
+  }
+
   private static final class Queue implements Executor
   {
     final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
