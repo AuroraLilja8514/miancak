@@ -19,6 +19,8 @@ public final class InputController implements AutoCloseable
   public interface EngineFactory { CompositionEngine create() throws Exception; }
   public interface Editor { boolean apply(EditorTransaction transaction); }
   public interface Listener { void changed(InputSnapshot snapshot); }
+  public interface Maintenance { void run() throws Exception; }
+  public interface MaintenanceListener { void completed(String error); }
   private interface Work { void run(List<Edit> edits) throws Exception; }
 
   private static final class Handle
@@ -46,6 +48,7 @@ public final class InputController implements AutoCloseable
   private final AtomicInteger pending = new AtomicInteger();
   private volatile Handle active;
   private volatile boolean closed;
+  private volatile boolean maintenance;
   private volatile InputSnapshot snapshot = new InputSnapshot(0, 0, Mode.ENGLISH, false, EngineResult.EMPTY, "");
 
   // Worker-confined state. Never derive this from the possibly older UI snapshot.
@@ -64,7 +67,7 @@ public final class InputController implements AutoCloseable
   }
 
   public InputSnapshot snapshot() { return snapshot; }
-  public boolean hasPendingRequests() { return pending.get() != 0; }
+  public boolean hasPendingRequests() { return maintenance || pending.get() != 0; }
 
   public void startEditor(Editor editor, Mode initialMode, boolean engineAllowed, boolean learning)
   {
@@ -75,6 +78,7 @@ public final class InputController implements AutoCloseable
     Mode initial = engineAllowed ? initialMode : Mode.ENGLISH;
     snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial, engineAllowed, EngineResult.EMPTY, "");
     listener.changed(snapshot);
+    if (maintenance) return;
     queue(handle, edits -> {
       mode = initial;
       state = EngineResult.EMPTY;
@@ -96,7 +100,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (closed || handle == null) return;
+    if (closed || maintenance || handle == null) return;
     Objects.requireNonNull(action);
     InputSnapshot current = snapshot;
     // This fast path has neither engine work nor an outstanding UI transaction.
@@ -118,7 +122,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (!current(handle) || (target == Mode.CHINESE && !handle.allowed)) return false;
+    if (maintenance || !current(handle) || (target == Mode.CHINESE && !handle.allowed)) return false;
     if (!hasPendingRequests() && snapshot.mode == target)
     {
       if (applied != null) applied.run();
@@ -155,7 +159,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (!current(handle) || displayed.generation != handle.generation) return;
+    if (maintenance || !current(handle) || displayed.generation != handle.generation) return;
     queue(handle, edits -> {
       if (displayed.revision != workerRevision || !state.composing
           || index < 0 || index >= state.candidates.size()) return;
@@ -167,7 +171,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (!current(handle) || displayed.generation != handle.generation) return;
+    if (maintenance || !current(handle) || displayed.generation != handle.generation) return;
     queue(handle, edits -> {
       if (displayed.revision != workerRevision || !state.composing) return;
       EngineResult result = getEngine(handle).page(backward);
@@ -180,7 +184,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (current(handle))
+    if (!maintenance && current(handle))
       queue(handle, edits -> { if (engine != null) state = engine.clear(); }, null);
   }
 
@@ -189,7 +193,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (!current(handle)) return;
+    if (maintenance || !current(handle)) return;
     if (!hasPendingRequests() && !snapshot.engine.composing) { action.run(); return; }
     final boolean[] idle = { false };
     queue(handle, edits -> {
@@ -203,7 +207,7 @@ public final class InputController implements AutoCloseable
   {
     checkUi();
     Handle handle = active;
-    if (!current(handle)) return;
+    if (maintenance || !current(handle)) return;
     if (!hasPendingRequests() && !snapshot.engine.composing)
     {
       action.run();
@@ -221,6 +225,57 @@ public final class InputController implements AutoCloseable
     Handle handle = active;
     if (current(handle)) startEditor(handle.editor, snapshot.mode, handle.allowed, handle.learning);
   }
+
+  /** Confirm in the old editor, release the engine, update on the same worker,
+   * then attach a fresh editor generation. Input is paused for the transaction.
+   * A changed editor never receives an old commit; completion still runs. */
+  public void reconfigure(Maintenance update, MaintenanceListener completion)
+  {
+    checkUi();
+    if (closed || maintenance) { completion.completed("Input update already running / 输入更新正在进行"); return; }
+    maintenance = true;
+    Handle before = active;
+    worker.execute(() -> {
+      List<Edit> edits = new ArrayList<>(); String error = "";
+      try { if (current(before) && state.composing) accept(getEngine(before).confirm(), edits, true); }
+      catch (Exception | LinkageError failed) { error = message(failed); }
+      final String confirmationError = error;
+      workerRevision = revisions.incrementAndGet();
+      InputSnapshot result = new InputSnapshot(before == null ? generation.get() : before.generation,
+          workerRevision, mode, before != null && before.allowed, state, error);
+      ui.execute(() -> {
+        boolean wasCurrent = current(before);
+        if (wasCurrent) deliver(before, result, edits, null);
+        if (!confirmationError.isEmpty() || (wasCurrent && !current(before)))
+        {
+          maintenance = false;
+          completion.completed(confirmationError.isEmpty() ? "Editor rejected composition / 编辑器未接受组词" : confirmationError);
+          return;
+        }
+        worker.execute(() -> {
+          String failure = "";
+          try
+          {
+            CompositionEngine previous = engine;
+            engine = null; engineLearning = null; state = EngineResult.EMPTY;
+            if (previous != null) previous.close();
+            update.run();
+          }
+          catch (Exception | LinkageError failed) { failure = message(failed); }
+          final String updateError = failure;
+          ui.execute(() -> {
+            maintenance = false;
+            Handle now = active;
+            if (current(now)) startEditor(now.editor, snapshot.mode, now.allowed, now.learning);
+            completion.completed(updateError);
+          });
+        });
+      });
+    });
+  }
+
+  private static String message(Throwable failure)
+  { String message = failure.getMessage(); return message == null ? failure.getClass().getSimpleName() : message; }
 
   public void finishEditor()
   {

@@ -7,7 +7,7 @@
 namespace {
 std::mutex mutex;
 std::set<RimeSessionId> sessions;
-std::string shared_path, user_path;
+std::string shared_path, user_path, build_path, prebuilt_path;
 RimeApi* api = nullptr;
 
 void fail(JNIEnv* env, const char* message) {
@@ -75,28 +75,40 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_juloo_keyboard2_input_RimeEngine_open(JNIEnv* env, jclass, jstring shared, jstring user) {
+Java_juloo_keyboard2_input_RimeEngine_open(JNIEnv* env, jclass, jstring shared, jstring user, jstring build, jboolean verify) {
   std::lock_guard<std::mutex> lock(mutex);
   const char* s = env->GetStringUTFChars(shared, nullptr);
   const char* u = env->GetStringUTFChars(user, nullptr);
-  std::string shared_value(s), user_value(u);
+  const char* b = env->GetStringUTFChars(build, nullptr);
+  std::string shared_value(s), user_value(u), build_value(b);
   env->ReleaseStringUTFChars(shared, s);
   env->ReleaseStringUTFChars(user, u);
+  env->ReleaseStringUTFChars(build, b);
   if (sessions.empty()) {
     shared_path = shared_value;
     user_path = user_value;
+    build_path = build_value;
+    prebuilt_path = shared_path + "/prebuilt";
     api = rime_get_api();
     RIME_STRUCT(RimeTraits, traits);
     traits.shared_data_dir = shared_path.c_str();
     traits.user_data_dir = user_path.c_str();
     traits.distribution_name = "MIANCAK";
     traits.distribution_code_name = "miancak";
-    traits.distribution_version = "0.1.0";
+    traits.distribution_version = "0.3.0";
     traits.app_name = "rime.miancak";
+    traits.staging_dir = build_path.c_str();
+    traits.prebuilt_data_dir = prebuilt_path.c_str();
     api->setup(&traits);
     api->initialize(&traits);
     if (api->start_maintenance(true)) api->join_maintenance_thread();
-  } else if (shared_path != shared_value || user_path != user_value) {
+    if (verify && (!api->deploy_schema((shared_path + "/miancak_pinyin.schema.yaml").c_str()) ||
+                   !api->deploy_schema((shared_path + "/miancak_pinyin_private.schema.yaml").c_str()))) {
+      api->finalize(); api = nullptr;
+      fail(env, "Word table compilation failed / 词表编译失败");
+      return 0;
+    }
+  } else if (shared_path != shared_value || user_path != user_value || build_path != build_value) {
     fail(env, "Rime runtime already uses another data directory");
     return 0;
   }

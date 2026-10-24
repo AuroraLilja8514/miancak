@@ -20,12 +20,16 @@ public final class RimeData
   {
     public final File shared;
     public final File user;
-    Paths(File shared, File user) { this.shared = shared; this.user = user; }
+    public final File build;
+    Paths(File shared, File user) { this.shared = shared; this.user = user; this.build = new File(shared, "build"); }
   }
 
   private RimeData() {}
 
   public static synchronized Paths deploy(Context context) throws IOException
+  { return new WordTableStore(context).currentPaths(); }
+
+  public static synchronized Paths bundled(Context context) throws IOException
   {
     if (android.os.Build.VERSION.SDK_INT >= 24 && context.isDeviceProtectedStorage())
       throw new IOException("Rime user data requires credential-protected storage");

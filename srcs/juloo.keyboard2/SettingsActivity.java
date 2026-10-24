@@ -24,6 +24,9 @@ public class SettingsActivity extends PreferenceActivity
     findPreference("pages").setOnPreferenceClickListener(preference -> {
       startActivity(new android.content.Intent(this, PageSettingsActivity.class)); return true;
     });
+    findPreference("word_tables").setOnPreferenceClickListener(preference -> {
+      startActivity(new android.content.Intent(this, WordTableActivity.class)); return true;
+    });
 
     boolean foldableDevice = FoldStateTracker.isFoldableDevice(this);
     findPreference("margin_bottom_portrait_unfolded").setEnabled(foldableDevice);
