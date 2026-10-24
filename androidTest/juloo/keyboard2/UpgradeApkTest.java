@@ -141,12 +141,19 @@ public final class UpgradeApkTest
       assertNotNull(field); field.click();
       assertNotNull("Rebound IME did not serve the real launcher editor",
           device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000));
+      device.pressBack(); // reveal the launcher controls above the focused editor
     }
     int label = context.getResources().getIdentifier("launcher_button_imepicker", "string", pkg);
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
     // Use the same selector-backed, ordinary task route as the independent
     // fresh-install/reopen suite, after waiting for the launcher to resume.
     UiObject2 select = device.wait(Until.findObject(By.pkg(pkg).text(context.getString(label))), 15000);
+    if (select == null)
+    {
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
+          .scrollIntoView(new androidx.test.uiautomator.UiSelector().text(context.getString(label)));
+      select = device.findObject(By.pkg(pkg).text(context.getString(label)));
+    }
     assertNotNull("Shipped input-method picker action missing", select); select.click();
     assertTrue("Updated IME missing from Android's picker",
         device.wait(Until.hasObject(By.pkg("android").text(name)), 15000));
