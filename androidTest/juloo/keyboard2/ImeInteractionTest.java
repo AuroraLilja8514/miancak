@@ -359,7 +359,7 @@ public class ImeInteractionTest
       choice = device.findObject(By.desc("Choose page: " + id));
       if (choice != null && choice.getVisibleBounds().height() > 16) break;
       UiObject2 chooser = find("miancak_page_chooser"); assertNotNull(chooser);
-      chooser.setGestureMargin(20);
+      chooser.setGestureMargin(Math.round(40 * context.getResources().getDisplayMetrics().density));
       chooser.scroll(androidx.test.uiautomator.Direction.DOWN, 0.65f);
     }
     assertNotNull("Enabled page is unreachable: " + id, choice); choice.click();
