@@ -47,7 +47,7 @@ public final class UpgradeApkTest
     context = instrumentation.getTargetContext(); pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation); device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("upgradePhase", "verify");
-    assertEquals(phase.equals("prepare") ? 1 : 2, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
+    assertEquals(phase.equals("prepare") ? 1 : 3, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       if (phase.equals("prepare"))
@@ -102,6 +102,8 @@ public final class UpgradeApkTest
   private void selectThroughShippedLauncher() throws Exception
   {
     boolean restored = !InstrumentationRegistry.getArguments().getString("upgradePhase", "verify").equals("prepare");
+    instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     if (restored)
     {
       // am instrument force-stops its target. The host has already asserted
@@ -122,26 +124,36 @@ public final class UpgradeApkTest
             && method.getId().matches("[a-zA-Z0-9_./]+")) { alternate = method.getId(); break; }
       }
       assertNotNull("Upgrade fixture needs an enabled non-auxiliary fallback IME", alternate);
-      // Selecting the same id can retain a stale pending binding after the
-      // instrumentation force-stop. Change away and back to rebuild it.
+      UiObject2 field = device.wait(Until.findObject(By.res(pkg, "launcher_tryhere_area")), 15000);
+      assertNotNull(field); field.click();
+      // Await the actual fallback window before switching back. Two shell
+      // requests can otherwise race with Android's asynchronous force-stop
+      // fallback and leave the old keyboard selected after the assertion.
       device.executeShellCommand("ime set " + alternate);
+      assertTrue("Fallback IME did not finish binding",
+          device.wait(Until.hasObject(By.pkg(alternate.substring(0, alternate.indexOf('/')))), 15000));
       device.executeShellCommand("ime set " + component);
       assertEquals(component, device.executeShellCommand("settings get secure default_input_method").trim());
     }
-    instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     if (restored)
     {
       UiObject2 field = device.wait(Until.findObject(By.res(pkg, "launcher_tryhere_area")), 15000);
       assertNotNull(field); field.click();
       assertNotNull("Rebound IME did not serve the real launcher editor",
           device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000));
+      device.pressBack(); // reveal the launcher controls above the focused editor
     }
     int label = context.getResources().getIdentifier("launcher_button_imepicker", "string", pkg);
     String name = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();
     // Use the same selector-backed, ordinary task route as the independent
     // fresh-install/reopen suite, after waiting for the launcher to resume.
     UiObject2 select = device.wait(Until.findObject(By.pkg(pkg).text(context.getString(label))), 15000);
+    if (select == null)
+    {
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
+          .scrollIntoView(new androidx.test.uiautomator.UiSelector().text(context.getString(label)));
+      select = device.findObject(By.pkg(pkg).text(context.getString(label)));
+    }
     assertNotNull("Shipped input-method picker action missing", select); select.click();
     assertTrue("Updated IME missing from Android's picker",
         device.wait(Until.hasObject(By.pkg("android").text(name)), 15000));

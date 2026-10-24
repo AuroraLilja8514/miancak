@@ -2,7 +2,8 @@
 set -euo pipefail
 mkdir -p test-results
 collect() {
-  adb logcat -d > test-results/logcat.txt || true
+  adb logcat -b all -d > test-results/logcat.txt || true
+  adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   adb shell uiautomator dump /sdcard/miancak-window.xml || true
   adb pull /sdcard/miancak-window.xml test-results/window.xml || true
   python3 - <<'PY'
@@ -43,6 +44,7 @@ run_tests() {
   fi
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
+run_tests word-tables-native -e class juloo.keyboard2.input.WordTableNativeTest
 run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 run_tests layout-files -e class juloo.keyboard2.PageFilesUiTest

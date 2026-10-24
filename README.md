@@ -42,8 +42,8 @@ Download the debug APK from a successful [MIANCAK CI run](https://github.com/Aur
 Current Chinese vocabulary limits:
 
 - Rime user learning is enabled in normal fields; it is separate from manual phrase editing or bulk dictionary import.
-- The app does not yet import, add or switch external Rime word tables. That independent future feature is tracked in [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22).
-- Word-table support will retain MIANCAK's input logic and use compatible vocabulary data, including existing prepared MediaWiki-derived or other Rime tables. It does not require the source project's complete input scheme.
+- **Settings → Chinese word tables** imports compatible UTF-8 `.dict.yaml` files through Android Files. Select a base, optionally enable supplementary tables, then Apply. Restore the bundled vocabulary or remove inactive imports from the same page. Compilation runs offline and retains the last working selection on failure; personal learning and layouts stay separate.
+- The [supported data profile](docs/RIME_WORD_TABLES.md) requires explicit lowercase untoned Pinyin codes. Import required tables too; uncoded rows, preset essay weights, auxiliary-code rules, scripts and complete third-party schemes are unsupported. This applies equally to MediaWiki-derived and other existing Rime tables. Implementation and actual APK acceptance for [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22) are recorded in [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30).
 - Manual phrase editing is a separate capability and is not a prerequisite for using an existing word table.
 
 Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).

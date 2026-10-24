@@ -64,6 +64,12 @@ Build/test workflows must use `contents: read`, avoid `pull_request_target`, and
 
 CI produces debug and unsigned release artifacts. Protected release signing, GitHub Releases, store publication and F-Droid automation remain separate release work. A passing emulator matrix does not imply physical-device or store-release validation.
 
+## Word-table acceptance
+
+`word-table-tests (23/35)` add two mandatory jobs, bringing the applicable matrix to 15 checks. `build-debug` also builds a feature-enabled version-code-2 fixture before the ordinary version-code-3 application, using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
+
+The word jobs run real native catalog/selection/recovery tests, import complete existing dictionaries through DocumentsUI, use the shipped keyboard in real editors, overwrite-install version code 3 and reboot. The host fingerprints actual learning-database files while the app is stopped, before instrumentation can write them, and compares them across replacement and reboot. Historical upgrade gates independently verify migration/default-IME retention. Fixture source hashes and licenses are verified by `scripts/check_word_table_fixtures.py`.
+
 ## Final APK acceptance jobs
 
 `build-upgrade-baseline` builds the pinned old application at `c939309635ee80c058d59ca712eae4ef1b3acb14` for x86_64. `upgrade-tests (23/35)` install that actual APK, exercise Chinese input, seed a retiring layout selection, replace it with the new APK without clearing data, and reboot the guest. Test copies of the old/new/test APKs are re-signed with one ephemeral local test identity; original delivery APKs and signing workflows are unchanged. Logs record both original and test-copy hashes. The test verifies configuration/data-directory preservation and Chinese input; it does not claim a production signing upgrade path.

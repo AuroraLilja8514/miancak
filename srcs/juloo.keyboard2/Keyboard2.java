@@ -34,7 +34,6 @@ import juloo.keyboard2.suggestions.CandidatesView;
 import juloo.keyboard2.suggestions.Suggestions;
 import juloo.keyboard2.input.*;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Keyboard2 extends InputMethodService
   implements SharedPreferences.OnSharedPreferenceChangeListener
@@ -162,9 +161,10 @@ public class Keyboard2 extends InputMethodService
     _suggestions = new Suggestions(recvr, _config);
     _keyeventhandler = new KeyEventHandler(_config, recvr, _suggestions);
     _preferredMode = prefs.getBoolean("miancak_chinese", true) ? InputRouter.Mode.CHINESE : InputRouter.Mode.ENGLISH;
-    _rimeWorker = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "MIANCAK-Rime"));
+    _rimeWorker = WordTableRuntime.WORKER;
     _inputController = new InputController(_rimeWorker, runnable -> _handler.post(runnable),
-        () -> new RimeEngine(RimeData.deploy(Keyboard2.this)), this::input_snapshot_changed);
+        () -> WordTableRuntime.createEngine(Keyboard2.this), this::input_snapshot_changed);
+    WordTableRuntime.register(_inputController);
     _keyeventhandler.set_semantic_adapter(new SemanticKeyAdapter(_inputController, this::sync_editor_selection));
     KeyValue.Stateful._handler = recvr;
     _config.handler = _keyeventhandler;
@@ -179,7 +179,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onDestroy() {
     if (_inputController != null) _inputController.close();
-    if (_rimeWorker != null) _rimeWorker.shutdown();
+    WordTableRuntime.unregister(_inputController);
     DirectBootAwarePreferences.get_shared_preferences(this).unregisterOnSharedPreferenceChangeListener(this);
     super.onDestroy();
     _foldStateTracker.close();

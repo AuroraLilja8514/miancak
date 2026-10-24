@@ -20,12 +20,16 @@ public final class RimeData
   {
     public final File shared;
     public final File user;
-    Paths(File shared, File user) { this.shared = shared; this.user = user; }
+    public final File build;
+    Paths(File shared, File user) { this.shared = shared; this.user = user; this.build = new File(shared, "build"); }
   }
 
   private RimeData() {}
 
   public static synchronized Paths deploy(Context context) throws IOException
+  { return new WordTableStore(context).currentPaths(); }
+
+  public static synchronized Paths bundled(Context context) throws IOException
   {
     if (android.os.Build.VERSION.SDK_INT >= 24 && context.isDeviceProtectedStorage())
       throw new IOException("Rime user data requires credential-protected storage");
@@ -96,8 +100,8 @@ public final class RimeData
     {
       byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
       StringBuilder result = new StringBuilder();
-      for (byte b : digest)
-        result.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
+      String hex = "0123456789abcdef";
+      for (byte b : digest) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));
       return result.toString();
     }
     catch (NoSuchAlgorithmException ex) { throw new AssertionError(ex); }

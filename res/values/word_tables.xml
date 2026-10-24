@@ -1,0 +1,30 @@
+<resources>
+  <item type="id" name="word_tables_status"/>
+  <item type="id" name="word_tables_list"/>
+  <item type="id" name="word_tables_apply"/>
+  <item type="id" name="word_tables_import"/>
+  <item type="id" name="word_tables_restore"/>
+  <item type="id" name="word_tables_help"/>
+  <string name="words_base_choice">Base vocabulary: %s</string>
+  <string name="words_extra_choice">Supplementary vocabulary: %s</string>
+  <string name="words_details_choice">Details for %s</string>
+  <string name="words_remove_choice">Remove %s</string>
+  <string name="words_title">Chinese word tables</string>
+  <string name="words_summary">Import Rime vocabulary, choose a base and supplementary tables</string>
+  <string name="words_unlock">Unlock the device to manage vocabulary</string>
+  <string name="words_import">Import .dict.yaml</string>
+  <string name="words_help">Help</string>
+  <string name="words_base">Choose a base vocabulary; supplementary tables are optional.</string>
+  <string name="words_bundled">Bundled Pinyin vocabulary</string>
+  <string name="words_extra">Supplement</string>
+  <string name="words_details">Details</string>
+  <string name="words_remove">Remove</string>
+  <string name="words_remove_confirm">Remove imported table “%s”? The original source file is unchanged.</string>
+  <string name="words_apply">Apply word tables</string>
+  <string name="words_restore">Restore bundled vocabulary</string>
+  <string name="words_busy">Processing offline… Applying a vocabulary pauses keyboard input until deployment finishes.</string>
+  <string name="words_ready">Ready. Changes take effect after Apply. Personal learning and layouts are preserved.</string>
+  <string name="words_error">Could not apply this operation: %s</string>
+  <string name="words_metadata">Source file: %1$s\nVersion: %2$s\nEntries: %3$d\nBytes: %4$d\nSHA-256: %5$s\nDependencies: %6$s\n\nSource and license notices remain in the original dictionary file. Importing vocabulary does not install its upstream scheme.</string>
+  <string name="words_profile">Choose UTF-8 Rime .dict.yaml files (multiple selection supported). Import dependencies too; directory references resolve by their final dictionary name. Unzip archives first.\n\nRequires text and explicit lowercase untoned Pinyin codes separated by Tab. Supports text/code/weight columns and import_tables; missing weight defaults to 1. Codes use spaces between syllables and v for ü where needed. No preset essay frequency, percentage weights, nonempty stem, tone numbers, auxiliary-code rules, scripts, models or third-party schemes.\n\nUp to 64 tables, 64 MiB each and 256 MiB total. Same-name updates require switching away and removing the old import first. Apply compiles a separate version and retains the last working choice on failure. Removing an active table or dependency is blocked. Layout JSON is separate.</string>
+</resources>

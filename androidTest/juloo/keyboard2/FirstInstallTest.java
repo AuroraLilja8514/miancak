@@ -148,8 +148,27 @@ public final class FirstInstallTest
   private void enableThroughAndroidUi() throws Exception
   {
     String appName = context.getString(R.string.app_name);
+    // A cold API 35 Google image can put its own launcher ANR dialog above
+    // Settings. Record and close only that named external app once, then take
+    // the same ordinary Settings route. Never dismiss a MIANCAK failure.
+    long settingsDeadline = SystemClock.uptimeMillis() + 15000;
+    boolean recoveredLauncher = false;
+    while (!device.hasObject(By.pkg("com.android.settings")) && SystemClock.uptimeMillis() < settingsDeadline)
+    {
+      UiObject2 blocked = device.findObject(By.res("android", "alertTitle")
+          .text("Pixel Launcher isn't responding"));
+      if (!recoveredLauncher && blocked != null)
+      {
+        screenshot("environment-pixel-launcher-anr");
+        android.util.Log.w("MIANCAK-Test", "Closing observed Pixel Launcher ANR in emulator onboarding");
+        UiObject2 close = device.findObject(By.res("android", "aerr_close")); assertNotNull(close); close.click();
+        context.startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        recoveredLauncher = true; settingsDeadline = SystemClock.uptimeMillis() + 15000;
+      }
+      SystemClock.sleep(100);
+    }
     assertTrue("Android keyboard settings did not open",
-        device.wait(Until.hasObject(By.pkg("com.android.settings")), 15000));
+        device.hasObject(By.pkg("com.android.settings")));
     UiObject2 label = device.wait(Until.findObject(By.pkg("com.android.settings").text(appName)), 15000);
     if (label == null)
     {
