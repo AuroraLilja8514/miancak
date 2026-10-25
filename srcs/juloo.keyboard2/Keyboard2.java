@@ -878,6 +878,7 @@ public class Keyboard2 extends InputMethodService
         case SWITCH_PINYIN: toggle_page("pinyin"); break;
         case SWITCH_PINYIN_FINALS: toggle_page("pinyin_finals"); break;
         case SWITCH_ZHUYIN: toggle_page("zhuyin"); break;
+        case SWITCH_SYMBOLS: toggle_page("symbols"); break;
         case SYMBOL_PREVIOUS: turn_symbol_page(-1); break;
         case SYMBOL_NEXT: turn_symbol_page(1); break;
 

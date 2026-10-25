@@ -85,7 +85,7 @@ public class PageSettingsActivity extends Activity
     restore.setEnabled(preferences.contains(PageKeyOverrides.KEY + "_previous_bundle"));
     restore.setOnClickListener(view -> new AlertDialog.Builder(this).setMessage(R.string.page_restore_confirm)
         .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok, (dialog, which) -> {
-          try { PageKeyOverrides.importJson(preferences, getResources(), preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "")); render(); }
+          try { PageKeyOverrides.importJson(preferences, this, preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "")); render(); }
           catch (Exception error) { error(error.getMessage()); }
         }).show()); content.addView(restore);
     android.widget.TextView note = new android.widget.TextView(this);
@@ -130,7 +130,7 @@ public class PageSettingsActivity extends Activity
         String json = new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
         new AlertDialog.Builder(this).setMessage(R.string.page_import_confirm).setNegativeButton(android.R.string.cancel, null)
           .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-            try { PageKeyOverrides.importJson(preferences, getResources(), json); render(); }
+            try { PageKeyOverrides.importJson(preferences, this, json); render(); }
             catch (Exception error) { error(error.getMessage()); }
           }).show();
       }

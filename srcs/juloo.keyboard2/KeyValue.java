@@ -31,6 +31,7 @@ public final class KeyValue implements Comparable<KeyValue>
     SWITCH_FN, LAYOUT_PICKER,
     SWITCH_PINYIN, SWITCH_PINYIN_FINALS, SWITCH_ZHUYIN,
     SYMBOL_PREVIOUS, SYMBOL_NEXT,
+    SWITCH_SYMBOLS,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -640,6 +641,7 @@ public final class KeyValue implements Comparable<KeyValue>
       case "fn_page": return eventKey("Fn", Event.SWITCH_FN, FLAG_SMALLER_FONT);
       case "symbol_previous": return eventKey("◀页", Event.SYMBOL_PREVIOUS, FLAG_SMALLER_FONT);
       case "symbol_next": return eventKey("页▶", Event.SYMBOL_NEXT, FLAG_SMALLER_FONT);
+      case "switch_symbols": return eventKey("符号", Event.SWITCH_SYMBOLS, FLAG_SMALLER_FONT);
       case "layout_picker": return eventKey("▦", Event.LAYOUT_PICKER, FLAG_SMALLER_FONT);
       case "switch_pinyin": return eventKey("拼音", Event.SWITCH_PINYIN, FLAG_SMALLER_FONT);
       case "switch_pinyin_finals": return eventKey("韵母", Event.SWITCH_PINYIN_FINALS, FLAG_SMALLER_FONT);

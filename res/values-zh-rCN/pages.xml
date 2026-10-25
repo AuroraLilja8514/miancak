@@ -70,6 +70,32 @@
     <item>拼音文字</item>
     <item>拼音韵母</item>
     <item>注音文字</item>
+    <item>符号</item>
+    <item>轮换下一个布局</item>
+    <item>轮换上一个布局</item>
+    <item>向左滑动光标</item>
+    <item>向右滑动光标</item>
+    <item>向上滑动光标</item>
+    <item>向下滑动光标</item>
+    <item>Home</item>
+    <item>End</item>
+    <item>Page Up</item>
+    <item>Page Down</item>
+    <item>Insert</item>
+    <item>Escape</item>
+    <item>Tab</item>
+    <item>复制</item>
+    <item>剪切</item>
+    <item>粘贴</item>
+    <item>粘贴纯文本</item>
+    <item>全选</item>
+    <item>选择模式</item>
+    <item>撤销</item>
+    <item>重做</item>
+    <item>删除前一个词</item>
+    <item>删除后一个词</item>
+    <item>符号上一页</item>
+    <item>符号下一页</item>
   </string-array>
   <string name="page_pinyin">拼音文字</string>
   <string name="page_pinyin_finals">拼音韵母与声调</string>
@@ -88,4 +114,25 @@
   <string name="symbol_category_accessibility">符号栏目：%s</string>
   <string name="symbol_page_accessibility">第 %1$d 页，共 %2$d 页</string>
   <string name="symbol_panel_help">符号页点击栏目回到该栏首页；空格左上／右上在当前栏目内翻页，上下仍轮换布局。Shift 切换明确的全半角配对，没有配对的符号保持原样。Fn 无特殊效果。</string>
+  <string name="page_reset_position">恢复此位置的普通与 Shift 层</string>
+  <string name="page_inherited_status">继承默认</string>
+  <string name="page_edited_status">用户覆盖</string>
+  <string name="page_empty_status">已清空</string>
+  <string name="page_follow_normal_status">跟随普通层规则</string>
+  <string name="page_shared_status">共享固定</string>
+  <string name="page_editor_scroll_help">可横向滚动查看全部按键；每键展示中心和八个方向。共享控制跨布局固定。附加数字行与横屏重排会保留这些键位修改。</string>
+  <string name="page_symbol_content">选择符号栏目／页码</string>
+  <string name="page_edit_pair">编辑配对布局：%s</string>
+  <string name="page_position_accessibility">%1$s：%2$s；%3$s</string>
+  <string-array name="page_direction_names">
+    <item>中心</item>
+    <item>左上</item>
+    <item>右上</item>
+    <item>左下</item>
+    <item>右下</item>
+    <item>左</item>
+    <item>右</item>
+    <item>上</item>
+    <item>下</item>
+  </string-array>
 </resources>

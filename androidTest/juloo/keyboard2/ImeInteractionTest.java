@@ -219,7 +219,7 @@ public class ImeInteractionTest
       assertNotNull(editLayout); editLayout.click();
       device.wait(Until.findObject(By.desc("Edit key: zh:0:0")), 15000).click();
       screenshot("visual-key-editor");
-      device.wait(Until.findObject(By.desc("Edit position: 1")), 15000).click();
+      device.wait(Until.findObject(By.res(context.getPackageName(), "miancak_position_nw")), 15000).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_literal))), 15000).click();
       UiObject2 value = device.wait(Until.findObject(By.desc("Key output text")), 15000);
       assertNotNull(value); value.setText("测试");

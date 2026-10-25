@@ -70,6 +70,32 @@
     <item>Pinyin text</item>
     <item>Pinyin finals</item>
     <item>Zhuyin text</item>
+    <item>Symbols</item>
+    <item>Next enabled layout</item>
+    <item>Previous enabled layout</item>
+    <item>Slide cursor left</item>
+    <item>Slide cursor right</item>
+    <item>Slide cursor up</item>
+    <item>Slide cursor down</item>
+    <item>Home</item>
+    <item>End</item>
+    <item>Page Up</item>
+    <item>Page Down</item>
+    <item>Insert</item>
+    <item>Escape</item>
+    <item>Tab</item>
+    <item>Copy</item>
+    <item>Cut</item>
+    <item>Paste</item>
+    <item>Paste as plain text</item>
+    <item>Select all</item>
+    <item>Selection mode</item>
+    <item>Undo</item>
+    <item>Redo</item>
+    <item>Delete previous word</item>
+    <item>Delete next word</item>
+    <item>Previous symbol page</item>
+    <item>Next symbol page</item>
   </string-array>
   <string name="page_pinyin">Pinyin text</string>
   <string name="page_pinyin_finals">Pinyin finals and tones</string>
@@ -88,4 +114,25 @@
   <string name="symbol_category_accessibility">Symbols: %s</string>
   <string name="symbol_page_accessibility">Page %1$d of %2$d</string>
   <string name="symbol_panel_help">Symbols: tap a category to return to its first page. Space NW/NE goes to the previous/next page in that category; up/down still cycles layouts. Shift toggles explicit full/half-width pairs. Symbols without a width pair stay unchanged. Fn has no special effect.</string>
+  <string name="page_reset_position">Reset both layers at this position</string>
+  <string name="page_inherited_status">Inherited</string>
+  <string name="page_edited_status">Edited</string>
+  <string name="page_empty_status">Cleared</string>
+  <string name="page_follow_normal_status">Follows normal action</string>
+  <string name="page_shared_status">Shared · fixed</string>
+  <string name="page_editor_scroll_help">Scroll horizontally to see every key. Each key shows its center and all eight directions. Shared controls are fixed across layouts. Added digit rows and landscape splitting keep these edits.</string>
+  <string name="page_symbol_content">Choose symbol category / page</string>
+  <string name="page_edit_pair">Edit paired layout: %s</string>
+  <string name="page_position_accessibility">%1$s: %2$s; %3$s</string>
+  <string-array name="page_direction_names">
+    <item>Center</item>
+    <item>Northwest</item>
+    <item>Northeast</item>
+    <item>Southwest</item>
+    <item>Southeast</item>
+    <item>West</item>
+    <item>East</item>
+    <item>North</item>
+    <item>South</item>
+  </string-array>
 </resources>

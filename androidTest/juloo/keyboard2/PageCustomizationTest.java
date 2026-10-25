@@ -12,6 +12,29 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void shiftOnlyEditKeepsTheInheritedNormalLayerUnwrapped() throws Exception
+  {
+    PageKeyOverrides edits = new PageKeyOverrides(); edits.set("symbols", 0, 0, 0, true, PageKeyOverrides.literal("移"));
+    KeyboardData data = edits.apply("symbols", PageLayouts.base(context().getResources(), "symbols"));
+    KeyValue value = data.rows.get(0).keys.get(0).keys[0];
+    assertEquals(KeyValue.Kind.Literal, value.layer(false).getKind());
+    assertEquals("，", KeyModifier.preview(value, false, data.modmap).getSemanticText());
+    assertEquals("移", KeyModifier.preview(value, true, data.modmap).getSemanticText());
+  }
+  @Test public void editorKeepsTypedActionsConfiguredFnAnchorsAndNumericOrdering() throws Exception
+  {
+    for (PageActions.Action action : PageActions.list(context().getResources(), true))
+      assertNotEquals(action.id, KeyValue.Kind.String, action.value.getKind());
+    assertEquals(KeyValue.Kind.Slider, KeyValue.getKeyByName("cursor_left").getKind());
+    SharedPreferences settings = prefs(); MiancakPreferences.initialize(settings);
+    KeyboardData prepared = PageLayouts.forEditor(context(), "en_fn", settings);
+    KeyboardData.KeyPos f11 = prepared.getKeys().get(KeyValue.getKeyByName("f11"));
+    assertNotNull(f11); assertEquals(0, f11.row); assertEquals(8, f11.col); assertEquals(1, f11.dir);
+    PageKeyOverrides edits = new PageKeyOverrides(); edits.set("en_fn", f11.row, f11.col, f11.dir, false, PageKeyOverrides.literal("改"));
+    assertEquals("改", edits.apply("en_fn", prepared).rows.get(f11.row).keys.get(f11.col).keys[f11.dir].getSemanticText());
+    settings.edit().putString("numpad_layout", "low_first").commit();
+    assertEquals(KeyValue.getKeyByName("f1"), PageLayouts.forEditor(context(), "numeric_fn", settings).rows.get(0).keys.get(2).keys[0]);
+  }
   @Test public void symbolPagesKeepTheirOwnPortableEditsAndLegacyCoordinates() throws Exception
   {
     SharedPreferences preferences = prefs(); PageKeyOverrides edits = new PageKeyOverrides();

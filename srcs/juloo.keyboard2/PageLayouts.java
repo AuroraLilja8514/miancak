@@ -54,6 +54,58 @@ public final class PageLayouts
   }
   public static boolean editable(String id)
   { return juloo.keyboard2.input.PageConfig.IDS.contains(id) || juloo.keyboard2.input.SymbolCatalog.validScope(id); }
+
+  public static KeyboardData forEditor(android.content.Context context, String page, android.content.SharedPreferences preferences)
+  {
+    Resources resources = context.getResources();
+    juloo.keyboard2.input.PageConfig config = PagePreferences.load(preferences);
+    DeviceLocales locales = DeviceLocales.load(context);
+    java.util.List<KeyboardData> mains = juloo.keyboard2.prefs.LayoutsPreference.load_from_preferences(resources, preferences);
+    boolean wide = resources.getDisplayMetrics().widthPixels / resources.getDisplayMetrics().density >= Config.WIDE_DEVICE_THRESHOLD;
+    Object stored = preferences.getAll().get(wide ? "current_layout_landscape" : "current_layout_portrait");
+    int index = stored instanceof Integer ? (Integer)stored : 0;
+    KeyboardData main = index >= 0 && index < mains.size() ? mains.get(index) : null;
+    if (main == null && locales.default_ != null && locales.default_.default_layout != null)
+      main = juloo.keyboard2.prefs.LayoutsPreference.layout_of_string(resources, locales.default_.default_layout);
+    if (main == null) main = KeyboardData.load(resources, R.xml.miancak_qwerty);
+    KeyboardData data;
+    if (juloo.keyboard2.input.PageConfig.isText(page))
+    {
+      data = links(LayoutControls.normalize(complete(resources, main)), page, config);
+      if (juloo.keyboard2.input.PageConfig.isVariant(page)) data = FnLayout.materialize(data, page.equals("zh_fn"));
+    }
+    else if (juloo.keyboard2.input.PageConfig.base(page).equals("numeric"))
+    {
+      data = editorDigits(base(resources, "numeric"), main, preferences);
+      return juloo.keyboard2.input.PageConfig.isVariant(page) ? FnLayout.materialize(data, false) : data;
+    }
+    else if (juloo.keyboard2.input.PageConfig.base(page).equals("greek"))
+      return editorDigits(base(resources, page), main, preferences);
+    else data = base(resources, page, config);
+    if (page.equals("emoji") || page.equals("clipboard")) return data;
+    return LayoutModifier.prepare_layout(data, juloo.keyboard2.input.PageConfig.isVariant(page),
+        juloo.keyboard2.prefs.ExtraKeysPreference.get_extra_keys(preferences),
+        juloo.keyboard2.prefs.CustomExtraKeysPreference.get(preferences), locales.extra_keys());
+  }
+  private static KeyboardData editorDigits(KeyboardData data, KeyboardData main, android.content.SharedPreferences preferences)
+  {
+    final boolean inverse = "low_first".equals(preferences.getAll().get("numpad_layout"));
+    final int script = KeyModifier.modify_numpad_script(main.numpad_script);
+    return data.mapKeys(new KeyboardData.MapKeyValues() {
+      public KeyValue apply(KeyValue key, boolean localized)
+      {
+        if (key.getKind() != KeyValue.Kind.Char) return key;
+        char value = key.getChar();
+        if (inverse) value = LayoutModifier.inverse_numpad_char(value);
+        if (script != -1)
+        {
+          KeyValue mapped = ComposeKey.apply(script, value);
+          if (mapped != null) return mapped;
+        }
+        return value == key.getChar() ? key : key.withChar(value);
+      }
+    });
+  }
   public static KeyboardData complete(Resources resources, KeyboardData data)
   {
     if (data.bottom_row)

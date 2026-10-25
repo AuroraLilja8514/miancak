@@ -114,6 +114,10 @@ public final class PageKeyOverrides
       .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
   public static void importJson(SharedPreferences preferences, Resources resources, String text) throws Exception
+  { importJson(preferences, resources, null, text); }
+  public static void importJson(SharedPreferences preferences, android.content.Context context, String text) throws Exception
+  { importJson(preferences, context.getResources(), context, text); }
+  private static void importJson(SharedPreferences preferences, Resources resources, android.content.Context context, String text) throws Exception
   {
     if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES) throw new IllegalArgumentException("File is too large");
     JSONObject root = new JSONObject(text);
@@ -125,7 +129,7 @@ public final class PageKeyOverrides
     {
       String id = ids.next();
       if (!PageLayouts.editable(id)) throw new IllegalArgumentException("Unknown page: " + id);
-      KeyboardData layout = PageLayouts.base(resources, id);
+      KeyboardData layout = context == null ? PageLayouts.base(resources, id) : PageLayouts.forEditor(context, id, preferences);
       JSONObject keys = pages.getJSONObject(id); Iterator<String> positions = keys.keys();
       while (positions.hasNext())
       {
