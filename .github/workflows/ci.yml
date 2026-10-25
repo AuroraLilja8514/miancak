@@ -257,6 +257,52 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  word-pack-quality:
+    name: word-pack-quality (${{ matrix.api }})
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 35]
+    needs: build-debug
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: miancak-debug-${{ github.sha }}
+          path: artifacts-download
+      - name: Gather APKs
+        run: |
+          mkdir -p artifacts
+          find artifacts-download -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
+          find artifacts-download -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Compare pinned word packs through actual JNI
+        uses: reactivecircus/android-emulator-runner@v2.35.0
+        with:
+          api-level: 35
+          system-image-api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          avd-name: miancak-quality
+          force-avd-creation: true
+          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-quality.avd/config.ini"
+          disable-animations: true
+          emulator-options: -no-window -gpu swangle -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
+          script: MIANCAK_TEST_API=${{ matrix.api }} bash scripts/word_pack_quality_tests.sh
+      - name: Upload instrumented test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: word-pack-quality-api-${{ matrix.api }}-${{ github.sha }}
+          path: test-results/
+          retention-days: 7
+
   first-install:
     name: first-install (${{ matrix.api }}, ${{ matrix.entry }})
     strategy:

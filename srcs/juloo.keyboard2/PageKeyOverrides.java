@@ -11,16 +11,37 @@ import org.json.JSONObject;
 public final class PageKeyOverrides
 {
   public static final String KEY = "page_customization";
+  public static final String INVALID_BACKUP = KEY + "_invalid_backup";
   public static final int MAX_BYTES = 262144;
   private final JSONObject pages;
   public PageKeyOverrides() { pages = new JSONObject(); }
   private PageKeyOverrides(JSONObject pages) { this.pages = pages; }
   public static String raw(SharedPreferences preferences)
-  { Object value = preferences.getAll().get(KEY); return value instanceof String ? (String)value : "{}"; }
+  {
+    Object value = preferences.getAll().get(KEY);
+    return value == null ? "{}" : value instanceof String ? (String)value
+      : "!invalid-preference:" + value.getClass().getName() + ":" + value;
+  }
   public static PageKeyOverrides load(SharedPreferences preferences)
   {
     try { return new PageKeyOverrides(new JSONObject(raw(preferences))); }
-    catch (Exception error) { return new PageKeyOverrides(); }
+    catch (Exception error)
+    {
+      // A later edit may replace an unusable preference. Preserve its exact
+      // original type/value first, even after the v1 migration has completed.
+      if (!preferences.contains(INVALID_BACKUP))
+        try
+        {
+          Object original = preferences.getAll().get(KEY);
+          if (original != null)
+            preferences.edit().putString(INVALID_BACKUP, new JSONObject()
+                .put("type", original.getClass().getName())
+                .put("value", original instanceof java.util.Set ? new org.json.JSONArray((java.util.Set<?>)original) : original)
+                .toString()).apply();
+        }
+        catch (Exception ignored) { /* Continue with usable defaults. */ }
+      return new PageKeyOverrides();
+    }
   }
   public PageKeyOverrides copy()
   {
@@ -69,7 +90,7 @@ public final class PageKeyOverrides
         for (int direction = 0; direction < 9; direction++)
         {
           // Legacy per-page changes remain stored/backed up, but may not make
-          // shared controls drift. Shared editing is implemented separately.
+          // shared controls drift. These positions remain read-only here.
           if (LayoutControls.shared(original, direction)) continue;
           String normal = action(page, r, c, direction, false), shifted = action(page, r, c, direction, true);
           if (normal == null && shifted == null) continue;

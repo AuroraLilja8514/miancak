@@ -241,7 +241,9 @@ public final class FnInteractionTest
     int[][] directions = {{0,0},{-1,-1},{1,-1},{-1,1},{1,1},{-1,0},{1,0},{0,-1},{0,1}};
     int[] direction = directions[position.dir];
     if (position.dir == 0) assertTrue(device.click(Math.round(x), Math.round(y)));
-    else assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + direction[0] * key.width * unit * .85f), Math.round(y + direction[1] * rowSize * .65f), 12));
+    // Swipe directions use screen angles, not the width of the origin key.
+    // Multiplying by a wide Space key turns a diagonal into a cursor Slider.
+    else assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + direction[0] * unit * .85f), Math.round(y + direction[1] * rowSize * .65f), 12));
     instrumentation.waitForIdleSync();
   }
   private String text()

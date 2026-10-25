@@ -12,6 +12,21 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void malformedCurrentOverridesAreBackedUpBeforeBeingReplaced() throws Exception
+  {
+    SharedPreferences p = prefs(); p.edit().putInt("pages_version", 2).putInt(PageKeyOverrides.KEY, 37).commit();
+    String first = PageKeyOverrides.raw(p);
+    PageKeyOverrides edits = PageKeyOverrides.load(p);
+    JSONObject backup = new JSONObject(p.getString(PageKeyOverrides.INVALID_BACKUP, ""));
+    assertEquals("java.lang.Integer", backup.getString("type")); assertEquals(37, backup.getInt("value"));
+    p.edit().putInt(PageKeyOverrides.KEY, 38).commit(); assertNotEquals(first, PageKeyOverrides.raw(p));
+    edits.set("en", 0, 0, 0, false, PageKeyOverrides.literal("改")); edits.save(p);
+    assertEquals(37, new JSONObject(p.getString(PageKeyOverrides.INVALID_BACKUP, "")).getInt("value"));
+    assertEquals("改", PageKeyOverrides.load(p).apply("en", PageLayouts.base(context().getResources(), "en"))
+        .rows.get(0).keys.get(0).keys[0].getSemanticText());
+    p.edit().clear().putString(PageKeyOverrides.KEY, "{").commit(); PageKeyOverrides.load(p);
+    assertEquals("{", new JSONObject(p.getString(PageKeyOverrides.INVALID_BACKUP, "")).getString("value"));
+  }
   @Test public void shiftOnlyEditKeepsTheInheritedNormalLayerUnwrapped() throws Exception
   {
     PageKeyOverrides edits = new PageKeyOverrides(); edits.set("symbols", 0, 0, 0, true, PageKeyOverrides.literal("移"));
