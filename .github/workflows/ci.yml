@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+env:
+  MIANCAK_SCRIPT_TIMEOUT_SECONDS: "3600"
+  MIANCAK_ADB_TIMEOUT_SECONDS: "30"
+  MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
+
 concurrency:
   group: miancak-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -32,6 +37,7 @@ jobs:
           python3 scripts/check_word_table_fixtures.py
           python3 scripts/audit_fn_baseline.py
           python3 scripts/test_fn_baseline.py
+          python3 scripts/test_script_timeouts.py --timeout-seconds 120
           python3 check_layout.py
           python3 srcs/compose/compile.py srcs/compose/{*.json,compose} > srcs/juloo.keyboard2/ComposeKeyData.java
           python3 gen_method_xml.py > res/xml/method.xml

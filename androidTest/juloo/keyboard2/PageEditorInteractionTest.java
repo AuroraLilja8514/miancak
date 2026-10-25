@@ -131,7 +131,19 @@ public final class PageEditorInteractionTest
     instrumentation.runOnMainSync(() -> {
       ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();target[0]=a.first;
       a.first.setOnKeyListener((v,code,event)->{if(code>=KeyEvent.KEYCODE_F1 && code<=KeyEvent.KEYCODE_F12){events.add(new KeyEvent(event));return true;}return false;});
-    }); ImeTestFocus.show(instrumentation,context,target[0]); assertNotNull(keyboard());device.waitForIdle();
+    }); ImeTestFocus.show(instrumentation,context,target[0]);
+    UiObject2 visible = keyboard();
+    if (visible == null)
+    {
+      shot("editor-missing-keyboard");
+      try {
+        java.io.File dir = TestEvidence.directory(context);
+        device.dumpWindowHierarchy(new java.io.File(dir,"editor-missing-window.xml"));
+        write(new java.io.File(dir,"editor-missing-input-method.txt"), device.executeShellCommand("dumpsys input_method"));
+        write(new java.io.File(dir,"editor-missing-windows.txt"), device.executeShellCommand("dumpsys window windows"));
+      } catch(Exception error) { throw new AssertionError("Missing keyboard; diagnostics failed",error); }
+    }
+    assertNotNull("Keyboard did not return after the explicit editor click",visible);device.waitForIdle();
   }
   private void clear(){instrumentation.runOnMainSync(()->current().first.setText(""));instrumentation.waitForIdleSync();}
   private void expect(String expected,String name)throws Exception

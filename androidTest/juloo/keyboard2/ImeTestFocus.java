@@ -20,6 +20,17 @@ final class ImeTestFocus
       if (served[0]) break; SystemClock.sleep(30);
     } while (SystemClock.uptimeMillis() < end);
     assertTrue("Android did not serve the clicked editor", served[0]);
-    instrumentation.runOnMainSync(() -> manager.showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT));
+    // This follows an actual user click. An explicit request must not inherit
+    // Android's implicit-show suppression from the previously hidden window.
+    instrumentation.runOnMainSync(() -> {
+      boolean accepted = manager.showSoftInput(editor, 0,
+        new android.os.ResultReceiver(new android.os.Handler(android.os.Looper.getMainLooper())) {
+          @Override protected void onReceiveResult(int result, android.os.Bundle data) {
+            android.util.Log.i("MIANCAK-Focus", "show result=" + result + " view=" + editor.getContentDescription());
+          }
+        });
+      android.util.Log.i("MIANCAK-Focus", "explicit show accepted=" + accepted + " active=" + manager.isActive(editor)
+        + " focused=" + editor.hasWindowFocus() + " view=" + editor.getContentDescription());
+    });
   }
 }

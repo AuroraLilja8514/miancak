@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+
+# Re-enter under a finite watchdog; nested drivers share the remaining budget.
+MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+  exec python3 "$(dirname -- "$MIANCAK_ENTRY")/../scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results/device
 collect() {

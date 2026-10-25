@@ -64,6 +64,12 @@
 #
 ##############################################################################
 
+# All builds, including network and daemon startup, have an inherited deadline.
+MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+    exec python3 "$(dirname -- "$MIANCAK_ENTRY")/scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+
 # Attempt to set APP_HOME
 
 # Resolve links: $0 may be a link

@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """Verify the shipped APK, not just a successful compiler invocation."""
+
+# A finite watchdog also bounds imports, child commands and shutdown.
+if __name__ == "__main__":
+    import sys as _timeout_sys
+    from pathlib import Path as _TimeoutPath
+    _timeout_sys.path.insert(0, str(_TimeoutPath(__file__).resolve().parents[1] / "scripts"))
+    from run_with_timeout import guard_script as _guard_script
+    _guard_script(__file__)
+
 import hashlib
 import json
 from pathlib import Path
