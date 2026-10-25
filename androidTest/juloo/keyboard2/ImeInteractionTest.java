@@ -525,9 +525,8 @@ public class ImeInteractionTest
     assertNotNull("Editor field is not visible", field); field.click();
     instrumentation.runOnMainSync(() -> {
       edit.requestFocus(); edit.setSelection(edit.getText().length());
-      edit.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
-          .showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT));
     });
+    ImeTestFocus.show(instrumentation,context,edit);
     instrumentation.waitForIdleSync();
     assertNotNull("Selected IME did not appear for the visible editor", keyboard());
     device.waitForIdle();

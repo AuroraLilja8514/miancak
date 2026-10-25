@@ -120,7 +120,7 @@
   <string name="page_empty_status">已清空</string>
   <string name="page_follow_normal_status">跟随普通层规则</string>
   <string name="page_shared_status">共享固定</string>
-  <string name="page_editor_scroll_help">可横向滚动查看全部按键；每键展示中心和八个方向。共享控制跨布局固定。附加数字行与横屏重排会保留这些键位修改。</string>
+  <string name="page_editor_scroll_help">左右滚动查看其它按键；每键展示中心和八个方向。</string>
   <string name="page_symbol_content">选择符号栏目／页码</string>
   <string name="page_edit_pair">编辑配对布局：%s</string>
   <string name="page_position_accessibility">%1$s：%2$s；%3$s</string>

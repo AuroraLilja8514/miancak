@@ -62,9 +62,8 @@ public final class FnInteractionTest
         return false;
       });
       activity.first.requestFocus();
-      activity.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
-          .showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT));
     });
+    ImeTestFocus.show(instrumentation,context,activity.first);
     awaitPage("zh");
     try
     {

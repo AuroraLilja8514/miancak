@@ -63,6 +63,7 @@ public class Keyboard2 extends InputMethodService
   private EditorInfo _inputEditorInfo;
   private boolean _editorAttached;
   private boolean _editorAllowsEngine;
+  private boolean _retainInputLayout;
   private String _preferredLayout = "zh";
   private final PageState _page = new PageState();
   private PageConfig _pages;
@@ -312,6 +313,17 @@ public class Keyboard2 extends InputMethodService
   public void onStartInput(EditorInfo info, boolean restarting)
   {
     super.onStartInput(info, restarting);
+    EditorPolicy nextPolicy = EditorPolicy.from(info, this);
+    // An app may restart its existing editor after replacing its text.
+    // Preserve its layout while resetting the editor generation/composition.
+    // New fields and changed protection policies still use their own defaults.
+    _retainInputLayout = restarting && _inputEditorInfo != null
+      && java.util.Objects.equals(_inputEditorInfo.packageName, info.packageName)
+      && _inputEditorInfo.fieldId == info.fieldId
+      && (_inputEditorInfo.inputType & android.text.InputType.TYPE_MASK_CLASS)
+          == (info.inputType & android.text.InputType.TYPE_MASK_CLASS)
+      && _editorAllowsEngine == nextPolicy.engineAllowed
+      && _pages != null && _pages.enabled.contains(_page.active());
     _inputEditorInfo = info;
     _editorAttached = false;
     _editorSelection.reset(info.initialSelStart, info.initialSelEnd);
@@ -326,7 +338,9 @@ public class Keyboard2 extends InputMethodService
     EditorPolicy policy = EditorPolicy.from(_inputEditorInfo, this);
     _editorAllowsEngine = policy.engineAllowed;
     _editorAttached = true;
-    _page.select(policy.engineAllowed ? _preferredLayout : "en");
+    if (!_retainInputLayout || !policy.engineAllowed && _page.mode() == InputRouter.Mode.CHINESE)
+      _page.select(policy.engineAllowed ? _preferredLayout : "en");
+    _retainInputLayout = false;
     _inputController.startEditor(transaction -> apply_input_transaction(connection, transaction),
         _page.mode(), policy.engineAllowed, policy.learning);
   }
@@ -387,6 +401,7 @@ public class Keyboard2 extends InputMethodService
   {
     if (_inputController != null) _inputController.finishEditor();
     _inputEditorInfo = null;
+    _retainInputLayout = false;
     _editorAttached = false;
     super.onFinishInput();
   }

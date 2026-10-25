@@ -54,7 +54,7 @@ public final class PageEditorInteractionTest
         for (int d = 0; d < 9; d++) literal("en", 1, 2, d, "C12345678".substring(d, d+1));
         require(By.desc("Shift layer preview")).click();
         literal("en", 1, 2, 0, "转"); literal("en", 1, 2, 7, "上");
-        key("en", 1, 2); shot("editor-eight-directions"); closeDialog();
+        key("en", 1, 2); position(0); shot("editor-eight-directions"); closeDialog();
         key("en", 3, 2); UiObject2 shared = position(7);
         assertFalse(shared.isEnabled()); assertTrue(shared.getText().contains(context.getString(R.string.page_shared_status))); closeDialog();
         device.setOrientationLeft(); orientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
@@ -97,7 +97,11 @@ public final class PageEditorInteractionTest
       choose("en_fn"); int before=events.size(); touch(0,0,2); function(before,KeyEvent.KEYCODE_F12); expect("1","typed-f12");
       choose("symbols"); category("math"); touch(3,2,2);
       assertTrue(device.wait(Until.hasObject(By.res(pkg,"miancak_symbol_page").text(context.getString(R.string.symbol_page,2,5))),15000));
-      clear(); touch(0,0,0); expect("符","symbol-page-edit");
+      clear();
+      instrumentation.runOnMainSync(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).restartInput(current().first));
+      assertTrue("Connection restart changed the chosen symbol layout",device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: symbols;")),15000));
+      assertTrue(device.wait(Until.hasObject(By.res(pkg,"miancak_symbol_page").text(context.getString(R.string.symbol_page,2,5))),15000));
+      touch(0,0,0); expect("符","symbol-page-edit");
       choose("en"); clear(); roundtrip(1,2,7); expect("上","roundtrip-shift"); circle(); expect("上转","circle-shift");
       before=events.size(); roundtrip(0,0,2); function(before,KeyEvent.KEYCODE_F1); expect("上转","gesture-fn-fallback");
       shot(restartOnly?"editor-after-restart":"editor-input"); choose("zh");
@@ -123,11 +127,11 @@ public final class PageEditorInteractionTest
     context.startActivity(new Intent(context,ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertTrue(device.wait(Until.hasObject(By.desc("first_editor")),15000));
     device.findObject(By.desc("first_editor")).click();
+    final android.widget.EditText[] target={null};
     instrumentation.runOnMainSync(() -> {
-      ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();
+      ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();target[0]=a.first;
       a.first.setOnKeyListener((v,code,event)->{if(code>=KeyEvent.KEYCODE_F1 && code<=KeyEvent.KEYCODE_F12){events.add(new KeyEvent(event));return true;}return false;});
-      a.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(a.first,InputMethodManager.SHOW_IMPLICIT));
-    }); assertNotNull(keyboard());device.waitForIdle();
+    }); ImeTestFocus.show(instrumentation,context,target[0]); assertNotNull(keyboard());device.waitForIdle();
   }
   private void clear(){instrumentation.runOnMainSync(()->current().first.setText(""));instrumentation.waitForIdleSync();}
   private void expect(String expected,String name)throws Exception

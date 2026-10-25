@@ -120,7 +120,7 @@
   <string name="page_empty_status">Cleared</string>
   <string name="page_follow_normal_status">Follows normal action</string>
   <string name="page_shared_status">Shared · fixed</string>
-  <string name="page_editor_scroll_help">Scroll horizontally to see every key. Each key shows its center and all eight directions. Shared controls are fixed across layouts. Added digit rows and landscape splitting keep these edits.</string>
+  <string name="page_editor_scroll_help">Scroll left/right for more keys. Each key shows its center and eight directions.</string>
   <string name="page_symbol_content">Choose symbol category / page</string>
   <string name="page_edit_pair">Edit paired layout: %s</string>
   <string name="page_position_accessibility">%1$s: %2$s; %3$s</string>

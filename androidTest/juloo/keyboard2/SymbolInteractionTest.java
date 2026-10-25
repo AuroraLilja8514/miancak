@@ -37,9 +37,8 @@ public final class SymbolInteractionTest
     assertNotNull("Receiver must be visible before requesting the IME", field); field.click();
     instrumentation.runOnMainSync(() -> {
       activity.first.requestFocus();
-      activity.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
-          .showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT));
     });
+    ImeTestFocus.show(instrumentation,context,activity.first);
     assertNotNull(keyboard()); choose("symbols");
     try
     {
