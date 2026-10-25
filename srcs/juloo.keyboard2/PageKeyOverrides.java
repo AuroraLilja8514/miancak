@@ -15,9 +15,11 @@ public final class PageKeyOverrides
   private final JSONObject pages;
   public PageKeyOverrides() { pages = new JSONObject(); }
   private PageKeyOverrides(JSONObject pages) { this.pages = pages; }
+  public static String raw(SharedPreferences preferences)
+  { Object value = preferences.getAll().get(KEY); return value instanceof String ? (String)value : "{}"; }
   public static PageKeyOverrides load(SharedPreferences preferences)
   {
-    try { return new PageKeyOverrides(new JSONObject(preferences.getString(KEY, "{}"))); }
+    try { return new PageKeyOverrides(new JSONObject(raw(preferences))); }
     catch (Exception error) { return new PageKeyOverrides(); }
   }
   public PageKeyOverrides copy()
@@ -74,7 +76,11 @@ public final class PageKeyOverrides
           try
           {
             KeyValue value = normal == null ? key.keys[direction] : normal.isEmpty() ? null : parse(normal);
-            if (shifted != null) value = KeyValue.layered(value, shifted.isEmpty() ? null : parse(shifted));
+            if (shifted != null)
+            {
+              if (value != null && value.getKind() == KeyValue.Kind.Layered) value = value.layer(false);
+              value = KeyValue.layered(value, shifted.isEmpty() ? null : parse(shifted));
+            }
             key = key.withKeyValue(direction, value);
           }
           catch (Exception ignored) { /* Keep usable built-in action if stored data is damaged. */ }
@@ -94,7 +100,7 @@ public final class PageKeyOverrides
       if (next.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES)
         throw new IllegalArgumentException("Layout settings exceed the 256 KiB file limit");
       preferences.edit().putString(KEY + "_previous_bundle", before)
-        .putString(KEY + "_previous", preferences.getString(KEY, "{}"))
+        .putString(KEY + "_previous", raw(preferences))
         .putString(KEY, pages.toString()).apply();
     }
     catch (IllegalArgumentException error) { throw error; }
@@ -136,7 +142,7 @@ public final class PageKeyOverrides
     if (!phonetic.equals("pinyin") && !phonetic.equals("zhuyin")) throw new IllegalArgumentException("Invalid phonetic entry");
     PageConfig config = new PageConfig(root.getString("order"), root.getString("enabled"), phonetic);
     // Validate everything before committing any of the configuration.
-    preferences.edit().putString(KEY + "_previous", preferences.getString(KEY, "{}"))
+    preferences.edit().putString(KEY + "_previous", raw(preferences))
       .putString(KEY + "_previous_bundle", export(preferences))
       .putString(KEY, pages.toString()).putString("pages_order", PageConfig.csv(config.order))
       .putString("pages_enabled", PageConfig.csv(config.enabled)).putInt("pages_version", 2)

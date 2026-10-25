@@ -101,8 +101,7 @@ public class Keyboard2 extends InputMethodService
     data = LayoutControls.normalize(data);
     data = PageLayouts.links(data, _page.active(), _pages);
     if (PageConfig.isVariant(_page.active())) data = FnLayout.materialize(data, _page.active().equals("zh_fn"));
-    if (_keyOverrides != null) data = _keyOverrides.apply(_page.active(), data);
-    return LayoutModifier.modify_layout(data, PageConfig.isVariant(_page.active()));
+    return LayoutModifier.modify_layout(data, PageConfig.isVariant(_page.active()), _keyOverrides, _page.active());
   }
 
   void setTextLayout(int l)
@@ -666,9 +665,9 @@ public class Keyboard2 extends InputMethodService
         _currentSpecialLayout = _keyOverrides.apply(_page.active(), PageLayouts.numeric(getResources(), PageConfig.isVariant(_page.active()), _localeTextLayout)); break;
       case "greek":
         _currentSpecialLayout = LayoutModifier.modify_numpad(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active())), _localeTextLayout); break;
-      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply(_symbols.scope(), PageLayouts.symbols(getResources(), _symbols))); break;
+      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(PageLayouts.symbols(getResources(), _symbols), false, _keyOverrides, _symbols.scope()); break;
       case "pinyin": case "pinyin_finals": case "zhuyin":
-        _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active()))); break;
+        _currentSpecialLayout = LayoutModifier.modify_layout(PageLayouts.base(getResources(), _page.active()), false, _keyOverrides, _page.active()); break;
       default: _currentSpecialLayout = null; break;
     }
     _keyboard_layout_view.setKeyboard(current_layout());

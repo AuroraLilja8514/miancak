@@ -13,6 +13,12 @@ public final class KeyModifier
   {
     _modmap = mm;
   }
+  public static KeyValue preview(KeyValue key, boolean shift, Modmap map)
+  {
+    Modmap before = _modmap; _modmap = map;
+    try { return modify(key, shift ? Pointers.Modifiers.EMPTY.with_extra_mod(KeyValue.SHIFT) : Pointers.Modifiers.EMPTY); }
+    finally { _modmap = before; }
+  }
 
   /** Modify a key according to modifiers. */
   public static KeyValue modify(KeyValue k, Pointers.Modifiers mods)
@@ -20,11 +26,19 @@ public final class KeyModifier
     if (k == null)
       return null;
     boolean layered = k.getKind() == KeyValue.Kind.Layered;
-    if (layered) k = k.layer(mods.has(KeyValue.Modifier.SHIFT));
+    boolean gestureLayer = false;
+    if (layered)
+    {
+      boolean shift = mods.has(KeyValue.Modifier.SHIFT);
+      if (!shift && mods.has(KeyValue.Modifier.GESTURE) && !k.layer(false).equals(k.layer(true)))
+      { shift = true; gestureLayer = true; }
+      k = k.layer(shift);
+    }
     int n_mods = mods.size();
     KeyValue r = k;
     for (int i = 0; i < n_mods; i++)
-      if (!(layered && mods.get(i).equals(KeyValue.SHIFT)))
+      if (!(layered && mods.get(i).equals(KeyValue.SHIFT))
+          && !(gestureLayer && mods.get(i).getKind() == KeyValue.Kind.Modifier && mods.get(i).getModifier() == KeyValue.Modifier.GESTURE))
       r = modify(r, mods.get(i));
     /* Keys with an empty string are placeholder keys. */
     if (r.getString().length() == 0)
@@ -64,7 +78,11 @@ public final class KeyModifier
   public static KeyValue modify(KeyValue k, KeyValue.Modifier mod)
   {
     if (k.getKind() == KeyValue.Kind.Layered)
-      return mod == KeyValue.Modifier.SHIFT ? k.layer(true) : modify(k.layer(false), mod);
+    {
+      if (mod == KeyValue.Modifier.SHIFT) return k.layer(true);
+      if (mod == KeyValue.Modifier.GESTURE && !k.layer(false).equals(k.layer(true))) return k.layer(true);
+      return modify(k.layer(false), mod);
+    }
     switch (mod)
     {
       case CTRL: return apply_ctrl(k);
