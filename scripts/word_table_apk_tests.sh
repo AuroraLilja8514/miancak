@@ -5,6 +5,16 @@ collect() {
   timeout 15s adb logcat -b all -d > test-results/logcat.txt || true
   timeout 10s adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   timeout 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  python3 - <<'PY'
+from pathlib import Path
+import base64
+for name in ('word-legacy-choice.png', 'word-tables-prepare-ready.png'):
+    path = Path('test-results/device') / name
+    if path.is_file():
+        print('MIANCAK_SCREENSHOT_BEGIN ' + name)
+        print(base64.b64encode(path.read_bytes()).decode('ascii'))
+        print('MIANCAK_SCREENSHOT_END')
+PY
 }
 trap collect EXIT
 actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"

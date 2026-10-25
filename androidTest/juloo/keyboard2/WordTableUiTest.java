@@ -65,6 +65,7 @@ public final class WordTableUiTest
         {
           openManager(); click("Use legacy vocabulary"); ready(false);
           assertEquals(id(WordTableStore.LEGACY), store.view().selection.base);
+          screenshot("word-legacy-choice");
           input("nihao", "你好", true, true);
           openManager(); click("Restore bundled word tables"); ready(false);
           assertEquals(WordTableStore.BUNDLED, store.view().selection.base);

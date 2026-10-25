@@ -29,6 +29,16 @@ with tarfile.open("test-results/private-evidence.tar") as archive:
     archive.extractall(out, filter="data")
 PY
   fi
+  python3 - <<'PY'
+from pathlib import Path
+import base64
+for name in ('editor-eight-directions.png', 'editor-landscape-draft.png', 'symbols-landscape.png', 'fn-final.png'):
+    path = Path('test-results/device') / name
+    if path.is_file():
+        print('MIANCAK_SCREENSHOT_BEGIN ' + name)
+        print(base64.b64encode(path.read_bytes()).decode('ascii'))
+        print('MIANCAK_SCREENSHOT_END')
+PY
   adb shell run-as org.miancak.keyboard.debug du -sk files/rime > test-results/rime-footprint-kib.txt || true
   cat test-results/rime-footprint-kib.txt
   if [[ -f test-results/device/native-metrics.json ]]; then
