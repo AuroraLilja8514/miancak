@@ -94,8 +94,14 @@ public final class SymbolInteractionTest
       device.unfreezeRotation();
       java.io.File dir = context.getExternalFilesDir("test-results");
       assertTrue(dir.isDirectory() || dir.mkdirs());
-      try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "symbol-actual-output.txt")))
-      { out.write(output.getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+      String actual = receivedText();
+      org.json.JSONObject report = new org.json.JSONObject().put("expected", output)
+        .put("actual", actual == null ? org.json.JSONObject.NULL : actual)
+        .put("api", android.os.Build.VERSION.SDK_INT)
+        .put("orientation", context.getResources().getConfiguration().orientation);
+      try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "symbol-receiver.json")))
+      { out.write(report.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+      device.takeScreenshot(new java.io.File(dir, "symbol-final-state.png"));
       instrumentation.runOnMainSync(() -> {
         for (android.app.Activity current : new java.util.ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)))
           if (current instanceof ImeTestActivity) current.finish();
@@ -179,12 +185,24 @@ public final class SymbolInteractionTest
     String actual = ""; long end = SystemClock.uptimeMillis() + 15000;
     do
     {
-      UiObject2 editor = device.findObject(By.desc("first_editor"));
-      if (editor != null) actual = editor.getText();
+      String received = receivedText();
+      if (received != null) actual = received;
       if (output.equals(actual)) return;
       SystemClock.sleep(30);
     } while (SystemClock.uptimeMillis() < end);
     assertEquals(output, actual);
+  }
+  /** The resized landscape fixture may scroll the receiver off screen. Read
+   * its current live EditText, never a stale pre-rotation Activity reference. */
+  private String receivedText()
+  {
+    final String[] value = {null};
+    instrumentation.runOnMainSync(() -> {
+      for (android.app.Activity current : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))
+        if (current instanceof ImeTestActivity && ((ImeTestActivity)current).first.hasFocus())
+          value[0] = ((ImeTestActivity)current).first.getText().toString();
+    });
+    return value[0];
   }
   private void screenshot(String name)
   {
