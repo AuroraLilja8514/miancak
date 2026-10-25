@@ -136,13 +136,20 @@ public final class FirstInstallTest
     UiObject2 settings = object("btnLaunchSettingsActivity");
     assertNotNull("Shipped settings action is missing", settings);
     settings.click();
-    assertTrue(device.wait(Until.hasObject(By.textContains("MIANCAK QWERTY")), 15000));
+    assertTrue(device.wait(Until.hasObject(By.text(context.getString(R.string.pages_title))), 15000));
   }
 
   private void assertDefaultLayout()
   {
-    assertTrue("First-run layout is not MIANCAK QWERTY",
-        device.wait(Until.hasObject(By.textContains("MIANCAK QWERTY")), 15000));
+    assertTrue(device.wait(Until.hasObject(By.text(context.getString(R.string.pages_title))), 15000));
+    android.content.SharedPreferences preferences = DirectBootAwarePreferences.get_shared_preferences(context);
+    assertEquals("[\"miancak_qwerty\"]", preferences.getString("layouts", ""));
+    assertEquals(0, preferences.getInt("current_layout_portrait", 0));
+    assertEquals(0, preferences.getInt("current_layout_landscape", 0));
+    java.util.List<KeyboardData> layouts = juloo.keyboard2.prefs.LayoutsPreference.load_from_preferences(context.getResources(), preferences);
+    assertEquals(1, layouts.size());
+    assertEquals("MIANCAK QWERTY", layouts.get(0).name);
+    assertTrue(layouts.get(0).getKeys().containsKey(KeyValue.getKeyByName("。")));
   }
 
   private void enableThroughAndroidUi() throws Exception

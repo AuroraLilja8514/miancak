@@ -86,6 +86,7 @@ public final class UpgradeApkTest
         try (FileOutputStream out = new FileOutputStream(marker())) { out.write("kept".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         for (Context store : stores())
           prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-0.3.0")
+            .putString("upgrade_previous_layouts", prefs(store).getString("miancak_previous_layouts", ""))
             .putInt("current_layout_portrait", 0).putInt("current_layout_landscape", 0).putInt("miancak_layout_version", 0)
             .putInt("pages_version", 1).putString("pages_fn_zh", "pinyin").putString("pages_fn_en", "clipboard")
             .putString("page_customization", "{\"zh\":{\"0:0:1\":\":literal:'保留'\"}}").commit();
@@ -93,7 +94,7 @@ public final class UpgradeApkTest
       }
       else
       {
-        assertTrue(canonical().getString("miancak_previous_layouts", "").contains("latn_dvorak"));
+        assertEquals(canonical().getString("upgrade_previous_layouts", ""), canonical().getString("miancak_previous_layouts", ""));
         assertEquals("[\"miancak_qwerty\"]", canonical().getString("layouts", ""));
         assertEquals(1, canonical().getInt("miancak_layout_version", 0));
         assertFalse(canonical().getBoolean("lock_double_tap", true));

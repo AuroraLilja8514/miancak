@@ -36,6 +36,9 @@ public final class FnLayout
           .withKeyValue(2, KeyValue.getKeyByName("page_up"))
           .withKeyValue(3, KeyValue.getKeyByName("end"))
           .withKeyValue(4, KeyValue.getKeyByName("page_down"));
+      if (original.anticircle != null)
+        key = new KeyboardData.Key(key.keys, KeyModifier.fn_value(original.anticircle, base.modmap),
+            flags(key), key.width, key.shift, key.indication, key.role);
       return LayoutControls.normalize(key);
     });
     // Shared Space keeps its center. Preserve the upstream NBSP elsewhere.
@@ -44,7 +47,12 @@ public final class FnLayout
       if (value != null && !value.getString().isEmpty() && !result.getKeys().containsKey(value))
       {
         List<java.util.Map.Entry<KeyValue, KeyboardData.PreferredPos>> extra = new ArrayList<>();
-        extra.add(new SimpleEntry<>(value, KeyboardData.PreferredPos.ANYWHERE));
+        KeyboardData.PreferredPos position = new KeyboardData.PreferredPos(new KeyboardData.KeyPos[] {
+            new KeyboardData.KeyPos(1, 1, -1), new KeyboardData.KeyPos(1, 2, -1),
+            new KeyboardData.KeyPos(1, 3, -1), new KeyboardData.KeyPos(1, -1, -1),
+            new KeyboardData.KeyPos(-1, -1, -1)});
+        if (value.equals(KeyValue.getKeyByName("nbsp"))) position.next_to = KeyValue.getKeyByName("space");
+        extra.add(new SimpleEntry<>(value, position));
         result = result.addExtraKeys(extra.iterator());
       }
     if (chinese)
@@ -65,10 +73,15 @@ public final class FnLayout
   private static KeyboardData.Key replace(KeyboardData.Key key, int slot, KeyValue value, boolean localized)
   {
     KeyValue[] keys = key.keys.clone(); keys[slot] = value;
-    int flags = 0;
-    for (int i = 0; i < 9; i++) if (key.keyHasFlag(i, KeyboardData.Key.F_LOC)) flags |= KeyboardData.Key.F_LOC << i;
+    int flags = flags(key);
     if (!localized) flags &= ~(KeyboardData.Key.F_LOC << slot);
     return new KeyboardData.Key(keys, key.anticircle, flags, key.width, key.shift, key.indication, key.role);
+  }
+  private static int flags(KeyboardData.Key key)
+  {
+    int flags = 0;
+    for (int i = 0; i < 9; i++) if (key.keyHasFlag(i, KeyboardData.Key.F_LOC)) flags |= KeyboardData.Key.F_LOC << i;
+    return flags;
   }
   private static String chinese(char value)
   {

@@ -8,9 +8,10 @@ public final class PagePreferences
   private PagePreferences() {}
   public static PageConfig load(SharedPreferences preferences)
   {
-    return new PageConfig(preferences.getString("pages_order", null),
-        preferences.getString("pages_enabled", null));
+    return new PageConfig(string(preferences, "pages_order"), string(preferences, "pages_enabled"));
   }
+  private static String string(SharedPreferences preferences, String key)
+  { Object value = preferences.getAll().get(key); return value instanceof String ? (String)value : null; }
   public static void save(SharedPreferences preferences, PageConfig config)
   {
     preferences.edit().putString("pages_order", PageConfig.csv(config.order))
@@ -19,15 +20,17 @@ public final class PagePreferences
   /** Preserve the exact v1 settings before retiring its arbitrary Fn targets. */
   public static void migrate(SharedPreferences preferences)
   {
-    if (preferences.getInt("pages_version", 0) >= 2) return;
+    java.util.Map<String, ?> values = preferences.getAll();
+    Object version = values.get("pages_version");
+    if (version instanceof Integer && (Integer)version >= 2) return;
     try
     {
       org.json.JSONObject previous = new org.json.JSONObject().put("version", 1)
-        .put("order", preferences.getString("pages_order", null))
-        .put("enabled", preferences.getString("pages_enabled", null))
-        .put("fn_zh", preferences.getString("pages_fn_zh", null))
-        .put("fn_en", preferences.getString("pages_fn_en", null))
-        .put("pages_raw", preferences.getString(PageKeyOverrides.KEY, "{}"));
+        .put("order", values.get("pages_order"))
+        .put("enabled", values.get("pages_enabled"))
+        .put("fn_zh", values.get("pages_fn_zh"))
+        .put("fn_en", values.get("pages_fn_en"))
+        .put("pages_raw", values.containsKey(PageKeyOverrides.KEY) ? values.get(PageKeyOverrides.KEY) : "{}");
       PageConfig config = load(preferences);
       SharedPreferences.Editor edit = preferences.edit();
       if (!preferences.contains("pages_v1_backup")) edit.putString("pages_v1_backup", previous.toString());

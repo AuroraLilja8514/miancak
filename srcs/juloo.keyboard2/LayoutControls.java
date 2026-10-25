@@ -22,6 +22,9 @@ public final class LayoutControls
   }
   public static KeyboardData.Key normalize(KeyboardData.Key key)
   {
+    for (int slot = 0; slot < 9; slot++)
+      if (KeyValue.getKeyByName("fn").equals(key.keys[slot]))
+        key = key.withKeyValue(slot, KeyValue.getKeyByName("fn_page"));
     if (center(key, "space"))
       return key.withKeyValue(7, KeyValue.getKeyByName("switch_forward"))
         .withKeyValue(8, KeyValue.getKeyByName("switch_backward"))

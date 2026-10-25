@@ -51,8 +51,10 @@ public final class FnInteractionTest
     activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     instrumentation.runOnMainSync(() -> {
       activity.first.setOnKeyListener((view, code, event) -> {
-        if (code >= KeyEvent.KEYCODE_F1 && code <= KeyEvent.KEYCODE_F12)
-        { received.add(new KeyEvent(event)); return true; }
+        boolean function = code >= KeyEvent.KEYCODE_F1 && code <= KeyEvent.KEYCODE_F12;
+        if (function || code >= KeyEvent.KEYCODE_DPAD_UP && code <= KeyEvent.KEYCODE_DPAD_RIGHT)
+          received.add(new KeyEvent(event));
+        if (function) return true;
         return false;
       });
       activity.first.requestFocus();
@@ -90,8 +92,38 @@ public final class FnInteractionTest
       press("ϑ"); awaitText("（(ϑ"); press("fn_page"); awaitPage("greek");
       choose("symbols"); press("fn_page"); awaitPage("symbols");
       assertTrue(keyboard().getContentDescription().contains("Fn: false"));
+      choose("zh_fn"); press("switch_forward"); awaitPage("en");
+      press("switch_backward"); awaitPage("zh_fn");
+      choose("en_fn");
+      for (String direction : new String[] {"up", "down", "left", "right"})
+      {
+        int count = received.size(); press(direction);
+        long end = SystemClock.uptimeMillis() + 10000;
+        while (received.size() < count + 2 && SystemClock.uptimeMillis() < end) SystemClock.sleep(20);
+        assertEquals(count + 2, received.size());
+        int code = KeyValue.getKeyByName(direction).getKeyevent();
+        assertEquals(code, received.get(count).getKeyCode());
+        assertEquals(code, received.get(count + 1).getKeyCode());
+      }
+      press("layout_picker");
+      assertNotNull(device.wait(Until.findObject(By.res(context.getPackageName(), "miancak_page_chooser")), 15000));
+      device.pressBack(); awaitPage("en_fn");
+      instrumentation.runOnMainSync(() -> { activity.first.setText("ab"); activity.first.setSelection(1); });
+      press("backspace"); awaitText("b");
+      instrumentation.runOnMainSync(() -> activity.first.setSelection(0));
+      press("delete"); awaitText("");
     }
-    finally { device.unfreezeRotation(); activity.finish(); }
+    finally
+    {
+      java.io.File dir = context.getExternalFilesDir("test-results");
+      assertTrue(dir.isDirectory() || dir.mkdirs());
+      StringBuilder report = new StringBuilder("action,keyCode,metaState\n");
+      for (KeyEvent event : received) report.append(event.getAction()).append(',').append(event.getKeyCode()).append(',').append(event.getMetaState()).append('\n');
+      try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "fn-received-events.csv")))
+      { out.write(report.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+      device.takeScreenshot(new java.io.File(dir, "fn-final.png"));
+      device.unfreezeRotation(); instrumentation.runOnMainSync(() -> activity.finish());
+    }
   }
   private UiObject2 keyboard()
   { return device.wait(Until.findObject(By.res(context.getPackageName(), "keyboard_view")), 15000); }
@@ -106,13 +138,15 @@ public final class FnInteractionTest
     UiObject2 choice = null;
     for (int attempt = 0; attempt < 28; attempt++)
     {
-      choice = device.findObject(By.desc("Choose page: " + id));
+      choice = device.wait(Until.findObject(By.desc("Choose page: " + id)), 400);
       if (choice != null && choice.getVisibleBounds().height() > 16) break;
       UiObject2 chooser = device.findObject(By.res(context.getPackageName(), "miancak_page_chooser"));
-      assertNotNull(chooser); chooser.setGestureMargin(32);
-      chooser.scroll(attempt < 14 ? androidx.test.uiautomator.Direction.DOWN : androidx.test.uiautomator.Direction.UP, .5f);
+      assertNotNull(chooser); chooser.setGestureMargin(Math.round(32 * context.getResources().getDisplayMetrics().density));
+      chooser.scroll(attempt < 14 ? androidx.test.uiautomator.Direction.DOWN : androidx.test.uiautomator.Direction.UP,
+          .5f, Math.round(120 * context.getResources().getDisplayMetrics().density));
+      device.waitForIdle();
     }
-    assertNotNull(choice); choice.click(); awaitPage(id);
+    assertNotNull("Enabled layout is unreachable in chooser: " + id, choice); choice.click(); awaitPage(id);
   }
   private void press(String name)
   {
@@ -122,6 +156,8 @@ public final class FnInteractionTest
       : LayoutModifier.modify_layout(logical, PageConfig.isVariant(page));
     KeyboardData.KeyPos position = data.getKeys().get(KeyValue.getKeyByName(name));
     assertNotNull("Missing actual action " + name + " on " + page, position);
+    if (name.equals("f11")) { assertEquals(0, position.row); assertEquals(8, position.col); assertEquals(1, position.dir); }
+    if (name.equals("f12")) { assertEquals(0, position.row); assertEquals(9, position.col); assertEquals(3, position.dir); }
     Config config = Config.globalConfig(); Rect bounds = keyboard().getVisibleBounds();
     float unit = (bounds.width() - 2 * config.horizontal_margin) / data.keysWidth;
     float rowSize = Math.min(config.keyboard_rows_height_pixels, (config.screenHeightPixels - config.keyboard_rows_height_pixels) / data.keysHeight);

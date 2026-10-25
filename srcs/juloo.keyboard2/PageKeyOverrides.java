@@ -83,7 +83,7 @@ public final class PageKeyOverrides
       }
       rows.add(data.rows.get(r).with_keys(keys));
     }
-    return data.with_rows(rows);
+    return LayoutControls.normalize(data.with_rows(rows));
   }
   public void save(SharedPreferences preferences)
   {

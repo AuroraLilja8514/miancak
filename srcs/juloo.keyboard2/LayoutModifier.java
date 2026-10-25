@@ -79,7 +79,10 @@ public final class LayoutModifier
       for (Map.Entry<KeyValue, KeyboardData.PreferredPos> entry : extra_keys.entrySet())
       {
         KeyValue value = KeyModifier.fn_value(entry.getKey(), kw.modmap);
-        if (!value.getString().isEmpty()) mapped.put(value, entry.getValue());
+        KeyboardData.PreferredPos position = new KeyboardData.PreferredPos(entry.getValue());
+        if (position.next_to != null && !kw_keys.contains(position.next_to))
+          position.next_to = KeyModifier.fn_value(position.next_to, kw.modmap);
+        if (!value.getString().isEmpty()) mapped.put(value, position);
       }
       extra_keys.clear(); extra_keys.putAll(mapped);
       Set<KeyValue> mappedRemoval = new HashSet<>();

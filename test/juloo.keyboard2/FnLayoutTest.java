@@ -50,4 +50,12 @@ public class FnLayoutTest
     assertEquals(KeyValue.getKeyByName("("), result.modmap.get(Modmap.M.Shift, KeyValue.getKeyByName("（")));
     assertNull(data.modmap);
   }
+  @Test public void explicitAnticircleActionAlsoRetainsItsFnMapping()
+  {
+    KeyboardData.Key original = new KeyboardData.Key(key("d").keys, KeyValue.getKeyByName("1"), 0,
+        1, 0, null, KeyboardData.Key.Role.Normal);
+    KeyboardData.Key result = FnLayout.materialize(layout(original), false).rows.get(0).keys.get(0);
+    assertEquals(KeyValue.getKeyByName("f1"), result.anticircle);
+    assertEquals(KeyValue.getKeyByName("1"), original.anticircle);
+  }
 }

@@ -60,6 +60,18 @@ public final class PageCustomizationTest
     assertEquals(KeyValue.getKeyByName("1"), normal.rows.get(0).keys.get(0).keys[2]);
   }
 
+  @Test public void corruptPreferenceTypesRecoverWithoutLosingTheirBackup() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    preferences.edit().putInt("pages_order", 9).putBoolean("pages_enabled", false)
+      .putInt("pages_fn_zh", 7).putString("pages_version", "invalid").commit();
+    PagePreferences.migrate(preferences);
+    assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
+    JSONObject previous = new JSONObject(preferences.getString("pages_v1_backup", ""));
+    assertEquals(9, previous.getInt("order")); assertFalse(previous.getBoolean("enabled"));
+    assertEquals(7, previous.getInt("fn_zh"));
+  }
+
   private Context context() { return InstrumentationRegistry.getInstrumentation().getTargetContext(); }
   private SharedPreferences prefs()
   {
