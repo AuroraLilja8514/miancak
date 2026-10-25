@@ -128,7 +128,7 @@ public final class FnInteractionTest
     }
     finally
     {
-      java.io.File dir = context.getExternalFilesDir("test-results");
+      java.io.File dir = TestEvidence.directory(context);
       assertTrue(dir.isDirectory() || dir.mkdirs());
       StringBuilder report = new StringBuilder("action,keyCode,metaState\n");
       for (KeyEvent event : received) report.append(event.getAction()).append(',').append(event.getKeyCode()).append(',').append(event.getMetaState()).append('\n');

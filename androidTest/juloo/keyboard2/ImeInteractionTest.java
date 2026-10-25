@@ -45,6 +45,7 @@ public class ImeInteractionTest
       new FnInteractionTest().pairedVariantsDeliverFunctionEventsAndKeepSharedControls();
       new SymbolInteractionTest().categoriesPagesWidthsAndControlsDeliverActualText();
     }
+    new PageEditorInteractionTest().editAndVerify(InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"));
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
     pkg = context.getPackageName();
@@ -394,7 +395,7 @@ public class ImeInteractionTest
       type("nihao"); first = candidate(); gesture('c', -1, -1);
       awaitWeb(first + "。");
       screenshot("web-editor");
-      File metrics = new File(context.getExternalFilesDir("test-results"), "interaction-metrics.txt");
+      File metrics = new File(TestEvidence.directory(context), "interaction-metrics.txt");
       try (FileOutputStream stream = new FileOutputStream(metrics))
       {
         stream.write(("Complete touch/lifecycle scenario ms=" + (SystemClock.elapsedRealtime() - began) + "\nEmulator API=" + android.os.Build.VERSION.SDK_INT + "\n").getBytes(StandardCharsets.UTF_8));
@@ -611,7 +612,7 @@ public class ImeInteractionTest
     assertTrue("UI frames did not advance before screenshot", rendered.await(5, TimeUnit.SECONDS));
     instrumentation.waitForIdleSync();
     device.waitForIdle();
-    File directory = context.getExternalFilesDir("test-results");
+    File directory = TestEvidence.directory(context);
     assertTrue(directory.isDirectory() || directory.mkdirs());
     assertTrue("Screenshot capture failed: " + name, device.takeScreenshot(new File(directory, name + ".png")));
     device.dumpWindowHierarchy(new File(directory, name + ".xml"));

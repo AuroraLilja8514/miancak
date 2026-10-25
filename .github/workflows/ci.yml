@@ -219,7 +219,7 @@ jobs:
         api: [23, 35]
     needs: build-debug
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8

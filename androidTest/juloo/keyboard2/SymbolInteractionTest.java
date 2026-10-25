@@ -92,7 +92,7 @@ public final class SymbolInteractionTest
     finally
     {
       device.unfreezeRotation();
-      java.io.File dir = context.getExternalFilesDir("test-results");
+      java.io.File dir = TestEvidence.directory(context);
       assertTrue(dir.isDirectory() || dir.mkdirs());
       String actual = receivedText();
       org.json.JSONObject report = new org.json.JSONObject().put("expected", output)
@@ -206,7 +206,7 @@ public final class SymbolInteractionTest
   }
   private void screenshot(String name)
   {
-    java.io.File dir = context.getExternalFilesDir("test-results"); assertTrue(dir.isDirectory() || dir.mkdirs());
+    java.io.File dir = TestEvidence.directory(context); assertTrue(dir.isDirectory() || dir.mkdirs());
     device.waitForIdle(); device.takeScreenshot(new java.io.File(dir, name + ".png"));
   }
 }
