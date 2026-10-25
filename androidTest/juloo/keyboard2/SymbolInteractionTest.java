@@ -43,29 +43,7 @@ public final class SymbolInteractionTest
     assertNotNull(keyboard()); choose("symbols");
     try
     {
-      // Independent reviewed first-output samples for every content page.
-      String[][] cases = {{"common", "，"}, {"punctuation", "，", "‰", "⁉"}, {"brackets", "（", "⟨", "⦓"},
-        {"math", "＋", "∯", "⊕", "⋃", "ℕ"}, {"arrows", "←", "↣", "⇇", "⤷"},
-        {"currency", "￥", "₹", "㎑"}, {"shapes", "○", "▪", "✕"}};
-      for (String[] row : cases)
-      {
-        assertEquals(row.length - 1, SymbolCatalog.pageCount(row[0]));
-        category(row[0]);
-        for (int page = 0; page < row.length - 1; page++)
-        {
-          awaitSymbolPage(row[0], page);
-          touch(0, 0, 0); output += row[page + 1]; awaitText();
-          touch(3, 2, 2); state.turn(1);
-        }
-        // Last-page next and Fn are both no-ops, without changing category,
-        // policy, Fn indicator, output or a hidden modifier.
-        awaitSymbolPage(row[0], row.length - 2);
-        touch(3, 1, 0); awaitSymbolPage(row[0], row.length - 2);
-        assertTrue(keyboard().getContentDescription().contains("Fn: false")); awaitText();
-        category(row[0]); awaitSymbolPage(row[0], 0);
-        touch(3, 2, 1); awaitSymbolPage(row[0], 0);
-        touch(0, 0, 0); output += row[1]; awaitText();
-      }
+      verifyEveryCategoryAndPage();
       category("common"); touch(2, 0, 0); touch(0, 0, 0); output += ","; awaitText();
       touch(2, 0, 0); touch(1, 2, 0); output += "【"; awaitText();
       category("math"); touch(0, 0, 1); output += "±"; awaitText();
@@ -112,8 +90,35 @@ public final class SymbolInteractionTest
       });
     }
   }
+  private void verifyEveryCategoryAndPage() throws Exception
+  {
+      // Independent reviewed first-output samples for every content page.
+      String[][] cases = {{"common", "，"}, {"punctuation", "，", "‰", "⁉"}, {"brackets", "（", "⟨", "⦓"},
+        {"math", "＋", "∯", "⊕", "⋃", "ℕ"}, {"arrows", "←", "↣", "⇇", "⤷"},
+        {"currency", "￥", "₹", "㎑"}, {"shapes", "○", "▪", "✕"}};
+      for (String[] row : cases)
+      {
+        assertEquals(row.length - 1, SymbolCatalog.pageCount(row[0]));
+        category(row[0]);
+        for (int page = 0; page < row.length - 1; page++)
+        {
+          awaitSymbolPage(row[0], page);
+          touch(0, 0, 0); output += row[page + 1]; awaitText();
+          touch(3, 2, 2); state.turn(1);
+        }
+        // Last-page next and Fn are both no-ops, without changing category,
+        // policy, Fn indicator, output or a hidden modifier.
+        awaitSymbolPage(row[0], row.length - 2);
+        touch(3, 1, 0); awaitSymbolPage(row[0], row.length - 2);
+        assertTrue(keyboard().getContentDescription().contains("Fn: false")); awaitText();
+        category(row[0]); awaitSymbolPage(row[0], 0);
+        touch(3, 2, 1); awaitSymbolPage(row[0], 0);
+        touch(0, 0, 0); output += row[1]; awaitText();
+      }
+  }
   private void category(String id)
   {
+    android.util.Log.i("MIANCAK-Acceptance", "Symbol category " + id);
     UiObject2 choice = null;
     for (int attempt = 0; attempt < 12; attempt++)
     {
@@ -157,6 +162,7 @@ public final class SymbolInteractionTest
   private void choose(String id)
   {
     device.wait(Until.findObject(By.res(pkg, "miancak_pages")), 15000).click();
+    assertNotNull(device.wait(Until.findObject(By.res(pkg, "miancak_page_chooser")), 15000));
     UiObject2 button = null;
     for (int attempt = 0; attempt < 28; attempt++)
     {

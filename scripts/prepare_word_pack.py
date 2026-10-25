@@ -49,8 +49,13 @@ def prepare():
             if not ended or rows != entry['rows']:
                 raise RuntimeError('Source row count/header mismatch: ' + str(path))
             counts.append(dict(entry, duplicates=duplicates))
+            if len(counts) == 2:
+                out.flush()
+                shutil.copyfile(OUT / 'candidate.dict.yaml', OUT / 'core.dict.yaml')
     report = dict(SPEC, files=counts, uniqueRows=len(seen),
                   conversion='8105, base, ext in order; first exact (text,code) wins; weights and readings unchanged; no scheme, Lua, OpenCC, uncoded or auxiliary tables',
+                  coreRows=sum(x['rows'] - x['duplicates'] for x in counts[:2]),
+                  coreSha256=hashlib.sha256((OUT / 'core.dict.yaml').read_bytes()).hexdigest(),
                   candidateSha256=hashlib.sha256((OUT / 'candidate.dict.yaml').read_bytes()).hexdigest(),
                   baselineSha256=hashlib.sha256((OUT / 'baseline.dict.yaml').read_bytes()).hexdigest())
     (OUT / 'provenance.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')

@@ -155,6 +155,7 @@ public final class PageEditorInteractionTest
   private void scrollTo(String desc) throws Exception{new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_vertical")).scrollIntoView(new UiSelector().description(desc));}
   private void key(String id,int r,int c) throws Exception
   {
+    android.util.Log.i("MIANCAK-Acceptance", "Edit " + id + "/" + r + "/" + c);
     String desc="Edit key: "+id+":"+r+":"+c;scrollTo("Editor row: "+id+":"+r);
     new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_keyboard")).setAsHorizontalList().scrollIntoView(new UiSelector().description(desc));
     UiObject2 cell=device.wait(Until.findObject(By.desc(desc)),15000);assertNotNull(cell);
@@ -183,7 +184,9 @@ public final class PageEditorInteractionTest
   private UiObject2 keyboard(){return device.wait(Until.findObject(By.res(pkg,"keyboard_view")),15000);}
   private void choose(String id)
   {
-    device.wait(Until.findObject(By.res(pkg,"miancak_pages")),15000).click();UiObject2 v=null;
+    UiObject2 currentKeyboard=keyboard();
+    if(currentKeyboard!=null&&currentKeyboard.getContentDescription().startsWith("Page: "+id+";")){page=id;return;}
+    require(By.res(pkg,"miancak_pages")).click();require(By.res(pkg,"miancak_page_chooser"));UiObject2 v=null;
     for(int n=0;n<28;n++){v=device.findObject(By.desc("Choose page: "+id));if(v!=null&&v.getVisibleBounds().height()>16)break;UiObject2 list=device.findObject(By.res(pkg,"miancak_page_chooser"));assertNotNull(list);list.setGestureMargin(Math.round(32*context.getResources().getDisplayMetrics().density));list.scroll(n<14?Direction.DOWN:Direction.UP,.5f,Math.round(120*context.getResources().getDisplayMetrics().density));device.waitForIdle();}
     assertNotNull(v);v.click();assertTrue(device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: "+id+";")),15000));page=id;device.waitForIdle();
   }

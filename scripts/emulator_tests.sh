@@ -4,6 +4,7 @@ mkdir -p test-results
 collect() {
   local test_exit=$?
   adb logcat -b all -d > test-results/logcat.txt || true
+  timeout 15s adb shell dumpsys dropbox --print SYSTEM_TOMBSTONE > test-results/tombstones.txt || true
   adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   adb shell uiautomator dump /sdcard/miancak-window.xml || true
   adb pull /sdcard/miancak-window.xml test-results/window.xml || true

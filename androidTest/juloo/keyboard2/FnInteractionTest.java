@@ -219,6 +219,7 @@ public final class FnInteractionTest
   }
   private void press(String name)
   {
+    android.util.Log.i("MIANCAK-Acceptance", "Fn touch " + page + "/" + name);
     KeyboardData logical = PageLayouts.base(context.getResources(), page);
     KeyboardData data = PageConfig.base(page).equals("numeric")
       ? PageLayouts.numeric(context.getResources(), PageConfig.isVariant(page), PageLayouts.base(context.getResources(), "zh"))

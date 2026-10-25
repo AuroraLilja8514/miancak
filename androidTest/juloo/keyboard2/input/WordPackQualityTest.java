@@ -35,7 +35,14 @@ public final class WordPackQualityTest
       report.put("baseline", baseline);
       JSONObject candidate = measure("candidate", root, bundled);
       report.put("candidate", candidate);
+      JSONObject core = measure("core", root, bundled);
+      report.put("core", core);
       save(report);
+      assertTrue("Core top1 below full pack", core.getInt("coreTop1") >= candidate.getInt("coreTop1"));
+      assertTrue("Core top5 below full pack", core.getInt("coreTop5") >= candidate.getInt("coreTop5"));
+      assertTrue("Core long-sentence result below full pack", core.getInt("sentenceTop1") >= candidate.getInt("sentenceTop1"));
+      assertTrue("Core must reduce deployed bytes", core.getLong("deployedBytes") < candidate.getLong("deployedBytes"));
+      assertTrue("Core resource budget", core.getLong("coldDeployMicros") <= 180000000 && core.getLong("processPssKiB") <= 512 * 1024 && core.getLong("coreInputP95Micros") <= 200000);
       int n = candidate.getInt("coreCount"); assertEquals(70, n);
       assertTrue("Core top1: " + candidate, candidate.getInt("coreTop1") * 100 >= n * 80);
       assertTrue("Core top5: " + candidate, candidate.getInt("coreTop5") * 100 >= n * 95);
