@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="miancak_settings">MIANCAK 设置</string>
-    <string name="launcher_description">MIANCAK 使用中文特化的 QWERTY 键盘。启用并选择输入法后，可在下方试输入。点按键心或向相应方向滑动；Shift 右上切换中英，Enter 右下打开布局选择器。Fn 只进入当前布局的配对变体。中文空格左上进入拼音文字，也可在设置中改为注音。双击或长按 Shift 可锁定大写。</string>
+    <string name="launcher_description">MIANCAK 使用中文特化的 QWERTY 键盘。启用并选择输入法后，可在下方试输入。点按键心或向相应方向滑动；Shift 右上切换中英，Enter 右下打开布局选择器。Fn 只进入当前布局的配对变体。中文空格左上进入拼音文字，也可在设置中改为注音。双击或长按 Shift 可锁定大写。首次使用中文时需准备离线词库，请等待候选出现，可能需要数十秒。</string>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (debug)</string>
     <string name="short_description">适用于 Android 的轻量级、注重隐私的虚拟键盘。</string>

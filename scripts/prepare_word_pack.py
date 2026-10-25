@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare a pinned, evaluation-only pure word pack; never import a scheme."""
+"""Prepare pinned pure word data and provenance; never import a scheme."""
 
 # A finite watchdog also bounds imports, child commands and shutdown.
 if __name__ == "__main__":
@@ -35,13 +35,19 @@ def prepare():
     seen = set()
     counts = []
     with (OUT / 'candidate.dict.yaml').open('w') as out:
-        out.write('# MIANCAK evaluation: selected rime-ice word data, original weights.\n'
+        out.write('# MIANCAK: selected rime-ice word data, original weights.\n'
                   '---\nname: pinyin_simp\nversion: "ice-' + SPEC['candidate']['commit'][:12] + '"\nsort: by_weight\n...\n')
         for entry in SPEC['files']:
             path = source / entry['path']
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             if digest != entry['sha256']:
                 raise RuntimeError('Source hash mismatch: ' + str(path))
+            header, separator, _ = path.read_text(encoding='utf-8-sig').partition('\n...\n')
+            if not separator:
+                raise RuntimeError('Missing attribution header: ' + str(path))
+            attribution = OUT / 'source-headers' / (entry['path'] + '.header.txt')
+            attribution.parent.mkdir(parents=True, exist_ok=True)
+            attribution.write_text(header + '\n...\n')
             ended = False
             rows = duplicates = 0
             for line in path.read_text(encoding='utf-8-sig').splitlines():
@@ -75,7 +81,39 @@ def prepare():
                   baselineSha256=hashlib.sha256((OUT / 'baseline.dict.yaml').read_bytes()).hexdigest())
     report['legacyImportSha256'] = hashlib.sha256(legacy.read_bytes()).hexdigest()
     (OUT / 'provenance.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
-    print('Prepared evaluation-only pack:', json.dumps({k: report[k] for k in ('uniqueRows', 'candidateSha256')}))
+    print('Prepared locked comparison packs:', json.dumps({k: report[k] for k in ('uniqueRows', 'candidateSha256')}))
+    return report
+
+
+def install_default(report, assets):
+    """Adopt the measured core unchanged, with an independently usable old base."""
+    if SPEC.get('default_profile') != 'ice-core':
+        raise RuntimeError('Unsupported default word-pack profile')
+    core = OUT / 'core.dict.yaml'
+    if hashlib.sha256(core.read_bytes()).hexdigest() != report['coreSha256']:
+        raise RuntimeError('Prepared default pack changed')
+    shutil.copyfile(core, assets / 'rime/pinyin_simp.dict.yaml')
+    old = json.loads((ROOT / 'native/sources.lock.json').read_text())['pinyin']
+    pack = dict(format=1, profile='ice-core', dictionary='pinyin_simp',
+                entries=report['coreRows'], dictionarySha256=report['coreSha256'],
+                source=SPEC['candidate'], files=report['files'][:2],
+                conversion='8105, base in order; first exact (text,code) wins; all readings and original weights retained; no scheme',
+                legacy=dict(source=old, dictionary='miancak_legacy_0_3', sha256=report['legacyImportSha256']))
+    (assets / 'word-pack/current.json').write_text(json.dumps(pack, ensure_ascii=False, indent=2) + '\n')
+    notices = assets / 'third-party/rime-ice'
+    notices.mkdir(parents=True, exist_ok=True)
+    source = ROOT / '.native/rime-ice'
+    shutil.copyfile(source / 'LICENSE', notices / 'LICENSE')
+    for entry in SPEC['files'][:2]:
+        text = (source / entry['path']).read_text(encoding='utf-8-sig')
+        header, separator, _ = text.partition('\n...\n')
+        if not separator:
+            raise RuntimeError('Missing attribution header: ' + entry['path'])
+        target = notices / (entry['path'] + '.header.txt')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(header + '\n...\n')
+    (notices / 'SOURCE.json').write_text(json.dumps(pack, ensure_ascii=False, indent=2) + '\n')
+    return pack
 
 
 if __name__ == '__main__':

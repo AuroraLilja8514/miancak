@@ -1,6 +1,6 @@
 # Dictionary Roadmap
 
-Accepted on 2026-10-23; status corrected on 2026-10-25. **Cross-language common-format/cdict work remains deferred.** Existing compatible Rime word-table support (#22) was delivered in 0.3.0 through [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30), with the explicit-Pinyin profile in [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md). This is not universal Rime compatibility or acceptance of the bundled vocabulary's everyday Chinese quality. The new formal Chinese vocabulary work is planned in [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md); no replacement data is adopted in this documentation-only round. Track common-source/cdict migration in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18), and Chinese usability in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20).
+Accepted on 2026-10-23; status corrected on 2026-10-25. **Cross-language common-format/cdict work remains deferred.** Existing compatible Rime word-table support (#22) was delivered in 0.3.0 through [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30), with the explicit-Pinyin profile in [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md). This is not universal Rime compatibility or acceptance of the bundled vocabulary's everyday Chinese quality. The new formal Chinese vocabulary work is planned in [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md); 0.3.1 adopts the measured Rime Ice 8105 + base core with an offline legacy fallback; final acceptance is recorded in FN_REPAIR_PROGRESS.md. Track common-source/cdict migration in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18), and Chinese usability in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20).
 
 ## Accepted direction
 
@@ -10,7 +10,7 @@ Investigate converting the source word lists used by cdict. The converter/data p
 
 ## Current baseline and source boundaries
 
-- The MVP packages the unmodified `rime/rime-pinyin-simp` dictionary at the revision in `native/sources.lock.json`. Chinese composition uses librime; English uses the direct path.
+- 0.3.1 packages the pinned Rime Ice 8105 + base core in `native/word-pack.lock.json`, retaining the 0.3.0 `rime/rime-pinyin-simp` data for offline fallback. Chinese composition uses librime; English uses the direct path.
 - Unexpected Keyboard's inherited dictionary pipeline is [Helium314/aosp-dictionaries](https://codeberg.org/Helium314/aosp-dictionaries) -> [Julow/Unexpected-Keyboard-dictionaries](https://github.com/Julow/Unexpected-Keyboard-dictionaries) -> [cdict](https://github.com/Julow/cdict) binary dictionaries. Its catalog/downloader is distinct from keyboard layouts.
 - The inherited catalog is not evidence that multilingual completion/correction is implemented in MIANCAK's new input path. A layout, a word list and an input algorithm are separate deliverables.
 - A compiled cdict `.dict` file is not a Rime dictionary source. Start conversion from traceable source word lists, not a renamed binary.
@@ -75,7 +75,7 @@ Acceptance: offline use, exact punctuation/digits, editor/cursor changes, rotati
 
 ## Scheduling and tracking
 
-Keep the three accepted workstreams separate: Chinese input correctness/quality (#20), existing Rime word-table import/addition/switching (initial #22 delivered in #30), and long-term common-source/cdict migration (#18). The delivered import profile has no complete external scheme, plugin/model, crawler or converter prerequisite. Formal Chinese word-package selection and quality improvements now follow the documentation-only [repair plan](LAYOUT_REPAIR_PLAN.md).
+Keep the three accepted workstreams separate: Chinese input correctness/quality (#20), existing Rime word-table import/addition/switching (initial #22 delivered in #30), and long-term common-source/cdict migration (#18). The delivered import profile has no complete external scheme, plugin/model, crawler or converter prerequisite. Formal Chinese word-package selection and quality improvements now follow the [repair plan](LAYOUT_REPAIR_PLAN.md).
 
 Physical ARM/editor validation belongs to Chinese usability acceptance. Stable signing/versioned delivery follows usability acceptance. The cross-language converter or a separate data project must not delay use of existing compatible Rime word tables.
 

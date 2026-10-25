@@ -1,4 +1,4 @@
-> 修复分支验收以 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md) 为准。下文保留历史版本证据；其中任意 Fn 目标和辅助面板顶部整行入口属于已废弃契约，不作为新功能通过证明。当前新增场景逐一验证配对 Fn、接收端 F1–F12 事件、中文空格左上拼音／可选注音、发音布局 Shift 右上返回、辅助面板底部 Enter 右下选择器。R3 新增场景待对应提交实际 APK 执行。
+> 当前 R0–R5 的实际布局／Fn／符号／编辑器结果见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。R6 正式词包的新组合以 R7 总体验收为准。下文保留旧版本证据；任意 Fn 目标和辅助面板重复整行入口已废弃。模拟器固定构建与连续重启门禁见 [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md)。
 
 All maintained execution scripts accept `--timeout-seconds N` or `MIANCAK_SCRIPT_TIMEOUT_SECONDS` (default one hour). Nested calls share the remaining budget, ADB stages have shorter limits, and timeout returns 124. See [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md) for cancellation and subprocess-cleanup checks.
 
