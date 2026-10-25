@@ -531,7 +531,13 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onSharedPreferenceChanged(SharedPreferences _prefs, String _key)
   {
-    if (_key.equals("miancak_chinese") || _key.equals("pages_last_text")) return;
+    if (_key.equals("pages_last_text"))
+    {
+      String id = _prefs.getString("pages_last_text", "zh");
+      if (PageConfig.isText(id)) _preferredLayout = id;
+      return;
+    }
+    if (_key.equals("miancak_chinese")) return;
     refresh_config();
     _pages = PagePreferences.load(_prefs);
     _keyOverrides = PageKeyOverrides.load(_prefs);

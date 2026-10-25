@@ -35,7 +35,7 @@ public final class WordTableUiTest
     device = UiDevice.getInstance(instrumentation); pkg = context.getPackageName(); store = new WordTableStore(context);
     device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("wordPhase", "prepare");
-    assertEquals(phase.equals("prepare") ? 2 : 3, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
+    assertEquals(phase.equals("prepare") ? 2 : 4, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       rebindFixture(); openManager();

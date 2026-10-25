@@ -47,7 +47,7 @@ public final class UpgradeApkTest
     context = instrumentation.getTargetContext(); pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation); device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("upgradePhase", "verify");
-    assertEquals(phase.equals("prepare") ? 1 : 3, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
+    assertEquals(phase.equals("prepare") ? 3 : 4, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       if (phase.equals("prepare"))
@@ -60,7 +60,7 @@ public final class UpgradeApkTest
       }
       else
       {
-        assertEquals("baseline-c939", canonical().getString("upgrade_marker", ""));
+        assertEquals("baseline-0.3.0", canonical().getString("upgrade_marker", ""));
         assertFalse(canonical().getBoolean("lock_double_tap", true));
         byte[] bytes = new byte[4];
         try (FileInputStream input = new FileInputStream(marker())) { assertEquals(4, input.read(bytes)); }
@@ -85,8 +85,10 @@ public final class UpgradeApkTest
       {
         try (FileOutputStream out = new FileOutputStream(marker())) { out.write("kept".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         for (Context store : stores())
-          prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-c939")
-            .putInt("current_layout_portrait", 0).putInt("current_layout_landscape", 0).putInt("miancak_layout_version", 0).commit();
+          prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-0.3.0")
+            .putInt("current_layout_portrait", 0).putInt("current_layout_landscape", 0).putInt("miancak_layout_version", 0)
+            .putInt("pages_version", 1).putString("pages_fn_zh", "pinyin").putString("pages_fn_en", "clipboard")
+            .putString("page_customization", "{\"zh\":{\"0:0:1\":\":literal:'保留'\"}}").commit();
         screenshot("upgrade-old-retired-selection");
       }
       else
@@ -95,6 +97,12 @@ public final class UpgradeApkTest
         assertEquals("[\"miancak_qwerty\"]", canonical().getString("layouts", ""));
         assertEquals(1, canonical().getInt("miancak_layout_version", 0));
         assertFalse(canonical().getBoolean("lock_double_tap", true));
+        assertEquals(2, canonical().getInt("pages_version", 0));
+        org.json.JSONObject previous = new org.json.JSONObject(canonical().getString("pages_v1_backup", ""));
+        assertEquals("pinyin", previous.getString("fn_zh"));
+        assertEquals("clipboard", previous.getString("fn_en"));
+        assertEquals("zh_fn", PagePreferences.load(canonical()).fn("zh"));
+        assertEquals(":literal:'保留'", PageKeyOverrides.load(canonical()).action("zh", 0, 0, 1, false));
       }
     }
     finally { screenshot("upgrade-" + phase + "-final"); device.unfreezeRotation(); }

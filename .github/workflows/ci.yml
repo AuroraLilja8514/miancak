@@ -362,7 +362,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: c939309635ee80c058d59ca712eae4ef1b3acb14
+          ref: ca6c0b309306767e434ce922e4a3409c7093e8b9
           submodules: true
       - uses: actions/setup-java@v5
         with:
@@ -379,7 +379,7 @@ jobs:
           path: |
             .cxx
             build/intermediates/cxx
-          key: upgrade-baseline-c939-x86_64-${{ runner.os }}
+          key: upgrade-baseline-ca6c-x86_64-${{ runner.os }}
       - name: Build pinned old application APK
         run: |
           ./gradlew --no-daemon -PmiancakAbis=x86_64 assembleDebug
