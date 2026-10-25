@@ -12,6 +12,54 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void legacyFnMigrationPreservesOriginalKeysAndImportSource() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    String keys = "{\"zh\":{\"0:0:1\":\"q\"}}";
+    preferences.edit().putString(PageKeyOverrides.KEY, keys).putString("pages_fn_zh", "pinyin")
+      .putString("pages_fn_en", "clipboard").putString("pages_order", "pinyin,en,zh")
+      .putString("pages_enabled", "zh,en,pinyin").putInt("pages_version", 1).commit();
+    PagePreferences.migrate(preferences);
+    JSONObject backup = new JSONObject(preferences.getString("pages_v1_backup", ""));
+    assertEquals("pinyin", backup.getString("fn_zh"));
+    assertEquals("clipboard", backup.getString("fn_en"));
+    assertEquals(keys, backup.getString("pages_raw"));
+    assertEquals(keys, preferences.getString(PageKeyOverrides.KEY, ""));
+    assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
+    assertEquals("en_fn", PagePreferences.load(preferences).fn("en"));
+    assertFalse(preferences.contains("pages_fn_zh"));
+    String originalBackup = preferences.getString("pages_v1_backup", "");
+    PagePreferences.migrate(preferences); assertEquals(originalBackup, preferences.getString("pages_v1_backup", ""));
+    JSONObject legacy = new JSONObject().put("version", 1).put("pages", new JSONObject(keys))
+      .put("order", "zh,en").put("enabled", "zh,en,pinyin").put("fn_zh", "pinyin").put("fn_en", "numeric");
+    PageKeyOverrides.importJson(preferences, context().getResources(), legacy.toString());
+    assertEquals(legacy.toString(), preferences.getString(PageKeyOverrides.KEY + "_import_source", ""));
+    assertEquals(2, new JSONObject(PageKeyOverrides.export(preferences)).getInt("version"));
+    assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
+  }
+
+  @Test public void everyBuiltInVariantKeepsSharedDirectionsAndEditsAreIndependent() throws Exception
+  {
+    for (String id : juloo.keyboard2.input.PageConfig.IDS)
+    {
+      KeyboardData layout = PageLayouts.base(context().getResources(), id);
+      for (KeyboardData.Row row : layout.rows) for (KeyboardData.Key key : row.keys)
+        if (KeyValue.getKeyByName("space").equals(key.keys[0]))
+        {
+          assertEquals(KeyValue.getKeyByName("switch_forward"), key.keys[7]);
+          assertEquals(KeyValue.getKeyByName("switch_backward"), key.keys[8]);
+          assertEquals(KeyValue.getKeyByName("cursor_left"), key.keys[5]);
+          assertEquals(KeyValue.getKeyByName("cursor_right"), key.keys[6]);
+        }
+    }
+    PageKeyOverrides edits = new PageKeyOverrides();
+    edits.set("zh_fn", 0, 0, 2, false, "f12");
+    KeyboardData fn = edits.apply("zh_fn", PageLayouts.base(context().getResources(), "zh_fn"));
+    assertEquals(KeyValue.getKeyByName("f12"), fn.rows.get(0).keys.get(0).keys[2]);
+    KeyboardData normal = edits.apply("zh", PageLayouts.base(context().getResources(), "zh"));
+    assertEquals(KeyValue.getKeyByName("1"), normal.rows.get(0).keys.get(0).keys[2]);
+  }
+
   private Context context() { return InstrumentationRegistry.getInstrumentation().getTargetContext(); }
   private SharedPreferences prefs()
   {

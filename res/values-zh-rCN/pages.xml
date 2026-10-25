@@ -1,9 +1,13 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
   <string name="pages_title">布局与页面</string>
-  <string name="pages_summary">MIANCAK QWERTY · 页面顺序、启用页面和 Fn 目标</string>
+  <string name="pages_summary">布局顺序、配对启用与键位设置</string>
   <string name="page_zh">中文 · QWERTY</string>
   <string name="page_en">英文 · QWERTY</string>
+  <string name="page_zh_fn">中文 · Fn 变体</string>
+  <string name="page_en_fn">英文 · Fn 变体</string>
+  <string name="page_greek_fn">希腊／数学 · Fn 变体</string>
+  <string name="page_numeric_fn">数字 · Fn 变体</string>
   <string name="page_symbols">标点与符号</string>
   <string name="page_numeric">数字</string>
   <string name="page_greek">希腊字母与数学</string>
@@ -15,13 +19,13 @@
   <string name="page_english_fn">英文 Fn：%s</string>
   <string name="page_fn_target">选择 Fn 目标</string>
   <string name="pages_reset">重置页面设置</string>
-  <string name="pages_reset_confirm">重置页面顺序、启用页面与 Fn 目标？</string>
-  <string name="pages_explanation">中英文共用 MIANCAK QWERTY。在 Enter 键向右下滑动可选择所有已启用页面；Fn 切换到设置的页面，再次按下返回。双击或长按 Shift 锁定大写。</string>
+  <string name="pages_reset_confirm">重置布局顺序和配对启用状态？</string>
+  <string name="pages_explanation">Fn 只在当前布局与其配对变体之间切换；修改变体键位即可修改按 Fn 后的内容。Enter 右下打开布局选择器，空格上下轮换启用布局。双击或长按 Shift 锁定大写。旧版任意 Fn 目标已备份并停用。</string>
   <string name="page_save">保存</string>
   <string name="page_changed_elsewhere">编辑期间布局设置已变化，请重新打开编辑器。</string>
   <string name="page_shift_preview">预览与编辑 Shift 层</string>
-  <string name="page_dynamic_controls">此页面内容动态生成；在此编辑底部控制行，表情与剪贴板内容在各自页面管理。顶部始终保留布局选择入口。</string>
-  <string name="page_editor_help">点选按键后选择中心或滑动方向，保存后生效。即使修改 Enter，顶部仍保留布局选择入口。</string>
+  <string name="page_dynamic_controls">此布局显示动态内容，此处预览其控制行。Enter 右下打开布局选择器。空格、方向、Enter 和删除的共享位置保持一致。</string>
+  <string name="page_editor_help">点选按键后选择中心或滑动方向，保存后生效。共享控制位置在此只读，不能按布局单独修改；旧版对这些位置的覆盖仍保留在备份中。</string>
   <string name="page_reset_layout">恢复此布局默认键位</string>
   <string name="page_reset_layout_confirm">在草稿中恢复此页面？保存后生效。</string>
   <string name="page_choose_position">选择中心或滑动方向</string>
@@ -46,7 +50,7 @@
     <item>向后删除</item>
     <item>Enter</item>
     <item>空格</item>
-    <item>Fn 页面</item>
+    <item>配对 Fn 变体</item>
     <item>布局选择器</item>
     <item>中英切换</item>
     <item>返回文字页</item>

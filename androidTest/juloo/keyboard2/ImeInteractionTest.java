@@ -48,7 +48,7 @@ public class ImeInteractionTest
       MiancakPreferences.initialize(settings);
       SharedPreferences.Editor prefs = settings.edit();
       prefs.putString("physical_keyboard_behavior", "show").putBoolean("miancak_chinese", true)
-        .putString("number_row", "no_number_row").putString("number_entry_layout", "number");
+        .putString("number_row", "no_number_row").putString("number_entry_layout", "number").putString("pages_last_text", "zh");
       LayoutsPreference.save_to_preferences(prefs,
           Collections.singletonList(new LayoutsPreference.NamedLayout("miancak_qwerty")));
       prefs.commit();
@@ -113,26 +113,33 @@ public class ImeInteractionTest
       type("ok"); output += "ok"; awaitText(activity.first, output);
       gesture(0.75f, 2, 1, -1); awaitMode("中文");
       screenshot("chinese-punctuation-and-separator");
-      // Opening the chooser and auxiliary pages preserves preedit. Selecting
-      // the Fn target through the chooser must light Fn just as its key does.
+      // The chooser preserves preedit. Its explicit Chinese Fn variant has
+      // the same policy as the main layout and preserves it too.
       type("nihao"); String beforePages = candidate();
       gesture(9.15f, 3, 1, 1);
       assertNotNull(find("miancak_page_chooser"));
       assertEquals(output, text(activity.first));
       screenshot("page-chooser");
-      choosePage("symbols");
+      choosePage("zh_fn");
       assertTrue(keyboard().getContentDescription().contains("Fn: true"));
       assertEquals(beforePages, candidate());
-      tap(2.25f, 3); // Fn target returns to Chinese main page.
+      tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       assertEquals(beforePages, candidate());
-      tap(2.25f, 3); // Direct Fn reaches exactly the same symbols page.
-      assertTrue(keyboard().getContentDescription().contains("Fn: true"));
-      screenshot("fn-symbols-active");
+      tap(2.25f, 3);
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh_fn;"));
+      screenshot("fn-variant-active");
       device.pressBack();
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       assertEquals(beforePages, candidate());
-      find("miancak_cancel").click(); awaitIdlePreedit();
+      // Symbols has a fixed literal-input policy, independent of the route
+      // used to enter it. Entry confirms the old Chinese composition once.
+      gesture(9.15f, 3, 1, 1); choosePage("symbols");
+      output += beforePages; awaitText(activity.first, output); awaitIdlePreedit();
+      assertTrue(keyboard().getContentDescription().contains("Fn: false"));
+      tap(2.25f, 3);
+      assertTrue(keyboard().getContentDescription().startsWith("Page: symbols;"));
+      device.pressBack();
       gesture(9.15f, 3, 1, 1); choosePage("greek");
       assertTrue(keyboard().getContentDescription().startsWith("Page: greek;"));
       tap(0.5f, 0); output += "θ"; awaitText(activity.first, output);
@@ -212,18 +219,14 @@ public class ImeInteractionTest
       device.pressBack();
       instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
-        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
-      device.findObject(By.desc("fn-target-zh")).click();
-      device.waitForIdle();
-      androidx.test.uiautomator.UiObject pinyinTarget = device.findObject(new androidx.test.uiautomator.UiSelector()
-          .className("android.widget.CheckedTextView").text(context.getString(R.string.page_pinyin)));
-      assertTrue("Pinyin target missing from the actual Fn dialog", pinyinTarget.waitForExists(15000));
-      pinyinTarget.click();
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("Edit Fn variant: zh"));
+      device.findObject(By.desc("Edit Fn variant: zh")).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("Edit key: zh_fn:0:0")), 15000));
+      device.wait(Until.findObject(By.desc("Cancel layout edit")), 15000).click();
       resumeEditor(); ensureChinese();
       tap(2.25f, 3);
-      assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
-      tap('n'); output += "n"; awaitText(activity.first, output);
-      screenshot("configured-pinyin-fn");
+      assertTrue(keyboard().getContentDescription().equals("Page: zh_fn; Fn: true"));
+      screenshot("paired-fn-editor-return");
       tap(2.25f, 3); assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       // Candidate paging uses the displayed snapshot; returning restores page one.
       type("shi"); String pageOne = candidate();

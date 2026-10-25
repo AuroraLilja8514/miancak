@@ -244,6 +244,18 @@ public final class KeyModifier
       if (mapped != null)
         return mapped;
     }
+    return fn_value(k, null);
+  }
+
+  /** Materialize one Fn value without changing the view's global modifier map. */
+  public static KeyValue fn_value(KeyValue k, Modmap map)
+  {
+    if (k == null) return null;
+    if (map != null)
+    {
+      KeyValue mapped = map.get(Modmap.M.Fn, k);
+      if (mapped != null) return mapped;
+    }
     String name = null;
     switch (k.getKind())
     {

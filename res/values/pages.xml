@@ -1,9 +1,13 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
   <string name="pages_title">Layouts and pages</string>
-  <string name="pages_summary">MIANCAK QWERTY · page order, enabled pages and Fn targets</string>
+  <string name="pages_summary">Layout order, enabled pairs and key positions</string>
   <string name="page_zh">Chinese · QWERTY</string>
   <string name="page_en">English · QWERTY</string>
+  <string name="page_zh_fn">Chinese · Fn variant</string>
+  <string name="page_en_fn">English · Fn variant</string>
+  <string name="page_greek_fn">Greek / mathematics · Fn variant</string>
+  <string name="page_numeric_fn">Numbers · Fn variant</string>
   <string name="page_symbols">Punctuation and symbols</string>
   <string name="page_numeric">Numbers</string>
   <string name="page_greek">Greek and mathematics</string>
@@ -15,13 +19,13 @@
   <string name="page_english_fn">English Fn: %s</string>
   <string name="page_fn_target">Choose Fn target</string>
   <string name="pages_reset">Reset page settings</string>
-  <string name="pages_reset_confirm">Reset page order, enabled pages and Fn targets?</string>
-  <string name="pages_explanation">Chinese and English share MIANCAK QWERTY. Swipe southeast on Enter for all enabled pages. Fn toggles its configured page; select the same page again to return. Shift double tap or long press locks capitals.</string>
+  <string name="pages_reset_confirm">Reset layout order and enabled pairs?</string>
+  <string name="pages_explanation">Fn switches only between a layout and its paired variant. Edit the variant to change its keys. Swipe southeast on Enter for the chooser. Space up/down cycles enabled layouts. Double tap or long press Shift locks capitals. Previous arbitrary Fn targets are backed up and retired.</string>
   <string name="page_save">Save</string>
   <string name="page_changed_elsewhere">Layout settings changed while editing. Reopen the editor before saving.</string>
   <string name="page_shift_preview">Preview and edit Shift layer</string>
-  <string name="page_dynamic_controls">This page displays dynamic content. Edit its control row here; emoji and clipboard contents are managed on their own pages. The layout chooser is always available in the header.</string>
-  <string name="page_editor_help">Tap a key, then choose its center or swipe direction. Changes take effect only after Save. The header layout chooser remains available even if you change the Enter key.</string>
+  <string name="page_dynamic_controls">This layout displays dynamic content. Its control row appears here. Enter southeast opens the chooser. Shared Space, arrows, Enter and deletion positions are fixed across layouts.</string>
+  <string name="page_editor_help">Tap a key, then choose its center or swipe direction. Changes take effect after Save. Shared controls are shown but cannot be changed independently in this editor. Legacy overrides for these positions remain in the backup.</string>
   <string name="page_reset_layout">Restore this layout to defaults</string>
   <string name="page_reset_layout_confirm">Restore this page in the draft? Save to apply.</string>
   <string name="page_choose_position">Choose center or swipe direction</string>
@@ -46,7 +50,7 @@
     <item>Delete forward</item>
     <item>Enter</item>
     <item>Space</item>
-    <item>Fn page</item>
+    <item>Paired Fn variant</item>
     <item>Layout chooser</item>
     <item>Chinese / English</item>
     <item>Return to text</item>

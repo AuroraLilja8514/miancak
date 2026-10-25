@@ -26,6 +26,9 @@ public final class LayoutModifier
    *  - Add the extra keys
    */
   public static KeyboardData modify_layout(KeyboardData kw)
+  { return modify_layout(kw, false); }
+
+  public static KeyboardData modify_layout(KeyboardData kw, boolean fnVariant)
   {
     // Extra keys are removed from the set as they are encountered during the
     // first iteration then automatically added.
@@ -69,6 +72,24 @@ public final class LayoutModifier
       present.addAll(extra_keys_keyset);
       globalConfig.extra_keys_subtype.compute(extra_keys,
           new ExtraKeys.Query(kw.script, present));
+    }
+    if (fnVariant)
+    {
+      TreeMap<KeyValue, KeyboardData.PreferredPos> mapped = new TreeMap<>();
+      for (Map.Entry<KeyValue, KeyboardData.PreferredPos> entry : extra_keys.entrySet())
+      {
+        KeyValue value = KeyModifier.fn_value(entry.getKey(), kw.modmap);
+        if (!value.getString().isEmpty()) mapped.put(value, entry.getValue());
+      }
+      extra_keys.clear(); extra_keys.putAll(mapped);
+      Set<KeyValue> mappedRemoval = new HashSet<>();
+      for (KeyValue value : remove_keys) mappedRemoval.add(KeyModifier.fn_value(value, kw.modmap));
+      remove_keys.clear(); remove_keys.addAll(mappedRemoval);
+      if (added_number_row != null)
+        added_number_row = added_number_row.mapKeys(new KeyboardData.MapKeyValues() {
+          public KeyValue apply(KeyValue value, boolean localized) { return KeyModifier.fn_value(value, null); }
+        });
+      if (added_numpad != null) added_numpad = FnLayout.materialize(added_numpad, false);
     }
     kw = kw.mapKeys(new KeyboardData.MapKeyValues() {
       public KeyValue apply(KeyValue key, boolean localized)
@@ -156,6 +177,8 @@ public final class LayoutModifier
    */
   static KeyValue modify_key(KeyValue orig)
   {
+    // Fn is always a paired-layout action, including imported/custom keys.
+    if (orig.equals(KeyValue.getKeyByName("fn"))) return KeyValue.getKeyByName("fn_page");
     EditorConfig ec = globalConfig.editor_config;
     switch (orig.getKind())
     {

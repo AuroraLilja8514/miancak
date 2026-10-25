@@ -8,6 +8,9 @@ public final class PageLayouts
   private PageLayouts() {}
   public static KeyboardData base(Resources resources, String page)
   {
+    boolean variant = juloo.keyboard2.input.PageConfig.isVariant(page);
+    boolean chinese = page.equals("zh_fn");
+    page = juloo.keyboard2.input.PageConfig.base(page);
     int id;
     switch (page)
     {
@@ -22,7 +25,8 @@ public final class PageLayouts
       case "zhuyin": id = R.xml.miancak_zhuyin; break;
       default: throw new IllegalArgumentException(page);
     }
-    return complete(resources, KeyboardData.load(resources, id));
+    KeyboardData data = LayoutControls.normalize(complete(resources, KeyboardData.load(resources, id)));
+    return variant ? FnLayout.materialize(data, chinese) : data;
   }
   public static KeyboardData complete(Resources resources, KeyboardData data)
   {

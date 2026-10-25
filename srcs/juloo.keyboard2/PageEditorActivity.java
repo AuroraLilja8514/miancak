@@ -121,6 +121,11 @@ public final class PageEditorActivity extends Activity
         Button slot = button(label(key.keys[direction]), "Edit position: " + direction, () -> {
           dialog.dismiss(); chooseAction(row, col, direction);
         });
+        if (LayoutControls.shared(base.rows.get(row).keys.get(col), direction))
+        {
+          slot.setEnabled(false);
+          slot.setContentDescription("Shared control: " + direction);
+        }
         cells.addView(slot, new LinearLayout.LayoutParams(0, dp(64), 1));
       }
       content.addView(cells);

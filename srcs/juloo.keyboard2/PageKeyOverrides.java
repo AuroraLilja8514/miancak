@@ -63,8 +63,12 @@ public final class PageKeyOverrides
       for (int c = 0; c < data.rows.get(r).keys.size(); c++)
       {
         KeyboardData.Key key = data.rows.get(r).keys.get(c);
+        KeyboardData.Key original = key;
         for (int direction = 0; direction < 9; direction++)
         {
+          // Legacy per-page changes remain stored/backed up, but may not make
+          // shared controls drift. Shared editing is implemented separately.
+          if (LayoutControls.shared(original, direction)) continue;
           String normal = action(page, r, c, direction, false), shifted = action(page, r, c, direction, true);
           if (normal == null && shifted == null) continue;
           try
@@ -99,15 +103,15 @@ public final class PageKeyOverrides
   public static String export(SharedPreferences preferences) throws Exception
   {
     PageConfig config = PagePreferences.load(preferences);
-    return new JSONObject().put("version", 1).put("pages", load(preferences).pages)
-      .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled))
-      .put("fn_zh", config.chineseFn).put("fn_en", config.englishFn).toString(2);
+    return new JSONObject().put("version", 2).put("pages", load(preferences).pages)
+      .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
   public static void importJson(SharedPreferences preferences, Resources resources, String text) throws Exception
   {
     if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES) throw new IllegalArgumentException("File is too large");
     JSONObject root = new JSONObject(text);
-    if (root.getInt("version") != 1) throw new IllegalArgumentException("Unsupported layout version");
+    int version = root.getInt("version");
+    if (version != 1 && version != 2) throw new IllegalArgumentException("Unsupported layout version");
     JSONObject pages = root.getJSONObject("pages");
     Iterator<String> ids = pages.keys();
     while (ids.hasNext())
@@ -127,12 +131,12 @@ public final class PageKeyOverrides
         String action = keys.getString(position); if (!action.isEmpty()) validateAction(action);
       }
     }
-    PageConfig config = new PageConfig(root.getString("order"), root.getString("enabled"), root.getString("fn_zh"), root.getString("fn_en"));
+    PageConfig config = new PageConfig(root.getString("order"), root.getString("enabled"));
     // Validate everything before committing any of the configuration.
     preferences.edit().putString(KEY + "_previous", preferences.getString(KEY, "{}"))
       .putString(KEY + "_previous_bundle", export(preferences))
       .putString(KEY, pages.toString()).putString("pages_order", PageConfig.csv(config.order))
-      .putString("pages_enabled", PageConfig.csv(config.enabled)).putString("pages_fn_zh", config.chineseFn)
-      .putString("pages_fn_en", config.englishFn).apply();
+      .putString("pages_enabled", PageConfig.csv(config.enabled)).putInt("pages_version", 2)
+      .putString(KEY + "_import_source", text).remove("pages_fn_zh").remove("pages_fn_en").apply();
   }
 }
