@@ -5,6 +5,8 @@
   <item type="id" name="word_tables_import"/>
   <item type="id" name="word_tables_restore"/>
   <item type="id" name="word_tables_help"/>
+  <item type="id" name="word_tables_legacy"/>
+  <string name="words_legacy">Use 0.3.0 vocabulary offline</string>
   <string name="words_base_choice">Base vocabulary: %s</string>
   <string name="words_extra_choice">Supplementary vocabulary: %s</string>
   <string name="words_details_choice">Details for %s</string>

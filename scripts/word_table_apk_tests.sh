@@ -17,9 +17,9 @@ sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/
 python3 - <<'PY'
 from pathlib import Path
 import zipfile
-with zipfile.ZipFile('artifacts/app-debug.apk') as apk:
-    Path('word-test-data/pinyin_simp.dict.yaml').write_bytes(apk.read('assets/rime/pinyin_simp.dict.yaml'))
 with zipfile.ZipFile('artifacts/app-debug-androidTest.apk') as apk:
+    # Keep the existing comparison table pinned when the production pack changes.
+    Path('word-test-data/pinyin_simp.dict.yaml').write_bytes(apk.read('assets/quality/baseline.dict.yaml'))
     for name in ['8105.dict.yaml','others.dict.yaml','miancak_addon.dict.yaml']:
         Path('word-test-data',name).write_bytes(apk.read('assets/word-tables/'+name))
 PY

@@ -61,16 +61,26 @@ public final class WordTableUiTest
         openManager(); click("Restore bundled word tables"); ready(false);
         assertEquals(WordTableStore.BUNDLED, store.view().selection.base); assertTrue(store.view().selection.extras.isEmpty());
         input("nihao", "你好", true, true);
+        if (WordTableStore.hasFormalBundledPack(context))
+        {
+          openManager(); click("Use legacy vocabulary"); ready(false);
+          assertEquals(id(WordTableStore.LEGACY), store.view().selection.base);
+          input("nihao", "你好", true, true);
+          openManager(); click("Restore bundled word tables"); ready(false);
+          assertEquals(WordTableStore.BUNDLED, store.view().selection.base);
+          input("nihao", "你好", true, true);
+        }
         openManager(); choose("Base 8105"); choose("Supplement miancak_addon"); apply();
         assertEquals(layout, PageKeyOverrides.export(DirectBootAwarePreferences.get_shared_preferences(context)));
-        JSONObject expected = new JSONObject().put("base", id("8105")).put("addon", id("miancak_addon")).put("layout", layout);
+        JSONObject expected = new JSONObject().put("base", id("8105")).put("addon", id("miancak_addon"))
+          .put("entryCount", store.view().entries.size()).put("layout", layout);
         try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "word-ui-expected.json")))
         { out.write(expected.toString().getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
       }
       else
       {
         JSONObject expected = expected();
-        assertEquals(3, store.view().entries.size()); assertEquals(expected.getString("base"), store.view().selection.base);
+        assertEquals(expected.getInt("entryCount"), store.view().entries.size()); assertEquals(expected.getString("base"), store.view().selection.base);
         assertEquals(Arrays.asList(expected.getString("addon")), store.view().selection.extras);
         assertEquals(expected.getString("layout"), PageKeyOverrides.export(DirectBootAwarePreferences.get_shared_preferences(context)));
         input("biang", "𰻝", true, true); input("ceshi", "MIANCAK·附加词表", true, true);
@@ -178,7 +188,8 @@ public final class WordTableUiTest
   }
   private void click(String description) throws Exception
   {
-    String resource = description.equals("Import Rime word tables") ? "word_tables_import"
+    String resource = description.equals("Use legacy vocabulary") ? "word_tables_legacy"
+      : description.equals("Import Rime word tables") ? "word_tables_import"
       : description.equals("Apply word tables") ? "word_tables_apply"
       : description.equals("Restore bundled word tables") ? "word_tables_restore" : null;
     if (resource != null)

@@ -1,4 +1,5 @@
 <resources>
+  <string name="words_legacy">离线切回 0.3.0 词库</string>
   <string name="words_base_choice">基础词表：%s</string>
   <string name="words_extra_choice">附加词表：%s</string>
   <string name="words_details_choice">查看 %s 的详情</string>

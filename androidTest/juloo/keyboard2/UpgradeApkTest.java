@@ -69,6 +69,7 @@ public final class UpgradeApkTest
         assertTrue("Old real learning entry must exist before opening the new IME",
             userDictionaryContains(new File(context.getFilesDir(), "rime/user"), learned.getBytes(StandardCharsets.UTF_8), false));
         learningReport(phase, learned);
+        verifyImportedSelection();
       }
       selectThroughShippedLauncher();
       instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.ImeTestActivity")
@@ -92,6 +93,7 @@ public final class UpgradeApkTest
         try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "upgrade-learned-text")))
         { out.write(text.getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         learningReport(phase, text);
+        prepareImportedSelection();
         try (FileOutputStream out = new FileOutputStream(marker())) { out.write("kept".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         for (Context store : stores())
           prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-0.3.0")
@@ -124,6 +126,48 @@ public final class UpgradeApkTest
       byte[] bytes = new byte[1024]; int count = input.read(bytes); assertTrue(count > 0);
       return new String(bytes, 0, count, StandardCharsets.UTF_8);
     }
+  }
+  private void prepareImportedSelection() throws Exception
+  {
+    Context assets = InstrumentationRegistry.getInstrumentation().getContext();
+    instrumentation.runOnMainSync(() -> juloo.keyboard2.input.WordTableRuntime.run(context, true, store -> {
+      java.util.List<juloo.keyboard2.input.WordTableStore.Source> sources = new java.util.ArrayList<>();
+      for (String name : new String[] {"8105.dict.yaml", "miancak_addon.dict.yaml"})
+        sources.add(new juloo.keyboard2.input.WordTableStore.Source() {
+          public String filename() { return name; }
+          public java.io.InputStream open() throws Exception { return assets.getAssets().open("word-tables/" + name); }
+        });
+      store.importTables(sources); String base = null, addon = null;
+      for (juloo.keyboard2.input.WordTableStore.Entry entry : store.view().entries)
+      { if (entry.name.equals("8105")) base = entry.id; if (entry.name.equals("miancak_addon")) addon = entry.id; }
+      assertNotNull(base); assertNotNull(addon); store.apply(base, java.util.Collections.singletonList(addon));
+      org.json.JSONObject expected = new org.json.JSONObject().put("base", base).put("addon", addon)
+        .put("slot", store.view().selection.slot).put("packaged", juloo.keyboard2.input.RimeData.bundled(context).shared.getName());
+      try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "upgrade-word-selection.json")))
+      { out.write(expected.toString().getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
+    }));
+    final boolean[] busy = {true}; long deadline = SystemClock.uptimeMillis() + 120000;
+    do
+    {
+      instrumentation.runOnMainSync(() -> busy[0] = juloo.keyboard2.input.WordTableRuntime.busy);
+      if (!busy[0]) break; SystemClock.sleep(30);
+    } while (SystemClock.uptimeMillis() < deadline);
+    assertFalse("Old vocabulary maintenance did not finish", busy[0]);
+    assertEquals("", juloo.keyboard2.input.WordTableRuntime.error);
+    verifyImportedSelection();
+  }
+  private void verifyImportedSelection() throws Exception
+  {
+    org.json.JSONObject expected;
+    try (FileInputStream in = new FileInputStream(new File(context.getFilesDir(), "upgrade-word-selection.json")))
+    { byte[] bytes = new byte[4096]; int count = in.read(bytes); assertTrue(count > 0); expected = new org.json.JSONObject(new String(bytes, 0, count, StandardCharsets.UTF_8)); }
+    juloo.keyboard2.input.WordTableStore store = new juloo.keyboard2.input.WordTableStore(context);
+    // currentPaths performs an update rebuild against the new packaged hash.
+    store.currentPaths(); juloo.keyboard2.input.WordTableStore.Selection selected = store.view().selection;
+    assertEquals(expected.getString("base"), selected.base);
+    assertEquals(java.util.Collections.singletonList(expected.getString("addon")), selected.extras);
+    if (!expected.getString("packaged").equals(juloo.keyboard2.input.RimeData.bundled(context).shared.getName()))
+      assertNotEquals("Changed packaged data must rebuild without discarding custom vocabulary", expected.getString("slot"), selected.slot);
   }
   private boolean userDictionaryContains(File file, byte[] needle, boolean database) throws Exception
   {

@@ -17,6 +17,12 @@ def prepare():
     OUT.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source / 'LICENSE', OUT / 'LICENSE.rime-ice')
     shutil.copyfile(old / 'pinyin_simp.dict.yaml', OUT / 'baseline.dict.yaml')
+    legacy = ROOT / 'build/generated-rime-assets/word-pack/miancak_legacy_0_3.dict.yaml'
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    original = (old / 'pinyin_simp.dict.yaml').read_text()
+    if original.count('name: pinyin_simp\n') != 1:
+        raise RuntimeError('Unexpected legacy dictionary header')
+    legacy.write_text(original.replace('name: pinyin_simp\n', 'name: miancak_legacy_0_3\n', 1))
     seen = set()
     counts = []
     with (OUT / 'candidate.dict.yaml').open('w') as out:
@@ -58,6 +64,7 @@ def prepare():
                   coreSha256=hashlib.sha256((OUT / 'core.dict.yaml').read_bytes()).hexdigest(),
                   candidateSha256=hashlib.sha256((OUT / 'candidate.dict.yaml').read_bytes()).hexdigest(),
                   baselineSha256=hashlib.sha256((OUT / 'baseline.dict.yaml').read_bytes()).hexdigest())
+    report['legacyImportSha256'] = hashlib.sha256(legacy.read_bytes()).hexdigest()
     (OUT / 'provenance.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     print('Prepared evaluation-only pack:', json.dumps({k: report[k] for k in ('uniqueRows', 'candidateSha256')}))
 
