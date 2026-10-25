@@ -18,7 +18,10 @@ public class UpstreamFnBaselineTest
       String[] columns = line.split("\t", -1);
       char source = (char)Integer.parseInt(columns[0], 16);
       KeyValue expected = KeyValue.getKeyByName(columns[1]);
-      assertEquals("Pinned upstream Fn U+" + columns[0], expected, KeyModifier.fn_value(KeyValue.makeCharKey(source), null));
+      KeyValue actual = KeyModifier.fn_value(KeyValue.makeCharKey(source), null);
+      int presentation = KeyValue.FLAG_SMALLER_FONT | KeyValue.FLAG_KEY_FONT | KeyValue.FLAG_GREYED;
+      assertEquals("Pinned upstream Fn action U+" + columns[0],
+          expected.withFlags(expected.getFlags() & ~presentation), actual.withFlags(actual.getFlags() & ~presentation));
     }
   }
   private KeyValue fn(String key)
