@@ -29,3 +29,5 @@ Windows `gradlew.bat` 也通过 Python 3 执行 watchdog；本轮未在 Windows 
 重启及少量诊断还有更短的局部上限；不会延长外层时限。网络下载另有 socket 时限。APK 的单次动作／候选等待和性能门槛仍由测试自身限定，不能通过提高脚本预算绕过断言。
 
 `python3 scripts/test_script_timeouts.py --timeout-seconds 120` 实际运行挂起进程，覆盖退出码／输出、参数与环境变量、非法时限、嵌套预算、取消信号，以及真实 APK/Gradle 入口。Linux CI 另验证普通和独立会话的拒绝 TERM 子进程均被清理。无法访问 `/proc` 的环境会明确跳过该项，不能当作已通过。
+
+APK 驱动会输出当前阶段、单组时限及限定标签的实时测试日志；可用 `MIANCAK_PROGRESS=0` 静默。日志读取同样继承剩余预算，退出时结束。Gradle wrapper 保留原有符号链接解析。取消用例分别检查子进程实际收到 INT/TERM，避免只检查外层状态。

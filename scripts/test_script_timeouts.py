@@ -83,21 +83,27 @@ class ScriptTimeoutTest(unittest.TestCase):
     @unittest.skipIf(os.name == "nt", "POSIX cancellation")
     def test_cancellation_is_forwarded_and_returns_signal_status(self):
         with tempfile.TemporaryDirectory() as directory:
-            pidfile = Path(directory) / "pid"
-            child = "import os,sys,time; open(sys.argv[1],'w').write(str(os.getpid())); time.sleep(90)"
-            process = subprocess.Popen([sys.executable, str(RUNNER), "--timeout-seconds", "10", "--",
-                                        sys.executable, "-c", child, str(pidfile)],
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            end = time.monotonic() + 5
-            while not pidfile.exists() and time.monotonic() < end:
-                time.sleep(.02)
-            self.assertTrue(pidfile.exists())
-            process.send_signal(signal.SIGTERM)
-            _, error = process.communicate(timeout=5)
-            self.assertEqual(143, process.returncode, error)
-            from run_with_timeout import identity
-            value = identity(int(pidfile.read_text()))
-            self.assertTrue(value is None or value[1] == "Z")
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                pidfile = Path(directory) / ("pid-" + str(sig))
+                received = Path(directory) / ("signal-" + str(sig))
+                child = ("import os,signal,sys,time; "
+                         "handler=lambda n,f: (open(sys.argv[2],'w').write(str(n)),sys.exit(0)); "
+                         "signal.signal(signal.SIGINT,handler); signal.signal(signal.SIGTERM,handler); "
+                         "open(sys.argv[1],'w').write(str(os.getpid())); time.sleep(90)")
+                process = subprocess.Popen([sys.executable, str(RUNNER), "--timeout-seconds", "10", "--",
+                                            sys.executable, "-c", child, str(pidfile), str(received)],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                end = time.monotonic() + 5
+                while not pidfile.exists() and time.monotonic() < end:
+                    time.sleep(.02)
+                self.assertTrue(pidfile.exists())
+                process.send_signal(sig)
+                _, error = process.communicate(timeout=5)
+                self.assertEqual(128 + sig, process.returncode, error)
+                self.assertEqual(str(sig), received.read_text())
+                from run_with_timeout import identity
+                value = identity(int(pidfile.read_text()))
+                self.assertTrue(value is None or value[1] == "Z")
 
     def test_python_shell_and_gradle_entry_points_accept_common_option(self):
         # A sleeping stand-in is reached through actual APK/Gradle entry scripts.
@@ -113,7 +119,9 @@ class ScriptTimeoutTest(unittest.TestCase):
             (fake / "bin/java").symlink_to(fake / "java")
             env.pop("MIANCAK_TIMEOUT_DEADLINE", None)
             # Use a temporary cwd so a driver cannot overwrite real evidence.
-            for entry, args in ((ROOT / "scripts/emulator_tests.sh", []), (ROOT / "gradlew", ["--version"])):
+            linked = fake / "linked-gradlew"
+            linked.symlink_to(ROOT / "gradlew")
+            for entry, args in ((ROOT / "scripts/emulator_tests.sh", []), (ROOT / "gradlew", ["--version"]), (linked, ["--version"])):
                 result = subprocess.run(["/bin/bash", str(entry), "--timeout-seconds", ".5", *args], cwd=fake,
                                         env=env, capture_output=True, text=True, timeout=8)
                 self.assertEqual(124, result.returncode, (str(entry), result.stderr))
@@ -130,6 +138,24 @@ class ScriptTimeoutTest(unittest.TestCase):
                 continue  # sourced command wrapper, no standalone work
             source = (ROOT / name).read_text()
             self.assertTrue("guard_script" in source or "run_with_timeout.py" in source, name)
+
+    def test_live_log_reader_stops_when_apk_driver_fails_early(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fake = Path(directory)
+            adb = fake / "adb"
+            adb.write_text("#!/bin/sh\ncase \"$*\" in\n"
+                           "  'logcat -v brief '*) sleep 90 ;;\n"
+                           "  'shell getprop ro.build.version.sdk') echo 23 ;;\n"
+                           "  'exec-out '*) exit 1 ;;\nesac\n")
+            adb.chmod(0o755)
+            env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
+                       MIANCAK_TEST_API="35")
+            env.pop("MIANCAK_TIMEOUT_DEADLINE", None)
+            result = subprocess.run(["/bin/bash", str(ROOT / "scripts/emulator_tests.sh"),
+                                     "--timeout-seconds", "5"], cwd=fake, env=env,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(1, result.returncode, result.stderr)
+            self.assertIn("Unexpected emulator API: 23", result.stdout)
 
 
 if __name__ == "__main__":

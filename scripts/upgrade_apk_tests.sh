@@ -9,11 +9,13 @@ source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results upgrade-signed
 collect() {
+  stop_progress
   adb devices -l > test-results/adb-devices.txt || true
   timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
   timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
+start_progress
 sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/baseline.apk > test-results/original-apk-sha256.txt
 # Copies share a fresh local test identity. No release key enters PR execution.
 keytool -genkeypair -keystore upgrade-signed/test.p12 -storetype PKCS12 -storepass android \

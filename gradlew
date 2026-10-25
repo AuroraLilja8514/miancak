@@ -64,12 +64,6 @@
 #
 ##############################################################################
 
-# All builds, including network and daemon startup, have an inherited deadline.
-MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
-if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
-    exec python3 "$(dirname -- "$MIANCAK_ENTRY")/scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
-fi
-
 # Attempt to set APP_HOME
 
 # Resolve links: $0 may be a link
@@ -93,6 +87,13 @@ done
 APP_BASE_NAME=${0##*/}
 # Discard cd standard output in case $CDPATH is set (https://github.com/gradle/gradle/issues/25036)
 APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s\n' "$PWD" ) || exit
+
+# All builds, including network and daemon startup, have an inherited deadline.
+MIANCAK_ENTRY="$APP_HOME/${app_path##*/}"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+    exec python3 "$(dirname -- "$MIANCAK_ENTRY")/scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+
 
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD=maximum

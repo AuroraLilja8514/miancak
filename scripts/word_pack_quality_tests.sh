@@ -10,6 +10,7 @@ set -euo pipefail
 mkdir -p test-results/device
 collect() {
   local status=$?
+  stop_progress
   echo MIANCAK_WORD_PACK_REPORT_BEGIN
   adb exec-out run-as org.miancak.keyboard.debug cat files/test-results/word-pack-quality.json || true
   echo
@@ -28,6 +29,8 @@ PY
   fi
 }
 trap collect EXIT
+start_progress
+echo "MIANCAK stage=word-pack-quality; instrumentation limit=${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s"
 adb install -r artifacts/app-debug.apk
 adb install -r artifacts/app-debug-androidTest.apk
 actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"

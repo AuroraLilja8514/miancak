@@ -9,6 +9,7 @@ source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results word-test-data
 collect() {
+  stop_progress
   timeout --foreground 15s adb logcat -b all -d > test-results/logcat.txt || true
   timeout --foreground 10s adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
@@ -24,6 +25,7 @@ for name in ('word-legacy-choice.png', 'word-tables-prepare-ready.png'):
 PY
 }
 trap collect EXIT
+start_progress
 actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ -n "${MIANCAK_TEST_API:-}" && "$actual_api" != "$MIANCAK_TEST_API" ]]; then
   echo "Unexpected guest API: $actual_api"
@@ -54,6 +56,7 @@ for file in word-test-data/*.dict.yaml; do adb push "$file" /sdcard/Download/; d
 run_test() {
   local name="$1"
   shift
+  echo "MIANCAK stage=$name; instrumentation limit=${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s"
   adb shell am instrument -w "$@" org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/$name.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/$name.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/$name.log"

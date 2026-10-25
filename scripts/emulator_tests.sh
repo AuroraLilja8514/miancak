@@ -10,6 +10,7 @@ set -euo pipefail
 mkdir -p test-results
 collect() {
   local test_exit=$?
+  stop_progress
   adb logcat -b all -d > test-results/logcat.txt || true
   adb shell dumpsys input_method > test-results/input-method.txt || true
   adb shell dumpsys window windows > test-results/windows.txt || true
@@ -63,6 +64,7 @@ PY
   fi
 }
 trap collect EXIT
+start_progress
 adb install -r artifacts/app-debug.apk
 adb install -r artifacts/app-debug-androidTest.apk
 actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
@@ -76,6 +78,7 @@ adb shell svc data disable
 run_tests() {
   local result_name="$1"
   shift
+  echo "MIANCAK stage=$result_name; instrumentation limit=${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s"
   adb shell am instrument -w "$@" org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/${result_name}.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/${result_name}.log"; then
     exit 1

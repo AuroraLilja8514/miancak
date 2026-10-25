@@ -34,6 +34,7 @@ public final class FnInteractionTest
 
   @Test public void pairedVariantsDeliverFunctionEventsAndKeepSharedControls() throws Exception
   {
+    android.util.Log.i("MIANCAK-Acceptance", "Fn: start actual receiver and paired-layout checks");
     device.wakeUp(); device.setOrientationNatural();
     instrumentation.runOnMainSync(() -> {
       android.content.SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(context);

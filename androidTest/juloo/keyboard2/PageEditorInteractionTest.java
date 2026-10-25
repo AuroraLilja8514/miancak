@@ -126,7 +126,11 @@ public final class PageEditorInteractionTest
   {
     context.startActivity(new Intent(context,ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertTrue(device.wait(Until.hasObject(By.desc("first_editor")),15000));
-    device.findObject(By.desc("first_editor")).click();
+    // Tap the actual editor's trailing whitespace. Android 6 opens its
+    // spell-check popup when the center lands on the previous "abcdef" text;
+    // that popup owns accessibility focus even while the IME is visible.
+    Rect field = device.findObject(By.desc("first_editor")).getVisibleBounds();
+    assertTrue(device.click(field.right - Math.max(2,Math.round(4*context.getResources().getDisplayMetrics().density)),field.centerY()));
     final android.widget.EditText[] target={null};
     instrumentation.runOnMainSync(() -> {
       ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();target[0]=a.first;

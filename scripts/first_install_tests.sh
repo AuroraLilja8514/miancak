@@ -9,6 +9,7 @@ source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results
 collect() {
+  stop_progress
   timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
   timeout --foreground 15s adb shell dumpsys meminfo org.miancak.keyboard.debug > test-results/app-memory.txt || true
   timeout --foreground 15s adb shell dumpsys window windows > test-results/windows.txt || true
@@ -16,6 +17,7 @@ collect() {
   timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
+start_progress
 if adb shell pm list packages | tr -d '\r' | grep -qx 'package:org.miancak.keyboard.debug'; then
   echo 'Fresh-install guest already contains MIANCAK; refuse a prepared-state test.'
   exit 1

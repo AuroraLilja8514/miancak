@@ -81,8 +81,11 @@ def signal_tree(child, owned, sig):
         if current is None or current[0] != started or current[1] == "Z":
             continue
         try:
-            groups.add(os.getpgid(pid))
-            os.kill(pid, sig)
+            group = os.getpgid(pid)
+            if group == os.getpgrp():
+                os.kill(pid, sig)
+            else:
+                groups.add(group)
         except ProcessLookupError:
             pass
     groups.discard(os.getpgrp())
@@ -106,13 +109,13 @@ def run(command, seconds, env=None):
     if deadline <= time.monotonic():
         print("Timeout: inherited script deadline expired", file=sys.stderr, flush=True)
         return 124
-    child = subprocess.Popen(command, env=env, start_new_session=(os.name != "nt"))
     owned = {}
     cancelled = []
     previous = {}
     for sig in (signal.SIGINT, signal.SIGTERM):
         previous[sig] = signal.signal(sig, lambda number, frame: cancelled.append(number))
     try:
+        child = subprocess.Popen(command, env=env, start_new_session=(os.name != "nt"))
         while True:
             remember_tree(child.pid, owned)
             code = child.poll()
@@ -122,7 +125,7 @@ def run(command, seconds, env=None):
                 expired = not cancelled
                 print("Timeout: script deadline exceeded" if expired else "Script cancelled; terminating children",
                       file=sys.stderr, flush=True)
-                signal_tree(child, owned, signal.SIGTERM)
+                signal_tree(child, owned, signal.SIGTERM if expired else cancelled[0])
                 end = time.monotonic() + grace
                 while time.monotonic() < end:
                     if child.poll() is not None and not any(
