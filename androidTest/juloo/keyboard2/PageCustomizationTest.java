@@ -12,6 +12,26 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void symbolPagesKeepTheirOwnPortableEditsAndLegacyCoordinates() throws Exception
+  {
+    SharedPreferences preferences = prefs(); PageKeyOverrides edits = new PageKeyOverrides();
+    edits.set("symbols", 0, 0, 0, false, PageKeyOverrides.literal("旧"));
+    edits.set("symbols/math/1", 0, 0, 0, false, PageKeyOverrides.literal("新"));
+    edits.set("symbols/math/1", 0, 0, 0, true, "f1"); edits.save(preferences);
+    String json = PageKeyOverrides.export(preferences);
+    preferences.edit().clear().commit(); PageKeyOverrides.importJson(preferences, context().getResources(), json);
+    edits = PageKeyOverrides.load(preferences);
+    KeyboardData common = edits.apply("symbols", PageLayouts.base(context().getResources(), "symbols"));
+    assertEquals("旧", common.rows.get(0).keys.get(0).keys[0].getSemanticText());
+    KeyboardData math = edits.apply("symbols/math/1", PageLayouts.base(context().getResources(), "symbols/math/1"));
+    assertEquals("新", math.rows.get(0).keys.get(0).keys[0].layer(false).getSemanticText());
+    assertEquals(KeyValue.Kind.Keyevent, math.rows.get(0).keys.get(0).keys[0].layer(true).getKind());
+    JSONObject invalid = new JSONObject(json);
+    invalid.getJSONObject("pages").put("symbols/math/999", new JSONObject());
+    try { PageKeyOverrides.importJson(preferences, context().getResources(), invalid.toString()); fail(); }
+    catch (IllegalArgumentException expected) {}
+    assertEquals(json, PageKeyOverrides.export(preferences));
+  }
   @Test public void phoneticLinksSurviveFileRestoreAndDoNotDisplaceFnNbsp() throws Exception
   {
     SharedPreferences preferences = prefs();
@@ -58,7 +78,7 @@ public final class PageCustomizationTest
       .put("order", "zh,en").put("enabled", "zh,en,pinyin").put("fn_zh", "pinyin").put("fn_en", "numeric");
     PageKeyOverrides.importJson(preferences, context().getResources(), legacy.toString());
     assertEquals(legacy.toString(), preferences.getString(PageKeyOverrides.KEY + "_import_source", ""));
-    assertEquals(2, new JSONObject(PageKeyOverrides.export(preferences)).getInt("version"));
+    assertEquals(3, new JSONObject(PageKeyOverrides.export(preferences)).getInt("version"));
     assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
   }
 

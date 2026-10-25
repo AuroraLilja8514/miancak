@@ -71,6 +71,8 @@ public class Keyboard2 extends InputMethodService
   private long _pageRequest;
   private boolean _shiftLock;
   private PageKeyOverrides _keyOverrides;
+  private SymbolState _symbols = new SymbolState();
+  private View _symbolHeader;
 
   private FoldStateTracker _foldStateTracker;
 
@@ -154,6 +156,9 @@ public class Keyboard2 extends InputMethodService
     super.onCreate();
     SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
     MiancakPreferences.initialize(prefs);
+    java.util.Map<String, ?> values = prefs.getAll();
+    Object category = values.get("symbols_browser_category"), symbolPage = values.get("symbols_browser_page");
+    _symbols = new SymbolState(category instanceof String ? (String)category : "common", symbolPage instanceof Integer ? (Integer)symbolPage : 0);
     _handler = new Handler(getMainLooper());
     _foldStateTracker = new FoldStateTracker(this);
     _dictionaries = Dictionaries.instance(this);
@@ -199,6 +204,10 @@ public class Keyboard2 extends InputMethodService
     _surface = (FrameLayout)_keyboard_container_view.findViewById(R.id.miancak_keyboard_surface);
     _pages = PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(this));
     _keyOverrides = PageKeyOverrides.load(DirectBootAwarePreferences.get_shared_preferences(this));
+    _symbolHeader = new LinearLayout(this);
+    ((LinearLayout)_keyboard_container_view).addView(_symbolHeader, _keyboard_container_view.indexOfChild(_surface),
+        new LinearLayout.LayoutParams(-1, -2));
+    _symbolHeader.setVisibility(View.GONE);
     _rimeCandidates.setLanguageAction(this::toggle_language_page);
     _rimeCandidates.setPageAction(this::show_page_chooser);
     _rimeCandidates.setExpansionListener(this::page_visibility);
@@ -394,8 +403,9 @@ public class Keyboard2 extends InputMethodService
     close_page_chooser();
     _shiftLock = false;
     _currentSpecialLayout = refresh_special_layout();
-    if (_currentSpecialLayout != null) _page.select("numeric");
-    _keyboard_layout_view.setKeyboard(current_layout());
+    if (_currentSpecialLayout != null)
+    { _page.select("numeric"); _keyboard_layout_view.setKeyboard(current_layout()); }
+    else apply_page();
     page_visibility(); page_indicators();
     _keyeventhandler.started();
     setInputView(_keyboard_container_view);
@@ -532,6 +542,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onSharedPreferenceChanged(SharedPreferences _prefs, String _key)
   {
+    if (_key.startsWith("symbols_browser_")) return;
     if (_key.equals("pages_last_text"))
     {
       String id = _prefs.getString("pages_last_text", "zh");
@@ -655,13 +666,14 @@ public class Keyboard2 extends InputMethodService
         _currentSpecialLayout = _keyOverrides.apply(_page.active(), PageLayouts.numeric(getResources(), PageConfig.isVariant(_page.active()), _localeTextLayout)); break;
       case "greek":
         _currentSpecialLayout = LayoutModifier.modify_numpad(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active())), _localeTextLayout); break;
-      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply("symbols", PageLayouts.base(getResources(), "symbols"))); break;
+      case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply(_symbols.scope(), PageLayouts.symbols(getResources(), _symbols))); break;
       case "pinyin": case "pinyin_finals": case "zhuyin":
         _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active()))); break;
       default: _currentSpecialLayout = null; break;
     }
     _keyboard_layout_view.setKeyboard(current_layout());
     if (_shiftLock) _keyboard_layout_view.set_shift_state(true, true);
+    if (_page.active().equals("symbols")) update_symbol_header();
     if (_page.active().equals("emoji") && _emojiPane == null)
       _emojiPane = create_auxiliary_pane(R.layout.emoji_pane);
     if (_page.active().equals("clipboard") && _clipboard_pane == null)
@@ -697,9 +709,49 @@ public class Keyboard2 extends InputMethodService
     if (_keyboard_layout_view == null || _rimeCandidates == null) return;
     boolean overlay = _pageChooser != null || _rimeCandidates.isExpanded();
     boolean emoji = _page.active().equals("emoji"), clipboard = _page.active().equals("clipboard");
+    if (_symbolHeader != null) _symbolHeader.setVisibility(!overlay && _page.active().equals("symbols") ? View.VISIBLE : View.GONE);
     _keyboard_layout_view.setVisibility(overlay || emoji || clipboard ? View.INVISIBLE : View.VISIBLE);
     if (_emojiPane != null) _emojiPane.setVisibility(!overlay && emoji ? View.VISIBLE : View.GONE);
     if (_clipboard_pane != null) _clipboard_pane.setVisibility(!overlay && clipboard ? View.VISIBLE : View.GONE);
+  }
+
+  private void update_symbol_header()
+  {
+    LinearLayout header = (LinearLayout)_symbolHeader; header.removeAllViews();
+    header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    header.setId(R.id.miancak_symbol_categories);
+    android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
+    scroll.setHorizontalScrollBarEnabled(false);
+    LinearLayout tabs = new LinearLayout(this); scroll.addView(tabs);
+    for (String category : SymbolCatalog.categories())
+    {
+      android.widget.Button button = new android.widget.Button(this);
+      boolean selected = category.equals(_symbols.category());
+      button.setText((selected ? "✓ " : "") + getString(PagePreferences.symbolLabel(category)));
+      button.setAllCaps(false); button.setSelected(selected);
+      button.setId(PagePreferences.symbolTabId(category));
+      button.setContentDescription(getString(R.string.symbol_category_accessibility, getString(PagePreferences.symbolLabel(category))));
+      button.setOnClickListener(view -> { _symbols.select(category); save_symbol_state(); apply_page(); });
+      tabs.addView(button);
+      if (selected) scroll.post(() -> scroll.smoothScrollTo(button.getLeft(), 0));
+    }
+    header.addView(scroll, new LinearLayout.LayoutParams(0, -2, 1));
+    android.widget.TextView position = new android.widget.TextView(this);
+    position.setId(R.id.miancak_symbol_page);
+    position.setText(getString(R.string.symbol_page, _symbols.page() + 1, SymbolCatalog.pageCount(_symbols.category())));
+    position.setContentDescription(getString(R.string.symbol_page_accessibility, _symbols.page() + 1, SymbolCatalog.pageCount(_symbols.category())));
+    position.setPadding(8, 0, 8, 0); header.addView(position);
+  }
+  private void save_symbol_state()
+  {
+    DirectBootAwarePreferences.get_shared_preferences(this).edit()
+      .putString("symbols_browser_category", _symbols.category()).putInt("symbols_browser_page", _symbols.page()).apply();
+  }
+  private void turn_symbol_page(int delta)
+  {
+    if (!_page.active().equals("symbols")) return;
+    int before = _symbols.page(); _symbols.turn(delta);
+    if (before != _symbols.page()) { save_symbol_state(); apply_page(); }
   }
 
   private void page_indicators()
@@ -827,6 +879,8 @@ public class Keyboard2 extends InputMethodService
         case SWITCH_PINYIN: toggle_page("pinyin"); break;
         case SWITCH_PINYIN_FINALS: toggle_page("pinyin_finals"); break;
         case SWITCH_ZHUYIN: toggle_page("zhuyin"); break;
+        case SYMBOL_PREVIOUS: turn_symbol_page(-1); break;
+        case SYMBOL_NEXT: turn_symbol_page(1); break;
 
         case CAPS_LOCK:
           set_shift_state(true, true);

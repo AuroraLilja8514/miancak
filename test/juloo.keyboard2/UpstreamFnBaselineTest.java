@@ -7,6 +7,20 @@ import static org.junit.Assert.*;
 /** Modifier evaluation only. A passing test does not prove the UI Fn route works. */
 public class UpstreamFnBaselineTest
 {
+  @Test public void everyPinnedUpstreamCharacterFnValueIsPreserved() throws Exception
+  {
+    java.util.List<String> lines = java.nio.file.Files.readAllLines(
+        java.nio.file.Paths.get("test/fixtures/upstream-fn/fn-values.tsv"), java.nio.charset.StandardCharsets.UTF_8);
+    assertEquals("source_hex\ttarget_name", lines.get(0));
+    assertTrue("Must cover all language mappings, not only the QWERTY samples", lines.size() > 200);
+    for (String line : lines.subList(1, lines.size()))
+    {
+      String[] columns = line.split("\t", -1);
+      char source = (char)Integer.parseInt(columns[0], 16);
+      KeyValue expected = KeyValue.getKeyByName(columns[1]);
+      assertEquals("Pinned upstream Fn U+" + columns[0], expected, KeyModifier.fn_value(KeyValue.makeCharKey(source), null));
+    }
+  }
   private KeyValue fn(String key)
   {
     return KeyModifier.modify(KeyValue.getKeyByName(key), KeyValue.Modifier.FN);

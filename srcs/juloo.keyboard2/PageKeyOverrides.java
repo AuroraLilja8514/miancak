@@ -103,7 +103,7 @@ public final class PageKeyOverrides
   public static String export(SharedPreferences preferences) throws Exception
   {
     PageConfig config = PagePreferences.load(preferences);
-    return new JSONObject().put("version", 2).put("pages", load(preferences).pages)
+    return new JSONObject().put("version", 3).put("pages", load(preferences).pages)
       .put("phonetic_entry", config.phoneticEntry)
       .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
@@ -112,13 +112,13 @@ public final class PageKeyOverrides
     if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES) throw new IllegalArgumentException("File is too large");
     JSONObject root = new JSONObject(text);
     int version = root.getInt("version");
-    if (version != 1 && version != 2) throw new IllegalArgumentException("Unsupported layout version");
+    if (version < 1 || version > 3) throw new IllegalArgumentException("Unsupported layout version");
     JSONObject pages = root.getJSONObject("pages");
     Iterator<String> ids = pages.keys();
     while (ids.hasNext())
     {
       String id = ids.next();
-      if (!PageConfig.IDS.contains(id)) throw new IllegalArgumentException("Unknown page: " + id);
+      if (!PageLayouts.editable(id)) throw new IllegalArgumentException("Unknown page: " + id);
       KeyboardData layout = PageLayouts.base(resources, id);
       JSONObject keys = pages.getJSONObject(id); Iterator<String> positions = keys.keys();
       while (positions.hasNext())

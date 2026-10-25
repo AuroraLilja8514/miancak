@@ -19,6 +19,12 @@ public final class PageLayouts
   { return base(resources, page, new juloo.keyboard2.input.PageConfig(null, null)); }
   public static KeyboardData base(Resources resources, String page, juloo.keyboard2.input.PageConfig config)
   {
+    if (page.startsWith("symbols/"))
+    {
+      if (!juloo.keyboard2.input.SymbolCatalog.validScope(page)) throw new IllegalArgumentException(page);
+      String[] parts = page.split("/");
+      return symbols(resources, new juloo.keyboard2.input.SymbolState(parts[1], Integer.parseInt(parts[2])));
+    }
     boolean variant = juloo.keyboard2.input.PageConfig.isVariant(page);
     boolean chinese = page.equals("zh_fn");
     page = juloo.keyboard2.input.PageConfig.base(page);
@@ -38,8 +44,16 @@ public final class PageLayouts
     }
     KeyboardData data = LayoutControls.normalize(complete(resources, KeyboardData.load(resources, id)));
     data = links(data, page, config);
+    if (page.equals("symbols")) return SymbolLayouts.build(data, new juloo.keyboard2.input.SymbolState());
     return variant ? FnLayout.materialize(data, chinese) : data;
   }
+  public static KeyboardData symbols(Resources resources, juloo.keyboard2.input.SymbolState state)
+  {
+    return SymbolLayouts.build(LayoutControls.normalize(complete(resources,
+        KeyboardData.load(resources, R.xml.miancak_symbols))), state);
+  }
+  public static boolean editable(String id)
+  { return juloo.keyboard2.input.PageConfig.IDS.contains(id) || juloo.keyboard2.input.SymbolCatalog.validScope(id); }
   public static KeyboardData complete(Resources resources, KeyboardData data)
   {
     if (data.bottom_row)

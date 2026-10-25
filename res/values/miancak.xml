@@ -25,4 +25,13 @@
   <item name="miancak_page_chooser" type="id"/>
   <item name="miancak_pages" type="id"/>
   <item name="miancak_page_settings" type="id"/>
+  <item name="miancak_symbol_categories" type="id"/>
+  <item name="miancak_symbol_page" type="id"/>
+  <item name="symbol_category_common" type="id"/>
+  <item name="symbol_category_punctuation" type="id"/>
+  <item name="symbol_category_brackets" type="id"/>
+  <item name="symbol_category_math" type="id"/>
+  <item name="symbol_category_arrows" type="id"/>
+  <item name="symbol_category_currency" type="id"/>
+  <item name="symbol_category_shapes" type="id"/>
 </resources>

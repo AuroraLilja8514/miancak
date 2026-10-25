@@ -77,4 +77,15 @@
   <string name="page_phonetic_help">中文空格左上默认进入拼音文字，可在此改为注音文字。选择入口会启用对应布局，手动停用则隐藏入口。发音文字布局的 Shift 右上返回中文。拼音／注音页空格左上进入韵母页，韵母页空格左上为退格。空格上下始终轮换布局。元音／韵母四角分别为一、二、三、四声，中心不标调。</string>
   <string name="page_phonetic_entry">中文空格左上：%s</string>
   <string name="page_phonetic_entry_title">发音文字快捷入口</string>
+  <string name="symbol_common">常用</string>
+  <string name="symbol_punctuation">标点</string>
+  <string name="symbol_brackets">括号</string>
+  <string name="symbol_math">数学</string>
+  <string name="symbol_arrows">箭头</string>
+  <string name="symbol_currency">货币／单位</string>
+  <string name="symbol_shapes">图形／音乐</string>
+  <string name="symbol_page">%1$d/%2$d</string>
+  <string name="symbol_category_accessibility">符号栏目：%s</string>
+  <string name="symbol_page_accessibility">第 %1$d 页，共 %2$d 页</string>
+  <string name="symbol_panel_help">符号页点击栏目回到该栏首页；空格左上／右上在当前栏目内翻页，上下仍轮换布局。Shift 切换明确的全半角配对，没有配对的符号保持原样。Fn 无特殊效果。</string>
 </resources>

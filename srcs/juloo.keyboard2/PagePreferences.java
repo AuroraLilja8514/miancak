@@ -62,4 +62,32 @@ public final class PagePreferences
       default: throw new IllegalArgumentException(id);
     }
   }
+  public static int symbolLabel(String category)
+  {
+    switch (category)
+    {
+      case "common": return R.string.symbol_common;
+      case "punctuation": return R.string.symbol_punctuation;
+      case "brackets": return R.string.symbol_brackets;
+      case "math": return R.string.symbol_math;
+      case "arrows": return R.string.symbol_arrows;
+      case "currency": return R.string.symbol_currency;
+      case "shapes": return R.string.symbol_shapes;
+      default: throw new IllegalArgumentException(category);
+    }
+  }
+  public static int symbolTabId(String category)
+  {
+    switch (category)
+    {
+      case "common": return R.id.symbol_category_common;
+      case "punctuation": return R.id.symbol_category_punctuation;
+      case "brackets": return R.id.symbol_category_brackets;
+      case "math": return R.id.symbol_category_math;
+      case "arrows": return R.id.symbol_category_arrows;
+      case "currency": return R.id.symbol_category_currency;
+      case "shapes": return R.id.symbol_category_shapes;
+      default: throw new IllegalArgumentException(category);
+    }
+  }
 }

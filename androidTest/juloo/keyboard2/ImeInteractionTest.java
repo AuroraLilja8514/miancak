@@ -41,7 +41,10 @@ public class ImeInteractionTest
     // process. Ending a separate instrumentation force-stops the active IME
     // and races Android's asynchronous fallback/rebind before this fixture.
     if (!InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"))
+    {
       new FnInteractionTest().pairedVariantsDeliverFunctionEventsAndKeepSharedControls();
+      new SymbolInteractionTest().categoriesPagesWidthsAndControlsDeliverActualText();
+    }
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
     pkg = context.getPackageName();
