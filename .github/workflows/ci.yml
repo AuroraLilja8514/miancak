@@ -425,7 +425,7 @@ jobs:
         with:
           path: .native
           key: native-sources-${{ hashFiles('native/sources.lock.json') }}
-      - run: python3 scripts/prepare_rime.py
+      - run: timeout --foreground --kill-after=10s "${MIANCAK_SCRIPT_TIMEOUT_SECONDS}s" python3 scripts/prepare_rime.py
       - uses: actions/cache@v4
         with:
           path: |
@@ -434,7 +434,7 @@ jobs:
           key: upgrade-baseline-ca6c-x86_64-${{ runner.os }}
       - name: Build pinned old application APK
         run: |
-          ./gradlew --no-daemon -PmiancakAbis=x86_64 assembleDebug
+          timeout --foreground --kill-after=10s "${MIANCAK_SCRIPT_TIMEOUT_SECONDS}s" ./gradlew --no-daemon -PmiancakAbis=x86_64 assembleDebug
           mkdir -p baseline
           cp build/outputs/apk/debug/*.apk baseline/baseline.apk
           git rev-parse HEAD > baseline/source-commit.txt

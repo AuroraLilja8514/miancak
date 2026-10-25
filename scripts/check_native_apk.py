@@ -47,4 +47,24 @@ with zipfile.ZipFile(apk) as archive:
             assert descriptor in dex, "JNI entry point was removed or renamed"
     assert json.loads(archive.read("assets/native-sources.json"))["librime"] == lock["librime"]
     assert any(name.startswith("assets/third-party/pinyin-simp/LICENSE") for name in archive.namelist())
+    pack_lock = json.loads((root / "native/word-pack.lock.json").read_text())
+    if pack_lock.get("default_profile") == "ice-core":
+        pack = json.loads(archive.read("assets/word-pack/current.json"))
+        assert pack["profile"] == "ice-core" and pack["source"] == pack_lock["candidate"]
+        assert pack["dictionary"] == "pinyin_simp"
+        assert pack["entries"] == sum(x["rows"] - x["duplicates"] for x in pack["files"])
+        assert pack["dictionarySha256"] == manifest["pinyin_simp.dict.yaml"]
+        raw = archive.read("assets/rime/pinyin_simp.dict.yaml").decode("utf-8")
+        rows = [line for line in raw.split("\n...\n", 1)[1].splitlines() if line.strip() and not line.startswith("#")]
+        assert len(rows) == pack["entries"] == 551875
+        assert [{k: x[k] for k in ("path", "sha256", "rows")} for x in pack["files"]] == pack_lock["files"][:2]
+        assert json.loads(archive.read("assets/native-sources.json"))["word_pack"] == pack
+        assert archive.getinfo("assets/third-party/rime-ice/LICENSE").file_size > 10000
+        for entry in pack["files"]:
+            assert archive.getinfo("assets/third-party/rime-ice/" + entry["path"] + ".header.txt").file_size > 100
+        legacy = archive.read("assets/word-pack/miancak_legacy_0_3.dict.yaml")
+        assert hashlib.sha256(legacy).hexdigest() == pack["legacy"]["sha256"]
+        restored = legacy.replace(b"name: miancak_legacy_0_3\n", b"name: pinyin_simp\n", 1)
+        assert hashlib.sha256(restored).hexdigest() == "e341598343a0f0f2035bb1aafc34a7f3bb7887deeecb3f60796262aaa2983e6b"
+        print("Verified ice-core: 551875 unchanged source rows, attribution and offline 0.3.0 fallback")
 print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

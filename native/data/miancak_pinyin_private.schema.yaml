@@ -1,5 +1,6 @@
 # MIANCAK schema: explicit literal punctuation/digits are routed by the frontend.
-# Dictionary: rime/rime-pinyin-simp (Apache-2.0), unmodified, pinned by sources.lock.json.
+# Stable dictionary ID: pinyin_simp. Pack provenance is in word-pack/current.json;
+# source revisions, licenses and preserved headers are packaged under third-party/.
 schema:
   schema_id: miancak_pinyin_private
   name: MIANCAK 简体拼音（不学习）

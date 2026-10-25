@@ -36,7 +36,7 @@ def checkout(name, spec):
         git(dest, "init", "--quiet")
         git(dest, "remote", "add", "origin", spec["url"])
     try:
-        actual = git(dest, "rev-parse", "HEAD")
+        actual = git(dest, "rev-parse", "--verify", "--quiet", "HEAD")
     except subprocess.CalledProcessError:
         actual = None
     if actual != spec["commit"]:
@@ -90,9 +90,17 @@ def main():
     data = ASSETS / "rime"
     shutil.copytree(ROOT / "native/data", data)
     shutil.copyfile(pinyin / "pinyin_simp.dict.yaml", data / "pinyin_simp.dict.yaml")
+    from prepare_word_pack import prepare, install_default, SPEC
+    report = prepare()
+    profile = SPEC.get("default_profile", "legacy")
+    if profile not in ("legacy", "ice-core"):
+        raise RuntimeError("Unsupported default word-pack profile: " + str(profile))
+    word_pack = install_default(report, ASSETS) if profile == "ice-core" else None
     manifest = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(data.iterdir())}
     (data / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
     metadata = dict(LOCK)
+    if word_pack is not None:
+        metadata["word_pack"] = word_pack
     metadata["dependencies"] = {name: git(rime / "deps" / name, "rev-parse", "HEAD")
                                 for name in ["leveldb", "yaml-cpp", "marisa-trie", "opencc"]}
     (ASSETS / "native-sources.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -105,8 +113,6 @@ def main():
             out = ASSETS / "third-party/librime" / name
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(rime / name, out)
-    from prepare_word_pack import prepare
-    prepare()
     print("Prepared locked native sources and hashed offline pinyin assets", flush=True)
 
 

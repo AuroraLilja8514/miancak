@@ -1,10 +1,10 @@
 # 开发计划
 
-> 2026-10-25 执行状态：已授权并开始 R1／R2 实现，当前 APK 验收见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。后续以 [布局与 Fn 修复计划](LAYOUT_REPAIR_PLAN.md) 为新的设计方向。最初仅规划的限制已由后续开发授权解除。下述 C1–C6 是历史实现／测试范围；Fn 功能完整性、符号布局、八向编辑及正式中文词典质量重新列为待修复／待验收，旧“任意 Fn 目标”和“独立语言模式”规则不再作为后续设计依据。
+> 当前主线为 [R0–R7 修复计划](LAYOUT_REPAIR_PLAN.md)，实现、真实 APK 结果及剩余限制统一见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。本页 C1–C6／W1–W3 保留为历史范围；旧任意 Fn 目标、独立语言模式与中文 Fn 进入发音页均已废弃。Compose 保持现状；H1 高级手势编辑与 #18 跨语言 cdict／Rime 共同词源迁移后置。
 
-更新：2026-10-25。计划以当前源码、用户反馈和实际 APK 验收为依据；功能代码存在、模拟器测试通过、物理设备验证及正式发布分别记录。当前 C1–C6 和词表主线的状态与 CI 证据以 [EXECUTION_PLAN.md](EXECUTION_PLAN.md) 为准，交互规则以 [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) 为准。
+更新：2026-10-25。计划以当前源码、用户反馈和实际 APK 验收为依据；功能代码存在、模拟器测试通过、物理设备验证及正式发布分别记录。当前修复状态与 CI 证据以 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md) 为准；历史记录见 [EXECUTION_PLAN.md](EXECUTION_PLAN.md)，交互规则以 [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) 为准。
 
-## 当前实现
+## 0.2.0／0.3.0 历史实现
 
 项目已保留本地修改并同步至 Unexpected Keyboard `c87d9b8fbd501197286eaafeae88278dfbdd56b7`。M1–M5 已建立语义路由、串行控制器、编辑器生命周期、JNI/librime、离线拼音数据和候选交互；这些架构阶段的完成不代表首次安装和中文键面已经正确，因此另外建立 C1–C6 验收。
 

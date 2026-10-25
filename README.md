@@ -6,17 +6,19 @@ MIANCAK is a personal, open-source Android input method project based on [Unexpe
 
 This project is primarily developed for self use. It is public so that its source, history, licenses, and third-party provenance remain transparent and auditable.
 
+Chinese vocabulary uses pinned Rime Ice 8105 + base pure word tables (551,875 entries), with the existing MIANCAK schema. First offline compilation can take tens of seconds. **Settings → Chinese word tables** can add/switch supported explicit-Pinyin Rime tables or choose the bundled offline 0.3.0 fallback while preserving learning. See [sources and measured limits](docs/WORD_PACK_EVALUATION.md); a word table does not install a complete external scheme.
+
 ## Project status
 
 MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. Existing automated scenarios pass, but everyday Chinese usability is not accepted and remains tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
 
 Settings and the IME share one preference store. New installations select MIANCAK QWERTY and enable double-tap Shift locking. The candidate row measures a ranked prefix that fits; expansion makes the full engine page reachable in the keyboard area.
 
-Chinese and English are separate layout states using one built-in QWERTY template. Symbols, numbers, Greek/math, emoji, clipboard, Pinyin text, Pinyin finals and Zhuyin text are configurable pages. Enter southeast or the header layout button opens the chooser. Fn toggles only the current layout’s own paired variant; the indicator follows the selected layout. Settings provide layout order, pair enablement, center plus eight directions, independent normal/Shift layers, paired Fn-variant editing, Android file import/export and recovery. The other inherited built-in main layouts have been retired with a backup migration; valid independent custom XML is retained. See [docs/LAYOUT_DESIGN.md](docs/LAYOUT_DESIGN.md) for the data model and [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md) for acceptance status.
+Chinese and English are separate layout states using one built-in QWERTY template. Symbols, numbers, Greek/math, emoji, clipboard, Pinyin text, Pinyin finals and Zhuyin text are configurable pages. Enter southeast or the header layout button opens the chooser. Fn toggles only the current layout’s own paired variant; the indicator follows the selected layout. Settings provide layout order, pair enablement, center plus eight directions, independent normal/Shift layers, paired Fn-variant editing, Android file import/export and recovery. The other inherited built-in main layouts have been retired with a backup migration; valid independent custom XML is retained. See [docs/LAYOUT_DESIGN.md](docs/LAYOUT_DESIGN.md) for the data model and [docs/FN_REPAIR_PROGRESS.md](docs/FN_REPAIR_PROGRESS.md) for current acceptance status.
 
 See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
 
-Current development and exact APK evidence are recorded in [the repair progress log](docs/FN_REPAIR_PROGRESS.md). The [visual editor guide](docs/VISUAL_LAYOUT_EDITOR.md) describes the current controls; [formal word-pack evaluation](docs/WORD_PACK_EVALUATION.md) is separate from existing table import and has not yet replaced the default.
+Current development and exact APK evidence are recorded in [the repair progress log](docs/FN_REPAIR_PROGRESS.md). The [visual editor guide](docs/VISUAL_LAYOUT_EDITOR.md) describes the current controls; [formal word-pack evaluation](docs/WORD_PACK_EVALUATION.md) is separate from existing table import records the chosen Rime Ice core and the offline legacy fallback.
 
 The prototype integrates:
 
