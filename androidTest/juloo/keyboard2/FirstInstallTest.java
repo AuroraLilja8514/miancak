@@ -136,12 +136,14 @@ public final class FirstInstallTest
     UiObject2 settings = object("btnLaunchSettingsActivity");
     assertNotNull("Shipped settings action is missing", settings);
     settings.click();
-    assertTrue(device.wait(Until.hasObject(By.text(context.getString(R.string.pages_title))), 15000));
+    // The instrumentation's package Context can retain the old locale while
+    // the Settings Activity has adopted Android's per-app Chinese locale.
+    assertTrue(device.wait(Until.hasObject(By.res("android", "list").pkg(pkg)), 15000));
   }
 
   private void assertDefaultLayout()
   {
-    assertTrue(device.wait(Until.hasObject(By.text(context.getString(R.string.pages_title))), 15000));
+    assertTrue(device.wait(Until.hasObject(By.res("android", "list").pkg(pkg)), 15000));
     android.content.SharedPreferences preferences = DirectBootAwarePreferences.get_shared_preferences(context);
     assertEquals("[\"miancak_qwerty\"]", preferences.getString("layouts", ""));
     assertEquals(0, preferences.getInt("current_layout_portrait", 0));

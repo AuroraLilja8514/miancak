@@ -121,6 +121,7 @@ public final class FnInteractionTest
       for (KeyEvent event : received) report.append(event.getAction()).append(',').append(event.getKeyCode()).append(',').append(event.getMetaState()).append('\n');
       try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "fn-received-events.csv")))
       { out.write(report.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+      instrumentation.waitForIdleSync(); device.waitForIdle();
       device.takeScreenshot(new java.io.File(dir, "fn-final.png"));
       device.unfreezeRotation(); instrumentation.runOnMainSync(() -> activity.finish());
     }

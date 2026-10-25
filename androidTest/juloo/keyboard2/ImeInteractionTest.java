@@ -37,6 +37,11 @@ public class ImeInteractionTest
 
   @Test public void touchMixedInputAndEditorLifecycles() throws Exception
   {
+    // Keep the Fn probe and subsequent lifecycle scenario in one target
+    // process. Ending a separate instrumentation force-stops the active IME
+    // and races Android's asynchronous fallback/rebind before this fixture.
+    if (!InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"))
+      new FnInteractionTest().pairedVariantsDeliverFunctionEventsAndKeepSharedControls();
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
     pkg = context.getPackageName();

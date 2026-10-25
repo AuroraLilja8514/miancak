@@ -1,6 +1,6 @@
 # 中文 QWERTY 键位
 
-> 下表是当前历史键面，不是已确认的修复后默认值。Fn、符号、空格／发音入口和八向呈现正在按 [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md) 重新规划；其中“Fn 为可设置任意页面目标”的旧设计不再采用。本轮没有修改键位或程序。
+> 下表是当前历史键面，不是已确认的修复后默认值。Fn、符号、空格／发音入口和八向呈现正在按 [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md) 重新规划；其中“Fn 为可设置任意页面目标”的旧设计不再采用。修复分支的当前 Fn 键位与配对见 [FN_LAYOUTS.md](FN_LAYOUTS.md)，验收状态见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。
 
 普通字母位置与中英文模式无关。“Shift 后”表示先点 Shift，再向该角滑动，全部可以单指完成。双击／长按 Shift 锁定，再点解除。Shift 右上滑动切换中英文，不再放独立 Caps Lock。
 
