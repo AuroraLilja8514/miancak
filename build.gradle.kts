@@ -58,7 +58,7 @@ android {
     named("androidTest") {
       java.srcDirs("androidTest")
       res.srcDirs("androidTest/res")
-      assets.srcDirs("androidTest/assets")
+      assets.srcDirs("androidTest/assets", "build/generated-word-pack-tests")
     }
   }
 

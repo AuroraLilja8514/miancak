@@ -94,6 +94,8 @@ def main():
             out = ASSETS / "third-party/librime" / name
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(rime / name, out)
+    from prepare_word_pack import prepare
+    prepare()
     print("Prepared locked native sources and hashed offline pinyin assets", flush=True)
 
 
