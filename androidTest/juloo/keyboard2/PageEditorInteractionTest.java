@@ -54,6 +54,7 @@ public final class PageEditorInteractionTest
         for (int d = 0; d < 9; d++) literal("en", 1, 2, d, "C12345678".substring(d, d+1));
         require(By.desc("Shift layer preview")).click();
         literal("en", 1, 2, 0, "转"); literal("en", 1, 2, 7, "上");
+        key("en", 1, 2); shot("editor-eight-directions"); closeDialog();
         key("en", 3, 2); UiObject2 shared = position(7);
         assertFalse(shared.isEnabled()); assertTrue(shared.getText().contains(context.getString(R.string.page_shared_status))); closeDialog();
         device.setOrientationLeft(); orientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
@@ -154,9 +155,16 @@ public final class PageEditorInteractionTest
   private void scrollTo(String desc) throws Exception{new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_vertical")).scrollIntoView(new UiSelector().description(desc));}
   private void key(String id,int r,int c) throws Exception
   {
-    String desc="Edit key: "+id+":"+r+":"+c;scrollTo(desc);
+    String desc="Edit key: "+id+":"+r+":"+c;scrollTo("Editor row: "+id+":"+r);
     new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_keyboard")).setAsHorizontalList().scrollIntoView(new UiSelector().description(desc));
-    UiObject2 cell=device.wait(Until.findObject(By.desc(desc)),15000);assertNotNull(cell);cell.click();
+    UiObject2 cell=device.wait(Until.findObject(By.desc(desc)),15000);assertNotNull(cell);
+    for(int attempt=0;attempt<3&&cell.getVisibleBounds().width()<Math.round(80*context.getResources().getDisplayMetrics().density);attempt++)
+    {
+      UiObject2 horizontal=require(By.res(pkg,"miancak_editor_keyboard"));
+      horizontal.scroll(cell.getVisibleBounds().centerX()<horizontal.getVisibleBounds().centerX()?Direction.LEFT:Direction.RIGHT,.35f);
+      cell=require(By.desc(desc));
+    }
+    assertTrue("Editor key preview collapsed: "+cell.getVisibleBounds(),cell.getVisibleBounds().width()>=Math.round(80*context.getResources().getDisplayMetrics().density));cell.click();
   }
   private UiObject2 position(int d) throws Exception
   {

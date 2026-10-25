@@ -10,7 +10,7 @@
 
 不安装第三方 schema、Lua、OpenCC 或整套万象方案。雾凇的 `tencent` 无编码列、`others` 部分无编码及根表大写／无编码混合词条尚不属于当前导入配置；不静默跳过后声称完整支持。这里只评估明确选定的三个完整纯词表。
 
-万象候选版本暂记 [2685894d88be6dc7f15e79937ac3a6eb918accce](https://github.com/amzxyz/rime-wanxiang/tree/2685894d88be6dc7f15e79937ac3a6eb918accce)，仍须单独核实编码、许可、体积与转换规则，未采用其数据。该来源可能改善带调／辅助码兼容，但不构成本轮默认数据的一部分。
+万象候选版本已读取固定来源 [2685894d88be6dc7f15e79937ac3a6eb918accce](https://github.com/amzxyz/rime-wanxiang/tree/2685894d88be6dc7f15e79937ac3a6eb918accce)，已核对其根词表与字表：`wanxiang.dict.yaml` 引用 zi／jichu／cuoyin／duoyin／diming／mingren／yiren；字表第二条即为 `阿 → ā`（Git blob `038a106edb471982b49c83f209834db0e1984bbb`），当前明确无声调导入配置会报错。基础文件约 49.5 MB，还需逐表处理带调编码、归并后的重复／权重和来源；不能直接去调后声称等价兼容。`custom/wanxiang_pure.dict.yaml` 仍引用 `.pro` 数据，不是当前无声调配置的快捷替代。因此本轮优先评估原样兼容的雾凇三表，万象规范化转换另行跟踪，不引入完整万象方案。
 
 ## 预先固定的比较方法
 

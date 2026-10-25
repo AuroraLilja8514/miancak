@@ -113,18 +113,21 @@ public final class PageEditorActivity extends Activity
     KeyboardData layout = draft.apply(page, base);
     HorizontalScrollView horizontal = new HorizontalScrollView(this); horizontal.setId(R.id.miancak_editor_keyboard);
     LinearLayout grid = new LinearLayout(this); grid.setOrientation(LinearLayout.VERTICAL);
-    horizontal.addView(grid, new android.widget.FrameLayout.LayoutParams(Math.max(getResources().getDisplayMetrics().widthPixels,
-        Math.round(dp(108) * layout.keysWidth)), -2)); content.addView(horizontal);
+    int previewWidth = Math.max(getResources().getDisplayMetrics().widthPixels, Math.round(dp(108) * layout.keysWidth));
+    grid.setMinimumWidth(previewWidth);
+    horizontal.addView(grid, new android.widget.FrameLayout.LayoutParams(previewWidth, -2)); content.addView(horizontal);
     for (int r = 0; r < layout.rows.size(); r++)
     {
       LinearLayout row = new LinearLayout(this);
+      row.setContentDescription("Editor row: " + page + ":" + r);
       for (int c = 0; c < layout.rows.get(r).keys.size(); c++)
       {
         KeyboardData.Key key = layout.rows.get(r).keys.get(c);
         if (key.shift > 0) row.addView(new android.view.View(this), new LinearLayout.LayoutParams(0, 1, key.shift));
         final int rowIndex = r, col = c;
         LinearLayout cell = new LinearLayout(this); cell.setOrientation(LinearLayout.VERTICAL);
-        cell.setBackgroundResource(android.R.drawable.btn_default); cell.setClickable(true); cell.setFocusable(true);
+        Button palette = new Button(this);
+        cell.setBackground(palette.getBackground()); cell.setClickable(true); cell.setFocusable(true);
         cell.setContentDescription("Edit key: " + page + ":" + r + ":" + c); cell.setOnClickListener(view -> editKey(rowIndex, col));
         for (int[] line : DIRECTIONS)
         {
@@ -132,6 +135,7 @@ public final class PageEditorActivity extends Activity
           for (int direction : line)
           {
             TextView text = new TextView(this); String full = label(key.keys[direction]);
+            text.setTextColor(palette.getTextColors());
             text.setText(full.codePointCount(0, full.length()) > 8 ? full.substring(0, full.offsetByCodePoints(0, 7)) + "…" : full);
             text.setTextSize(direction == 0 ? 12 : 9); text.setMaxLines(2); text.setGravity(android.view.Gravity.CENTER);
             text.setContentDescription(getString(R.string.page_position_accessibility, directionNames[direction], full, status(key, r, c, direction)));
@@ -145,7 +149,9 @@ public final class PageEditorActivity extends Activity
       }
       float gap = layout.keysWidth - layout.rows.get(r).keysWidth;
       if (gap > 0) row.addView(new android.view.View(this), new LinearLayout.LayoutParams(0, 1, gap));
-      grid.addView(row);
+      // HorizontalScrollView measures its child with unspecified width. Give
+      // every row a real width so weight-only keys cannot collapse to labels.
+      grid.addView(row, new LinearLayout.LayoutParams(previewWidth, -2));
     }
     TextView description = new TextView(this);
     description.setText(page.equals("emoji") || page.equals("clipboard") ? R.string.page_dynamic_controls : R.string.page_editor_help);
