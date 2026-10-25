@@ -129,6 +129,7 @@ public class ImeInteractionTest
       instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       device.wait(Until.findObject(By.desc("Choose phonetic entry")), 15000).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_zhuyin))), 15000).click();
+      assertTrue(device.wait(Until.hasObject(By.desc("Choose phonetic entry").textContains(context.getString(R.string.page_zhuyin))), 15000));
       assertEquals("zhuyin", PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(context)).phoneticEntry);
       resumeEditor(); ensureChinese(); gesture(5f, 3, -1, -1); awaitPage("zhuyin");
       phoneticGesture("zhuyin", 0, 6, 0, 0); phoneticGesture("zhuyin", 2, 0, -1, 1);
