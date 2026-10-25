@@ -104,6 +104,7 @@ public final class PageKeyOverrides
   {
     PageConfig config = PagePreferences.load(preferences);
     return new JSONObject().put("version", 2).put("pages", load(preferences).pages)
+      .put("phonetic_entry", config.phoneticEntry)
       .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
   public static void importJson(SharedPreferences preferences, Resources resources, String text) throws Exception
@@ -131,12 +132,15 @@ public final class PageKeyOverrides
         String action = keys.getString(position); if (!action.isEmpty()) validateAction(action);
       }
     }
-    PageConfig config = new PageConfig(root.getString("order"), root.getString("enabled"));
+    String phonetic = root.optString("phonetic_entry", "pinyin");
+    if (!phonetic.equals("pinyin") && !phonetic.equals("zhuyin")) throw new IllegalArgumentException("Invalid phonetic entry");
+    PageConfig config = new PageConfig(root.getString("order"), root.getString("enabled"), phonetic);
     // Validate everything before committing any of the configuration.
     preferences.edit().putString(KEY + "_previous", preferences.getString(KEY, "{}"))
       .putString(KEY + "_previous_bundle", export(preferences))
       .putString(KEY, pages.toString()).putString("pages_order", PageConfig.csv(config.order))
       .putString("pages_enabled", PageConfig.csv(config.enabled)).putInt("pages_version", 2)
+      .putString("pages_phonetic_entry", config.phoneticEntry)
       .putString(KEY + "_import_source", text).remove("pages_fn_zh").remove("pages_fn_en").apply();
   }
 }

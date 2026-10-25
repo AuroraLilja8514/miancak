@@ -97,6 +97,7 @@ public class Keyboard2 extends InputMethodService
       return _currentSpecialLayout;
     KeyboardData data = PageLayouts.complete(getResources(), current_layout_unmodified());
     data = LayoutControls.normalize(data);
+    data = PageLayouts.links(data, _page.active(), _pages);
     if (PageConfig.isVariant(_page.active())) data = FnLayout.materialize(data, _page.active().equals("zh_fn"));
     if (_keyOverrides != null) data = _keyOverrides.apply(_page.active(), data);
     return LayoutModifier.modify_layout(data, PageConfig.isVariant(_page.active()));
@@ -676,10 +677,6 @@ public class Keyboard2 extends InputMethodService
     for (int i = 0; i < pane.getChildCount(); i++)
       if (pane.getChildAt(i) instanceof Keyboard2View)
         ((Keyboard2View)pane.getChildAt(i)).setEmbeddedControls();
-    android.widget.Button picker = new android.widget.Button(this);
-    picker.setText(R.string.pages_title); picker.setContentDescription("Open layout chooser");
-    picker.setOnClickListener(view -> show_page_chooser());
-    pane.addView(picker, 0, new LinearLayout.LayoutParams(-1, -2));
     _surface.addView(pane, new FrameLayout.LayoutParams(-1, -1));
     return pane;
   }
@@ -688,7 +685,11 @@ public class Keyboard2 extends InputMethodService
   {
     for (int i = 0; i < pane.getChildCount(); i++)
       if (pane.getChildAt(i) instanceof Keyboard2View)
-        ((Keyboard2View)pane.getChildAt(i)).setKeyboard(_keyOverrides.apply(id, PageLayouts.base(getResources(), id)));
+      {
+        Keyboard2View controls = (Keyboard2View)pane.getChildAt(i);
+        controls.setKeyboard(_keyOverrides.apply(id, PageLayouts.base(getResources(), id)));
+        controls.setContentDescription("Controls: " + id);
+      }
   }
 
   private void page_visibility()

@@ -37,6 +37,15 @@ public class PageSettingsActivity extends Activity
     content.setPadding(padding, padding, padding, padding);
     scroll.addView(content); setContentView(scroll);
     ActivityInsets.install(this, scroll);
+    Button phonetic = new Button(this);
+    phonetic.setText(getString(R.string.page_phonetic_entry, getString(PagePreferences.label(config.phoneticEntry))));
+    phonetic.setContentDescription("Choose phonetic entry");
+    phonetic.setOnClickListener(view -> new AlertDialog.Builder(this).setTitle(R.string.page_phonetic_entry_title)
+      .setSingleChoiceItems(new String[] {getString(R.string.page_pinyin), getString(R.string.page_zhuyin)},
+          config.phoneticEntry.equals("pinyin") ? 0 : 1, (dialog, which) -> {
+            save(config.withPhoneticEntry(which == 0 ? "pinyin" : "zhuyin")); dialog.dismiss();
+          }).setNegativeButton(android.R.string.cancel, null).show());
+    content.addView(phonetic);
     for (String id : config.order)
     {
       LinearLayout row = new LinearLayout(this);

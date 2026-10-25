@@ -12,6 +12,30 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void phoneticLinksSurviveFileRestoreAndDoNotDisplaceFnNbsp() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    PagePreferences.save(preferences, PagePreferences.load(preferences).withPhoneticEntry("zhuyin"));
+    String exported = PageKeyOverrides.export(preferences);
+    preferences.edit().clear().commit();
+    PageKeyOverrides.importJson(preferences, context().getResources(), exported);
+    juloo.keyboard2.input.PageConfig config = PagePreferences.load(preferences);
+    assertEquals("zhuyin", config.phoneticEntry);
+    for (String id : new String[] {"zh", "zh_fn"})
+    {
+      KeyboardData layout = PageLayouts.base(context().getResources(), id, config);
+      KeyboardData.Key space = null;
+      for (KeyboardData.Row row : layout.rows) for (KeyboardData.Key key : row.keys)
+        if (KeyValue.getKeyByName("space").equals(key.keys[0])) space = key;
+      assertNotNull(space);
+      assertEquals(KeyValue.getKeyByName("switch_zhuyin"), space.keys[1]);
+      if (id.equals("zh_fn")) assertTrue(layout.getKeys().containsKey(KeyValue.getKeyByName("nbsp")));
+    }
+    JSONObject invalid = new JSONObject(exported).put("phonetic_entry", "clipboard");
+    try { PageKeyOverrides.importJson(preferences, context().getResources(), invalid.toString()); fail(); }
+    catch (IllegalArgumentException expected) {}
+    assertEquals(exported, PageKeyOverrides.export(preferences));
+  }
   @Test public void legacyFnMigrationPreservesOriginalKeysAndImportSource() throws Exception
   {
     SharedPreferences preferences = prefs();

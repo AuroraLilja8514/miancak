@@ -74,5 +74,7 @@
   <string name="page_pinyin">Pinyin text</string>
   <string name="page_pinyin_finals">Pinyin finals and tones</string>
   <string name="page_zhuyin">Zhuyin text</string>
-  <string name="page_phonetic_help">Phonetic pages output literal text. Vowel/final corners: NW first, NE second, SW third, SE fourth tone. Center is unmarked. Punctuation has its own bottom key. On the finals page, Space NW is Backspace.</string>
+  <string name="page_phonetic_help">Chinese Space NW opens Pinyin text, or Zhuyin text as configured above. Selecting an entry enables that layout; disabling it hides the shortcut. Shift NE in phonetic layouts returns to Chinese. Space NW within Pinyin or Zhuyin opens finals; finals Space NW is Backspace. Space up/down always cycles layouts. Vowel/final corners: NW first, NE second, SW third, SE fourth tone; center is unmarked.</string>
+  <string name="page_phonetic_entry">Chinese Space NW: %s</string>
+  <string name="page_phonetic_entry_title">Phonetic text shortcut</string>
 </resources>

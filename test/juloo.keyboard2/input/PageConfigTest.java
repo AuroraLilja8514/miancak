@@ -57,4 +57,15 @@ public class PageConfigTest
     assertEquals("greek", PageConfig.returnTarget("greek_fn"));
     assertEquals("zh", PageConfig.returnTarget("clipboard"));
   }
+  @Test public void phoneticShortcutIsConfiguredIndependentlyOfFnAndCycling()
+  {
+    PageConfig config = new PageConfig(null, "zh,en");
+    assertEquals("pinyin", config.phoneticEntry);
+    config = config.withPhoneticEntry("zhuyin");
+    assertTrue(config.enabled.contains("zhuyin"));
+    assertEquals("zhuyin", config.move("zhuyin", -1).enable("numeric", true).phoneticEntry);
+    assertEquals("zh_fn", config.fn("zh"));
+    assertEquals("zhuyin", config.enable("zhuyin", false).phoneticEntry);
+    assertEquals("pinyin", new PageConfig(null, null, "broken").phoneticEntry);
+  }
 }

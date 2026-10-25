@@ -6,7 +6,18 @@ import android.content.res.Resources;
 public final class PageLayouts
 {
   private PageLayouts() {}
+  /** Resolved links are part of the layout definition, before user overrides. */
+  public static KeyboardData links(KeyboardData data, String page, juloo.keyboard2.input.PageConfig config)
+  {
+    if (!juloo.keyboard2.input.PageConfig.base(page).equals("zh")) return data;
+    KeyValue entry = config.enabled.contains(config.phoneticEntry)
+      ? KeyValue.getKeyByName("switch_" + config.phoneticEntry) : null;
+    return data.mapKeys(key -> KeyValue.getKeyByName("space").equals(key.keys[0])
+        ? key.withKeyValue(1, entry) : key);
+  }
   public static KeyboardData base(Resources resources, String page)
+  { return base(resources, page, new juloo.keyboard2.input.PageConfig(null, null)); }
+  public static KeyboardData base(Resources resources, String page, juloo.keyboard2.input.PageConfig config)
   {
     boolean variant = juloo.keyboard2.input.PageConfig.isVariant(page);
     boolean chinese = page.equals("zh_fn");
@@ -26,6 +37,7 @@ public final class PageLayouts
       default: throw new IllegalArgumentException(page);
     }
     KeyboardData data = LayoutControls.normalize(complete(resources, KeyboardData.load(resources, id)));
+    data = links(data, page, config);
     return variant ? FnLayout.materialize(data, chinese) : data;
   }
   public static KeyboardData complete(Resources resources, KeyboardData data)

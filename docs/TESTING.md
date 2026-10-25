@@ -1,3 +1,5 @@
+> 修复分支验收以 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md) 为准。下文保留历史版本证据；其中任意 Fn 目标和辅助面板顶部整行入口属于已废弃契约，不作为新功能通过证明。当前新增场景逐一验证配对 Fn、接收端 F1–F12 事件、中文空格左上拼音／可选注音、发音布局 Shift 右上返回、辅助面板底部 Enter 右下选择器。R3 新增场景待对应提交实际 APK 执行。
+
 # APK Testing
 
 The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.md`. CI artifacts contain unit XML reports, emulator logs/screenshots and scoped native latency measurements. Device images run on independent GitHub-hosted runners; no user environment is required.

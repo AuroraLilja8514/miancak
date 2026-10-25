@@ -118,6 +118,25 @@ public class ImeInteractionTest
       type("ok"); output += "ok"; awaitText(activity.first, output);
       gesture(0.75f, 2, 1, -1); awaitMode("中文");
       screenshot("chinese-punctuation-and-separator");
+      // The Chinese shortcut is separate from Fn and confirms the old
+      // composition before entering literal phonetic text.
+      type("nihao"); String phoneticCandidate = candidate();
+      gesture(5f, 3, -1, -1);
+      awaitPage("pinyin"); output += phoneticCandidate; awaitText(activity.first, output); awaitIdlePreedit();
+      tap('n'); gesture('i', -1, 1); output += "nǐ"; awaitText(activity.first, output);
+      gesture(0.75f, 2, 1, -1); awaitPage("zh");
+      device.pressBack();
+      instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      device.wait(Until.findObject(By.desc("Choose phonetic entry")), 15000).click();
+      device.wait(Until.findObject(By.text(context.getString(R.string.page_zhuyin))), 15000).click();
+      assertEquals("zhuyin", PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(context)).phoneticEntry);
+      resumeEditor(); ensureChinese(); gesture(5f, 3, -1, -1); awaitPage("zhuyin");
+      phoneticGesture("zhuyin", 0, 6, 0, 0); phoneticGesture("zhuyin", 2, 0, -1, 1);
+      output += "ㄋㄧˇ"; awaitText(activity.first, output);
+      phoneticGesture("zhuyin", 3, 0, 1, -1); awaitPage("zh");
+      instrumentation.runOnMainSync(() -> PagePreferences.save(DirectBootAwarePreferences.get_shared_preferences(context),
+          PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(context)).withPhoneticEntry("pinyin")));
+      screenshot("phonetic-entry-and-return");
       // The chooser preserves preedit. Its explicit Chinese Fn variant has
       // the same policy as the main layout and preserves it too.
       type("nihao"); String beforePages = candidate();
@@ -152,17 +171,17 @@ public class ImeInteractionTest
       device.pressBack();
       type("nihao"); String emojiCandidate = candidate();
       gesture(9.15f, 3, 1, 1); choosePage("emoji");
-      UiObject2 dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
-      assertNotNull(dynamicPicker); screenshot("emoji-page");
+      assertNull(device.findObject(By.desc("Open layout chooser")));
+      assertNotNull(device.wait(Until.findObject(By.desc("Controls: emoji")), 15000)); screenshot("emoji-page");
       UiObject2 grid = find("emoji_grid"); assertNotNull(grid);
       assertFalse(grid.getChildren().isEmpty());
       UiObject2 emoji = grid.getChildren().get(0); String emojiText = emoji.getText();
       assertNotNull(emojiText); emoji.click();
       output += emojiCandidate + emojiText; awaitText(activity.first, output); awaitIdlePreedit();
-      dynamicPicker.click(); choosePage("clipboard");
-      dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
-      assertNotNull(dynamicPicker); screenshot("clipboard-page");
-      dynamicPicker.click(); choosePage("zh");
+      paneChooser("emoji"); choosePage("clipboard");
+      assertNull(device.findObject(By.desc("Open layout chooser")));
+      assertNotNull(device.wait(Until.findObject(By.desc("Controls: clipboard")), 15000)); screenshot("clipboard-page");
+      paneChooser("clipboard"); choosePage("zh");
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       type("nihao"); String clipboardCandidate = candidate();
       find("miancak_pages").click(); choosePage("clipboard");
@@ -385,6 +404,25 @@ public class ImeInteractionTest
   }
 
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
+  private void awaitPage(String page)
+  { assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: " + page + ";")), 15000)); }
+  private void paneChooser(String page)
+  {
+    UiObject2 controls = device.wait(Until.findObject(By.desc("Controls: " + page)), 15000);
+    assertNotNull(controls);
+    Rect bounds = controls.getVisibleBounds(); Config config = Config.globalConfig();
+    KeyboardData data = PageLayouts.base(context.getResources(), page);
+    float unit = (bounds.width() - 2 * config.horizontal_margin) / data.keysWidth;
+    KeyboardData.KeyPos position = data.getKeys().get(KeyValue.getKeyByName("layout_picker"));
+    KeyboardData.Key key = data.rows.get(0).keys.get(position.col);
+    float x = bounds.left + config.horizontal_margin;
+    for (int c = 0; c < position.col; c++) x += data.rows.get(0).keys.get(c).width * unit;
+    x += key.width * unit / 2;
+    float row = (bounds.height() - config.marginTop) / data.keysHeight;
+    float y = bounds.top + config.marginTop + data.rows.get(0).height * row / 2;
+    assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + key.width * unit * .55f), Math.round(y + row * .65f), 12));
+    assertNotNull(find("miancak_page_chooser"));
+  }
   private void phoneticGesture(String page, int row, int col, int dx, int dy)
   {
     KeyboardData data = PageLayouts.base(context.getResources(), page);

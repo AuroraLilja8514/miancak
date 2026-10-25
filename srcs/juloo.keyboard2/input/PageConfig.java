@@ -15,8 +15,12 @@ public final class PageConfig
       "emoji", "clipboard", "pinyin", "pinyin_finals", "zhuyin"));
   public final List<String> order;
   public final Set<String> enabled;
+  public final String phoneticEntry;
   public PageConfig(String order, String enabled)
+  { this(order, enabled, null); }
+  public PageConfig(String order, String enabled, String phoneticEntry)
   {
+    this.phoneticEntry = "zhuyin".equals(phoneticEntry) ? "zhuyin" : "pinyin";
     LinkedHashSet<String> sorted = valid(order);
     sorted.addAll(IDS);
     this.order = Collections.unmodifiableList(new ArrayList<>(sorted));
@@ -62,14 +66,19 @@ public final class PageConfig
     String base = base(id);
     for (String member : Arrays.asList(base, base + "_fn"))
       if (IDS.contains(member)) { if (value) next.add(member); else next.remove(member); }
-    return new PageConfig(csv(order), csv(next));
+    return new PageConfig(csv(order), csv(next), phoneticEntry);
   }
   public PageConfig move(String id, int delta)
   {
     ArrayList<String> next = new ArrayList<>(order);
     int from = next.indexOf(id), to = from + delta;
     if (from >= 0 && to >= 0 && to < next.size()) Collections.swap(next, from, to);
-    return new PageConfig(csv(next), csv(enabled));
+    return new PageConfig(csv(next), csv(enabled), phoneticEntry);
+  }
+  public PageConfig withPhoneticEntry(String id)
+  {
+    if (!id.equals("pinyin") && !id.equals("zhuyin")) throw new IllegalArgumentException(id);
+    return new PageConfig(csv(order), csv(enabled), id).enable(id, true);
   }
   public static String csv(Iterable<String> values)
   {

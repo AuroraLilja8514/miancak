@@ -74,5 +74,7 @@
   <string name="page_pinyin">拼音文字</string>
   <string name="page_pinyin_finals">拼音韵母与声调</string>
   <string name="page_zhuyin">注音文字</string>
-  <string name="page_phonetic_help">拼音／注音页原样输出文字。元音／韵母四角分别为左上一声、右上二声、左下三声、右下四声；中心不标调。底部有独立标点键；韵母页空格左上为退格。</string>
+  <string name="page_phonetic_help">中文空格左上默认进入拼音文字，可在此改为注音文字。选择入口会启用对应布局，手动停用则隐藏入口。发音文字布局的 Shift 右上返回中文。拼音／注音页空格左上进入韵母页，韵母页空格左上为退格。空格上下始终轮换布局。元音／韵母四角分别为一、二、三、四声，中心不标调。</string>
+  <string name="page_phonetic_entry">中文空格左上：%s</string>
+  <string name="page_phonetic_entry_title">发音文字快捷入口</string>
 </resources>

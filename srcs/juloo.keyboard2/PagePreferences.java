@@ -8,14 +8,15 @@ public final class PagePreferences
   private PagePreferences() {}
   public static PageConfig load(SharedPreferences preferences)
   {
-    return new PageConfig(string(preferences, "pages_order"), string(preferences, "pages_enabled"));
+    return new PageConfig(string(preferences, "pages_order"), string(preferences, "pages_enabled"), string(preferences, "pages_phonetic_entry"));
   }
   private static String string(SharedPreferences preferences, String key)
   { Object value = preferences.getAll().get(key); return value instanceof String ? (String)value : null; }
   public static void save(SharedPreferences preferences, PageConfig config)
   {
     preferences.edit().putString("pages_order", PageConfig.csv(config.order))
-      .putString("pages_enabled", PageConfig.csv(config.enabled)).apply();
+      .putString("pages_enabled", PageConfig.csv(config.enabled))
+      .putString("pages_phonetic_entry", config.phoneticEntry).apply();
   }
   /** Preserve the exact v1 settings before retiring its arbitrary Fn targets. */
   public static void migrate(SharedPreferences preferences)

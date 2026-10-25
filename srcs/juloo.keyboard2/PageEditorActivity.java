@@ -34,7 +34,7 @@ public final class PageEditorActivity extends Activity
         original = saved.getString("original"); shifted = saved.getBoolean("shifted");
       }
       catch (Exception ignored) {}
-    base = PageLayouts.base(getResources(), page);
+    base = PageLayouts.base(getResources(), page, PagePreferences.load(preferences));
     setTitle(getString(PagePreferences.label(page)));
     render();
   }
