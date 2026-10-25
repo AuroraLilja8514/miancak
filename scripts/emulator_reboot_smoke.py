@@ -39,8 +39,13 @@ def main():
         raise RuntimeError("Expected the independent API 23 environment check")
     directory = Path("test-results"); directory.mkdir(exist_ok=True)
     emulator = Path(os.environ["ANDROID_HOME"]) / "emulator/emulator"
-    version = subprocess.check_output([str(emulator), "-version"], text=True,
-                                      stderr=subprocess.STDOUT, timeout=15)
+    version_result = subprocess.run([str(emulator), "-no-window", "-version"], text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15)
+    version = version_result.stdout
+    (directory / "emulator-version.txt").write_text(version)
+    print(version, flush=True)
+    if version_result.returncode != 0:
+        raise RuntimeError(f"Headless emulator version query exited {version_result.returncode}; see emulator-version.txt")
     if "36.1.9" not in version or "13823996" not in version:
         raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
     report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,

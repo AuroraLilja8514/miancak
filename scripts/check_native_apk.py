@@ -27,6 +27,10 @@ with zipfile.ZipFile(apk) as archive:
             assert data[:4] == b'\x7fELF'
             order = '<' if data[5] == 1 else '>'
             is64 = data[4] == 2
+            # Verify actual ELF targets, in addition to their APK directory names.
+            targets = {"armeabi-v7a": (1, 40), "arm64-v8a": (2, 183), "x86_64": (2, 62)}
+            machine = struct.unpack_from(order + 'H', data, 18)[0]
+            assert (data[4], machine) == targets[abi], (abi, library, data[4], machine)
             offset = struct.unpack_from(order + ('Q' if is64 else 'I'), data, 32 if is64 else 28)[0]
             size, count = struct.unpack_from(order + 'HH', data, 54 if is64 else 42)
             for index in range(count):
