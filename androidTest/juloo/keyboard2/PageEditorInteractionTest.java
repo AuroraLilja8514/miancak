@@ -52,7 +52,7 @@ public final class PageEditorInteractionTest
       {
         openEditor("en");
         for (int d = 0; d < 9; d++) literal("en", 1, 2, d, "C12345678".substring(d, d+1));
-        device.findObject(By.desc("Shift layer preview")).click();
+        require(By.desc("Shift layer preview")).click();
         literal("en", 1, 2, 0, "转"); literal("en", 1, 2, 7, "上");
         key("en", 3, 2); UiObject2 shared = position(7);
         assertFalse(shared.isEnabled()); assertTrue(shared.getText().contains(context.getString(R.string.page_shared_status))); closeDialog();
@@ -67,7 +67,7 @@ public final class PageEditorInteractionTest
         assertNotNull("Shift preview must remain reachable after rotation", portraitShift);
         assertTrue(portraitShift.isChecked()); save();
         resumeReceiver(); choose("en"); verifyNine();
-        openEditor("en"); literal("en", 1, 2, 0, "取消"); device.findObject(By.desc("Cancel layout edit")).click();
+        openEditor("en"); literal("en", 1, 2, 0, "取消"); require(By.desc("Cancel layout edit")).click();
         resumeReceiver(); choose("en"); clear(); touch(1,2,0); expect("C", "cancel");
         openEditor("en"); key("en",0,0); position(0).click(); pick(R.string.page_empty); save();
         resumeReceiver(); choose("en"); clear(); touch(0,0,0); expect("", "cleared-center");
@@ -82,13 +82,13 @@ public final class PageEditorInteractionTest
         do { instrumentation.runOnMainSync(() -> selection[0]=current().first.getSelectionStart()); if(selection[0]<=4)break; SystemClock.sleep(30); } while(SystemClock.uptimeMillis()<end);
         assertTrue("Slider must move more than once", selection[0]>=0 && selection[0]<=4); expect("abcdef","slider-text");
         openEditor("en"); scrollTo("Reset this layout"); device.findObject(By.desc("Reset this layout")).click();
-        device.findObject(By.res("android","button1")).click(); save();
+        require(By.res("android","button1")).click(); save();
         resumeReceiver(); choose("en"); clear(); touch(1,2,0); expect("d","layout-reset");
         instrumentation.runOnMainSync(() -> { try { PageKeyOverrides.importJson(prefs(),context,portable); } catch(Exception e){throw new IllegalStateException(e);} });
         choose("en"); verifyNine();
-        openEditor("en"); device.findObject(By.desc("Edit paired layout: en_fn")).click(); action("en_fn",0,0,2,"F12");
-        device.findObject(By.desc("Edit paired layout: en")).click(); save();
-        openEditor("symbols"); device.findObject(By.desc("Choose symbol content")).click();
+        openEditor("en"); require(By.desc("Edit paired layout: en_fn")).click(); action("en_fn",0,0,2,"F12");
+        require(By.desc("Edit paired layout: en")).click(); save();
+        openEditor("symbols"); require(By.desc("Choose symbol content")).click();
         listItem(context.getString(R.string.symbol_math)+" · "+context.getString(R.string.symbol_page,2,5)).click();
         literal("symbols/math/1",0,0,0,"符"); save(); resumeReceiver();
       }
@@ -121,10 +121,11 @@ public final class PageEditorInteractionTest
   {
     context.startActivity(new Intent(context,ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertTrue(device.wait(Until.hasObject(By.desc("first_editor")),15000));
+    device.findObject(By.desc("first_editor")).click();
     instrumentation.runOnMainSync(() -> {
       ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();
       a.first.setOnKeyListener((v,code,event)->{if(code>=KeyEvent.KEYCODE_F1 && code<=KeyEvent.KEYCODE_F12){events.add(new KeyEvent(event));return true;}return false;});
-      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(a.first,InputMethodManager.SHOW_IMPLICIT);
+      a.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(a.first,InputMethodManager.SHOW_IMPLICIT));
     }); assertNotNull(keyboard());device.waitForIdle();
   }
   private void clear(){instrumentation.runOnMainSync(()->current().first.setText(""));instrumentation.waitForIdleSync();}
@@ -148,6 +149,8 @@ public final class PageEditorInteractionTest
     new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_page_settings")).scrollIntoView(new UiSelector().description("Edit layout: "+id));
     device.findObject(By.desc("Edit layout: "+id)).click();assertNotNull(device.wait(Until.findObject(By.desc("Save layout")),15000));
   }
+  private UiObject2 require(androidx.test.uiautomator.BySelector selector)
+  { UiObject2 v=device.wait(Until.findObject(selector),15000);assertNotNull("Expected UI: "+selector,v);return v; }
   private void scrollTo(String desc) throws Exception{new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_vertical")).scrollIntoView(new UiSelector().description(desc));}
   private void key(String id,int r,int c) throws Exception
   {

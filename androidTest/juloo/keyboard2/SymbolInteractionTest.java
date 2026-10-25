@@ -33,9 +33,12 @@ public final class SymbolInteractionTest
     device.setOrientationNatural();
     ImeTestActivity activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    UiObject2 field = device.wait(Until.findObject(By.desc("first_editor")), 15000);
+    assertNotNull("Receiver must be visible before requesting the IME", field); field.click();
     instrumentation.runOnMainSync(() -> {
       activity.first.requestFocus();
-      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT);
+      activity.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
+          .showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT));
     });
     assertNotNull(keyboard()); choose("symbols");
     try

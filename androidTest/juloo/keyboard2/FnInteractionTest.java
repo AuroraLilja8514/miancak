@@ -41,6 +41,7 @@ public final class FnInteractionTest
       PagePreferences.save(prefs, new PageConfig(null, null));
       android.content.SharedPreferences.Editor edit = prefs.edit().remove(PageKeyOverrides.KEY)
         .putString("pages_last_text", "zh").putString("physical_keyboard_behavior", "show")
+        .putBoolean("extra_key_undo", true).putBoolean("extra_key_paste", true)
         .putString("number_row", "no_number_row").putString("numpad_layout", "high_first");
       LayoutsPreference.save_to_preferences(edit, java.util.Collections.singletonList(new LayoutsPreference.NamedLayout("miancak_qwerty")));
       edit.commit();
@@ -49,16 +50,20 @@ public final class FnInteractionTest
     device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1");
     device.executeShellCommand("ime enable " + component); device.executeShellCommand("ime set " + component);
     activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    UiObject2 field = device.wait(Until.findObject(By.desc("first_editor")), 15000);
+    assertNotNull(field); field.click();
     instrumentation.runOnMainSync(() -> {
       activity.first.setOnKeyListener((view, code, event) -> {
         boolean function = code >= KeyEvent.KEYCODE_F1 && code <= KeyEvent.KEYCODE_F12;
-        if (function || code >= KeyEvent.KEYCODE_DPAD_UP && code <= KeyEvent.KEYCODE_DPAD_RIGHT)
+        boolean special = specialCode(code);
+        if (function || special || code >= KeyEvent.KEYCODE_DPAD_UP && code <= KeyEvent.KEYCODE_DPAD_RIGHT)
           received.add(new KeyEvent(event));
-        if (function) return true;
+        if (function || special) return true;
         return false;
       });
       activity.first.requestFocus();
-      ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT);
+      activity.first.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
+          .showSoftInput(activity.first, InputMethodManager.SHOW_IMPLICIT));
     });
     awaitPage("zh");
     try
@@ -86,6 +91,7 @@ public final class FnInteractionTest
         choose(base + "_fn"); assertTrue(keyboard().getContentDescription().contains("Fn: true"));
         press("language_switch"); awaitPage(base.equals("en") ? "zh_fn" : "en_fn");
       }
+      verifyRemainingFnEffects();
       choose("zh_fn"); press("（"); press("shift"); press("（");
       awaitText("（(");
       choose("greek"); press("fn_page"); awaitPage("greek_fn");
@@ -137,10 +143,56 @@ public final class FnInteractionTest
       instrumentation.waitForIdleSync(); device.waitForIdle();
       device.takeScreenshot(new java.io.File(dir, "fn-final.png"));
       device.unfreezeRotation(); instrumentation.runOnMainSync(() -> {
-        DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("numpad_layout", "high_first").commit();
+        DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("numpad_layout", "high_first")
+          .remove("extra_key_undo").remove("extra_key_paste").commit();
         activity.finish();
       });
     }
+  }
+  private static boolean specialCode(int code)
+  {
+    return code == KeyEvent.KEYCODE_ESCAPE || code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_INSERT
+      || code == KeyEvent.KEYCODE_MOVE_HOME || code == KeyEvent.KEYCODE_MOVE_END
+      || code == KeyEvent.KEYCODE_PAGE_UP || code == KeyEvent.KEYCODE_PAGE_DOWN;
+  }
+  private void eventPair(String name, int code)
+  {
+    int before = received.size(); press(name); long end = SystemClock.uptimeMillis() + 10000;
+    while (received.size() < before + 2 && SystemClock.uptimeMillis() < end) SystemClock.sleep(20);
+    assertEquals(name, before + 2, received.size());
+    for (int i = 0; i < 2; i++)
+    { assertEquals(i, received.get(before + i).getAction()); assertEquals(code, received.get(before + i).getKeyCode()); assertEquals(0, received.get(before + i).getMetaState()); }
+  }
+  private void verifyRemainingFnEffects() throws Exception
+  {
+    choose("en"); eventPair("esc", KeyEvent.KEYCODE_ESCAPE); eventPair("tab", KeyEvent.KEYCODE_TAB);
+    choose("en_fn");
+    eventPair("insert", KeyEvent.KEYCODE_INSERT); eventPair("home", KeyEvent.KEYCODE_MOVE_HOME);
+    eventPair("end", KeyEvent.KEYCODE_MOVE_END); eventPair("page_up", KeyEvent.KEYCODE_PAGE_UP);
+    eventPair("page_down", KeyEvent.KEYCODE_PAGE_DOWN);
+    press("\\t"); awaitText("\t"); press("nbsp"); awaitText("\t\u00a0");
+    String literalActual = text();
+    instrumentation.runOnMainSync(() -> activity.first.setText(""));
+    choose("en"); press("a"); awaitText("a"); press("undo"); awaitText("");
+    choose("en_fn"); press("redo"); awaitText("a");
+    instrumentation.runOnMainSync(() -> {
+      android.text.SpannableString styled = new android.text.SpannableString("粘贴");
+      styled.setSpan(new android.text.style.ForegroundColorSpan(android.graphics.Color.RED), 0, styled.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+      ((android.content.ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE))
+        .setPrimaryClip(android.content.ClipData.newPlainText("Fn plain paste test", styled));
+    });
+    press("pasteAsPlainText"); awaitText("a粘贴");
+    instrumentation.runOnMainSync(() -> {
+      ImeTestActivity.RecordingEditText editor = (ImeTestActivity.RecordingEditText)activity.first;
+      assertTrue(editor.menuActions.contains(android.R.id.undo)); assertTrue(editor.menuActions.contains(android.R.id.redo));
+      assertTrue(editor.menuActions.contains(android.R.id.pasteAsPlainText));
+      assertEquals(0, editor.getText().getSpans(0, editor.length(), android.text.style.ForegroundColorSpan.class).length);
+    });
+    org.json.JSONObject report = new org.json.JSONObject().put("literalTabAndNbspActual", literalActual)
+      .put("undoRedoAndPlainPasteActual", text()).put("menuActions", new org.json.JSONArray(((ImeTestActivity.RecordingEditText)activity.first).menuActions));
+    try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(TestEvidence.directory(context), "fn-editing-effects.json")))
+    { out.write(report.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+    instrumentation.runOnMainSync(() -> activity.first.setText(""));
   }
   private UiObject2 keyboard()
   { return device.wait(Until.findObject(By.res(context.getPackageName(), "keyboard_view")), 15000); }

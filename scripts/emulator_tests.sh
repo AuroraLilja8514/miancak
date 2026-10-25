@@ -62,10 +62,11 @@ run_tests() {
   fi
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
-run_tests word-pack-quality -e class juloo.keyboard2.input.WordPackQualityTest
 run_tests word-tables-native -e class juloo.keyboard2.input.WordTableNativeTest
 run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 run_tests layout-files -e class juloo.keyboard2.PageFilesUiTest
 adb shell am force-stop org.miancak.keyboard.debug
 run_tests restart -e class juloo.keyboard2.ImeInteractionTest -e restartOnly true
+
+run_tests word-pack-quality -e class juloo.keyboard2.input.WordPackQualityTest

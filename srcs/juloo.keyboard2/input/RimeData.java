@@ -57,24 +57,29 @@ public final class RimeData
         if (target.isFile())
           try (InputStream in = new java.io.FileInputStream(target))
           {
-            if (hash(read(in)).equals(expected))
+            if (hash(in).equals(expected))
               continue;
           }
-        byte[] content;
-        try (InputStream in = context.getAssets().open("rime/" + name))
-        {
-          content = read(in);
-        }
-        if (!hash(content).equals(expected))
-          throw new IOException("Packaged Rime asset failed integrity check");
         File temporary = new File(shared, name + ".tmp");
-        try (FileOutputStream out = new FileOutputStream(temporary))
+        boolean installed = false;
+        try
         {
-          out.write(content);
-          out.getFD().sync();
+          MessageDigest digest = digest();
+          try (InputStream in = context.getAssets().open("rime/" + name);
+               FileOutputStream out = new FileOutputStream(temporary))
+          {
+            byte[] buffer = new byte[16384]; int count;
+            while ((count = in.read(buffer)) != -1)
+            { digest.update(buffer, 0, count); out.write(buffer, 0, count); }
+            out.getFD().sync();
+          }
+          if (!hex(digest.digest()).equals(expected))
+            throw new IOException("Packaged Rime asset failed integrity check");
+          if (!temporary.renameTo(target))
+            throw new IOException("Cannot atomically deploy Rime asset");
+          installed = true;
         }
-        if (!temporary.renameTo(target))
-          throw new IOException("Cannot atomically deploy Rime asset");
+        finally { if (!installed) temporary.delete(); }
       }
     }
     catch (JSONException ex)
@@ -96,14 +101,24 @@ public final class RimeData
 
   private static String hash(byte[] bytes)
   {
+    return hex(digest().digest(bytes));
+  }
+  private static String hash(InputStream in) throws IOException
+  {
+    MessageDigest digest = digest(); byte[] buffer = new byte[16384]; int count;
+    while ((count = in.read(buffer)) != -1) digest.update(buffer, 0, count);
+    return hex(digest.digest());
+  }
+  private static MessageDigest digest()
+  {
     try
-    {
-      byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
-      StringBuilder result = new StringBuilder();
-      String hex = "0123456789abcdef";
-      for (byte b : digest) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));
-      return result.toString();
-    }
+    { return MessageDigest.getInstance("SHA-256"); }
     catch (NoSuchAlgorithmException ex) { throw new AssertionError(ex); }
+  }
+  private static String hex(byte[] bytes)
+  {
+    StringBuilder result = new StringBuilder(); String hex = "0123456789abcdef";
+    for (byte b : bytes) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));
+    return result.toString();
   }
 }

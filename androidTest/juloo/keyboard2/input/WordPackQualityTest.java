@@ -52,17 +52,17 @@ public final class WordPackQualityTest
   {
     File shared = new File(root, name), user = new File(root, name + "-user");
     assertTrue(shared.mkdir()); assertTrue(user.mkdir());
-    for (String schema : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_private.schema.yaml"))
+    for (String schema : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
       try (InputStream in = new FileInputStream(new File(bundled.shared, schema))) { copy(in, new File(shared, schema)); }
     try (InputStream in = tests.getAssets().open("quality/" + name + ".dict.yaml"))
     { copy(in, new File(shared, "pinyin_simp.dict.yaml")); }
     JSONArray samples = new JSONArray(); ArrayList<Long> latencies = new ArrayList<>();
     int core = 0, top1 = 0, top5 = 0, sentences = 0, sentenceTop1 = 0;
-    long started = SystemClock.elapsedRealtimeNanos(), deploy;
+    long started = SystemClock.elapsedRealtimeNanos(), deploy, observedPss = 0;
     try (RimeEngine engine = new RimeEngine(new RimeData.Paths(shared, user), true))
     {
       deploy = (SystemClock.elapsedRealtimeNanos() - started) / 1000;
-      engine.setLearning(false);
+      engine.setLearning(false); observedPss = android.os.Debug.getPss();
       try (BufferedReader corpus = new BufferedReader(new InputStreamReader(tests.getAssets().open("quality/corpus.tsv"), StandardCharsets.UTF_8)))
       {
         String line;
@@ -74,6 +74,7 @@ public final class WordPackQualityTest
           engine.clear(); long began = SystemClock.elapsedRealtimeNanos();
           EngineResult result = engine.processText(fields[1]);
           long micros = (SystemClock.elapsedRealtimeNanos() - began) / 1000;
+          observedPss = Math.max(observedPss, android.os.Debug.getPss());
           List<String> actual = new ArrayList<>();
           for (String candidate : result.candidates) actual.add(result.committed + candidate);
           int rank = -1;
@@ -92,7 +93,7 @@ public final class WordPackQualityTest
     return new JSONObject().put("name", name).put("coreCount", core).put("coreTop1", top1).put("coreTop5", top5)
       .put("sentenceCount", sentences).put("sentenceTop1", sentenceTop1).put("coldDeployMicros", deploy)
       .put("coreInputP50Micros", latencies.get(latencies.size() / 2)).put("coreInputP95Micros", latencies.get((latencies.size() * 95 - 1) / 100))
-      .put("processPssKiB", android.os.Debug.getPss()).put("deployedBytes", bytes(shared) + bytes(user)).put("samples", samples);
+      .put("processPssKiB", observedPss).put("deployedBytes", bytes(shared) + bytes(user)).put("samples", samples);
   }
   private void save(JSONObject report) throws Exception
   {

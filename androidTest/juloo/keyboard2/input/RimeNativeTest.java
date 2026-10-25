@@ -61,6 +61,12 @@ public class RimeNativeTest
     assertEquals(first.shared, second.shared);
     assertEquals(modified, dictionary.lastModified());
     assertTrue(marker.isFile());
+    try (FileOutputStream out = new FileOutputStream(dictionary)) { out.write(0); }
+    RimeData.Paths repaired = RimeData.deploy(context);
+    assertEquals(first.shared, repaired.shared); assertTrue(dictionary.length() > 1000000);
+    assertTrue(marker.isFile());
+    try (RimeEngine engine = new RimeEngine(repaired))
+    { engine.setLearning(false); assertTrue(engine.processText("nihao").candidates.contains("你好")); }
     assertTrue(marker.delete());
   }
 
