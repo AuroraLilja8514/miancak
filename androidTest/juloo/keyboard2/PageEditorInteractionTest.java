@@ -122,7 +122,7 @@ public final class PageEditorInteractionTest
   private android.content.SharedPreferences prefs(){return DirectBootAwarePreferences.get_shared_preferences(context);}
   private ImeTestActivity current()
   { for(android.app.Activity a:ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))if(a instanceof ImeTestActivity)return (ImeTestActivity)a; return null; }
-  private void resumeReceiver()
+  private void resumeReceiver() throws Exception
   {
     context.startActivity(new Intent(context,ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertTrue(device.wait(Until.hasObject(By.desc("first_editor")),15000));
@@ -136,7 +136,28 @@ public final class PageEditorInteractionTest
       ImeTestActivity a=current();assertNotNull(a);a.first.requestFocus();target[0]=a.first;
       a.first.setOnKeyListener((v,code,event)->{if(code>=KeyEvent.KEYCODE_F1 && code<=KeyEvent.KEYCODE_F12){events.add(new KeyEvent(event));return true;}return false;});
     }); ImeTestFocus.show(instrumentation,context,target[0]);
-    UiObject2 visible = keyboard();
+    UiObject2 visible = null;
+    boolean dismissed = false;
+    int suggestionId = context.getResources().getIdentifier("addToDictionary", "string", "android");
+    String suggestionLabel = suggestionId == 0 ? "Add to dictionary" : context.getString(suggestionId);
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    do
+    {
+      visible = device.findObject(By.res(pkg,"keyboard_view"));
+      if (visible != null) break;
+      if (!dismissed && (device.hasObject(By.text(suggestionLabel)) || device.hasObject(By.text("Add to dictionary"))))
+      {
+        final String[] text = {null,null};
+        instrumentation.runOnMainSync(() -> text[0] = current().first.getText().toString());
+        assertTrue(device.pressBack());
+        instrumentation.runOnMainSync(() -> text[1] = current().first.getText().toString());
+        assertEquals("Dismissing the native spelling popup must preserve text",text[0],text[1]);
+        observations.put(new JSONObject().put("name","native-spelling-popup-dismiss").put("expected",text[0]).put("actual",text[1]));
+        android.util.Log.i("MIANCAK-Acceptance","Dismissed Android spelling suggestions; editor text preserved");
+        dismissed = true;
+      }
+      else SystemClock.sleep(30);
+    } while (SystemClock.uptimeMillis() < deadline);
     if (visible == null)
     {
       shot("editor-missing-keyboard");
