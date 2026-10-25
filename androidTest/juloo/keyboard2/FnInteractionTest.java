@@ -41,7 +41,7 @@ public final class FnInteractionTest
       PagePreferences.save(prefs, new PageConfig(null, null));
       android.content.SharedPreferences.Editor edit = prefs.edit().remove(PageKeyOverrides.KEY)
         .putString("pages_last_text", "zh").putString("physical_keyboard_behavior", "show")
-        .putString("number_row", "no_number_row");
+        .putString("number_row", "no_number_row").putString("numpad_layout", "high_first");
       LayoutsPreference.save_to_preferences(edit, java.util.Collections.singletonList(new LayoutsPreference.NamedLayout("miancak_qwerty")));
       edit.commit();
     });
@@ -90,6 +90,19 @@ public final class FnInteractionTest
       awaitText("（(");
       choose("greek"); press("fn_page"); awaitPage("greek_fn");
       press("ϑ"); awaitText("（(ϑ"); press("fn_page"); awaitPage("greek");
+      for (String order : new String[] {"high_first", "low_first"})
+      {
+        instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("numpad_layout", order).commit());
+        choose("numeric"); press("fn_page"); awaitPage("numeric_fn");
+        int count = received.size(); press("f1");
+        long end = SystemClock.uptimeMillis() + 10000;
+        while (received.size() < count + 2 && SystemClock.uptimeMillis() < end) SystemClock.sleep(20);
+        assertEquals(count + 2, received.size());
+        assertEquals(KeyEvent.KEYCODE_F1, received.get(count).getKeyCode());
+        assertEquals(KeyEvent.KEYCODE_F1, received.get(count + 1).getKeyCode());
+        press("fn_page"); awaitPage("numeric"); String before = text(); press("1"); awaitText(before + "1");
+      }
+      instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("numpad_layout", "high_first").commit());
       choose("symbols"); press("fn_page"); awaitPage("symbols");
       assertTrue(keyboard().getContentDescription().contains("Fn: false"));
       choose("zh_fn"); press("switch_forward"); awaitPage("en");
@@ -123,7 +136,10 @@ public final class FnInteractionTest
       { out.write(report.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
       instrumentation.waitForIdleSync(); device.waitForIdle();
       device.takeScreenshot(new java.io.File(dir, "fn-final.png"));
-      device.unfreezeRotation(); instrumentation.runOnMainSync(() -> activity.finish());
+      device.unfreezeRotation(); instrumentation.runOnMainSync(() -> {
+        DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("numpad_layout", "high_first").commit();
+        activity.finish();
+      });
     }
   }
   private UiObject2 keyboard()
@@ -152,11 +168,14 @@ public final class FnInteractionTest
   private void press(String name)
   {
     KeyboardData logical = PageLayouts.base(context.getResources(), page);
-    KeyboardData data = PageConfig.base(page).equals("greek") || PageConfig.base(page).equals("numeric")
-      ? LayoutModifier.modify_numpad(logical, PageLayouts.base(context.getResources(), "zh"))
+    KeyboardData data = PageConfig.base(page).equals("numeric")
+      ? PageLayouts.numeric(context.getResources(), PageConfig.isVariant(page), PageLayouts.base(context.getResources(), "zh"))
+      : PageConfig.base(page).equals("greek") ? LayoutModifier.modify_numpad(logical, PageLayouts.base(context.getResources(), "zh"))
       : LayoutModifier.modify_layout(logical, PageConfig.isVariant(page));
     KeyboardData.KeyPos position = data.getKeys().get(KeyValue.getKeyByName(name));
     assertNotNull("Missing actual action " + name + " on " + page, position);
+    if (PageConfig.base(page).equals("numeric") && (name.equals("f1") || name.equals("1")))
+    { assertEquals(Config.globalConfig().inverse_numpad ? 0 : 2, position.row); assertEquals(2, position.col); assertEquals(0, position.dir); }
     if (name.equals("f11")) { assertEquals(0, position.row); assertEquals(8, position.col); assertEquals(1, position.dir); }
     if (name.equals("f12")) { assertEquals(0, position.row); assertEquals(9, position.col); assertEquals(3, position.dir); }
     Config config = Config.globalConfig(); Rect bounds = keyboard().getVisibleBounds();

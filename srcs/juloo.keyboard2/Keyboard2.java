@@ -138,7 +138,7 @@ public class Keyboard2 extends InputMethodService
 
   KeyboardData loadNumericLayout()
   {
-    return LayoutModifier.modify_numpad(_keyOverrides.apply("numeric", PageLayouts.base(getResources(), "numeric")), current_layout_unmodified());
+    return _keyOverrides.apply("numeric", PageLayouts.numeric(getResources(), false, _localeTextLayout));
   }
 
   KeyboardData loadPinentry(int layout_id)
@@ -650,7 +650,9 @@ public class Keyboard2 extends InputMethodService
     _shiftLock = _keyboard_layout_view.shiftLocked();
     switch (PageConfig.base(_page.active()))
     {
-      case "numeric": case "greek":
+      case "numeric":
+        _currentSpecialLayout = _keyOverrides.apply(_page.active(), PageLayouts.numeric(getResources(), PageConfig.isVariant(_page.active()), _localeTextLayout)); break;
+      case "greek":
         _currentSpecialLayout = LayoutModifier.modify_numpad(_keyOverrides.apply(_page.active(), PageLayouts.base(getResources(), _page.active())), _localeTextLayout); break;
       case "symbols": _currentSpecialLayout = LayoutModifier.modify_layout(_keyOverrides.apply("symbols", PageLayouts.base(getResources(), "symbols"))); break;
       case "pinyin": case "pinyin_finals": case "zhuyin":

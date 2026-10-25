@@ -35,4 +35,10 @@ public final class PageLayouts
       catch (Exception error) { throw new IllegalStateException(error); }
     return data.with_bottom_row(false);
   }
+  /** Apply the configured digit order/script before deriving its Fn values. */
+  public static KeyboardData numeric(Resources resources, boolean variant, KeyboardData main)
+  {
+    KeyboardData data = LayoutModifier.modify_numpad(base(resources, "numeric"), main);
+    return variant ? FnLayout.materialize(data, false) : data;
+  }
 }
