@@ -19,6 +19,7 @@ public final class RimeCandidatesView extends LinearLayout
 {
   private final TextView language, preedit, cancel, previous, next, expand;
   private final LinearLayout candidates;
+  private final LinearLayout candidateRow;
   private final Theme theme;
   private final int rowHeight;
   private InputController controller;
@@ -34,6 +35,7 @@ public final class RimeCandidatesView extends LinearLayout
     pageLabel = label;
     if (shown != null && !shown.engine.composing && shown.error.isEmpty())
       preedit.setText(label != null ? label : getContext().getString(shown.mode == InputRouter.Mode.CHINESE ? R.string.miancak_pinyin : R.string.miancak_direct));
+    updateCandidateRow();
   }
   private Runnable languageAction, pageAction, expansionChanged;
   public void setLanguageAction(Runnable action) { languageAction = action; }
@@ -73,7 +75,7 @@ public final class RimeCandidatesView extends LinearLayout
     cancel.setContentDescription(context.getString(R.string.miancak_cancel_composition));
     clickable(cancel);
     top.addView(cancel, new LayoutParams(dp(48), LayoutParams.MATCH_PARENT));
-    LinearLayout row = new LinearLayout(context);
+    LinearLayout row = candidateRow = new LinearLayout(context);
     addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, rowHeight));
     previous = text(26);
     previous.setId(R.id.miancak_previous_candidates);
@@ -134,6 +136,7 @@ public final class RimeCandidatesView extends LinearLayout
   public void show(InputSnapshot snapshot)
   {
     shown = snapshot;
+    updateCandidateRow();
     boolean chinese = snapshot.mode == InputRouter.Mode.CHINESE;
     language.setText(chinese ? R.string.miancak_chinese : R.string.miancak_english);
     language.setEnabled(snapshot.engineAllowed);
@@ -158,6 +161,16 @@ public final class RimeCandidatesView extends LinearLayout
     if (!snapshot.engine.composing || snapshot.engine.candidates.isEmpty()) expanded = false;
     updateExpansion();
     renderCandidates();
+  }
+
+  private void updateCandidateRow()
+  {
+    // Auxiliary layouts have no candidate work to do. Reserving this empty
+    // second row can push their category header into the landscape status bar.
+    // Main text layouts retain a stable height when composition starts/ends.
+    if (candidateRow != null)
+      candidateRow.setVisibility(pageLabel != null && shown != null
+          && !shown.engine.composing && shown.engine.candidates.isEmpty() ? GONE : VISIBLE);
   }
 
   private void setExpanded(boolean value)

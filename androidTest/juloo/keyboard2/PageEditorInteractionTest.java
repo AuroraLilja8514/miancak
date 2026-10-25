@@ -57,9 +57,15 @@ public final class PageEditorInteractionTest
         key("en", 3, 2); UiObject2 shared = position(7);
         assertFalse(shared.isEnabled()); assertTrue(shared.getText().contains(context.getString(R.string.page_shared_status))); closeDialog();
         device.setOrientationLeft(); orientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
-        assertTrue(device.wait(Until.findObject(By.desc("Shift layer preview")), 15000).isChecked()); shot("editor-landscape-draft");
+        scrollTo("Shift layer preview");
+        UiObject2 landscapeShift = device.wait(Until.findObject(By.desc("Shift layer preview")), 15000);
+        assertNotNull("Shift preview must remain reachable after rotation", landscapeShift);
+        assertTrue(landscapeShift.isChecked()); shot("editor-landscape-draft");
         device.setOrientationNatural(); orientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
-        assertTrue(device.wait(Until.findObject(By.desc("Shift layer preview")), 15000).isChecked()); save();
+        scrollTo("Shift layer preview");
+        UiObject2 portraitShift = device.wait(Until.findObject(By.desc("Shift layer preview")), 15000);
+        assertNotNull("Shift preview must remain reachable after rotation", portraitShift);
+        assertTrue(portraitShift.isChecked()); save();
         resumeReceiver(); choose("en"); verifyNine();
         openEditor("en"); literal("en", 1, 2, 0, "取消"); device.findObject(By.desc("Cancel layout edit")).click();
         resumeReceiver(); choose("en"); clear(); touch(1,2,0); expect("C", "cancel");

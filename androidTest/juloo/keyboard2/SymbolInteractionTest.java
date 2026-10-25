@@ -79,6 +79,7 @@ public final class SymbolInteractionTest
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
       device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
+      assertAuxiliaryHeaderFits();
       touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-landscape");
       device.setOrientationNatural(); awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
@@ -139,6 +140,17 @@ public final class SymbolInteractionTest
   }
   private UiObject2 keyboard()
   { return device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000); }
+  private void assertAuxiliaryHeaderFits()
+  {
+    assertNull("Empty candidate navigation must not consume auxiliary height",
+        device.findObject(By.res(pkg, "miancak_next_candidates")));
+    UiObject2 language = device.findObject(By.res(pkg, "miancak_language")); assertNotNull(language);
+    int status = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
+    int inset = status == 0 ? 0 : context.getResources().getDimensionPixelSize(status);
+    assertTrue("Auxiliary header overlaps status bar: " + language.getVisibleBounds(),
+        language.getVisibleBounds().top >= inset);
+    assertTrue(language.getVisibleBounds().height() > 0);
+  }
   private void choose(String id)
   {
     device.wait(Until.findObject(By.res(pkg, "miancak_pages")), 15000).click();
