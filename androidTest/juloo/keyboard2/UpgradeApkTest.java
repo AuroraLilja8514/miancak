@@ -65,6 +65,10 @@ public final class UpgradeApkTest
         byte[] bytes = new byte[4];
         try (FileInputStream input = new FileInputStream(marker())) { assertEquals(4, input.read(bytes)); }
         assertEquals("kept", new String(bytes, StandardCharsets.UTF_8));
+        String learned = readLearnedText();
+        assertTrue("Old real learning entry must exist before opening the new IME",
+            userDictionaryContains(new File(context.getFilesDir(), "rime/user"), learned.getBytes(StandardCharsets.UTF_8), false));
+        learningReport(phase, learned);
       }
       selectThroughShippedLauncher();
       instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.ImeTestActivity")
@@ -83,6 +87,11 @@ public final class UpgradeApkTest
       assertTrue(new File(context.getFilesDir(), "rime/user").isDirectory());
       if (phase.equals("prepare"))
       {
+        assertTrue("Old APK must actually persist the selected entry",
+            userDictionaryContains(new File(context.getFilesDir(), "rime/user"), text.getBytes(StandardCharsets.UTF_8), false));
+        try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "upgrade-learned-text")))
+        { out.write(text.getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
+        learningReport(phase, text);
         try (FileOutputStream out = new FileOutputStream(marker())) { out.write("kept".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         for (Context store : stores())
           prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-0.3.0")
@@ -107,6 +116,36 @@ public final class UpgradeApkTest
       }
     }
     finally { screenshot("upgrade-" + phase + "-final"); device.unfreezeRotation(); }
+  }
+  private String readLearnedText() throws Exception
+  {
+    try (FileInputStream input = new FileInputStream(new File(context.getFilesDir(), "upgrade-learned-text")))
+    {
+      byte[] bytes = new byte[1024]; int count = input.read(bytes); assertTrue(count > 0);
+      return new String(bytes, 0, count, StandardCharsets.UTF_8);
+    }
+  }
+  private boolean userDictionaryContains(File file, byte[] needle, boolean database) throws Exception
+  {
+    database |= file.getName().contains(".userdb");
+    if (file.isDirectory())
+    { for (File child : file.listFiles()) if (userDictionaryContains(child, needle, database)) return true; return false; }
+    if (!database || file.length() > 8 * 1024 * 1024) return false;
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    try (FileInputStream input = new FileInputStream(file))
+    { byte[] bytes = new byte[8192]; int count; while ((count = input.read(bytes)) != -1) out.write(bytes, 0, count); }
+    byte[] bytes = out.toByteArray();
+    outer: for (int i = 0; i <= bytes.length - needle.length; i++)
+    { for (int j = 0; j < needle.length; j++) if (bytes[i + j] != needle[j]) continue outer; return true; }
+    return false;
+  }
+  private void learningReport(String phase, String learned) throws Exception
+  {
+    File directory = context.getExternalFilesDir("test-results"); assertTrue(directory.isDirectory() || directory.mkdirs());
+    org.json.JSONObject report = new org.json.JSONObject().put("phase", phase).put("learnedText", learned)
+      .put("persistedEntryObserved", true).put("checkedBeforeOpeningUpdatedIme", !phase.equals("prepare"));
+    try (FileOutputStream out = new FileOutputStream(new File(directory, "upgrade-learning-" + phase + ".json")))
+    { out.write(report.toString(2).getBytes(StandardCharsets.UTF_8)); }
   }
   private void selectThroughShippedLauncher() throws Exception
   {
