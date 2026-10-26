@@ -30,6 +30,7 @@ public final class FirstInstallTest
   private Context context;
   private UiDevice device;
   private String pkg;
+  private boolean firstCandidate = true;
 
   @Test public void installEnableAndUseTheDefaultKeyboard() throws Exception
   {
@@ -40,6 +41,7 @@ public final class FirstInstallTest
     device.wakeUp();
     device.setOrientationNatural();
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
+    firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     try
     {
@@ -86,7 +88,9 @@ public final class FirstInstallTest
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
       assertEquals("中文", object("miancak_language").getText());
       type("nihao");
+      screenshot(revisit ? "reopened-input-pending" : "first-input-pending");
       String candidate = candidate();
+      assertEquals("Fresh Chinese input lost or changed typed nihao", "你好", candidate);
       assertTrue(candidate.matches(".*[\\u3400-\\u9fff].*"));
       swipe('c', -1, -1);
       awaitEditor(candidate + "。");
@@ -268,7 +272,12 @@ public final class FirstInstallTest
 
   private String candidate()
   {
-    long end = SystemClock.uptimeMillis() + 20000;
+    // Keep typing immediately after showing the keyboard. Only the first
+    // offline deployment receives the same 180s cold-start budget as R6;
+    // never retype the text or wait for readiness before these real taps.
+    long started = SystemClock.uptimeMillis();
+    long end = started + (firstCandidate ? 180000 : 20000);
+    firstCandidate = false;
     long stableSince = 0;
     String previous = "", status = "";
     while (SystemClock.uptimeMillis() < end)
@@ -280,7 +289,11 @@ public final class FirstInstallTest
         status = preedit == null ? "keyboard is absent" : preedit.getText();
         String value = node == null ? "" : node.getText();
         if (!value.equals(previous)) { previous = value; stableSince = SystemClock.uptimeMillis(); }
-        if (!value.isEmpty() && SystemClock.uptimeMillis() - stableSince >= 250) return value;
+        if (!value.isEmpty() && SystemClock.uptimeMillis() - stableSince >= 250)
+        {
+          android.util.Log.i("MIANCAK-Test", "Candidate wait completed in " + (SystemClock.uptimeMillis() - started) + " ms");
+          return value;
+        }
       }
       catch (androidx.test.uiautomator.StaleObjectException ex)
       {

@@ -87,7 +87,8 @@ public final class InputController implements AutoCloseable
     Handle handle = new Handle(generation.incrementAndGet(), Objects.requireNonNull(editor), engineAllowed, learning);
     active = handle;
     Mode initial = engineAllowed ? initialMode : Mode.ENGLISH;
-    snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial, engineAllowed, EngineResult.EMPTY, "");
+    snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial,
+        engineAllowed, EngineResult.EMPTY, "", initial == Mode.CHINESE && !maintenance);
     listener.changed(snapshot);
     if (maintenance) return;
     queue(handle, edits -> {

@@ -33,7 +33,7 @@ public final class RimeCandidatesView extends LinearLayout
   public void setPageLabel(String label)
   {
     pageLabel = label;
-    if (shown != null && !shown.engine.composing && shown.error.isEmpty())
+    if (shown != null && !shown.initializing && !shown.engine.composing && shown.error.isEmpty())
       preedit.setText(label != null ? label : getContext().getString(shown.mode == InputRouter.Mode.CHINESE ? R.string.miancak_pinyin : R.string.miancak_direct));
     updateCandidateRow();
   }
@@ -147,9 +147,11 @@ public final class RimeCandidatesView extends LinearLayout
       else if (controller != null) controller.submit(SemanticAction.TOGGLE_LANGUAGE);
     });
     preedit.setText(!snapshot.error.isEmpty() ? getContext().getString(snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus)
+        : snapshot.initializing ? getContext().getString(R.string.miancak_initializing)
         : snapshot.engine.composing ? snapshot.engine.preedit
         : pageLabel != null ? pageLabel : getContext().getString(chinese ? R.string.miancak_pinyin : R.string.miancak_direct));
-    preedit.setContentDescription(snapshot.engine.composing ? "Pinyin: " + snapshot.engine.preedit : "Input status");
+    preedit.setContentDescription(snapshot.initializing ? "Input initializing"
+        : snapshot.engine.composing ? "Pinyin: " + snapshot.engine.preedit : "Input status");
     cancel.setVisibility(snapshot.engine.composing ? VISIBLE : INVISIBLE);
     cancel.setOnClickListener(view -> { if (controller != null) controller.cancelComposition(); });
     previous.setEnabled(snapshot.engine.composing);

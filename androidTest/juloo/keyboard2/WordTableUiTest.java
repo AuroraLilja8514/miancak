@@ -131,6 +131,8 @@ public final class WordTableUiTest
     assertNotNull("Prepared fixture needs a fallback keyboard", alternate);
     instrumentation.startActivitySync(new Intent(context, LauncherActivity.class)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(
+        new UiSelector().resourceId(pkg + ":id/launcher_tryhere_area"));
     UiObject2 field = device.wait(Until.findObject(By.res(pkg, "launcher_tryhere_area")), 15000); assertNotNull(field); field.click();
     device.executeShellCommand("ime set " + alternate);
     assertTrue("Fallback IME did not finish binding",

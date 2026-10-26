@@ -14,6 +14,7 @@
   <string name="miancak_chinese">中文</string>
   <string name="miancak_english">EN</string>
   <string name="miancak_pinyin">简体拼音</string>
+  <string name="miancak_initializing">正在准备中文词库…</string>
   <string name="miancak_direct">Direct English</string>
   <string name="miancak_retry">中文暂不可用，请取消组合或切换重试</string>
   <string name="miancak_refocus">编辑框未接受输入，请重新点选</string>

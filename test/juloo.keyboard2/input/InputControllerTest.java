@@ -12,6 +12,46 @@ import juloo.keyboard2.input.InputRouter.Mode;
 
 public class InputControllerTest
 {
+  @Test public void typingDuringFirstInitializationIsQueuedOnceAndDeliveredInOrder()
+  {
+    Queue worker = new Queue(), ui = new Queue();
+    Editor editor = new Editor(); FakeEngine engine = new FakeEngine();
+    int[] creations = {0}; List<InputSnapshot> shown = new ArrayList<>();
+    InputController controller = new InputController(worker, ui,
+        () -> { creations[0]++; return engine; }, shown::add);
+    controller.startEditor(editor, Mode.CHINESE, true, true);
+    assertTrue(controller.snapshot().initializing);
+    for (char c : "nihao".toCharArray()) controller.submit(engineText(String.valueOf(c)));
+    controller.submit(literalText("。"));
+    assertEquals(0, creations[0]);
+    assertEquals("", editor.text());
+    assertTrue(controller.snapshot().initializing);
+    worker.all();
+    assertEquals("", editor.text()); // Native work cannot overtake UI delivery.
+    ui.all();
+    assertEquals(1, creations[0]);
+    assertEquals(Arrays.asList("text:n", "text:i", "text:h", "text:a", "text:o"), engine.calls);
+    assertEquals("你好。", editor.text());
+    assertFalse(controller.snapshot().initializing);
+    assertFalse(controller.hasPendingRequests());
+    assertTrue(shown.stream().anyMatch(s -> s.engine.composing && s.engine.preedit.equals("nihao")));
+  }
+
+  @Test public void initializationErrorStopsThePreparingIndicatorAndKeepsEnglishUsable()
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor();
+    InputController controller = new InputController(worker, ui,
+        () -> { throw new IllegalStateException("test initialization failure"); }, snapshot -> {});
+    controller.startEditor(editor, Mode.CHINESE, true, true);
+    assertTrue(controller.snapshot().initializing);
+    worker.all(); ui.all();
+    assertFalse(controller.snapshot().initializing);
+    assertFalse(controller.snapshot().error.isEmpty());
+    assertEquals(Mode.ENGLISH, controller.snapshot().mode);
+    controller.submit(engineText("hello"));
+    assertEquals("hello", editor.text());
+  }
+
   @Test public void returningToTheCurrentProfileIsImmediateAndKeepsCandidateRevision()
   {
     Harness h = new Harness(Mode.CHINESE);
