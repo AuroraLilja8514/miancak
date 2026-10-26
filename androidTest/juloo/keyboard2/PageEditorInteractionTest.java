@@ -235,8 +235,14 @@ public final class PageEditorInteractionTest
     }
     else if(direction==0)assertTrue(device.click(p.x,p.y));
     else{int[] v=VECTORS[direction];assertTrue(device.swipe(p.x,p.y,p.x+v[0]*dx,p.y+v[1]*dy,12));}
+    String actualTitle=require(By.res("android","alertTitle")).getText();
+    String position=circle<0?context.getString(R.string.page_anticircle):context.getResources().getStringArray(R.array.page_direction_names)[direction];
+    if(!actualTitle.contains(position))
+    {shot("editor-wrong-selection");device.dumpWindowHierarchy(new java.io.File(TestEvidence.directory(context),"editor-wrong-selection.xml"));}
+    assertTrue("Gesture chose wrong position: "+actualTitle,actualTitle.contains(position));
+    if(circle>0)assertTrue(actualTitle,actualTitle.contains("Shift"));
+    observations.put(new JSONObject().put("name","preview-selection").put("direction",direction).put("circle",circle).put("expected",text).put("actualTitle",actualTitle));
     pick(R.string.page_literal);require(By.desc("Key output text")).setText(text);require(By.res("android","button1")).click();require(By.desc("Save layout"));
-    observations.put(new JSONObject().put("name","preview-selection").put("direction",direction).put("circle",circle).put("expected",text));
   }
   private void literal(String id,int r,int c,int d,String text) throws Exception
   {key(id,r,c);position(d).click();pick(R.string.page_literal);device.wait(Until.findObject(By.desc("Key output text")),15000).setText(text);device.findObject(By.res("android","button1")).click();assertNotNull(device.wait(Until.findObject(By.desc("Save layout")),15000));}

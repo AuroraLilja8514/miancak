@@ -35,4 +35,12 @@ public final class EditorGestureTest
     }
   }
 
+  @Test public void cancelledRotationRetainsTheEffectiveActionLikePointers()
+  {
+    EditorGesture g=gesture();g.move(100,60);g.move(140,100);g.move(140,80);g.move(100,100);
+    assertEquals(Gesture.Name.Circle,g.name());assertEquals(0,g.slot());
+    g=gesture();g.move(100,60);g.move(60,100);g.move(60,80);g.move(100,100);
+    assertEquals(Gesture.Name.Anticircle,g.name());assertEquals(9,g.slot());
+  }
+
 }
