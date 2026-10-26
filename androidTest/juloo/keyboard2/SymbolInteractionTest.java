@@ -55,6 +55,8 @@ public final class SymbolInteractionTest
       awaitSymbolPage("math", 1); touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-math");
       // Rotation starts a fresh editor generation. Re-enter symbols and check
       // its independently retained category/page and actual literal output.
+      instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit()
+          .putString("split_layout","never").putString("show_numpad","never").commit());
       device.setOrientationLeft();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
@@ -64,6 +66,12 @@ public final class SymbolInteractionTest
       assertTrue("Landscape input surface must leave room for the app: "+input,input.height()<=device.getDisplayHeight()*.65f);
       assertTrue("Actual receiver must remain visible",device.findObject(By.desc("first_editor")).getVisibleBounds().height()>0);
       touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-landscape");
+      device.setOrientationRight();
+      long rotated=SystemClock.uptimeMillis()+15000;
+      while(device.getDisplayRotation()!=android.view.Surface.ROTATION_270 && SystemClock.uptimeMillis()<rotated)SystemClock.sleep(30);
+      assertEquals(android.view.Surface.ROTATION_270,device.getDisplayRotation());
+      device.waitForIdle();choose("symbols");awaitSymbolPage("math",1);assertAuxiliaryHeaderFits();
+      touch(0,0,0);output+="∯";awaitText();screenshot("symbols-landscape-right");
       device.setOrientationNatural(); awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
       // Space up/down always uses the enabled layout registry; it does not

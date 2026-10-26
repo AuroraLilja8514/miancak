@@ -141,7 +141,7 @@ public final class Config
       if ("landscape".equals(show_numpad_s))
         show_numpad = true;
       keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_landscape_unfolded" : "keyboard_height_landscape", 50);
-
+      characterSizeScale = 1.25f;
     }
     else
     {

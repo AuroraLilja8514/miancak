@@ -16,6 +16,7 @@ dependencies {
 }
 
 android {
+  buildFeatures { buildConfig = true }
   namespace = "juloo.keyboard2"
   compileSdkVersion = "android-36"
   ndkVersion = "28.0.13004108"
