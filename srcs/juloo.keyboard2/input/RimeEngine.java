@@ -50,6 +50,7 @@ public final class RimeEngine implements CompositionEngine
   @Override public EngineResult clear() { check(); return command(session, 1, 0); }
   @Override public EngineResult select(int pageIndex) { check(); return command(session, 2, pageIndex); }
   @Override public EngineResult page(boolean backward) { check(); return command(session, 3, backward ? 1 : 0); }
+  @Override public EngineResult candidates(int limit) { check(); return command(session,5,limit); }
   @Override public void setLearning(boolean enabled) { check(); learning(session, enabled); }
   @Override public void close()
   {

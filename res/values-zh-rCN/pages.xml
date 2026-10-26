@@ -25,7 +25,7 @@
   <string name="page_changed_elsewhere">编辑期间布局设置已变化，请重新打开编辑器。</string>
   <string name="page_shift_preview">预览与编辑 Shift 层</string>
   <string name="page_dynamic_controls">此布局显示动态内容，此处预览其控制行。Enter 右下打开布局选择器。空格、方向、Enter 和删除的共享位置保持一致。</string>
-  <string name="page_editor_help">点选按键后选择中心或滑动方向，保存后生效。共享控制位置在此只读，不能按布局单独修改；旧版对这些位置的覆盖仍保留在备份中。</string>
+  <string name="page_editor_help">保存后生效。共享控制位置只读。顺时针与折返沿用 Shift 对应输出；逆时针为独立输出。</string>
   <string name="page_reset_layout">恢复此布局默认键位</string>
   <string name="page_reset_layout_confirm">在草稿中恢复此页面？保存后生效。</string>
   <string name="page_choose_position">选择中心或滑动方向</string>
@@ -113,14 +113,14 @@
   <string name="symbol_page">%1$d/%2$d</string>
   <string name="symbol_category_accessibility">符号栏目：%s</string>
   <string name="symbol_page_accessibility">第 %1$d 页，共 %2$d 页</string>
-  <string name="symbol_panel_help">符号页点击栏目回到该栏首页；空格左上／右上在当前栏目内翻页，上下仍轮换布局。Shift 切换明确的全半角配对，没有配对的符号保持原样。Fn 无特殊效果。</string>
+  <string name="symbol_panel_help">符号页：点击栏目回到该类第一页。空格左上／右上翻到上一页／下一页，跨栏目循环；空格上／下仍轮换布局。Shift 切换明确配对的全半角，其它符号保持不变。Fn 无特殊效果。</string>
   <string name="page_reset_position">恢复此位置的普通与 Shift 层</string>
   <string name="page_inherited_status">继承默认</string>
   <string name="page_edited_status">用户覆盖</string>
   <string name="page_empty_status">已清空</string>
   <string name="page_follow_normal_status">跟随普通层规则</string>
   <string name="page_shared_status">共享固定</string>
-  <string name="page_editor_scroll_help">左右滚动查看其它按键；每键展示中心和八个方向。</string>
+  <string name="page_editor_scroll_help">在下方按正常大小展示的键盘上点击或滑动，直接编辑对应位置。也可使用按键与方向列表。</string>
   <string name="page_symbol_content">选择符号栏目／页码</string>
   <string name="page_edit_pair">编辑配对布局：%s</string>
   <string name="page_position_accessibility">%1$s：%2$s；%3$s</string>
@@ -135,4 +135,7 @@
     <item>上</item>
     <item>下</item>
   </string-array>
+  <string name="page_choose_key_list">按键与方向列表</string>
+  <string name="page_anticircle">逆时针</string>
+  <string name="page_gesture_shift_link">该手势沿用对应位置的 Shift 输出；接下来修改也会影响 Shift 后的点击或滑动。</string>
 </resources>

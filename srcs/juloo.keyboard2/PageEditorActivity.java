@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -29,7 +28,8 @@ public final class PageEditorActivity extends Activity
   private android.content.SharedPreferences preferences;
   private String[] directionNames;
   private List<PageActions.Action> actions;
-  private int scrollX, scrollY;
+  private int scrollY;
+  private Config previewConfig;
 
   @Override public void onCreate(Bundle saved)
   {
@@ -38,6 +38,7 @@ public final class PageEditorActivity extends Activity
     if (!PageLayouts.editable(page)) { finish(); return; }
     preferences = DirectBootAwarePreferences.get_shared_preferences(this);
     MiancakPreferences.initialize(preferences);
+    previewConfig = Config.forPreview(this, preferences);
     original = PageKeyOverrides.raw(preferences);
     draft = PageKeyOverrides.load(preferences).copy();
     directionNames = getResources().getStringArray(R.array.page_direction_names);
@@ -47,7 +48,7 @@ public final class PageEditorActivity extends Activity
       {
         draft = PageKeyOverrides.restore(saved.getString("draft"));
         original = saved.getString("original"); shifted = saved.getBoolean("shifted");
-        scrollX = saved.getInt("scrollX"); scrollY = saved.getInt("scrollY");
+        scrollY = saved.getInt("scrollY");
       }
       catch (Exception ignored) {}
     loadBase();
@@ -56,7 +57,7 @@ public final class PageEditorActivity extends Activity
   @Override protected void onSaveInstanceState(Bundle state)
   {
     super.onSaveInstanceState(state);
-    rememberScroll(); state.putString("page", page); state.putInt("scrollX", scrollX); state.putInt("scrollY", scrollY);
+    rememberScroll(); state.putString("page", page); state.putInt("scrollY", scrollY);
     state.putString("draft", draft.snapshot()); state.putString("original", original); state.putBoolean("shifted", shifted);
   }
   private void loadBase()
@@ -73,9 +74,7 @@ public final class PageEditorActivity extends Activity
   private void rememberScroll()
   {
     ScrollView vertical = findViewById(R.id.miancak_editor_vertical);
-    HorizontalScrollView horizontal = findViewById(R.id.miancak_editor_keyboard);
     if (vertical != null) scrollY = vertical.getScrollY();
-    if (horizontal != null) scrollX = horizontal.getScrollX();
   }
   private Button button(String label, String description, Runnable action)
   {
@@ -111,48 +110,22 @@ public final class PageEditorActivity extends Activity
       content.addView(button(getString(R.string.page_symbol_content), "Choose symbol content", this::chooseSymbolContent));
     TextView help = new TextView(this); help.setText(R.string.page_editor_scroll_help); content.addView(help);
     KeyboardData layout = draft.apply(page, base);
-    HorizontalScrollView horizontal = new HorizontalScrollView(this); horizontal.setId(R.id.miancak_editor_keyboard);
-    LinearLayout grid = new LinearLayout(this); grid.setOrientation(LinearLayout.VERTICAL);
-    int previewWidth = Math.max(getResources().getDisplayMetrics().widthPixels, Math.round(dp(108) * layout.keysWidth));
-    grid.setMinimumWidth(previewWidth);
-    horizontal.addView(grid, new android.widget.FrameLayout.LayoutParams(previewWidth, -2)); content.addView(horizontal);
-    for (int r = 0; r < layout.rows.size(); r++)
-    {
-      LinearLayout row = new LinearLayout(this);
-      row.setContentDescription("Editor row: " + page + ":" + r);
-      for (int c = 0; c < layout.rows.get(r).keys.size(); c++)
+    Keyboard2View preview = new Keyboard2View(this, null, previewConfig);
+    preview.setId(R.id.miancak_editor_keyboard); preview.setContentDescription("Layout preview: " + page);
+    preview.setKeyboard(layout);
+    preview.setEditorSelection((row,col,slot,gesture) -> {
+      if(slot<9 && LayoutControls.shared(layout.rows.get(row).keys.get(col),slot))
+      {error(getString(R.string.page_shared_status));return;}
+      if(gesture==Gesture.Name.Circle || gesture==Gesture.Name.Roundtrip)
       {
-        KeyboardData.Key key = layout.rows.get(r).keys.get(c);
-        if (key.shift > 0) row.addView(new android.view.View(this), new LinearLayout.LayoutParams(0, 1, key.shift));
-        final int rowIndex = r, col = c;
-        LinearLayout cell = new LinearLayout(this); cell.setOrientation(LinearLayout.VERTICAL);
-        Button palette = new Button(this);
-        cell.setBackground(palette.getBackground()); cell.setClickable(true); cell.setFocusable(true);
-        cell.setContentDescription("Edit key: " + page + ":" + r + ":" + c); cell.setOnClickListener(view -> editKey(rowIndex, col));
-        for (int[] line : DIRECTIONS)
-        {
-          LinearLayout slots = new LinearLayout(this);
-          for (int direction : line)
-          {
-            TextView text = new TextView(this); String full = label(key.keys[direction]);
-            text.setTextColor(palette.getTextColors());
-            text.setText(full.codePointCount(0, full.length()) > 8 ? full.substring(0, full.offsetByCodePoints(0, 7)) + "…" : full);
-            text.setTextSize(direction == 0 ? 12 : 9); text.setMaxLines(2); text.setGravity(android.view.Gravity.CENTER);
-            text.setContentDescription(getString(R.string.page_position_accessibility, directionNames[direction], full, status(key, r, c, direction)));
-            if (draft.action(page, r, c, direction, shifted) != null) text.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-            if (LayoutControls.shared(key, direction)) text.setAlpha(.6f);
-            slots.addView(text, new LinearLayout.LayoutParams(0, dp(40), 1));
-          }
-          cell.addView(slots);
-        }
-        row.addView(cell, new LinearLayout.LayoutParams(0, -2, key.width));
+        shifted=true;render();
+        new AlertDialog.Builder(this).setMessage(R.string.page_gesture_shift_link).setNegativeButton(android.R.string.cancel,null)
+          .setPositiveButton(android.R.string.ok,(dialog,which)->chooseAction(row,col,slot)).show();
       }
-      float gap = layout.keysWidth - layout.rows.get(r).keysWidth;
-      if (gap > 0) row.addView(new android.view.View(this), new LinearLayout.LayoutParams(0, 1, gap));
-      // HorizontalScrollView measures its child with unspecified width. Give
-      // every row a real width so weight-only keys cannot collapse to labels.
-      grid.addView(row, new LinearLayout.LayoutParams(previewWidth, -2));
-    }
+      else chooseAction(row,col,slot);
+    },shifted);
+    content.addView(preview,new LinearLayout.LayoutParams(-1,-2));
+    content.addView(button(getString(R.string.page_choose_key_list),"Choose key and position",this::chooseKey));
     TextView description = new TextView(this);
     description.setText(page.equals("emoji") || page.equals("clipboard") ? R.string.page_dynamic_controls : R.string.page_editor_help);
     content.addView(description);
@@ -160,7 +133,18 @@ public final class PageEditorActivity extends Activity
       new AlertDialog.Builder(this).setMessage(R.string.page_reset_layout_confirm)
         .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok,
             (dialog, which) -> { draft.reset(page); render(); }).show()));
-    scroll.post(() -> scroll.scrollTo(0, scrollY)); horizontal.post(() -> horizontal.scrollTo(scrollX, 0));
+    scroll.post(() -> scroll.scrollTo(0, scrollY));
+  }
+  /** Accessible alternative to small gestures. */
+  private void chooseKey()
+  {
+    List<String> labels=new ArrayList<>();List<int[]> positions=new ArrayList<>();
+    KeyboardData data=draft.apply(page,base);
+    for(int r=0;r<data.rows.size();r++)for(int c=0;c<data.rows.get(r).keys.size();c++)
+    {labels.add((r+1)+":"+(c+1)+" · "+label(data.rows.get(r).keys.get(c).keys[0]));positions.add(new int[]{r,c});}
+    new AlertDialog.Builder(this).setTitle(R.string.page_choose_key_list).setItems(labels.toArray(new String[0]),(dialog,which)->{
+      int[] pos=positions.get(which);editKey(pos[0],pos[1]);
+    }).setNegativeButton(android.R.string.cancel,null).show();
   }
   private String label(KeyValue value)
   {
@@ -199,6 +183,9 @@ public final class PageEditorActivity extends Activity
       }
       content.addView(cells);
     }
+    Button anticircle=button(getString(R.string.page_anticircle)+"\n"+label(key.anticircle),"Edit anticlockwise output",
+        ()->{dialog.dismiss();chooseAction(row,col,9);});
+    anticircle.setId(R.id.miancak_position_anticircle);content.addView(anticircle);
     dialog.show();
   }
   private void chooseAction(int row, int col, int direction)

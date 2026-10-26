@@ -25,7 +25,7 @@
   <string name="page_changed_elsewhere">Layout settings changed while editing. Reopen the editor before saving.</string>
   <string name="page_shift_preview">Preview and edit Shift layer</string>
   <string name="page_dynamic_controls">This layout displays dynamic content. Its control row appears here. Enter southeast opens the chooser. Shared Space, arrows, Enter and deletion positions are fixed across layouts.</string>
-  <string name="page_editor_help">Tap a key, then choose its center or swipe direction. Changes take effect after Save. Shared controls are shown but cannot be changed independently in this editor. Legacy overrides for these positions remain in the backup.</string>
+  <string name="page_editor_help">Changes take effect after Save. Shared controls are read-only. Clockwise circles and round trips use the associated Shift output; anticlockwise circles have their own output.</string>
   <string name="page_reset_layout">Restore this layout to defaults</string>
   <string name="page_reset_layout_confirm">Restore this page in the draft? Save to apply.</string>
   <string name="page_choose_position">Choose center or swipe direction</string>
@@ -113,14 +113,14 @@
   <string name="symbol_page">%1$d/%2$d</string>
   <string name="symbol_category_accessibility">Symbols: %s</string>
   <string name="symbol_page_accessibility">Page %1$d of %2$d</string>
-  <string name="symbol_panel_help">Symbols: tap a category to return to its first page. Space NW/NE goes to the previous/next page in that category; up/down still cycles layouts. Shift toggles explicit full/half-width pairs. Symbols without a width pair stay unchanged. Fn has no special effect.</string>
+  <string name="symbol_panel_help">Tap a category to return to its first page. Space NW/NE cycles previous/next pages across categories, wrapping at both ends; up/down still cycles layouts. Shift toggles explicit width pairs; unpaired symbols stay unchanged. Fn has no special effect.</string>
   <string name="page_reset_position">Reset both layers at this position</string>
   <string name="page_inherited_status">Inherited</string>
   <string name="page_edited_status">Edited</string>
   <string name="page_empty_status">Cleared</string>
   <string name="page_follow_normal_status">Follows normal action</string>
   <string name="page_shared_status">Shared · fixed</string>
-  <string name="page_editor_scroll_help">Scroll left/right for more keys. Each key shows its center and eight directions.</string>
+  <string name="page_editor_scroll_help">Tap or swipe on the normal-size keyboard below to edit that position. A key and position list is also available.</string>
   <string name="page_symbol_content">Choose symbol category / page</string>
   <string name="page_edit_pair">Edit paired layout: %s</string>
   <string name="page_position_accessibility">%1$s: %2$s; %3$s</string>
@@ -135,4 +135,7 @@
     <item>North</item>
     <item>South</item>
   </string-array>
+  <string name="page_choose_key_list">Key and position list</string>
+  <string name="page_anticircle">Anticlockwise circle</string>
+  <string name="page_gesture_shift_link">This gesture uses the associated Shift output. Editing it also changes the corresponding Shift tap or swipe.</string>
 </resources>

@@ -20,6 +20,12 @@ public final class KeyModifier
     finally { _modmap = before; }
   }
 
+  public static KeyValue modify(KeyValue key, Pointers.Modifiers mods, Modmap map)
+  {
+    Modmap before = _modmap; _modmap = map;
+    try { return modify(key, mods); } finally { _modmap = before; }
+  }
+
   /** Modify a key according to modifiers. */
   public static KeyValue modify(KeyValue k, Pointers.Modifiers mods)
   {

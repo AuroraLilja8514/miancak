@@ -48,4 +48,6 @@
   <item name="miancak_position_e" type="id"/>
   <item name="miancak_position_n" type="id"/>
   <item name="miancak_position_s" type="id"/>
+  <item name="miancak_position_anticircle" type="id"/>
+  <item name="miancak_candidate_scroll" type="id"/>
 </resources>
