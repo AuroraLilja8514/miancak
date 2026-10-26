@@ -22,6 +22,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Independent host diagnostic. Its separate guest cannot gate app tests on
+  # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
@@ -261,7 +263,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [23, 35]
-    needs: [build-debug, emulator-reboot-check]
+    needs: [build-debug]
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -308,7 +310,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [23, 35]
-    needs: [build-debug, emulator-reboot-check]
+    needs: [build-debug]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -356,7 +358,7 @@ jobs:
       matrix:
         api: [23, 35]
         entry: [settings-first, ime-first]
-    needs: [build-debug, emulator-reboot-check]
+    needs: [build-debug]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -399,7 +401,7 @@ jobs:
 
   word-table-tests:
     name: word-table-tests (${{ matrix.api }})
-    needs: [build-debug, emulator-reboot-check]
+    needs: [build-debug]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -490,7 +492,7 @@ jobs:
 
   upgrade-tests:
     name: upgrade-tests (${{ matrix.api }})
-    needs: [build-debug, build-upgrade-baseline, emulator-reboot-check]
+    needs: [build-debug, build-upgrade-baseline]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:

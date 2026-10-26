@@ -67,7 +67,7 @@ def main():
             start = time.monotonic()
             adb(serial, "reboot", timeout=30)
             end = start + args.boot_timeout_seconds
-            after = ""; last_error = ""
+            after = ""; completed = ""; last_error = ""
             while time.monotonic() < end:
                 try:
                     after = adb(serial, "shell", "cat", "/proc/sys/kernel/random/boot_id", timeout=5)
@@ -83,7 +83,10 @@ def main():
                         last_error += ": " + output.strip()[-1500:]
                 time.sleep(1)
             else:
-                raise RuntimeError("Guest did not finish a real reboot: " + last_error)
+                report["failedCycle"] = dict(beforeBootId=before, lastObservedBootId=after,
+                    lastObservedBootCompleted=completed, lastAdbError=last_error,
+                    seconds=round(time.monotonic()-start, 3))
+                raise RuntimeError("Guest did not finish a real reboot within budget; see failedCycle: " + last_error)
             report["cycles"].append(dict(beforeBootId=before, afterBootId=after,
                                           seconds=round(time.monotonic()-start, 3)))
             checkpoint()
@@ -97,6 +100,17 @@ def main():
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
             report["adbDevicesAtFailure"] = devices.stdout[-4000:]
             (directory / "adb-devices-at-failure.txt").write_text(devices.stdout)
+            # The last error may precede a transport reconnect. Capture current
+            # guest state separately instead of presenting stale stderr as the
+            # whole failure cause. Each diagnostic has its own finite timeout.
+            for label, command in (("boot-id", ("cat", "/proc/sys/kernel/random/boot_id")),
+                                   ("boot-completed", ("getprop", "sys.boot_completed")),
+                                   ("uptime", ("cat", "/proc/uptime"))):
+                try:
+                    value = adb(serial, "shell", *command, timeout=5)
+                    report.setdefault("stateAfterFailure", {})[label] = value
+                except (OSError, subprocess.SubprocessError) as diagnostic:
+                    report.setdefault("stateAfterFailure", {})[label] = str(diagnostic)
         except (OSError, subprocess.TimeoutExpired) as diagnostic:
             report["adbDiagnosticError"] = str(diagnostic)
         raise
