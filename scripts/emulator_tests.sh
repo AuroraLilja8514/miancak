@@ -83,7 +83,7 @@ run_tests() {
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
 run_tests word-tables-native -e class juloo.keyboard2.input.WordTableNativeTest
-run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest,juloo.keyboard2.LayoutRuntimeAuditTest,juloo.keyboard2.PointerTraceTest
+run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest,juloo.keyboard2.LayoutRuntimeAuditTest,juloo.keyboard2.PointerTraceTest,juloo.keyboard2.LayoutPresentationTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 run_tests layout-files -e class juloo.keyboard2.PageFilesUiTest
 adb shell am force-stop org.miancak.keyboard.debug

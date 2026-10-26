@@ -250,35 +250,31 @@ public class ImeInteractionTest
       new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
         .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("Edit Fn variant: zh"));
       device.findObject(By.desc("Edit Fn variant: zh")).click();
-      assertNotNull(device.wait(Until.findObject(By.desc("Edit key: zh_fn:0:0")), 15000));
+      assertNotNull(device.wait(Until.findObject(By.desc("Layout preview: zh_fn")), 15000));
       device.wait(Until.findObject(By.desc("Cancel layout edit")), 15000).click();
       resumeEditor(); ensureChinese();
       tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().equals("Page: zh_fn; Fn: true"));
       screenshot("paired-fn-editor-return");
       tap(2.25f, 3); assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
-      // Candidate paging uses the displayed snapshot; returning restores page one.
+      // Candidate strip scrolls; expansion starts at rank one and loads later ranks.
       type("shi"); String pageOne = candidate();
       UiObject2 compact = find("miancak_compact_candidates");
       assertTrue("Compact row must contain a fitting prefix", compact.getChildren().size() > 0);
-      assertTrue("The entire ten-item engine page must not overflow one phone row", compact.getChildren().size() < 8);
+      assertNull(device.findObject(By.res(pkg,"miancak_previous_candidates")));assertNull(device.findObject(By.res(pkg,"miancak_next_candidates")));
+      assertTrue("Reduced spacing should show more than three short items",compact.getChildren().size()>=4);
       Rect inputBounds = find("miancak_input_surface").getVisibleBounds();
       find("miancak_expand_candidates").click();
       assertNotNull(find("miancak_expanded_candidates"));
       assertEquals("Expansion must keep the allocated keyboard height", inputBounds, find("miancak_input_surface").getVisibleBounds());
       screenshot("expanded-candidates");
-      assertTrue(find("miancak_next_candidates").isEnabled());
-      find("miancak_next_candidates").click();
-      awaitCandidate(pageOne, false);
-      find("miancak_previous_candidates").click();
-      awaitCandidate(pageOne, true);
-      UiObject2 eighth = null;
-      for (int attempt = 0; attempt < 10; attempt++)
+      assertEquals(pageOne,candidate());UiObject2 eighth=null;
+      for(int attempt=0;attempt<16;attempt++)
       {
-        eighth = device.findObject(By.descStartsWith("Candidate 8: "));
-        if (eighth != null && eighth.getVisibleBounds().height() > 16) break;
-        UiObject2 panel = find("miancak_expanded_candidates"); assertNotNull(panel);
-        panel.setGestureMargin(20); panel.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f);
+        eighth=device.findObject(By.descStartsWith("Candidate 28: "));
+        if(eighth!=null && eighth.getVisibleBounds().height()>16)break;
+        UiObject2 panel=find("miancak_expanded_candidates");assertNotNull(panel);
+        panel.setGestureMargin(20);panel.scroll(androidx.test.uiautomator.Direction.DOWN,.6f);
       }
       assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
       String eighthText = eighth.getText();

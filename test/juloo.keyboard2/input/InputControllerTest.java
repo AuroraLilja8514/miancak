@@ -180,6 +180,20 @@ public class InputControllerTest
     assertFalse(h.controller.snapshot().engine.composing);
   }
 
+  @Test public void candidateExtensionRejectsOldAndDuplicateSnapshots()
+  {
+    Harness h=new Harness(Mode.CHINESE);h.engine.lastPage=false;
+    h.controller.submit(engineText("shi"));h.flush();InputSnapshot first=h.controller.snapshot();
+    h.controller.moreCandidates(first);h.controller.moreCandidates(first);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
+    assertEquals(42,h.controller.snapshot().engine.candidates.size());assertEquals("",h.editor.text());
+    h.controller.select(first,1);h.flush();assertEquals("",h.editor.text());
+    InputSnapshot now=h.controller.snapshot();h.controller.submit(engineText("x"));h.controller.moreCandidates(now);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
+    h.controller.startEditor(new Editor(),Mode.CHINESE,true,true);h.controller.moreCandidates(now);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
+  }
+
   @Test public void staleCandidateTapCannotSelectANewListAtTheOldIndex()
   {
     Harness h = new Harness(Mode.CHINESE);
@@ -455,12 +469,13 @@ public class InputControllerTest
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
     boolean failConfirm, partialFailure;
+    boolean lastPage=true;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
     EngineResult result(boolean handled, String commit)
     {
       return new EngineResult(handled, commit, raw,
-          raw.isEmpty() ? new String[0] : new String[] { selected(), "候选" }, 0, !raw.isEmpty(), true);
+          raw.isEmpty() ? new String[0] : new String[] { selected(), "候选" }, 0, !raw.isEmpty(), lastPage);
     }
     @Override public EngineResult processText(String text)
     {
@@ -483,6 +498,11 @@ public class InputControllerTest
       raw = ""; return result(true, "候选");
     }
     @Override public EngineResult page(boolean backward) { return result(false, ""); }
+    @Override public EngineResult candidates(int limit)
+    {
+      calls.add("candidates:"+limit);String[] values=new String[limit];Arrays.fill(values,"候选");values[0]=selected();
+      return new EngineResult(true,"",raw,values,0,true,false);
+    }
     @Override public void setLearning(boolean enabled) { learning.add(enabled); }
     @Override public void close() { closes++; }
   }

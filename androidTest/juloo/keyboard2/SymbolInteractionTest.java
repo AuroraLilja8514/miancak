@@ -60,6 +60,9 @@ public final class SymbolInteractionTest
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
       device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
       assertAuxiliaryHeaderFits();
+      Rect input=device.findObject(By.res(pkg,"miancak_input_surface")).getVisibleBounds();
+      assertTrue("Landscape input surface must leave room for the app: "+input,input.height()<=device.getDisplayHeight()*.65f);
+      assertTrue("Actual receiver must remain visible",device.findObject(By.desc("first_editor")).getVisibleBounds().height()>0);
       touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-landscape");
       device.setOrientationNatural(); awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
@@ -103,16 +106,16 @@ public final class SymbolInteractionTest
         {
           awaitSymbolPage(row[0], page);
           touch(0, 0, 0); output += row[page + 1]; awaitText();
+          UiObject2 retained = device.findObject(By.res(pkg,"symbol_category_"+row[0]));assertNotNull(retained);
           touch(3, 2, 2); state.turn(1);
+          if(state.category().equals(row[0]))assertTrue("Paging replaced the category tab",retained.isSelected());
         }
-        // Last-page next and Fn are both no-ops, without changing category,
-        // policy, Fn indicator, output or a hidden modifier.
-        awaitSymbolPage(row[0], row.length - 2);
-        touch(3, 1, 0); awaitSymbolPage(row[0], row.length - 2);
-        assertTrue(keyboard().getContentDescription().contains("Fn: false")); awaitText();
-        category(row[0]); awaitSymbolPage(row[0], 0);
-        touch(3, 2, 1); awaitSymbolPage(row[0], 0);
-        touch(0, 0, 0); output += row[1]; awaitText();
+        awaitSymbolPage(state.category(),state.page());
+        touch(3,1,0);awaitSymbolPage(state.category(),state.page());
+        assertTrue(keyboard().getContentDescription().contains("Fn: false"));awaitText();
+        category(row[0]);touch(3,2,1);state.turn(-1);awaitSymbolPage(state.category(),state.page());
+        touch(3,2,2);state.turn(1);awaitSymbolPage(row[0],0);
+        touch(0,0,0);output+=row[1];awaitText();
       }
   }
   private void category(String id)

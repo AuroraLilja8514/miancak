@@ -12,6 +12,17 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public final class PageCustomizationTest
 {
+  @Test public void anticlockwiseOutputIsIndependentAndPortable() throws Exception
+  {
+    SharedPreferences p=prefs();PageKeyOverrides edits=new PageKeyOverrides();
+    edits.set("en",1,2,9,false,PageKeyOverrides.literal("逆"));edits.set("en",1,2,9,true,"f12");edits.save(p);
+    String json=PageKeyOverrides.export(p);p.edit().clear().commit();PageKeyOverrides.importJson(p,context(),json);
+    KeyboardData data=PageKeyOverrides.load(p).apply("en",PageLayouts.base(context().getResources(),"en"));
+    KeyValue value=data.rows.get(1).keys.get(2).anticircle;
+    assertEquals("逆",KeyModifier.preview(value,false,data.modmap).getSemanticText());
+    assertEquals(KeyValue.getKeyByName("f12"),KeyModifier.preview(value,true,data.modmap));
+    assertEquals("d",data.rows.get(1).keys.get(2).keys[0].getString());
+  }
   @Test public void malformedCurrentOverridesAreBackedUpBeforeBeingReplaced() throws Exception
   {
     SharedPreferences p = prefs(); p.edit().putInt("pages_version", 2).putInt(PageKeyOverrides.KEY, 37).commit();
@@ -116,7 +127,7 @@ public final class PageCustomizationTest
       .put("order", "zh,en").put("enabled", "zh,en,pinyin").put("fn_zh", "pinyin").put("fn_en", "numeric");
     PageKeyOverrides.importJson(preferences, context().getResources(), legacy.toString());
     assertEquals(legacy.toString(), preferences.getString(PageKeyOverrides.KEY + "_import_source", ""));
-    assertEquals(3, new JSONObject(PageKeyOverrides.export(preferences)).getInt("version"));
+    assertEquals(4, new JSONObject(PageKeyOverrides.export(preferences)).getInt("version"));
     assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
   }
 

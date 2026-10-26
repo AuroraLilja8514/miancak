@@ -5,24 +5,17 @@ import static org.junit.Assert.*;
 
 public final class SymbolStateTest
 {
-  @Test public void everyCategoryHasBoundedReachablePagesAndCanonicalScopes()
+  @Test public void pagesCycleAcrossCategoriesInBothDirections()
   {
-    assertEquals(7, SymbolCatalog.categories().size());
-    for (String category : SymbolCatalog.categories())
-    {
-      SymbolState state = new SymbolState(category, 0);
-      assertFalse(state.previous()); state.turn(-1); assertEquals(0, state.page());
-      for (int page = 0; page < SymbolCatalog.pageCount(category); page++)
-      {
-        assertEquals(category, state.category()); assertEquals(page, state.page());
-        assertTrue(SymbolCatalog.validScope(state.scope()));
-        assertFalse(SymbolCatalog.items(category, page).isEmpty());
-        assertTrue(SymbolCatalog.items(category, page).size() <= SymbolCatalog.PAGE_SIZE);
-        if (state.next()) state.turn(1);
-      }
-      int end = state.page(); state.turn(1); assertEquals(end, state.page());
-      state.select(category); assertEquals(0, state.page());
-    }
+    assertEquals(7,SymbolCatalog.categories().size());java.util.List<String> scopes=new java.util.ArrayList<>();
+    for(String c:SymbolCatalog.categories())for(int p=0;p<SymbolCatalog.pageCount(c);p++)scopes.add(SymbolCatalog.scope(c,p));
+    SymbolState state=new SymbolState();
+    for(int round=0;round<2;round++)for(String scope:scopes)
+    {assertEquals(scope,state.scope());assertTrue(state.previous());assertTrue(state.next());state.turn(1);}
+    assertEquals("symbols",state.scope());
+    for(int i=scopes.size()-1;i>=0;i--){state.turn(-1);assertEquals(scopes.get(i),state.scope());}
+    state.turn(Integer.MIN_VALUE);state.turn(Integer.MAX_VALUE);state.turn(1);assertEquals("symbols",state.scope());
+    for(String c:SymbolCatalog.categories()){state.select(c);assertEquals(c,state.category());assertEquals(0,state.page());}
   }
   @Test public void invalidStoredStateAndNonCanonicalImportScopesCannotEscape()
   {

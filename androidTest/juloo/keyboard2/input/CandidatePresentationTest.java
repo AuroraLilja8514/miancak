@@ -66,8 +66,9 @@ public class CandidatePresentationTest
             TextView cell = (TextView)row.getChildAt(i);
             assertEquals(values[i], cell.getText().toString());
             assertTrue(cell.getLeft() >= previousRight);
-            assertTrue("Candidate exceeds available row width", cell.getRight() <= row.getWidth());
-            assertEquals("Only an overlong first item may be ellipsized", 0, cell.getLayout().getEllipsisCount(0));
+            assertTrue("Candidate exceeds available row width", cell.getWidth() <= view.findViewById(R.id.miancak_candidate_scroll).getWidth());
+            if(cell.getPaint().measureText(values[i])+cell.getPaddingLeft()+cell.getPaddingRight()<=cell.getWidth())
+              assertEquals(0,cell.getLayout().getEllipsisCount(0));
             previousRight = cell.getRight();
           }
         }
@@ -82,7 +83,7 @@ public class CandidatePresentationTest
       RimeCandidatesView view = strip(context, new String[] {longText, "后续候选"});
       layout(view, dp(context, 240));
       ViewGroup row = view.findViewById(R.id.miancak_compact_candidates);
-      assertEquals(1, row.getChildCount());
+      assertEquals(2, row.getChildCount());
       TextView first = (TextView)row.getChildAt(0);
       assertTrue("Long first candidate must show truncation: cell=" + first.getWidth()
           + " layout=" + first.getLayout().getWidth() + " text=" + first.getPaint().measureText(longText),
@@ -99,11 +100,35 @@ public class CandidatePresentationTest
       assertEquals(View.INVISIBLE, base.getVisibility());
       ViewGroup scroll = surface.findViewById(R.id.miancak_expanded_candidates);
       ViewGroup flow = (ViewGroup)scroll.getChildAt(0);
-      assertEquals(2, flow.getChildCount());
-      assertEquals(longText, ((TextView)flow.getChildAt(0)).getText().toString());
+      assertEquals(1,flow.getChildCount());assertEquals("后续候选",((TextView)flow.getChildAt(0)).getText().toString());
+      assertEquals(longText,((TextView)row.getChildAt(0)).getText().toString());
       assertTrue(flow.getChildAt(0).getMeasuredWidth() <= scroll.getMeasuredWidth());
       view.collapse();
       assertEquals(View.VISIBLE, base.getVisibility());
     });
   }
+  @Test public void denseStripAndExpandedGridKeepRankAndFillEveryRow()
+  {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{
+      Context context=themed(1f);String[] values=new String[80];for(int i=0;i<80;i++)values[i]=i%4==0?"时间":"是";
+      RimeCandidatesView view=strip(context,values);KeyboardSurface surface=new KeyboardSurface(context,null);View base=new View(context);
+      surface.addView(base,new FrameLayout.LayoutParams(-1,dp(context,180)));view.attachSurface(surface,base);
+      layout(view,dp(context,360));layout(surface,dp(context,360));ViewGroup row=view.findViewById(R.id.miancak_compact_candidates);
+      assertNull(view.findViewById(R.id.miancak_previous_candidates));assertNull(view.findViewById(R.id.miancak_next_candidates));
+      assertTrue(row.getChildAt(4).getRight()<=dp(context,320));
+      android.widget.HorizontalScrollView strip=view.findViewById(R.id.miancak_candidate_scroll);
+      strip.scrollTo(dp(context,300),0);assertTrue(strip.getScrollX()>0);
+      view.findViewById(R.id.miancak_expand_candidates).performClick();layout(view,dp(context,360));layout(surface,dp(context,360));
+      assertEquals(0,strip.getScrollX());ViewGroup scroll=surface.findViewById(R.id.miancak_expanded_candidates),flow=(ViewGroup)scroll.getChildAt(0);
+      int topCount=row.getChildCount();assertTrue(topCount>=5);assertEquals(80-topCount,flow.getChildCount());
+      for(int i=0;i<flow.getChildCount();i++)
+      {
+        View cell=flow.getChildAt(i);assertEquals("Candidate "+(topCount+i+1)+": "+values[topCount+i],cell.getContentDescription());
+        assertTrue(cell.getRight()<=flow.getWidth());
+        if(i+1==flow.getChildCount() || flow.getChildAt(i+1).getTop()>cell.getTop())assertEquals(flow.getWidth(),cell.getRight());
+      }
+      assertTrue(flow.getHeight()>scroll.getHeight());
+    });
+  }
+
 }

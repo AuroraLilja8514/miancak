@@ -51,9 +51,8 @@ public final class PageEditorInteractionTest
       if (!restartOnly)
       {
         openEditor("en");
-        for (int d = 0; d < 9; d++) literal("en", 1, 2, d, "C12345678".substring(d, d+1));
-        require(By.desc("Shift layer preview")).click();
-        literal("en", 1, 2, 0, "转"); literal("en", 1, 2, 7, "上");
+        for(int d=0;d<9;d++)previewLiteral(d,"C12345678".substring(d,d+1),0);
+        previewLiteral(0,"逆",-1);previewLiteral(0,"转",1); literal("en", 1, 2, 7, "上");
         key("en", 1, 2); position(0); shot("editor-eight-directions"); closeDialog();
         key("en", 3, 2); UiObject2 shared = position(7);
         assertFalse(shared.isEnabled()); assertTrue(shared.getText().contains(context.getString(R.string.page_shared_status))); closeDialog();
@@ -102,8 +101,8 @@ public final class PageEditorInteractionTest
       assertTrue("Connection restart changed the chosen symbol layout",device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: symbols;")),15000));
       assertTrue(device.wait(Until.hasObject(By.res(pkg,"miancak_symbol_page").text(context.getString(R.string.symbol_page,2,5))),15000));
       touch(0,0,0); expect("符","symbol-page-edit");
-      choose("en"); clear(); roundtrip(1,2,7); expect("上","roundtrip-shift"); circle(); expect("上转","circle-shift");
-      before=events.size(); roundtrip(0,0,2); function(before,KeyEvent.KEYCODE_F1); expect("上转","gesture-fn-fallback");
+      choose("en"); clear(); roundtrip(1,2,7); expect("上","roundtrip-shift"); circle(); expect("上转","circle-shift"); anticircle(); expect("上转逆","anticircle-independent");
+      before=events.size(); roundtrip(0,0,2); function(before,KeyEvent.KEYCODE_F1); expect("上转逆","gesture-fn-fallback");
       shot(restartOnly?"editor-after-restart":"editor-input"); choose("zh");
     }
     finally
@@ -197,21 +196,30 @@ public final class PageEditorInteractionTest
   private void key(String id,int r,int c) throws Exception
   {
     android.util.Log.i("MIANCAK-Acceptance", "Edit " + id + "/" + r + "/" + c);
-    String desc="Edit key: "+id+":"+r+":"+c;scrollTo("Editor row: "+id+":"+r);
-    new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_keyboard")).setAsHorizontalList().scrollIntoView(new UiSelector().description(desc));
-    UiObject2 cell=device.wait(Until.findObject(By.desc(desc)),15000);assertNotNull(cell);
-    for(int attempt=0;attempt<3&&cell.getVisibleBounds().width()<Math.round(80*context.getResources().getDisplayMetrics().density);attempt++)
-    {
-      UiObject2 horizontal=require(By.res(pkg,"miancak_editor_keyboard"));
-      horizontal.scroll(cell.getVisibleBounds().centerX()<horizontal.getVisibleBounds().centerX()?Direction.LEFT:Direction.RIGHT,.35f);
-      cell=require(By.desc(desc));
-    }
-    assertTrue("Editor key preview collapsed: "+cell.getVisibleBounds(),cell.getVisibleBounds().width()>=Math.round(80*context.getResources().getDisplayMetrics().density));cell.click();
+    scrollTo("Choose key and position");require(By.desc("Choose key and position")).click();String prefix=(r+1)+":"+(c+1)+" · ";
+    new UiScrollable(new UiSelector().className("android.widget.ListView")).scrollIntoView(new UiSelector().textStartsWith(prefix));
+    require(By.textStartsWith(prefix)).click();
   }
+
   private UiObject2 position(int d) throws Exception
   {
     String id=pkg+":id/miancak_position_"+SLOTS[d];new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_editor_positions")).scrollIntoView(new UiSelector().resourceId(id));
     UiObject2 v=device.wait(Until.findObject(By.res(pkg,"miancak_position_"+SLOTS[d])),15000);assertNotNull(v);return v;
+  }
+  private void previewLiteral(int direction,String text,int circle) throws Exception
+  {
+    scrollTo("Layout preview: en");Rect b=require(By.desc("Layout preview: en")).getVisibleBounds();Config cfg=Config.forPreview(context,prefs());
+    KeyboardData data=PageLayouts.forEditor(context,"en",prefs());float u=(b.width()-2*cfg.horizontal_margin)/data.keysWidth,h=(b.height()-cfg.marginTop)/data.keysHeight;
+    Point p=new Point(Math.round(b.left+cfg.horizontal_margin+3*u),Math.round(b.top+cfg.marginTop+1.5f*h));int dx=Math.round(u*.85f),dy=Math.round(h*.65f);
+    if(circle!=0)
+    {
+      assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-dy),new Point(p.x+circle*dx,p.y),new Point(p.x,p.y+dy),new Point(p.x-circle*dx,p.y),p},10));
+      if(circle>0)require(By.res("android","button1")).click();
+    }
+    else if(direction==0)assertTrue(device.click(p.x,p.y));
+    else{int[] v=VECTORS[direction];assertTrue(device.swipe(p.x,p.y,p.x+v[0]*dx,p.y+v[1]*dy,12));}
+    pick(R.string.page_literal);require(By.desc("Key output text")).setText(text);require(By.res("android","button1")).click();require(By.desc("Save layout"));
+    observations.put(new JSONObject().put("name","preview-selection").put("direction",direction).put("circle",circle).put("expected",text));
   }
   private void literal(String id,int r,int c,int d,String text) throws Exception
   {key(id,r,c);position(d).click();pick(R.string.page_literal);device.wait(Until.findObject(By.desc("Key output text")),15000).setText(text);device.findObject(By.res("android","button1")).click();assertNotNull(device.wait(Until.findObject(By.desc("Save layout")),15000));}
@@ -250,6 +258,8 @@ public final class PageEditorInteractionTest
   {Point p=point(r,c);int[] v=VECTORS[d];assertTrue(device.swipe(new Point[]{p,new Point(Math.round(p.x+v[0]*unit()*.9f),Math.round(p.y+v[1]*height()*.7f)),p},12));}
   private void circle()
   {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-y),new Point(p.x+x,p.y),new Point(p.x,p.y+y),new Point(p.x-x,p.y),p},10));}
+  private void anticircle()
+  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-y),new Point(p.x-x,p.y),new Point(p.x,p.y+y),new Point(p.x+x,p.y),p},10));}
   private void orientation(int expected)
   {long end=SystemClock.uptimeMillis()+15000;while(context.getResources().getConfiguration().orientation!=expected&&SystemClock.uptimeMillis()<end)SystemClock.sleep(30);assertEquals(expected,context.getResources().getConfiguration().orientation);device.waitForIdle();}
   private void shot(String name){device.waitForIdle();device.takeScreenshot(new java.io.File(TestEvidence.directory(context),name+".png"));}

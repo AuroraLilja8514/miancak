@@ -46,6 +46,21 @@ public class RimeNativeTest
       }
   }
 
+  @Test public void candidateIteratorAndLaterSelectionMatchDisplayedRanks() throws Exception
+  {
+    Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+    try(RimeEngine engine=new RimeEngine(RimeData.deploy(context)))
+    {
+      engine.setLearning(false);EngineResult first=engine.processText("shi"),more=engine.candidates(50);
+      assertEquals(first.preedit,more.preedit);assertTrue(more.committed.isEmpty());assertTrue(more.candidates.size()>28);
+      assertEquals(first.candidates,more.candidates.subList(0,first.candidates.size()));
+      String chosen=more.candidates.get(27);assertEquals(chosen,engine.select(27).committed);
+      engine.processText("shi");EngineResult page=engine.page(false);chosen=page.candidates.get(0);assertEquals(chosen,engine.select(0).committed);
+      engine.processText("nihao");more=engine.candidates(10000);assertTrue(more.lastPage);
+      assertEquals(more.candidates.size(),engine.candidates(10000).candidates.size());engine.clear();
+    }
+  }
+
   @Test public void deploymentKeepsUnchangedAssetsAndUserData() throws Exception
   {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();

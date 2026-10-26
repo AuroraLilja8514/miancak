@@ -41,7 +41,7 @@ public final class LayoutRuntimeAuditTest
             for (int page = 0; page < SymbolCatalog.pageCount(category); page++)
               if (!SymbolCatalog.scope(category, page).equals("symbols"))
                 inventory(out, profile, SymbolCatalog.scope(category, page),
-                    LayoutModifier.modify_layout(PageLayouts.symbols(context.getResources(), new SymbolState(category, page)), false));
+                    LayoutModifier.modify_layout(PageLayouts.symbols(context.getResources(), new SymbolState(category, page)), false, null, SymbolCatalog.scope(category,page)));
           // Every actually presented English source action must remain
           // reachable after its upstream Fn transformation. Shared controls
           // and Compose are intentionally excluded from this transformation.
@@ -75,7 +75,7 @@ public final class LayoutRuntimeAuditTest
     if (PageConfig.base(id).equals("numeric")) return PageLayouts.numeric(context.getResources(), PageConfig.isVariant(id), main);
     if (PageConfig.base(id).equals("greek")) return LayoutModifier.modify_numpad(data, main);
     if (id.equals("emoji") || id.equals("clipboard")) return data;
-    return LayoutModifier.modify_layout(data, PageConfig.isVariant(id));
+    return LayoutModifier.modify_layout(data, PageConfig.isVariant(id),null,id);
   }
   private void inventory(Writer out, String profile, String id, KeyboardData data) throws Exception
   {
