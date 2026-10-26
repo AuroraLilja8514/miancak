@@ -195,6 +195,9 @@ public final class Config
       float header = 64 * dm.density;
       keyboard_rows_height_pixels = (int)Math.max(24 * dm.density,
           (base_height * keyboardHeightPercent / 100f - header) / 3.95f);
+      // Preserve gesture reachability when rows are flattened: the default
+      // vertical stroke should remain about 60% of one row, not most of it.
+      swipe_dist_px *= Math.min(1f, keyboard_rows_height_pixels / swipe_scaling);
     }
     horizontal_margin =
       get_dip_pref_oriented(dm, "horizontal_margin", 3, 3);

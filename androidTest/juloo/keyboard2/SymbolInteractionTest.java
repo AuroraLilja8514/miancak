@@ -65,6 +65,7 @@ public final class SymbolInteractionTest
       Rect input=device.findObject(By.res(pkg,"miancak_input_surface")).getVisibleBounds();
       assertTrue("Landscape input surface must leave room for the app: "+input,input.height()<=device.getDisplayHeight()*.65f);
       assertTrue("Actual receiver must remain visible",device.findObject(By.desc("first_editor")).getVisibleBounds().height()>0);
+      touch(3,2,7);awaitLayout("numeric");pressNumericPrevious();awaitLayout("symbols");awaitSymbolPage("math",1);
       touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-landscape");
       device.setOrientationRight();
       long rotated=SystemClock.uptimeMillis()+15000;
