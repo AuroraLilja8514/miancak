@@ -192,7 +192,12 @@ public final class PageEditorActivity extends Activity
   {
     String[] choices = {getString(R.string.page_literal), getString(R.string.page_engine),
       getString(R.string.page_action), getString(R.string.page_empty), getString(R.string.page_inherit), getString(R.string.page_reset_position)};
-    new AlertDialog.Builder(this).setTitle(R.string.page_key_action).setItems(choices, (dialog, which) -> {
+    KeyboardData.Key selected=draft.apply(page,base).rows.get(row).keys.get(col);
+    String directionName=direction==9?getString(R.string.page_anticircle):directionNames[direction];
+    String current=label(direction==9?selected.anticircle:selected.keys[direction]);
+    String title=label(selected.keys[0])+" · "+getString(R.string.page_position_accessibility,directionName,current,status(selected,row,col,direction))
+      +(shifted?" · Shift":"");
+    new AlertDialog.Builder(this).setTitle(title).setItems(choices, (dialog, which) -> {
       if (which < 2) editText(row, col, direction, which == 1);
       else if (which == 2) chooseSpecial(row, col, direction);
       else if (which == 5)

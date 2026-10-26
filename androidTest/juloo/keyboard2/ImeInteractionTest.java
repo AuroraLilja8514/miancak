@@ -106,6 +106,13 @@ public class ImeInteractionTest
       tap(0.75f, 2); gesture('x', -1, -1);
       tap(0.75f, 2); gesture('b', -1, -1);
       output += "()!?"; awaitText(activity.first, output);
+      for(int variant=0;variant<2;variant++)
+      {
+        if(variant==1){tap(2.25f,3);assertTrue(device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: zh_fn;")),15000));}
+        gesture('k',-1,-1);gesture('k',1,-1);tap(.75f,2);gesture('k',-1,-1);tap(.75f,2);gesture('k',1,-1);
+        output+="（）()";awaitText(activity.first,output);
+      }
+      tap(2.25f,3);assertTrue(device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: zh;")),15000));
       gesture('m', -1, -1);
       tap(0.75f, 2); gesture('m', -1, -1);
       tap(0.75f, 2); gesture('m', -1, 1);
@@ -263,6 +270,9 @@ public class ImeInteractionTest
       assertTrue("Compact row must contain a fitting prefix", compact.getChildren().size() > 0);
       assertNull(device.findObject(By.res(pkg,"miancak_previous_candidates")));assertNull(device.findObject(By.res(pkg,"miancak_next_candidates")));
       assertTrue("Reduced spacing should show more than three short items",compact.getChildren().size()>=4);
+      UiObject2 strip=find("miancak_candidate_scroll");assertNotNull(strip);
+      strip.setGestureMargin(8);strip.scroll(androidx.test.uiautomator.Direction.RIGHT,.8f);device.waitForIdle();
+      screenshot("candidate-strip-scrolled");
       Rect inputBounds = find("miancak_input_surface").getVisibleBounds();
       find("miancak_expand_candidates").click();
       assertNotNull(find("miancak_expanded_candidates"));
@@ -271,7 +281,7 @@ public class ImeInteractionTest
       assertEquals(pageOne,candidate());UiObject2 eighth=null;
       for(int attempt=0;attempt<16;attempt++)
       {
-        eighth=device.findObject(By.descStartsWith("Candidate 28: "));
+        eighth=device.findObject(By.descStartsWith("Candidate 80: "));
         if(eighth!=null && eighth.getVisibleBounds().height()>16)break;
         UiObject2 panel=find("miancak_expanded_candidates");assertNotNull(panel);
         panel.setGestureMargin(20);panel.scroll(androidx.test.uiautomator.Direction.DOWN,.6f);

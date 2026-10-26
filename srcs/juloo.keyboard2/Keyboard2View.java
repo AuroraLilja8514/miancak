@@ -55,6 +55,7 @@ public class Keyboard2View extends View
   private static int _currentWhat = 0;
 
   private Config _config;
+  private final boolean _previewConfig;
 
   private float _keyWidth;
   private float _mainLabelSize;
@@ -104,6 +105,7 @@ public class Keyboard2View extends View
     super(context, attrs);
     _theme = new Theme(getContext(), attrs);
     _config = config;
+    _previewConfig = config != Config.globalConfig();
     _pointers = new Pointers(this, _config);
     refresh_navigation_bar(context);
     setOnTouchListener(this);
@@ -150,7 +152,7 @@ public class Keyboard2View extends View
     _keyboard = kw;
     _shift_key = _keyboard.findKeyWithValue(KeyValue.SHIFT);
     _compose_key = _keyboard.findKeyWithValue(KeyValue.COMPOSE);
-    KeyModifier.set_modmap(_keyboard.modmap);
+    if (!_previewConfig) KeyModifier.set_modmap(_keyboard.modmap);
     reset();
   }
 
