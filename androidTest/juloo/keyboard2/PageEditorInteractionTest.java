@@ -214,7 +214,12 @@ public final class PageEditorInteractionTest
     if(circle!=0)
     {
       assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-dy),new Point(p.x+circle*dx,p.y),new Point(p.x,p.y+dy),new Point(p.x-circle*dx,p.y),p},10));
-      if(circle>0)require(By.res("android","button1")).click();
+      if(circle>0)
+      {
+        UiObject2 confirm=device.wait(Until.findObject(By.res("android","button1")),15000);
+        if(confirm==null){shot("editor-circle-selection-failure");device.dumpWindowHierarchy(new java.io.File(TestEvidence.directory(context),"editor-circle-selection-failure.xml"));}
+        assertNotNull("Clockwise selection must explain the Shift link",confirm);confirm.click();
+      }
     }
     else if(direction==0)assertTrue(device.click(p.x,p.y));
     else{int[] v=VECTORS[direction];assertTrue(device.swipe(p.x,p.y,p.x+v[0]*dx,p.y+v[1]*dy,12));}

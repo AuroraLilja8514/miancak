@@ -133,6 +133,12 @@ public final class RimeCandidatesView extends LinearLayout
     super.onMeasure(widthSpec, heightSpec);
   }
 
+  @Override protected void onLayout(boolean changed,int left,int top,int right,int bottom)
+  {
+    super.onLayout(changed,left,top,right,bottom);
+    post(this::maybeLoadMore);
+  }
+
   public void show(InputSnapshot snapshot)
   {
     boolean continuation=shown!=null && shown.generation==snapshot.generation
@@ -211,13 +217,20 @@ public final class RimeCandidatesView extends LinearLayout
     if(expandedFlow!=null)
     {
       expandedFlow.removeAllViews();
-      if(expanded)for(int i=count;i<shown.engine.candidates.size();i++)expandedFlow.addView(candidate(shown,i,true));
+      // An overlong first item remains abbreviated in the fixed header, but
+      // must also be readable in full in the wrapping panel.
+      int start=count>0 && widths[0]>available?0:count;
+      if(expanded)for(int i=start;i<shown.engine.candidates.size();i++)expandedFlow.addView(candidate(shown,i,true));
     }
     post(this::maybeLoadMore);
   }
 
   private void maybeLoadMore()
   {
+    // A newly appended flow still has its previous height until traversal.
+    // Measuring that stale height can queue needless successive native loads.
+    if (!isAttachedToWindow() || !isShown() || isLayoutRequested()
+        || candidates.isLayoutRequested() || expanded && expandedFlow.isLayoutRequested()) return;
     InputSnapshot snapshot=shown;
     if(controller==null || snapshot==null || !snapshot.engine.composing || snapshot.engine.lastPage
         || snapshot.engine.candidates.isEmpty() || requestedRevision==snapshot.revision)return;

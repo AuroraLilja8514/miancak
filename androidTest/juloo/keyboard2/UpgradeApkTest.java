@@ -47,7 +47,7 @@ public final class UpgradeApkTest
     context = instrumentation.getTargetContext(); pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation); device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("upgradePhase", "verify");
-    assertEquals(phase.equals("prepare") ? 3 : 4, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
+    assertEquals(phase.equals("prepare") ? 3 : BuildConfig.VERSION_CODE, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       if (phase.equals("prepare"))

@@ -100,7 +100,8 @@ public class CandidatePresentationTest
       assertEquals(View.INVISIBLE, base.getVisibility());
       ViewGroup scroll = surface.findViewById(R.id.miancak_expanded_candidates);
       ViewGroup flow = (ViewGroup)scroll.getChildAt(0);
-      assertEquals(1,flow.getChildCount());assertEquals("后续候选",((TextView)flow.getChildAt(0)).getText().toString());
+      assertEquals(2,flow.getChildCount());assertEquals(longText,((TextView)flow.getChildAt(0)).getText().toString());
+      assertTrue(((TextView)flow.getChildAt(0)).getLineCount()>1);
       assertEquals(longText,((TextView)row.getChildAt(0)).getText().toString());
       assertTrue(flow.getChildAt(0).getMeasuredWidth() <= scroll.getMeasuredWidth());
       view.collapse();

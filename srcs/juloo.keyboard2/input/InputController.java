@@ -195,12 +195,13 @@ public final class InputController implements AutoCloseable
   /** Extend only the exact displayed revision, on the serialized worker. */
   public void moreCandidates(InputSnapshot displayed)
   {
-    checkUi();Handle handle=active;
-    if(maintenance || !current(handle) || displayed.generation!=handle.generation)return;
-    queue(handle,edits->{
-      if(displayed.revision!=workerRevision || !state.composing || state.lastPage)return;
-      state=getEngine(handle).candidates(Math.addExact(state.candidates.size(),40));
-    },null);
+    checkUi();
+    Handle handle = active;
+    if (maintenance || !current(handle) || displayed.generation != handle.generation) return;
+    queue(handle, edits -> {
+      if (displayed.revision != workerRevision || !state.composing || state.lastPage) return;
+      state = getEngine(handle).candidates(Math.addExact(state.candidates.size(), 40));
+    }, null);
   }
 
   public void cancelComposition()

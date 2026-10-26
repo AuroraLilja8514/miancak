@@ -19,4 +19,20 @@ public final class EditorGestureTest
     assertEquals(Gesture.Name.Anticircle,g.name());assertEquals(9,g.slot());
     g=gesture();g.move(140,60);g.move(100,100);assertEquals(Gesture.Name.Roundtrip,g.name());assertEquals(2,g.slot());
   }
+  @Test public void sampledCirclesIgnoreRepeatedSectorsAndKeepTheirDirection()
+  {
+    for(int sign:new int[]{1,-1})
+    {
+      EditorGesture g=gesture();
+      int[][] points={{100,100},{100,60},{100+sign*40,100},{100,140},{100-sign*40,100},{100,100}};
+      for(int n=1;n<points.length;n++)for(int step=0;step<=10;step++)
+      {
+        float x=points[n-1][0]+(points[n][0]-points[n-1][0])*step/10f;
+        float y=points[n-1][1]+(points[n][1]-points[n-1][1])*step/10f;
+        g.move(x,y);g.move(x,y);
+      }
+      assertEquals(sign==1?Gesture.Name.Circle:Gesture.Name.Anticircle,g.name());assertEquals(sign==1?0:9,g.slot());
+    }
+  }
+
 }

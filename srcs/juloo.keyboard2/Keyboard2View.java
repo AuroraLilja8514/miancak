@@ -70,8 +70,8 @@ public class Keyboard2View extends View
   private EditorGesture _editorGesture;
   public void setEditorSelection(EditorSelection listener, boolean shifted)
   {
-    _editorSelection=listener;_embeddedControls=true;
-    _mods=shifted?Pointers.Modifiers.EMPTY.with_extra_mod(KeyValue.SHIFT):Pointers.Modifiers.EMPTY;
+    _editorSelection = listener; _embeddedControls = true;
+    _mods = shifted ? Pointers.Modifiers.EMPTY.with_extra_mod(KeyValue.SHIFT) : Pointers.Modifiers.EMPTY;
     invalidate();
   }
 
@@ -269,24 +269,33 @@ public class Keyboard2View extends View
 
   private boolean editorTouch(MotionEvent event)
   {
-    if(event.getActionMasked()==MotionEvent.ACTION_DOWN)
+    if (event.getActionMasked() == MotionEvent.ACTION_DOWN)
     {
-      _editorKey=getKeyAtPosition(event.getX(),event.getY());
-      _editorGesture=new EditorGesture(event.getX(),event.getY(),_config.swipe_dist_px,_config.circle_sensitivity);
+      _editorKey = getKeyAtPosition(event.getX(), event.getY());
+      _editorGesture = new EditorGesture(event.getX(), event.getY(), _config.swipe_dist_px, _config.circle_sensitivity);
       getParent().requestDisallowInterceptTouchEvent(true);
     }
-    else if(event.getActionMasked()==MotionEvent.ACTION_MOVE && _editorGesture!=null)
-      _editorGesture.move(event.getX(),event.getY());
-    else if(event.getActionMasked()==MotionEvent.ACTION_UP && _editorGesture!=null)
+    else if (event.getActionMasked() == MotionEvent.ACTION_MOVE && _editorGesture != null)
+      _editorGesture.move(event.getX(), event.getY());
+    else if (event.getActionMasked() == MotionEvent.ACTION_UP && _editorGesture != null)
     {
-      _editorGesture.move(event.getX(),event.getY()); EditorGesture selected=_editorGesture; _editorGesture=null;
+      _editorGesture.move(event.getX(), event.getY());
+      EditorGesture selected = _editorGesture;
+      _editorGesture = null;
       getParent().requestDisallowInterceptTouchEvent(false);
-      for(int r=0;r<_keyboard.rows.size();r++)for(int c=0;c<_keyboard.rows.get(r).keys.size();c++)
-        if(_keyboard.rows.get(r).keys.get(c)==_editorKey)
-        {_editorSelection.selected(r,c,selected.slot(),selected.name());return true;}
+      for (int row = 0; row < _keyboard.rows.size(); row++)
+        for (int col = 0; col < _keyboard.rows.get(row).keys.size(); col++)
+          if (_keyboard.rows.get(row).keys.get(col) == _editorKey)
+          {
+            _editorSelection.selected(row, col, selected.slot(), selected.name());
+            return true;
+          }
     }
-    else if(event.getActionMasked()==MotionEvent.ACTION_CANCEL)
-    {_editorKey=null;_editorGesture=null;getParent().requestDisallowInterceptTouchEvent(false);}
+    else if (event.getActionMasked() == MotionEvent.ACTION_CANCEL)
+    {
+      _editorKey = null; _editorGesture = null;
+      getParent().requestDisallowInterceptTouchEvent(false);
+    }
     return true;
   }
 
