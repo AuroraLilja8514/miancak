@@ -191,9 +191,35 @@ public final class UpgradeApkTest
     try (FileOutputStream out = new FileOutputStream(new File(directory, "upgrade-learning-" + phase + ".json")))
     { out.write(report.toString(2).getBytes(StandardCharsets.UTF_8)); }
   }
+  /** Prepare only the old-APK fixture. Never repair enablement in verify or
+   * reboot phases: those phases must prove retained state after replacement. */
+  private void ensureBaselineEnabled() throws Exception
+  {
+    String component = pkg + "/juloo.keyboard2.Keyboard2";
+    InputMethodManager manager = (InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE);
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    boolean requested = false;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      for (InputMethodInfo method : manager.getEnabledInputMethodList())
+        if (component.equals(method.getId())) return;
+      if (!requested)
+        for (InputMethodInfo method : manager.getInputMethodList())
+          if (component.equals(method.getId()))
+          {
+            android.util.Log.i("MIANCAK-Test", "Preparing old-APK enabled-state precondition after instrumentation start");
+            device.executeShellCommand("ime enable " + component); requested = true; break;
+          }
+      SystemClock.sleep(100);
+    }
+    screenshot("upgrade-baseline-enable-precondition");
+    fail("Old-APK fixture did not enter Android's enabled IME list");
+  }
+
   private void selectThroughShippedLauncher() throws Exception
   {
     boolean restored = !InstrumentationRegistry.getArguments().getString("upgradePhase", "verify").equals("prepare");
+    if (!restored) ensureBaselineEnabled();
     instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     awaitLauncher();
