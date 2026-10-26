@@ -50,7 +50,7 @@ public final class PageEditorInteractionTest
     {
       if (!restartOnly)
       {
-        openEditor("en");
+        openEditor("en");shot("editor-preview-normal");
         for(int d=0;d<9;d++)previewLiteral(d,"C12345678".substring(d,d+1),0);
         previewLiteral(0,"逆",-1);previewLiteral(0,"转",1); literal("en", 1, 2, 7, "上");
         key("en", 1, 2); position(0); shot("editor-eight-directions"); closeDialog();
@@ -189,6 +189,18 @@ public final class PageEditorInteractionTest
     assertTrue(device.wait(Until.hasObject(By.res(pkg,"miancak_page_settings")),15000));
     new UiScrollable(new UiSelector().resourceId(pkg+":id/miancak_page_settings")).scrollIntoView(new UiSelector().description("Edit layout: "+id));
     device.findObject(By.desc("Edit layout: "+id)).click();assertNotNull(device.wait(Until.findObject(By.desc("Save layout")),15000));
+    instrumentation.runOnMainSync(()->{
+      boolean checked=false;
+      for(android.app.Activity a:ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))
+        if(a instanceof PageEditorActivity)
+        {
+          Keyboard2View preview=a.findViewById(R.id.miancak_editor_keyboard);assertNotNull(preview);
+          Theme theme=new Theme(preview.getContext(),null);
+          assertTrue("Preview labels must be visible",android.graphics.Color.alpha(theme.labelColor)>0);
+          assertNotEquals("Preview labels must contrast with keys",theme.labelColor,theme.colorKey);checked=true;
+        }
+      assertTrue("Editor preview was not checked",checked);
+    });
   }
   private UiObject2 require(androidx.test.uiautomator.BySelector selector)
   { UiObject2 v=device.wait(Until.findObject(selector),15000);assertNotNull("Expected UI: "+selector,v);return v; }

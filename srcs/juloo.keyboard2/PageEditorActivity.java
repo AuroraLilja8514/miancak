@@ -110,7 +110,11 @@ public final class PageEditorActivity extends Activity
       content.addView(button(getString(R.string.page_symbol_content), "Choose symbol content", this::chooseSymbolContent));
     TextView help = new TextView(this); help.setText(R.string.page_editor_scroll_help); content.addView(help);
     KeyboardData layout = draft.apply(page, base);
-    Keyboard2View preview = new Keyboard2View(this, null, previewConfig);
+    android.view.ContextThemeWrapper keyboardContext = new android.view.ContextThemeWrapper(this, previewConfig.theme);
+    Keyboard2View preview = new Keyboard2View(keyboardContext, null, previewConfig);
+    android.content.res.TypedArray background = keyboardContext.obtainStyledAttributes(new int[] {R.attr.colorKeyboard});
+    preview.setBackgroundColor(background.getColor(0, android.graphics.Color.TRANSPARENT));
+    background.recycle();
     preview.setId(R.id.miancak_editor_keyboard); preview.setContentDescription("Layout preview: " + page);
     preview.setKeyboard(layout);
     preview.setEditorSelection((row,col,slot,gesture) -> {
