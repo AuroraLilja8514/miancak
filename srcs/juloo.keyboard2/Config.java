@@ -119,6 +119,10 @@ public final class Config
     extra_keys_subtype = null;
   }
 
+  /** Independent activity preview; never replace the live IME configuration. */
+  public static Config forPreview(android.content.Context context, SharedPreferences prefs)
+  { return new Config(prefs, context.getResources(), _globalConfig != null && _globalConfig.foldable_unfolded, Dictionaries.instance(context)); }
+
   /*
    ** Reload prefs
    */
@@ -137,7 +141,7 @@ public final class Config
       if ("landscape".equals(show_numpad_s))
         show_numpad = true;
       keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_landscape_unfolded" : "keyboard_height_landscape", 50);
-      characterSizeScale = 1.25f;
+
     }
     else
     {
@@ -184,8 +188,16 @@ public final class Config
     // screens (or less) and with a 3.95 high layout (in KeyboardData unit)
     float base_height = Math.min(dm.heightPixels, dm.widthPixels * 16.f / 9.f);
     keyboard_rows_height_pixels = (int)(base_height * keyboardHeightPercent / 395);
+    if (orientation_landscape)
+    {
+      // The landscape percentage includes status/candidates (or symbol tabs),
+      // rather than adding those rows above an already half-screen keyboard.
+      float header = 64 * dm.density;
+      keyboard_rows_height_pixels = (int)Math.max(24 * dm.density,
+          (base_height * keyboardHeightPercent / 100f - header) / 3.95f);
+    }
     horizontal_margin =
-      get_dip_pref_oriented(dm, "horizontal_margin", 3, 28);
+      get_dip_pref_oriented(dm, "horizontal_margin", 3, 3);
     double_tap_lock_shift = _prefs.getBoolean("lock_double_tap", false);
     characterSize =
       _prefs.getFloat("character_size", 1.15f)

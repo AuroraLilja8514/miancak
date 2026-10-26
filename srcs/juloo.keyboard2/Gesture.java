@@ -7,11 +7,15 @@ public final class Gesture
   int current_dir;
 
   State state;
+  private final int sensitivity;
 
   public Gesture(int starting_direction)
+  { this(starting_direction, Config.globalConfig() == null ? 3 : Config.globalConfig().circle_sensitivity); }
+  public Gesture(int starting_direction, int sensitivity)
   {
     current_dir = starting_direction;
     state = State.Swiped;
+    this.sensitivity = sensitivity;
   }
 
   enum State
@@ -86,7 +90,7 @@ public final class Gesture
     switch (state)
     {
       case Swiped:
-        if (Math.abs(d) < Config.globalConfig().circle_sensitivity)
+        if (Math.abs(d) < sensitivity)
           return false;
         // Start a rotation
         state = (clockwise) ?

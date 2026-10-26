@@ -33,11 +33,16 @@ public final class LayoutModifier
 
   public static KeyboardData modify_layout(KeyboardData kw, boolean fnVariant, PageKeyOverrides edits, String page)
   {
-    kw = prepare_layout(kw, fnVariant, globalConfig.extra_keys_param,
+    boolean symbols = page.equals("symbols") || page.startsWith("symbols/");
+    kw = symbols ? prepare_symbols(kw) : prepare_layout(kw, fnVariant, globalConfig.extra_keys_param,
         globalConfig.extra_keys_custom, globalConfig.extra_keys_subtype);
     if (edits != null) kw = edits.apply(page, kw);
-    return present_layout(kw, fnVariant);
+    return present_layout(kw, fnVariant, symbols);
   }
+
+  /** Fixed symbol coordinates do not inherit text-layout extras or digit rows. */
+  public static KeyboardData prepare_symbols(KeyboardData kw)
+  { return prepare_layout(kw, false, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(), null); }
 
   /** Shared logical coordinates, before responsive splitting and digit rows. */
   public static KeyboardData prepare_layout(KeyboardData kw, boolean fnVariant,
@@ -95,18 +100,18 @@ public final class LayoutModifier
     return kw.with_bottom_row(false);
   }
 
-  private static KeyboardData present_layout(KeyboardData kw, boolean fnVariant)
+  private static KeyboardData present_layout(KeyboardData kw, boolean fnVariant, boolean symbols)
   {
     final Set<KeyValue> remove_keys = new HashSet<>();
     KeyboardData.Row added_number_row = null;
     KeyboardData added_numpad = null;
-    if (globalConfig.show_numpad)
+    if (!symbols && globalConfig.show_numpad)
     {
       added_numpad = modify_numpad(num_pad, kw);
       if (fnVariant) added_numpad = FnLayout.materialize(added_numpad, false);
       remove_keys.addAll(added_numpad.getKeys().keySet());
     }
-    else if (globalConfig.add_number_row && !kw.embedded_number_row)
+    else if (!symbols && globalConfig.add_number_row && !kw.embedded_number_row)
     {
       added_number_row = modify_number_row(globalConfig.number_row_symbols ? number_row_symbols : number_row_no_symbols, kw);
       if (fnVariant) added_number_row = added_number_row.mapKeys(new KeyboardData.MapKeyValues() {

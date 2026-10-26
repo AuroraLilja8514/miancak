@@ -1,6 +1,6 @@
 package juloo.keyboard2.input;
 
-/** A bounded category browser, never a language/layout or Fn state. */
+/** A circular category/page browser, never a language/layout or Fn state. */
 public final class SymbolState
 {
   private String category;
@@ -14,10 +14,25 @@ public final class SymbolState
   public String category() { return category; }
   public int page() { return page; }
   public String scope() { return SymbolCatalog.scope(category, page); }
-  public boolean previous() { return page > 0; }
-  public boolean next() { return page + 1 < SymbolCatalog.pageCount(category); }
+  public boolean previous() { return true; }
+  public boolean next() { return true; }
   public void select(String category)
   { if (SymbolCatalog.contains(category)) { this.category = category; page = 0; } }
   public void turn(int delta)
-  { page = Math.max(0, Math.min(page + delta, SymbolCatalog.pageCount(category) - 1)); }
+  {
+    int total = 0, offset = page; boolean before = true;
+    for (String id : SymbolCatalog.categories())
+    {
+      if (id.equals(category)) before = false;
+      if (before) offset += SymbolCatalog.pageCount(id);
+      total += SymbolCatalog.pageCount(id);
+    }
+    offset = (int)Math.floorMod((long)offset + delta, (long)total);
+    for (String id : SymbolCatalog.categories())
+    {
+      int count = SymbolCatalog.pageCount(id);
+      if (offset < count) { category = id; page = offset; return; }
+      offset -= count;
+    }
+  }
 }

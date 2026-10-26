@@ -12,8 +12,13 @@ public final class PageLayouts
     if (!juloo.keyboard2.input.PageConfig.base(page).equals("zh")) return data;
     KeyValue entry = config.enabled.contains(config.phoneticEntry)
       ? KeyValue.getKeyByName("switch_" + config.phoneticEntry) : null;
-    return data.mapKeys(key -> KeyValue.getKeyByName("space").equals(key.keys[0])
-        ? key.withKeyValue(1, entry) : key);
+    return data.mapKeys(key -> {
+      if (KeyValue.getKeyByName("space").equals(key.keys[0])) return key.withKeyValue(1, entry);
+      if (KeyValue.getKeyByName("k").equals(key.keys[0]))
+        return key.withKeyValue(1, KeyValue.layered(KeyValue.getKeyByName("（"), KeyValue.getKeyByName("(")))
+          .withKeyValue(2, KeyValue.layered(KeyValue.getKeyByName("）"), KeyValue.getKeyByName(")")));
+      return key;
+    });
   }
   public static KeyboardData base(Resources resources, String page)
   { return base(resources, page, new juloo.keyboard2.input.PageConfig(null, null)); }
@@ -83,6 +88,7 @@ public final class PageLayouts
       return editorDigits(base(resources, page), main, preferences);
     else data = base(resources, page, config);
     if (page.equals("emoji") || page.equals("clipboard")) return data;
+    if (page.equals("symbols") || page.startsWith("symbols/")) return LayoutModifier.prepare_symbols(data);
     return LayoutModifier.prepare_layout(data, juloo.keyboard2.input.PageConfig.isVariant(page),
         juloo.keyboard2.prefs.ExtraKeysPreference.get_extra_keys(preferences),
         juloo.keyboard2.prefs.CustomExtraKeysPreference.get(preferences), locales.extra_keys());

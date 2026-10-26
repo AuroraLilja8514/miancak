@@ -15,6 +15,7 @@ public final class LayoutControls
   }
   public static boolean shared(KeyboardData.Key key, int slot)
   {
+    if (slot < 0 || slot > 8) return false;
     return center(key, "space") && (slot == 0 || slot >= 5)
       || center(key, "enter") && (slot == 0 || slot == 4)
       || center(key, "backspace") && (slot == 0 || slot == 2)

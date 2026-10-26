@@ -731,31 +731,48 @@ public class Keyboard2 extends InputMethodService
 
   private void update_symbol_header()
   {
-    LinearLayout header = (LinearLayout)_symbolHeader; header.removeAllViews();
-    header.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    header.setId(R.id.miancak_symbol_categories);
-    android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
-    scroll.setHorizontalScrollBarEnabled(false);
-    LinearLayout tabs = new LinearLayout(this); scroll.addView(tabs);
+    LinearLayout header = (LinearLayout)_symbolHeader;
+    int height = Math.round((getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ? 36 : 44)
+        * getResources().getDisplayMetrics().density);
+    if (header.getChildCount() == 0)
+    {
+      header.setGravity(android.view.Gravity.CENTER_VERTICAL); header.setId(R.id.miancak_symbol_categories);
+      android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
+      scroll.setHorizontalScrollBarEnabled(false);
+      LinearLayout tabs = new LinearLayout(this); scroll.addView(tabs);
+      for (String category : SymbolCatalog.categories())
+      {
+        android.widget.Button button = new android.widget.Button(this);
+        button.setText(getString(PagePreferences.symbolLabel(category))); button.setAllCaps(false);
+        button.setTextSize(14); button.setMinHeight(0); button.setMinimumHeight(0);
+        button.setId(PagePreferences.symbolTabId(category));
+        button.setContentDescription(getString(R.string.symbol_category_accessibility, getString(PagePreferences.symbolLabel(category))));
+        button.setOnClickListener(view -> { _symbols.select(category); save_symbol_state(); apply_page(); });
+        tabs.addView(button, new LinearLayout.LayoutParams(-2, height));
+      }
+      header.addView(scroll, new LinearLayout.LayoutParams(0, height, 1));
+      android.widget.TextView position = new android.widget.TextView(this);
+      position.setId(R.id.miancak_symbol_page); position.setPadding(8, 0, 8, 0); header.addView(position);
+    }
+    android.widget.HorizontalScrollView scroll = (android.widget.HorizontalScrollView)header.getChildAt(0);
+    LinearLayout tabs = (LinearLayout)scroll.getChildAt(0);
     for (String category : SymbolCatalog.categories())
     {
-      android.widget.Button button = new android.widget.Button(this);
-      boolean selected = category.equals(_symbols.category());
-      button.setText((selected ? "✓ " : "") + getString(PagePreferences.symbolLabel(category)));
-      button.setAllCaps(false); button.setSelected(selected);
-      button.setId(PagePreferences.symbolTabId(category));
-      button.setContentDescription(getString(R.string.symbol_category_accessibility, getString(PagePreferences.symbolLabel(category))));
-      button.setOnClickListener(view -> { _symbols.select(category); save_symbol_state(); apply_page(); });
-      tabs.addView(button);
-      if (selected) scroll.post(() -> scroll.smoothScrollTo(button.getLeft(), 0));
+      View button = tabs.findViewById(PagePreferences.symbolTabId(category));
+      boolean selected = category.equals(_symbols.category()), wasSelected = button.isSelected();
+      button.setSelected(selected); button.setAlpha(selected ? 1f : .6f);
+      // Retain view identity and scroll position; directly reveal a newly
+      // selected, clipped tab without animating from the first category.
+      if (selected && !wasSelected) scroll.post(() -> {
+        if (button.getLeft() < scroll.getScrollX()) scroll.scrollTo(button.getLeft(), 0);
+        else if (button.getRight() > scroll.getScrollX() + scroll.getWidth()) scroll.scrollTo(button.getRight() - scroll.getWidth(), 0);
+      });
     }
-    header.addView(scroll, new LinearLayout.LayoutParams(0, -2, 1));
-    android.widget.TextView position = new android.widget.TextView(this);
-    position.setId(R.id.miancak_symbol_page);
+    android.widget.TextView position = header.findViewById(R.id.miancak_symbol_page);
     position.setText(getString(R.string.symbol_page, _symbols.page() + 1, SymbolCatalog.pageCount(_symbols.category())));
     position.setContentDescription(getString(R.string.symbol_page_accessibility, _symbols.page() + 1, SymbolCatalog.pageCount(_symbols.category())));
-    position.setPadding(8, 0, 8, 0); header.addView(position);
   }
+
   private void save_symbol_state()
   {
     DirectBootAwarePreferences.get_shared_preferences(this).edit()
@@ -764,8 +781,8 @@ public class Keyboard2 extends InputMethodService
   private void turn_symbol_page(int delta)
   {
     if (!_page.active().equals("symbols")) return;
-    int before = _symbols.page(); _symbols.turn(delta);
-    if (before != _symbols.page()) { save_symbol_state(); apply_page(); }
+    String before = _symbols.scope(); _symbols.turn(delta);
+    if (!before.equals(_symbols.scope())) { save_symbol_state(); apply_page(); }
   }
 
   private void page_indicators()
