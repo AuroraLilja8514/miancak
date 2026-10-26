@@ -41,13 +41,10 @@ PY
   fi
   python3 - <<'PY'
 from pathlib import Path
-import base64
 for name in ('editor-eight-directions.png', 'editor-landscape-draft.png', 'symbols-landscape.png', 'fn-final.png'):
     path = Path('test-results/device') / name
     if path.is_file():
-        print('MIANCAK_SCREENSHOT_BEGIN ' + name)
-        print(base64.b64encode(path.read_bytes()).decode('ascii'))
-        print('MIANCAK_SCREENSHOT_END')
+        print('Screenshot artifact: ' + name + ' (' + str(path.stat().st_size) + ' bytes)')
 PY
   adb shell run-as org.miancak.keyboard.debug du -sk files/rime > test-results/rime-footprint-kib.txt || true
   cat test-results/rime-footprint-kib.txt
@@ -55,7 +52,7 @@ PY
     cat test-results/device/native-metrics.json
   fi
   if [[ "$test_exit" -eq 0 ]]; then
-    for evidence in fn-received-events.csv symbol-receiver.json editor-receiver.json editor-restart-receiver.json; do
+    for evidence in fn-received-events.csv symbol-receiver.json editor-receiver.json editor-restart-receiver.json pointer-traces.jsonl; do
       if [[ ! -s "test-results/device/$evidence" ]]; then
         echo "Missing receiver evidence: $evidence" >&2
         exit 1
@@ -86,7 +83,7 @@ run_tests() {
   grep -Eq 'OK \(' "test-results/${result_name}.log"
 }
 run_tests word-tables-native -e class juloo.keyboard2.input.WordTableNativeTest
-run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest,juloo.keyboard2.LayoutRuntimeAuditTest
+run_tests native -e class juloo.keyboard2.input.RimeNativeTest,juloo.keyboard2.MiancakPlatformTest,juloo.keyboard2.input.CandidatePresentationTest,juloo.keyboard2.PageCustomizationTest,juloo.keyboard2.LayoutRuntimeAuditTest,juloo.keyboard2.PointerTraceTest
 run_tests interactions -e class juloo.keyboard2.ImeInteractionTest
 run_tests layout-files -e class juloo.keyboard2.PageFilesUiTest
 adb shell am force-stop org.miancak.keyboard.debug

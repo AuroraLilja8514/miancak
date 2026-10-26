@@ -15,13 +15,10 @@ collect() {
   timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
   python3 - <<'PY'
 from pathlib import Path
-import base64
 for name in ('word-legacy-choice.png', 'word-tables-prepare-ready.png'):
     path = Path('test-results/device') / name
     if path.is_file():
-        print('MIANCAK_SCREENSHOT_BEGIN ' + name)
-        print(base64.b64encode(path.read_bytes()).decode('ascii'))
-        print('MIANCAK_SCREENSHOT_END')
+        print('Screenshot artifact: ' + name + ' (' + str(path.stat().st_size) + ' bytes)')
 PY
 }
 trap collect EXIT

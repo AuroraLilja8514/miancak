@@ -76,6 +76,11 @@ def main():
                         break
                 except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
                     last_error = str(error)
+                    output = getattr(error, "output", None)
+                    if output:
+                        if isinstance(output, bytes):
+                            output = output.decode("utf-8", errors="replace")
+                        last_error += ": " + output.strip()[-1500:]
                 time.sleep(1)
             else:
                 raise RuntimeError("Guest did not finish a real reboot: " + last_error)
@@ -87,6 +92,13 @@ def main():
               else f"MIANCAK emulator reboot gate passed: {args.cycles} distinct kernel restarts", flush=True)
     except Exception as error:
         report["error"] = str(error)
+        try:
+            devices = subprocess.run(["adb", "devices", "-l"], text=True,
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
+            report["adbDevicesAtFailure"] = devices.stdout[-4000:]
+            (directory / "adb-devices-at-failure.txt").write_text(devices.stdout)
+        except (OSError, subprocess.TimeoutExpired) as diagnostic:
+            report["adbDiagnosticError"] = str(diagnostic)
         raise
     finally:
         checkpoint()

@@ -17,6 +17,13 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
 | `interaction-tests (35)` | The same scenarios on real API 35 x86_64 |
 | `first-install (<api>, <entry>)` | Four fresh-image APK jobs: API 23/35 and settings-first/IME-first, Android UI enablement/selection and process reopen |
+| `build-upgrade-baseline` | Builds the pinned actual 0.3.0 source for replacement tests |
+| `upgrade-tests (23/35)` | Real old APK input/learning, overwrite installation, configuration migration and guest reboot |
+| `word-table-tests (23/35)` | Native recovery plus actual Files import, base/addon selection, offline fallback, learning, APK replacement and reboot |
+| `word-pack-quality (23/35)` | Same schema, isolated users and fixed corpus for old/full/core data; candidate/commit and resource thresholds |
+| `emulator-reboot (23)` | Independent empty guest, three actual adb reboots with changed boot IDs; completes before APK jobs |
+
+There are 18 expanded checks. Emulator versions and GPU settings are pinned separately for API 23/35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
 
 The emulator action uses a supported SDK platform for provisioning and selects the guest system image separately. The script asserts the guest API before testing, so platform provisioning cannot silently change the tested Android version.
 
@@ -66,7 +73,7 @@ CI produces debug and unsigned release artifacts. Protected release signing, Git
 
 ## Word-table acceptance
 
-`word-table-tests (23/35)` add two mandatory jobs, bringing the applicable matrix to 15 checks. `build-debug` also builds a feature-enabled version-code-2 fixture before the ordinary version-code-4 application, using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
+`word-table-tests (23/35)` are mandatory; their initial addition brought the historical matrix to 15 checks, before quality and independent reboot checks were added. `build-debug` also builds a feature-enabled version-code-2 fixture before the ordinary version-code-4 application, using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
 
 The word jobs run real native catalog/selection/recovery tests, import complete existing dictionaries through DocumentsUI, use the shipped keyboard in real editors, overwrite-install version code 4 and reboot. The host fingerprints actual learning-database files while the app is stopped, before instrumentation can write them, and compares them across replacement and reboot. Historical upgrade gates independently verify migration/default-IME retention. Fixture source hashes and licenses are verified by `scripts/check_word_table_fixtures.py`.
 
@@ -78,7 +85,7 @@ API 35 interaction tests use system font scale 1.3. The API 35 settings-first fr
 
 ## Layout repair and formal word-pack checks
 
-The repair branch adds `word-pack-quality (23/35)`, making 17 applicable jobs. Both install the same APK/test artifacts into separate unused offline guests, compare the pinned old vocabulary with the evaluation-only Ice data using fresh isolated users, and preserve full candidate/commit, cold deploy, JNI latency, observed process PSS and footprint reports. A failed quality threshold remains a failed gate independently of UI results. It does not automatically replace the production default.
+The repair branch adds `word-pack-quality (23/35)` and the independent reboot check, making 18 applicable jobs. The quality jobs install the same APK/test artifacts into separate unused offline guests and compare the pinned old vocabulary, full Ice data and chosen Ice core with fresh isolated users. Reports retain actual candidates/commits, cold deployment, JNI latency, observed process PSS and footprint. The core is now the explicit production default; the full pack remains a comparison asset and the old pack an offline fallback. A failed quality threshold remains a failed gate independently of UI results; passing a comparison cannot silently change the default.
 
 Interaction evidence now includes real F1–F12 and navigation events, Fn literal Tab/NBSP and editing actions, categorized symbols, center plus eight directions, explicit Shift and paired edits, existing gesture compatibility, Files round trips and process restart. Runtime slot inventories cover normal/Shift outputs and Fn reachability under six number-row/numpad/order configurations; they complement actual touches and do not claim every slot was physically touched. Shared controls are read-only, Compose is unchanged, and advanced gesture editing H1 is deferred.
 

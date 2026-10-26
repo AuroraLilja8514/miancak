@@ -196,6 +196,7 @@ public final class UpgradeApkTest
     boolean restored = !InstrumentationRegistry.getArguments().getString("upgradePhase", "verify").equals("prepare");
     instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    awaitLauncher();
     if (restored)
     {
       // am instrument force-stops its target. The host has already asserted
@@ -257,6 +258,31 @@ public final class UpgradeApkTest
     catch (androidx.test.uiautomator.UiObjectNotFoundException missing) { throw new AssertionError(missing); }
     assertTrue("Android's picker did not close after selecting the updated IME",
         device.wait(Until.gone(By.pkg("android").text(name)), 15000));
+  }
+
+  private void awaitLauncher() throws Exception
+  {
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    boolean closedExternalLauncher = false;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      // The API 35 image can show its own launcher's ANR over our activity.
+      // Record and close that observed external app once. Never dismiss an
+      // application failure or bypass any enablement/upgrade assertion.
+      UiObject2 blocked = device.findObject(By.res("android", "alertTitle")
+          .text("Pixel Launcher isn't responding"));
+      if (!closedExternalLauncher && blocked != null)
+      {
+        screenshot("environment-pixel-launcher-anr");
+        android.util.Log.w("MIANCAK-Test", "Closing observed Pixel Launcher ANR in old-APK upgrade fixture");
+        UiObject2 close = device.findObject(By.res("android", "aerr_close"));
+        assertNotNull("Observed external launcher ANR has no close action", close);
+        close.click(); closedExternalLauncher = true;
+      }
+      else if (device.hasObject(By.pkg(pkg).clazz("android.widget.ScrollView"))) return;
+      SystemClock.sleep(100);
+    }
+    fail("Shipped launcher is not accessible for actual APK upgrade");
   }
 
   private void tap(char letter, boolean northwest)
