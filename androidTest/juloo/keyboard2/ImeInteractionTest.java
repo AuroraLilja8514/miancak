@@ -225,7 +225,17 @@ public class ImeInteractionTest
       instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       UiObject2 editLayout = device.wait(Until.findObject(By.desc("Edit layout: zh")), 15000);
       assertNotNull(editLayout); editLayout.click();
-      device.wait(Until.findObject(By.desc("Edit key: zh:0:0")), 15000).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("Layout preview: zh")), 15000));
+      // The compact preview replaced the former per-key buttons. Exercise its
+      // accessible list here; the preceding editor scenario tests gestures.
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
+          .resourceId(pkg + ":id/miancak_editor_vertical"))
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("Choose key and position"));
+      device.wait(Until.findObject(By.desc("Choose key and position")), 15000).click();
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().className("android.widget.ListView"))
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().textStartsWith("1:1 · "));
+      UiObject2 firstKey = device.wait(Until.findObject(By.textStartsWith("1:1 · ")), 15000);
+      assertNotNull(firstKey); firstKey.click();
       screenshot("visual-key-editor");
       device.wait(Until.findObject(By.res(context.getPackageName(), "miancak_position_nw")), 15000).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_literal))), 15000).click();
