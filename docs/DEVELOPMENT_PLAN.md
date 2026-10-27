@@ -1,6 +1,6 @@
 # 开发计划
 
-> 后续顺序与项目边界以 [后续开发计划](NEXT_DEVELOPMENT_PLAN.md) 为准：新增 N1 分体默认关闭、N2 主键盘默认 Sup/Sub、N3 设置对齐均待处理；本次只更新计划，不开始实现。原 [R0–R7 修复计划](LAYOUT_REPAIR_PLAN.md) 和 0.3.2 [界面验收](INPUT_UI_FOLLOWUP.md) 保留已完成范围及限制。本页 C1–C6／W1–W3 为历史范围；旧任意 Fn 目标、独立语言模式与中文 Fn 进入发音页均已废弃。Compose 保持现状；H1 高级手势编辑与 #18 跨语言 cdict／Rime 共同词源迁移后置。
+> 后续顺序与项目边界以 [后续开发计划](NEXT_DEVELOPMENT_PLAN.md) 为准：N1 分体默认关闭、N2 主键盘默认 Sup/Sub、N3 设置对齐、N4 项目身份／文档／反馈入口统一均待处理；本次梳理本项目开发清单，不开始功能实现。原 [R0–R7 修复计划](LAYOUT_REPAIR_PLAN.md) 和 0.3.2 [界面验收](INPUT_UI_FOLLOWUP.md) 保留已完成范围及限制。本页 C1–C6／W1–W3 为历史范围；旧任意 Fn 目标、独立语言模式与中文 Fn 进入发音页均已废弃。Compose 保持现状；H1 高级手势编辑与 #18 跨语言 cdict／Rime 共同词源迁移后置。
 
 更新：2026-10-27。计划以当前源码、用户反馈和实际 APK 验收为依据；功能代码存在、模拟器测试通过、物理设备验证及正式发布分别记录。当前修复状态与 CI 证据以 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md) 为准；历史记录见 [EXECUTION_PLAN.md](EXECUTION_PLAN.md)，交互规则以 [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) 为准。
 
@@ -35,7 +35,7 @@
 
 | 优先级 | 工作 | 可完成的验收目标 | 边界 |
 | --- | --- | --- | --- |
-| 下一阶段，已记录未实施 | [N1–N3 与后续开发计划](NEXT_DEVELOPMENT_PLAN.md) | 所有屏幕／方向默认不分体；主键盘默认显示 Sup/Sub；设置同级条目对齐；再做输入质量与稳定交付 | 先 P1 默认／迁移，再 P2 设置；P3 质量、P4 发布，H1 更后讨论。通用转换／采集工具建议独立；不在本次开发 |
+| 下一阶段，已记录未实施 | [N1–N4 与本项目开发清单](NEXT_DEVELOPMENT_PLAN.md) | 所有屏幕／方向默认不分体；主键盘默认显示 Sup/Sub；设置同级条目对齐；MIANCAK 名称、现行文档和分发元数据一致，主页／源码／反馈指向我们的仓库；再做输入质量与稳定交付 | 先 P1 默认／迁移，再 P2 设置与项目入口；P3 质量、P4 发布，H1 更后讨论。上游致谢与许可保留；通用转换／采集工具另行规划 |
 | 当前纠错主线，已实施 | [布局、Fn、符号与词典纠错](LAYOUT_REPAIR_PLAN.md) | 恢复上游功能；布局决定输入策略；跨布局固定控制区；发音入口与面板清理；分类分页符号；完整八向编辑；正式词包质量 | R0–R5 已通过相关 APK 验收，R6 基础词包已采用，R7 最终组合验证见执行记录；Compose 不纳入修复，高级手势编辑 H1 最后再讨论 |
 | 0.3.0 已交付 W1–W3 | 使用现有 Rime 词表，见 [#22](https://github.com/AuroraLilja8514/miancak/issues/22)／[实现和验收 #30](https://github.com/AuroraLilja8514/miancak/pull/30) | 可导入、替换／选择基础词表，启用／禁用附加词表；离线重新部署；候选实际变化；学习数据保留；失败可回滚 | 兼容配置见 [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md)；不代表默认词典日用品质或通用 Rime 兼容性已验收 |
 | 持续质量 | 中文使用质量与物理设备，见 [#20](https://github.com/AuroraLilja8514/miancak/issues/20) | 代表性词句、人名、长文本、多编辑器和物理 ARM 设备实测；对确认的缺陷添加回归 | 三 ABI 构建及 x86_64 模拟器不能代替真实 ARM 性能或所有厂商系统验证 |
