@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check real guest reboots before spending time on the full APK matrix."""
+"""Diagnose three real guest reboots independently of the APK test hosts."""
 if __name__ == "__main__":
     import sys as _timeout_sys
     from pathlib import Path as _TimeoutPath
@@ -49,6 +49,7 @@ def main():
     if "36.1.9" not in version or "13823996" not in version:
         raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
     report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,
+                  configuredRenderer=os.environ.get("MIANCAK_REBOOT_RENDERER", "unspecified"),
                   method="adb reboot; no snapshot or app-data restore", cycles=[], passed=False)
 
     def checkpoint():
@@ -111,6 +112,19 @@ def main():
                     report.setdefault("stateAfterFailure", {})[label] = value
                 except (OSError, subprocess.SubprocessError) as diagnostic:
                     report.setdefault("stateAfterFailure", {})[label] = str(diagnostic)
+            # Preserve enough framework evidence to distinguish a boot stall
+            # from a stale ADB transport error. These probes cannot extend the
+            # inherited script deadline and are each bounded independently.
+            for label, command in (("boot-logcat", ("logcat", "-b", "all", "-d", "-t", "400")),
+                                   ("boot-processes", ("ps",)),
+                                   ("boot-activities", ("dumpsys", "activity", "processes")),
+                                   ("boot-windows", ("dumpsys", "window", "windows"))):
+                try:
+                    value = adb(serial, "shell", *command, timeout=8)
+                    (directory / (label + ".txt")).write_text(value[-60000:] + "\n")
+                    report.setdefault("diagnosticFiles", {})[label] = "captured"
+                except (OSError, subprocess.SubprocessError) as diagnostic:
+                    report.setdefault("diagnosticFiles", {})[label] = str(diagnostic)
         except (OSError, subprocess.TimeoutExpired) as diagnostic:
             report["adbDiagnosticError"] = str(diagnostic)
         raise

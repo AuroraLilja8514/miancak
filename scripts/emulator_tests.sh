@@ -11,6 +11,18 @@ mkdir -p test-results
 collect() {
   local test_exit=$?
   stop_progress
+  if [[ "$test_exit" -ne 0 ]]; then
+    # A missing accessibility root does not establish an app or guest cause.
+    # Ask ART for stacks before collecting logs, while the timed-out process
+    # is still alive. Restrict the signal to this debuggable test package.
+    adb shell ps > test-results/processes-at-failure.txt || true
+    local app_pid
+    app_pid="$(awk '$NF == "org.miancak.keyboard.debug" {print $2; exit}' test-results/processes-at-failure.txt)"
+    if [[ "$app_pid" =~ ^[0-9]+$ ]]; then
+      adb shell run-as org.miancak.keyboard.debug kill -3 "$app_pid" > test-results/thread-dump-request.txt 2>&1 || true
+      timeout --foreground 10s adb shell cat /data/anr/traces.txt > test-results/art-thread-dump.txt 2>&1 || true
+    fi
+  fi
   adb logcat -b all -d > test-results/logcat.txt || true
   adb shell dumpsys input_method > test-results/input-method.txt || true
   adb shell dumpsys window windows > test-results/windows.txt || true
