@@ -16,9 +16,9 @@ env:
   MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
   MIANCAK_EMULATOR_BUILD_API23: "13823996"
   MIANCAK_EMULATOR_BUILD_API35: "16428233"
-  # API 23 supports guest software rendering; avoid its unstable legacy host
-  # graphics path. API 35 keeps SwANGLE (guest rendering is unsupported there).
-  MIANCAK_EMULATOR_GPU_API23: guest
+  # Keep the renderer that boots this pinned API 23 binary. The guest backend
+  # was tested and failed OpenGLES initialization; retain bounded diagnostics.
+  MIANCAK_EMULATOR_GPU_API23: swiftshader_indirect
 
 concurrency:
   group: miancak-ci-${{ github.event.pull_request.number || github.ref }}
@@ -31,8 +31,6 @@ jobs:
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      MIANCAK_REBOOT_RENDERER: guest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5

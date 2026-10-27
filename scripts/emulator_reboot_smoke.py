@@ -49,7 +49,7 @@ def main():
     if "36.1.9" not in version or "13823996" not in version:
         raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
     report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,
-                  configuredRenderer=os.environ.get("MIANCAK_REBOOT_RENDERER", "unspecified"),
+                  configuredRenderer=os.environ.get("MIANCAK_EMULATOR_GPU_API23", "unspecified"),
                   method="adb reboot; no snapshot or app-data restore", cycles=[], passed=False)
 
     def checkpoint():
