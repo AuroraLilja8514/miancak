@@ -17,7 +17,7 @@ collect() {
     # is still alive. Restrict the signal to this debuggable test package.
     adb shell ps > test-results/processes-at-failure.txt || true
     local app_pid
-    app_pid="$(awk '$NF == "org.miancak.keyboard.debug" {print $2; exit}' test-results/processes-at-failure.txt)"
+    app_pid="$(awk '{sub(/\r$/, "")} $NF == "org.miancak.keyboard.debug" {print $2; exit}' test-results/processes-at-failure.txt)"
     if [[ "$app_pid" =~ ^[0-9]+$ ]]; then
       adb shell run-as org.miancak.keyboard.debug kill -3 "$app_pid" > test-results/thread-dump-request.txt 2>&1 || true
       timeout --foreground 10s adb shell cat /data/anr/traces.txt > test-results/art-thread-dump.txt 2>&1 || true

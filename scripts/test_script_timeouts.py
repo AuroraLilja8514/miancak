@@ -146,6 +146,11 @@ class ScriptTimeoutTest(unittest.TestCase):
             adb.write_text("#!/bin/sh\ncase \"$*\" in\n"
                            "  'logcat -v brief '*) sleep 90 ;;\n"
                            "  'shell getprop ro.build.version.sdk') echo 23 ;;\n"
+                           "  'shell ps') printf 'USER PID PPID NAME\\r\\n"
+                           "u0_a62 991 1 org.miancak.keyboard.debug.other\\r\\n"
+                           "u0_a61 4242 1 org.miancak.keyboard.debug\\r\\n' ;;\n"
+                           "  'shell run-as org.miancak.keyboard.debug kill -3 4242') echo 'requested test ART stacks' ;;\n"
+                           "  'shell cat /data/anr/traces.txt') echo 'test ART trace' ;;\n"
                            "  'exec-out '*) exit 1 ;;\nesac\n")
             adb.chmod(0o755)
             env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
@@ -156,6 +161,12 @@ class ScriptTimeoutTest(unittest.TestCase):
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(1, result.returncode, result.stderr)
             self.assertIn("Unexpected emulator API: 23", result.stdout)
+            # Android 6's shell protocol emits CRLF. Capture the exact debug
+            # process, ignoring a similarly named package, before cleanup.
+            self.assertEqual("requested test ART stacks\n",
+                             (fake / "test-results/thread-dump-request.txt").read_text())
+            self.assertEqual("test ART trace\n",
+                             (fake / "test-results/art-thread-dump.txt").read_text())
 
 
 if __name__ == "__main__":
