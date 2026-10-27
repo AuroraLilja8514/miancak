@@ -1,6 +1,6 @@
 # Dictionary Roadmap
 
-> 2026-10-27 planning update: see [next development plan and project boundaries](NEXT_DEVELOPMENT_PLAN.md). Android word-table import, deployment, learning and language behavior remain in MIANCAK. A reusable source converter and MediaWiki acquisition/preparation pipeline are recommended candidates for a separate tool project after a format contract and useful pilot; a separate data-release repository is conditional on actual reuse. D1–D4 remain deferred; this documentation update creates no new repository and implements no converter, crawler or runtime change.
+> 2026-10-27 revised project boundary: prioritize existing open-source tools and ready-made Rime tables. Maintain a repository for a specific additional vocabulary only when needed; do not create a generic packs repository. MediaWiki vocabulary production and cdict/common-source migration are separate tracks, and the former does not wait for an English conversion pilot. No general tool repository is mandated; the cdict repository boundary remains undecided. See [revised project plan](LEXICON_PROJECT_PLAN.md). This update changes documentation only.
 
 Accepted on 2026-10-23; status corrected on 2026-10-25. **Cross-language common-format/cdict work remains deferred.** Existing compatible Rime word-table support (#22) was delivered in 0.3.0 through [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30), with the explicit-Pinyin profile in [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md). This is not universal Rime compatibility or acceptance of the bundled vocabulary's everyday Chinese quality. The new formal Chinese vocabulary work is planned in [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md); 0.3.1 adopts the measured Rime Ice 8105 + base core with an offline legacy fallback; final acceptance is recorded in FN_REPAIR_PROGRESS.md. Track common-source/cdict migration in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18), and Chinese usability in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20).
 
@@ -8,7 +8,7 @@ Accepted on 2026-10-23; status corrected on 2026-10-25. **Cross-language common-
 
 Maintain language dictionaries in one common Rime-compatible `.dict.yaml` source format. Keep language/schema configuration, package metadata and provenance separate. Rime's compiled artifacts and any transitional cdict binary artifacts are generated outputs; sharing source data does not require every language to use the same runtime backend.
 
-Investigate converting the source word lists used by cdict. The converter/data pipeline may later become an independent project with a small, versioned interface consumed by MIANCAK. Decide its repository boundary after a useful pilot exists. No separate repository or runtime migration is created by this plan.
+Investigate converting the source word lists used by cdict as a separate track from MediaWiki vocabulary production. A converter or backend adapter may later become an independent project with a small, versioned interface consumed by MIANCAK. Decide its repository boundary after a useful pilot exists. No separate repository or runtime migration is created by this plan.
 
 ## Current baseline and source boundaries
 
@@ -32,6 +32,16 @@ Implemented acceptance scope (actual results in PR #30):
 Prepared MediaWiki-derived tables and vocabulary from other Rime projects are source examples. Wanxiang is optional, and its complete scheme, Lua functions and models are not requirements. Manual phrase editing and data crawling/preparation are also separate tasks. A supported data profile must not be described as universal compatibility with every encoding used by Rime schemes.
 
 #22 did not wait for the cdict converter/new project in #18 or for reproduction of an unrelated input defect in #20. Future profile expansion and formal-vocabulary quality must use their own recorded scope and acceptance; current implementation details are in [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md).
+
+## V: reuse and specific vocabulary projects
+
+This track is independent of the cdict D1–D4 research below. Existing compatible Chinese word tables can use the implemented import profile without waiting for a new converter or common tooling platform.
+
+On 2026-10-27, the upstream READMEs for [mw2fcitx](https://github.com/outloudvi/mw2fcitx) and [fcitx5-pinyin-zhwiki](https://github.com/felixonmars/fcitx5-pinyin-zhwiki) were checked: both describe Rime generation/build support. Prefer these existing capabilities or ready-made source tables, pin the chosen version and input snapshot, and add configuration or a small adapter only for demonstrated gaps. No tool installation, generated sample or MIANCAK compatibility test has been completed by this documentation review.
+
+For an additional vocabulary that we maintain, a dedicated source/theme repository may contain pinned dependencies, source metadata, filters, pronunciation corrections, tests, reproducible build configuration and releases. No generic packs repository is planned. Check output against [MIANCAK's supported profile](RIME_WORD_TABLES.md), verify actual import/candidates/editor text and preserve learning/recovery before claiming support. Check tool-code and source-data licensing separately.
+
+Proceed by selecting a concrete source/existing result, validating a small output, establishing a dedicated vocabulary repository if useful, then running application acceptance. Do not make MediaWiki work depend on an English cdict conversion. D1–D4 still govern the separate common-source/runtime migration; its repository boundary is decided after evidence, not preassigned to the vocabulary tooling.
 
 ## D1: common source-format contract
 
