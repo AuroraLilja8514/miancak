@@ -57,9 +57,11 @@ PR artifact names contain the synthetic merge SHA. The run metadata identifies t
 
 ## Debug and release signing
 
-PR CI consumes no signing secrets. If no debug keystore is supplied, the inherited build creates a temporary one. Debug artifacts from different runs can therefore have different signing identities; reinstalling may be necessary.
+PR CI consumes no signing secrets. If no debug keystore is supplied, the inherited build creates a temporary one. Debug artifacts from different runs can therefore have different signing identities. A signature conflict requires checking the old identity and data-export/migration limits; do not treat uninstalling or clearing data as a lossless upgrade.
 
 Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying the existing release keystore/password/alias environment variables enables signing through the explicit release configuration. No signing key is stored in the repository or exposed to PR code.
+
+Stable signing is now planned as P0 in [SIGNING_PLAN.md](SIGNING_PLAN.md): begin with a maintainer-held key and local signing of a verified unsigned release artifact, while ordinary CI stays secret-free. The existing Gradle signing variables are not a recommendation to run project build code with the production key accessible. Key creation, backup, actual signed-APK checks and signing automation are not complete merely because this plan exists.
 
 ## Repository rules
 
@@ -69,7 +71,7 @@ Build/test workflows must use `contents: read`, avoid `pull_request_target`, and
 
 ## Delivery boundary
 
-CI produces debug and unsigned release artifacts. Protected release signing, GitHub Releases, store publication and F-Droid automation remain separate release work. A passing emulator matrix does not imply physical-device or store-release validation.
+CI produces debug and unsigned release artifacts. Stable identity and local signing move to P0; protected signing automation, GitHub Releases, store publication and F-Droid automation remain separately scoped work. A passing emulator matrix does not imply physical-device or store-release validation.
 
 ## Word-table acceptance
 

@@ -190,6 +190,6 @@ Do not silently vendor binaries, schemas, dictionaries, models, or generated nat
 
 CI delivers short-lived installable debug APKs and minified unsigned release APKs; logs/screenshots and test reports accompany them.
 
-Release signing, GitHub Releases, store publishing, and F-Droid-specific automation are intentionally deferred until the application is usable. Future release automation must use protected secrets/environments and remain isolated from pull-request-controlled code.
+Stable signing identity and key custody move forward to P0; see [SIGNING_PLAN.md](SIGNING_PLAN.md). Start with a maintainer-held key, verified unsigned CI artifacts and local signing. Do not expose the production key to Gradle/project code or PR workflows. Key initialization and actual signed-APK/upgrade acceptance remain pending. Protected signing automation, GitHub Releases, store publishing and F-Droid-specific automation are separate follow-ups. Any later signing automation must use explicitly protected environments, approved trusted refs and artifact provenance checks, isolated from pull-request-controlled code.
 
 C6 adds `build-upgrade-baseline` and `upgrade-tests (23/35)` as applicable APK acceptance gates. These tests use local ephemeral signing only; they receive no release credentials.
