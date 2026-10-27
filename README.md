@@ -20,6 +20,8 @@ See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milesto
 
 Current development is recorded in [the repair progress log](docs/FN_REPAIR_PROGRESS.md); the [R7 acceptance report](docs/R7_APK_ACCEPTANCE.md) pins the tested APK and raw receiver evidence. The [visual editor guide](docs/VISUAL_LAYOUT_EDITOR.md) describes the current controls. The [word-pack evaluation](docs/WORD_PACK_EVALUATION.md) records the chosen Rime Ice core, measured limits and offline legacy fallback; [table import](docs/RIME_WORD_TABLES.md) is a separate capability.
 
+The 0.3.2 update adds a denser scrolling candidate strip, symbols that page across categories, an editor that displays the keyboard at its normal size, and a shorter landscape keyboard with symmetric margins. The [input UI report](docs/INPUT_UI_FOLLOWUP.md) records the exact APK, verification of that identical APK on API 23 and 35, retained failures, and device/signing limits.
+
 The prototype integrates:
 
 - Unexpected Keyboard's existing key layout and swipe interaction model;
