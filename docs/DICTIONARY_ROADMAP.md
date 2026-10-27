@@ -1,5 +1,7 @@
 # Dictionary Roadmap
 
+> 2026-10-27 planning update: see [next development plan and project boundaries](NEXT_DEVELOPMENT_PLAN.md). Android word-table import, deployment, learning and language behavior remain in MIANCAK. A reusable source converter and MediaWiki acquisition/preparation pipeline are recommended candidates for a separate tool project after a format contract and useful pilot; a separate data-release repository is conditional on actual reuse. D1–D4 remain deferred; this documentation update creates no new repository and implements no converter, crawler or runtime change.
+
 Accepted on 2026-10-23; status corrected on 2026-10-25. **Cross-language common-format/cdict work remains deferred.** Existing compatible Rime word-table support (#22) was delivered in 0.3.0 through [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30), with the explicit-Pinyin profile in [RIME_WORD_TABLES.md](RIME_WORD_TABLES.md). This is not universal Rime compatibility or acceptance of the bundled vocabulary's everyday Chinese quality. The new formal Chinese vocabulary work is planned in [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md); 0.3.1 adopts the measured Rime Ice 8105 + base core with an offline legacy fallback; final acceptance is recorded in FN_REPAIR_PROGRESS.md. Track common-source/cdict migration in [issue #18](https://github.com/AuroraLilja8514/miancak/issues/18), and Chinese usability in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20).
 
 ## Accepted direction
