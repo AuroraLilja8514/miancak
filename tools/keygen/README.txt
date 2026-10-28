@@ -9,7 +9,7 @@ MIANCAK 签名证书生成包 1.0.0 — Windows 64 位
 
 系统要求
 已更新的 Windows 10/11，Windows PowerShell 5.1，以及系统自带的 .NET Framework 4.7.2 以上。
-生成使用 Windows 自带密码学 API 和 PKI 模块。包内没有 Java 运行时或第三方二进制。
+生成使用 Windows 自带密码学 API。包内没有 Java 运行时或第三方二进制。
 若系统组件缺失或不支持所需加密，程序会提示失败，不会降级使用较弱加密。
 启动器的 ExecutionPolicy Bypass 仅作用于该次 PowerShell 进程，不修改电脑的持久执行策略。
 单位电脑的强制安全策略仍可能阻止脚本；此时遵循管理员策略，不要关闭杀毒软件。
@@ -43,6 +43,7 @@ RSA 3072 位，SHA256withRSA 自签名证书，约 30 年有效期。
 
 可核对的源代码
 Miancak-Keygen.ps1 为中文界面，Miancak-Keygen.Core.ps1 为生成与自检逻辑。
+Miancak-NativePfx.cs 通过系统 CryptoAPI 导出 AES256-SHA256 加密的 PKCS12。
 源代码与许可证包含在本包内；SOURCEINFO.json 记录源码提交及构建来源。
 TEST-REPORT.json 记录交付前的 Windows 原生与 Java 17 互操作测试。
 发布包没有附带任何已经生成的私钥或演示密钥。

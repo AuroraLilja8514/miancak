@@ -16,7 +16,7 @@ def package(output: Path, report: Path, source_sha: str) -> Path:
     if len(source_sha) != 40 or any(c not in '0123456789abcdef' for c in source_sha):
         raise ValueError('An exact source commit is required')
     payload = {}
-    for name in ['Start-Keygen.cmd', 'Miancak-Keygen.ps1', 'Miancak-Keygen.Core.ps1', 'README.txt']:
+    for name in ['Start-Keygen.cmd', 'Miancak-Keygen.ps1', 'Miancak-Keygen.Core.ps1', 'Miancak-NativePfx.cs', 'README.txt']:
         content = (root / name).read_text(encoding='utf-8-sig')
         content = content.replace('\r\n', '\n').replace('\n', '\r\n')
         encoding = 'utf-8-sig' if name.endswith(('.ps1', '.txt')) else 'ascii'
@@ -40,7 +40,7 @@ def package(output: Path, report: Path, source_sha: str) -> Path:
     with zipfile.ZipFile(archive) as z:
         assert z.testzip() is None
         assert all(Path(n).suffix.lower() not in {'.p12', '.pfx', '.key', '.jks', '.keystore'} for n in z.namelist())
-        assert len(z.namelist()) == 8
+        assert len(z.namelist()) == 9
     (output / (archive.name + '.sha256')).write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n', encoding='ascii')
     return archive
 

@@ -169,6 +169,8 @@ $random.Add_Click({
     finally { $rng.Dispose(); [Array]::Clear($buffer, 0, $buffer.Length); $null = $builder.Clear() }
 })
 $close.Add_Click({ $form.Close() })
+$password.Add_TextChanged({ $saved.Checked = $false })
+$confirm.Add_TextChanged({ $saved.Checked = $false })
 $generate.Add_Click({
     if (-not $saved.Checked) {
         [Windows.Forms.MessageBox]::Show($form, '请先把密码保存到密码管理器，并勾选已保存。', 'MIANCAK', 'OK', 'Information') | Out-Null

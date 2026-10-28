@@ -10,10 +10,8 @@ function Assert-MiancakEnvironment {
     }
     try { $null = [System.Security.Cryptography.X509Certificates.CertificateRequest] }
     catch { throw 'Windows .NET Framework 4.7.2 or newer is required. No files were generated.' }
-    Import-Module PKI -ErrorAction Stop
-    $command = Get-Command Export-PfxCertificate -ErrorAction Stop
-    if (-not $command.Parameters.ContainsKey('CryptoAlgorithmOption')) {
-        throw 'This Windows version cannot export the required encrypted PKCS12 format.'
+    if (-not ('Miancak.NativePfx' -as [type])) {
+        Add-Type -Path (Join-Path $PSScriptRoot 'Miancak-NativePfx.cs') -ErrorAction Stop
     }
 }
 
@@ -96,8 +94,8 @@ function New-MiancakKeyFiles {
         $certificate = $request.CreateSelfSigned($start, $start.AddYears(30))
         $certificate.FriendlyName = 'miancak-release'
         $p12 = Join-Path $stage 'miancak-release.p12'
-        $null = Export-PfxCertificate -Cert $certificate -FilePath $p12 -Password $Password `
-            -CryptoAlgorithmOption AES256_SHA256 -ChainOption EndEntityCertOnly -NoClobber -ErrorAction Stop
+        $encrypted = [Miancak.NativePfx]::Export($certificate, $Password)
+        [IO.File]::WriteAllBytes($p12, $encrypted)
 
         # Reload only in memory and prove that the password, private key and public certificate agree.
         $flags = [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
