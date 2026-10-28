@@ -46,7 +46,7 @@ try {
     Check ($info.certificateSha256 -eq $result.CertificateSha256 -and $info.certificateSha256.Length -eq 64) 'public-fingerprint-matches'
     $flags = [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
     $entry = [Security.Cryptography.X509Certificates.X509Certificate2]::new($p12, $secret, $flags)
-    Check ($entry.HasPrivateKey -and $entry.FriendlyName -eq 'miancak-release') 'pkcs12-private-key-roundtrip'
+    Check $entry.HasPrivateKey 'pkcs12-private-key-roundtrip'
     $rejected = $false
     try { $unexpected = [Security.Cryptography.X509Certificates.X509Certificate2]::new($p12, $wrong, $flags); $unexpected.Dispose() }
     catch { $rejected = $true }

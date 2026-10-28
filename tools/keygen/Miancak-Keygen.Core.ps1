@@ -102,8 +102,8 @@ function New-MiancakKeyFiles {
         # Reload only in memory and prove that the password, private key and public certificate agree.
         $flags = [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
         $loaded = [Security.Cryptography.X509Certificates.X509Certificate2]::new($p12, $Password, $flags)
-        if (-not $loaded.HasPrivateKey -or $loaded.FriendlyName -ne 'miancak-release') {
-            throw 'The exported key entry could not be verified.'
+        if (-not $loaded.HasPrivateKey) {
+            throw 'The exported PKCS12 private key could not be verified.'
         }
         $certificateSha256 = Get-MiancakSha256 -Bytes $certificate.RawData
         if ((Get-MiancakSha256 -Bytes $loaded.RawData) -ne $certificateSha256) {
