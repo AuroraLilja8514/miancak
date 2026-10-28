@@ -77,17 +77,34 @@ try {
     $otherRules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -notin $allowed })
     Check ($otherRules.Count -eq 0) 'output-acl-current-user-and-system-only'
     $env:MIANCAK_FIXTURE_PASSWORD = $fixtureText
+    $env:MIANCAK_FIXTURE_DIRECTORY = $result.Directory
     $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
-    & $java (Join-Path $PSScriptRoot 'KeyStoreInterop.java') $p12 (Join-Path $result.Directory 'miancak-release-cert.pem')
+    & $java (Join-Path $PSScriptRoot 'KeyStoreInterop.java')
     Check ($LASTEXITCODE -eq 0) 'java17-pkcs12-privatekey-and-signature-interop'
     $keytool = Join-Path $env:JAVA_HOME 'bin\keytool.exe'
-    $keyInfo = & $keytool -list -storetype PKCS12 -keystore $p12 -storepass:env MIANCAK_FIXTURE_PASSWORD 2>&1
+    $asciiCopy = Join-Path $root 'interop.p12'
+    Copy-Item -LiteralPath $p12 -Destination $asciiCopy
+    $keyInfo = & $keytool -list -storetype PKCS12 -keystore $asciiCopy -storepass:env MIANCAK_FIXTURE_PASSWORD 2>&1
     Check ($LASTEXITCODE -eq 0 -and ($keyInfo -join "`n").Contains('miancak-release')) 'java17-keytool-alias-interop'
     Remove-Item Env:\MIANCAK_FIXTURE_PASSWORD
     $storesAfter = @(Get-ChildItem Cert:\CurrentUser\My | ForEach-Object { $_.Thumbprint } | Sort-Object)
     Check (($storesBefore -join '|') -eq ($storesAfter -join '|')) 'windows-certificate-store-unchanged'
     & (Join-Path $source 'Miancak-Keygen.ps1') -SmokeTestUi -ScreenshotPath (Join-Path $OutputDirectory 'ui-preview.png')
     Check ($LASTEXITCODE -eq 0) 'windows-forms-ui-initial-state'
+    $portableCopy = Join-Path $parent 'portable launcher'
+    $null = [IO.Directory]::CreateDirectory($portableCopy)
+    foreach ($name in @('Start-Keygen.cmd', 'Miancak-Keygen.ps1', 'Miancak-Keygen.Core.ps1', 'Miancak-NativePfx.cs')) {
+        Copy-Item -LiteralPath (Join-Path $source $name) -Destination (Join-Path $portableCopy $name)
+    }
+    $oldPath = $env:PATH
+    $oldJava = $env:JAVA_HOME
+    try {
+        $env:PATH = $env:SystemRoot + '\System32;' + $env:SystemRoot
+        $env:JAVA_HOME = $null
+        & "$env:SystemRoot\System32\cmd.exe" /d /c "`"$(Join-Path $portableCopy 'Start-Keygen.cmd')`" --check"
+        Check ($LASTEXITCODE -eq 0) 'portable-launcher-unicode-path-without-java-or-extra-path'
+    }
+    finally { $env:PATH = $oldPath; $env:JAVA_HOME = $oldJava }
     [ordered]@{ status='passed'; checks=$checks.Count; passed=@($checks); platform=([Environment]::OSVersion.VersionString + ' / Windows PowerShell ' + $PSVersionTable.PSVersion.ToString()); javaInterop='Temurin 17'; realUserKeysUsed=$false } |
         ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'test-report.json') -Encoding UTF8
 }
@@ -95,5 +112,6 @@ finally {
     if ($null -ne $entry) { $entry.Dispose() }
     foreach ($value in @($secret, $wrong, $short)) { $value.Dispose() }
     Remove-Item Env:\MIANCAK_FIXTURE_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:\MIANCAK_FIXTURE_DIRECTORY -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
 }

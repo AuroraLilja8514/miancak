@@ -10,8 +10,9 @@ public class KeyStoreInterop {
   public static void main(String[] args) throws Exception {
     char[] password = System.getenv("MIANCAK_FIXTURE_PASSWORD").toCharArray();
     try {
+      Path directory = Path.of(System.getenv("MIANCAK_FIXTURE_DIRECTORY"));
       KeyStore store = KeyStore.getInstance("PKCS12");
-      try (InputStream input = Files.newInputStream(Path.of(args[0]))) { store.load(input, password); }
+      try (InputStream input = Files.newInputStream(directory.resolve("miancak-release.p12"))) { store.load(input, password); }
       if (store.size() != 1 || !store.isKeyEntry("miancak-release")) throw new AssertionError("Alias mismatch");
       PrivateKey key = (PrivateKey) store.getKey("miancak-release", password);
       if (((RSAPrivateKey) key).getModulus().bitLength() != 3072) throw new AssertionError("RSA size mismatch");
@@ -20,7 +21,7 @@ public class KeyStoreInterop {
       certificate.checkValidity();
       if (!certificate.getSigAlgName().equalsIgnoreCase("SHA256withRSA")) throw new AssertionError("Signature mismatch");
       X509Certificate pem;
-      try (InputStream input = Files.newInputStream(Path.of(args[1]))) {
+      try (InputStream input = Files.newInputStream(directory.resolve("miancak-release-cert.pem"))) {
         pem = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(input);
       }
       if (!Arrays.equals(certificate.getEncoded(), pem.getEncoded())) throw new AssertionError("Public certificate mismatch");

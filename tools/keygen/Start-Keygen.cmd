@@ -11,7 +11,11 @@ if not exist "%~dp0Miancak-Keygen.ps1" (
   pause
   exit /b 1
 )
-"%KEYGEN_PS%" -NoLogo -NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -File "%~dp0Miancak-Keygen.ps1"
+if /I "%~1"=="--check" (
+  "%KEYGEN_PS%" -NoLogo -NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -File "%~dp0Miancak-Keygen.ps1" -SmokeTestUi
+) else (
+  "%KEYGEN_PS%" -NoLogo -NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -File "%~dp0Miancak-Keygen.ps1"
+)
 if errorlevel 1 (
   echo Generator could not start. Read README.txt for system requirements.
   pause
