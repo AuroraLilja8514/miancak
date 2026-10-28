@@ -1,0 +1,55 @@
+name: Portable signing key generator
+
+on:
+  push:
+    branches: [tools/portable-signing-keygen]
+    paths: [tools/keygen/**, .github/workflows/portable-keygen.yml]
+  pull_request:
+    paths: [tools/keygen/**, .github/workflows/portable-keygen.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keygen-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: keygen (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Native Windows generation, rejection paths and Java interoperability
+        shell: powershell
+        run: tools/keygen/tests/Test-Keygen.ps1 -OutputDirectory "$env:RUNNER_TEMP/keygen-report"
+      - name: Build the offline distribution
+        if: matrix.os == 'windows-2022'
+        shell: powershell
+        run: python tools/keygen/package.py --output build/keygen --report "$env:RUNNER_TEMP/keygen-report/test-report.json" --source-sha "${{ github.sha }}"
+      - name: Preserve non-secret test summary and UI preview
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: keygen-test-${{ matrix.os }}
+          path: ${{ runner.temp }}/keygen-report
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload the generator only
+        if: success() && matrix.os == 'windows-2022'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: miancak-keygen-windows-x64
+          path: build/keygen/*
+          if-no-files-found: error
+          retention-days: 14
