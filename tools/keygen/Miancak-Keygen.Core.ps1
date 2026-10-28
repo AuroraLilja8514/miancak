@@ -122,7 +122,9 @@ function New-MiancakKeyFiles {
             formatVersion = 1
             applicationId = 'org.miancak.keyboard'
             purpose = 'MIANCAK release signing only; this label is not cryptographic access control'
-            alias = 'miancak-release'
+            alias = $null
+            entrySelection = 'single-private-key'
+            displayName = 'miancak-release'
             subject = $certificate.Subject
             issuer = $certificate.Issuer
             keyAlgorithm = 'RSA'
@@ -157,7 +159,7 @@ SHA256SUMS.txt hashes the generated files; it does not contain the password.
         # Directory.Move refuses to replace a destination created by another concurrent process.
         [IO.Directory]::Move($stage, $final)
         $finished = $true
-        return [pscustomobject]@{ Directory = $final; CertificateSha256 = $certificateSha256; Alias = 'miancak-release' }
+        return [pscustomobject]@{ Directory = $final; CertificateSha256 = $certificateSha256; EntrySelection = 'single-private-key' }
     }
     finally {
         foreach ($item in @($loadedKey, $publicKey, $loaded, $certificate, $rsa)) {

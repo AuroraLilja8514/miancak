@@ -17,13 +17,15 @@ MIANCAK 签名证书生成包 1.0.0 — Windows 64 位
 生成内容
 miancak-release.p12       含私钥和证书的加密 PKCS12 密钥库，请保密并备份。
 miancak-release-cert.pem  不含私钥的公开证书，可以提供给项目核验。
-certificate-info.json    用途、alias、算法、有效期与公开证书 SHA-256 指纹。
+certificate-info.json    用途、唯一私钥选择方式、算法、有效期与公开证书 SHA-256 指纹。
 SHA256SUMS.txt            上述生成文件的 SHA-256 校验值。
 README-output.txt        简要保管说明。
 
 固定参数
 应用用途：org.miancak.keyboard 的正式包签名。
-alias：miancak-release；证书主体：CN=MIANCAK。
+证书显示名称：miancak-release；证书主体：CN=MIANCAK。
+密钥库仅含一个私钥条目。使用 apksigner 时省略 --ks-key-alias，自动选择唯一私钥。
+Windows 导出的内部 alias 可能不同于证书显示名称；签名身份以证书指纹为准。
 RSA 3072 位，SHA256withRSA 自签名证书，约 30 年有效期。
 私钥文件采用 AES-256 / SHA-256 的 PKCS12 密码保护。
 

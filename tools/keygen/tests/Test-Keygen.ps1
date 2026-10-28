@@ -39,7 +39,7 @@ try {
     $pfxHex = ([BitConverter]::ToString([IO.File]::ReadAllBytes($p12))).Replace('-', '')
     Check ($pfxHex.Contains('06092A864886F70D01050D') -and $pfxHex.Contains('060960864801650304012A')) 'actual-pfx-pbes2-aes256-oid'
     $info = Get-Content -LiteralPath (Join-Path $result.Directory 'certificate-info.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Check ($info.alias -eq 'miancak-release' -and $info.applicationId -eq 'org.miancak.keyboard') 'alias-and-project-metadata'
+    Check ($null -eq $info.alias -and $info.entrySelection -eq 'single-private-key' -and $info.applicationId -eq 'org.miancak.keyboard') 'single-key-selection-and-project-metadata'
     Check ($info.privateKeyEncryption -eq 'AES256_SHA256' -and -not $info.passwordSaved) 'encrypted-export-policy'
     Check ($info.keySize -eq 3072 -and $info.certificateSignatureAlgorithm -eq 'SHA256withRSA') 'rsa3072-sha256'
     Check (([DateTime]$info.notAfterUtc - [DateTime]$info.notBeforeUtc).TotalDays -ge 10950) 'thirty-year-validity'
@@ -85,7 +85,7 @@ try {
     $asciiCopy = Join-Path $root 'interop.p12'
     Copy-Item -LiteralPath $p12 -Destination $asciiCopy
     $keyInfo = & $keytool -list -storetype PKCS12 -keystore $asciiCopy -storepass:env MIANCAK_FIXTURE_PASSWORD 2>&1
-    Check ($LASTEXITCODE -eq 0 -and ($keyInfo -join "`n").Contains('miancak-release')) 'java17-keytool-alias-interop'
+    Check ($LASTEXITCODE -eq 0 -and ($keyInfo -join "`n").Contains('PrivateKeyEntry')) 'java17-keytool-private-entry-interop'
     Remove-Item Env:\MIANCAK_FIXTURE_PASSWORD
     $storesAfter = @(Get-ChildItem Cert:\CurrentUser\My | ForEach-Object { $_.Thumbprint } | Sort-Object)
     Check (($storesBefore -join '|') -eq ($storesAfter -join '|')) 'windows-certificate-store-unchanged'
@@ -101,8 +101,12 @@ try {
     try {
         $env:PATH = $env:SystemRoot + '\System32;' + $env:SystemRoot
         $env:JAVA_HOME = $null
-        & "$env:SystemRoot\System32\cmd.exe" /d /c "`"$(Join-Path $portableCopy 'Start-Keygen.cmd')`" --check"
-        Check ($LASTEXITCODE -eq 0) 'portable-launcher-unicode-path-without-java-or-extra-path'
+        Push-Location -LiteralPath $portableCopy
+        try {
+            & "$env:SystemRoot\System32\cmd.exe" /d /c 'Start-Keygen.cmd --check'
+            Check ($LASTEXITCODE -eq 0) 'portable-launcher-unicode-path-without-java-or-extra-path'
+        }
+        finally { Pop-Location }
     }
     finally { $env:PATH = $oldPath; $env:JAVA_HOME = $oldJava }
     [ordered]@{ status='passed'; checks=$checks.Count; passed=@($checks); platform=([Environment]::OSVersion.VersionString + ' / Windows PowerShell ' + $PSVersionTable.PSVersion.ToString()); javaInterop='Temurin 17'; realUserKeysUsed=$false } |

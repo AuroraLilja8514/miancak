@@ -13,10 +13,12 @@ public class KeyStoreInterop {
       Path directory = Path.of(System.getenv("MIANCAK_FIXTURE_DIRECTORY"));
       KeyStore store = KeyStore.getInstance("PKCS12");
       try (InputStream input = Files.newInputStream(directory.resolve("miancak-release.p12"))) { store.load(input, password); }
-      if (store.size() != 1 || !store.isKeyEntry("miancak-release")) throw new AssertionError("Alias mismatch");
-      PrivateKey key = (PrivateKey) store.getKey("miancak-release", password);
+      if (store.size() != 1) throw new AssertionError("Exactly one signing entry is required");
+      String alias = store.aliases().nextElement();
+      if (!store.isKeyEntry(alias)) throw new AssertionError("The sole entry must be a private key");
+      PrivateKey key = (PrivateKey) store.getKey(alias, password);
       if (((RSAPrivateKey) key).getModulus().bitLength() != 3072) throw new AssertionError("RSA size mismatch");
-      X509Certificate certificate = (X509Certificate) store.getCertificate("miancak-release");
+      X509Certificate certificate = (X509Certificate) store.getCertificate(alias);
       certificate.verify(certificate.getPublicKey());
       certificate.checkValidity();
       if (!certificate.getSigAlgName().equalsIgnoreCase("SHA256withRSA")) throw new AssertionError("Signature mismatch");
