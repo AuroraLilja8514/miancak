@@ -8,15 +8,38 @@ public final class PagePreferences
   private PagePreferences() {}
   public static PageConfig load(SharedPreferences preferences)
   {
-    return new PageConfig(preferences.getString("pages_order", null),
-        preferences.getString("pages_enabled", null),
-        preferences.getString("pages_fn_zh", null), preferences.getString("pages_fn_en", null));
+    return new PageConfig(string(preferences, "pages_order"), string(preferences, "pages_enabled"), string(preferences, "pages_phonetic_entry"));
   }
+  private static String string(SharedPreferences preferences, String key)
+  { Object value = preferences.getAll().get(key); return value instanceof String ? (String)value : null; }
   public static void save(SharedPreferences preferences, PageConfig config)
   {
     preferences.edit().putString("pages_order", PageConfig.csv(config.order))
       .putString("pages_enabled", PageConfig.csv(config.enabled))
-      .putString("pages_fn_zh", config.chineseFn).putString("pages_fn_en", config.englishFn).apply();
+      .putString("pages_phonetic_entry", config.phoneticEntry).apply();
+  }
+  /** Preserve the exact v1 settings before retiring its arbitrary Fn targets. */
+  public static void migrate(SharedPreferences preferences)
+  {
+    java.util.Map<String, ?> values = preferences.getAll();
+    Object version = values.get("pages_version");
+    if (version instanceof Integer && (Integer)version >= 2) return;
+    try
+    {
+      org.json.JSONObject previous = new org.json.JSONObject().put("version", 1)
+        .put("order", values.get("pages_order"))
+        .put("enabled", values.get("pages_enabled"))
+        .put("fn_zh", values.get("pages_fn_zh"))
+        .put("fn_en", values.get("pages_fn_en"))
+        .put("pages_raw", values.containsKey(PageKeyOverrides.KEY) ? values.get(PageKeyOverrides.KEY) : "{}");
+      PageConfig config = load(preferences);
+      SharedPreferences.Editor edit = preferences.edit();
+      if (!preferences.contains("pages_v1_backup")) edit.putString("pages_v1_backup", previous.toString());
+      edit.putInt("pages_version", 2).putString("pages_order", PageConfig.csv(config.order))
+        .putString("pages_enabled", PageConfig.csv(config.enabled))
+        .remove("pages_fn_zh").remove("pages_fn_en").apply();
+    }
+    catch (org.json.JSONException impossible) { throw new IllegalStateException(impossible); }
   }
   public static int label(String id)
   {
@@ -24,6 +47,10 @@ public final class PagePreferences
     {
       case "zh": return R.string.page_zh;
       case "en": return R.string.page_en;
+      case "zh_fn": return R.string.page_zh_fn;
+      case "en_fn": return R.string.page_en_fn;
+      case "greek_fn": return R.string.page_greek_fn;
+      case "numeric_fn": return R.string.page_numeric_fn;
       case "symbols": return R.string.page_symbols;
       case "numeric": return R.string.page_numeric;
       case "greek": return R.string.page_greek;
@@ -33,6 +60,34 @@ public final class PagePreferences
       case "pinyin_finals": return R.string.page_pinyin_finals;
       case "zhuyin": return R.string.page_zhuyin;
       default: throw new IllegalArgumentException(id);
+    }
+  }
+  public static int symbolLabel(String category)
+  {
+    switch (category)
+    {
+      case "common": return R.string.symbol_common;
+      case "punctuation": return R.string.symbol_punctuation;
+      case "brackets": return R.string.symbol_brackets;
+      case "math": return R.string.symbol_math;
+      case "arrows": return R.string.symbol_arrows;
+      case "currency": return R.string.symbol_currency;
+      case "shapes": return R.string.symbol_shapes;
+      default: throw new IllegalArgumentException(category);
+    }
+  }
+  public static int symbolTabId(String category)
+  {
+    switch (category)
+    {
+      case "common": return R.id.symbol_category_common;
+      case "punctuation": return R.id.symbol_category_punctuation;
+      case "brackets": return R.id.symbol_category_brackets;
+      case "math": return R.id.symbol_category_math;
+      case "arrows": return R.id.symbol_category_arrows;
+      case "currency": return R.id.symbol_category_currency;
+      case "shapes": return R.id.symbol_category_shapes;
+      default: throw new IllegalArgumentException(category);
     }
   }
 }

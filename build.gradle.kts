@@ -16,6 +16,7 @@ dependencies {
 }
 
 android {
+  buildFeatures { buildConfig = true }
   namespace = "juloo.keyboard2"
   compileSdkVersion = "android-36"
   ndkVersion = "28.0.13004108"
@@ -24,8 +25,8 @@ android {
     applicationId = "org.miancak.keyboard"
     minSdk = 21
     targetSdk { version = release(36) }
-    versionCode = providers.gradleProperty("miancakVersionCode").orNull?.toInt() ?: 3
-    versionName = "0.3.0"
+    versionCode = providers.gradleProperty("miancakVersionCode").orNull?.toInt() ?: 5
+    versionName = "0.3.2"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     ndk {
       abiFilters.addAll((providers.gradleProperty("miancakAbis").orNull
@@ -58,7 +59,7 @@ android {
     named("androidTest") {
       java.srcDirs("androidTest")
       res.srcDirs("androidTest/res")
-      assets.srcDirs("androidTest/assets")
+      assets.srcDirs("androidTest/assets", "build/generated-word-pack-tests")
     }
   }
 

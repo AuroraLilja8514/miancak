@@ -7,25 +7,28 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Version-independent page IDs; language profiles share one physical layout. */
+/** Layout IDs own input policy and fixed links. Fn never consults engine state. */
 public final class PageConfig
 {
   public static final List<String> IDS = Collections.unmodifiableList(Arrays.asList(
-      "zh", "en", "symbols", "numeric", "greek", "emoji", "clipboard", "pinyin", "pinyin_finals", "zhuyin"));
+      "zh", "zh_fn", "en", "en_fn", "symbols", "numeric", "numeric_fn", "greek", "greek_fn",
+      "emoji", "clipboard", "pinyin", "pinyin_finals", "zhuyin"));
   public final List<String> order;
   public final Set<String> enabled;
-  public final String chineseFn, englishFn;
-
-  public PageConfig(String order, String enabled, String chineseFn, String englishFn)
+  public final String phoneticEntry;
+  public PageConfig(String order, String enabled)
+  { this(order, enabled, null); }
+  public PageConfig(String order, String enabled, String phoneticEntry)
   {
+    this.phoneticEntry = "zhuyin".equals(phoneticEntry) ? "zhuyin" : "pinyin";
     LinkedHashSet<String> sorted = valid(order);
     sorted.addAll(IDS);
     this.order = Collections.unmodifiableList(new ArrayList<>(sorted));
     LinkedHashSet<String> on = enabled == null ? new LinkedHashSet<>(IDS) : valid(enabled);
     on.add("zh"); on.add("en");
+    for (String id : Arrays.asList("zh", "en", "numeric", "greek"))
+      if (on.contains(id) || on.contains(id + "_fn")) { on.add(id); on.add(id + "_fn"); }
     this.enabled = Collections.unmodifiableSet(on);
-    this.chineseFn = target(chineseFn == null ? "symbols" : chineseFn);
-    this.englishFn = target(englishFn == null ? "numeric" : englishFn);
   }
 
   private static LinkedHashSet<String> valid(String csv)
@@ -35,12 +38,22 @@ public final class PageConfig
       for (String id : csv.split(",")) if (IDS.contains(id)) result.add(id);
     return result;
   }
-  private String target(String value)
+  public static boolean isVariant(String id) { return id.endsWith("_fn") && IDS.contains(id); }
+  public static String base(String id) { return isVariant(id) ? id.substring(0, id.length() - 3) : id; }
+  public static boolean isText(String id) { return base(id).equals("zh") || base(id).equals("en"); }
+  public static InputRouter.Mode mode(String id)
+  { return base(id).equals("zh") ? InputRouter.Mode.CHINESE : InputRouter.Mode.ENGLISH; }
+  public String fn(String id)
   {
-    return enabled.contains(value) && !isText(value) ? value : "";
+    String target = isVariant(id) ? base(id) : id + "_fn";
+    return enabled.contains(target) ? target : "";
   }
-  public static boolean isText(String id) { return id.equals("zh") || id.equals("en"); }
-  public String fn(InputRouter.Mode mode) { return mode == InputRouter.Mode.CHINESE ? chineseFn : englishFn; }
+  public static String languageTarget(String id)
+  {
+    if (isText(id)) return (base(id).equals("zh") ? "en" : "zh") + (isVariant(id) ? "_fn" : "");
+    return "zh";
+  }
+  public static String returnTarget(String id) { return isVariant(id) ? base(id) : "zh"; }
   public List<String> visible()
   {
     ArrayList<String> result = new ArrayList<>();
@@ -50,21 +63,22 @@ public final class PageConfig
   public PageConfig enable(String id, boolean value)
   {
     LinkedHashSet<String> next = new LinkedHashSet<>(enabled);
-    if (value) next.add(id); else next.remove(id);
-    return new PageConfig(csv(order), csv(next), chineseFn, englishFn);
+    String base = base(id);
+    for (String member : Arrays.asList(base, base + "_fn"))
+      if (IDS.contains(member)) { if (value) next.add(member); else next.remove(member); }
+    return new PageConfig(csv(order), csv(next), phoneticEntry);
   }
   public PageConfig move(String id, int delta)
   {
     ArrayList<String> next = new ArrayList<>(order);
     int from = next.indexOf(id), to = from + delta;
     if (from >= 0 && to >= 0 && to < next.size()) Collections.swap(next, from, to);
-    return new PageConfig(csv(next), csv(enabled), chineseFn, englishFn);
+    return new PageConfig(csv(next), csv(enabled), phoneticEntry);
   }
-  public PageConfig withFn(InputRouter.Mode mode, String target)
+  public PageConfig withPhoneticEntry(String id)
   {
-    return new PageConfig(csv(order), csv(enabled),
-        mode == InputRouter.Mode.CHINESE ? target : chineseFn,
-        mode == InputRouter.Mode.ENGLISH ? target : englishFn);
+    if (!id.equals("pinyin") && !id.equals("zhuyin")) throw new IllegalArgumentException(id);
+    return new PageConfig(csv(order), csv(enabled), id).enable(id, true);
   }
   public static String csv(Iterable<String> values)
   {

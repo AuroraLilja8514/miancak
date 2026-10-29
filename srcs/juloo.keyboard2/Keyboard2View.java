@@ -55,6 +55,7 @@ public class Keyboard2View extends View
   private static int _currentWhat = 0;
 
   private Config _config;
+  private final boolean _previewConfig;
 
   private float _keyWidth;
   private float _mainLabelSize;
@@ -63,6 +64,16 @@ public class Keyboard2View extends View
   private float _marginLeft;
   private float _marginBottom;
   private boolean _embeddedControls;
+  public interface EditorSelection { void selected(int row, int col, int slot, Gesture.Name gesture); }
+  private EditorSelection _editorSelection;
+  private KeyboardData.Key _editorKey;
+  private EditorGesture _editorGesture;
+  public void setEditorSelection(EditorSelection listener, boolean shifted)
+  {
+    _editorSelection = listener; _embeddedControls = true;
+    _mods = shifted ? Pointers.Modifiers.EMPTY.with_extra_mod(KeyValue.SHIFT) : Pointers.Modifiers.EMPTY;
+    invalidate();
+  }
 
   /** A pane control row shares its parent's bottom inset. */
   public void setEmbeddedControls()
@@ -88,10 +99,13 @@ public class Keyboard2View extends View
   }
 
   public Keyboard2View(Context context, AttributeSet attrs)
+  { this(context, attrs, Config.globalConfig()); }
+  public Keyboard2View(Context context, AttributeSet attrs, Config config)
   {
     super(context, attrs);
     _theme = new Theme(getContext(), attrs);
-    _config = Config.globalConfig();
+    _config = config;
+    _previewConfig = config != Config.globalConfig();
     _pointers = new Pointers(this, _config);
     refresh_navigation_bar(context);
     setOnTouchListener(this);
@@ -107,6 +121,7 @@ public class Keyboard2View extends View
   {
     if (context instanceof InputMethodService)
       return ((InputMethodService)context).getWindow().getWindow();
+    if (context instanceof android.app.Activity) return ((android.app.Activity)context).getWindow();
     if (context instanceof ContextWrapper)
       return getParentWindow(((ContextWrapper)context).getBaseContext());
     return null;
@@ -118,6 +133,7 @@ public class Keyboard2View extends View
       return;
     // The intermediate Window is a [Dialog].
     Window w = getParentWindow(context);
+    if (w == null) return;
     w.setNavigationBarColor(_theme.colorNavBar);
     if (VERSION.SDK_INT < 26)
       return;
@@ -136,7 +152,7 @@ public class Keyboard2View extends View
     _keyboard = kw;
     _shift_key = _keyboard.findKeyWithValue(KeyValue.SHIFT);
     _compose_key = _keyboard.findKeyWithValue(KeyValue.COMPOSE);
-    KeyModifier.set_modmap(_keyboard.modmap);
+    if (!_previewConfig) KeyModifier.set_modmap(_keyboard.modmap);
     reset();
   }
 
@@ -178,7 +194,7 @@ public class Keyboard2View extends View
 
   public KeyValue modifyKey(KeyValue k, Pointers.Modifiers mods)
   {
-    return KeyModifier.modify(k, mods);
+    return KeyModifier.modify(k, mods, _keyboard == null ? null : _keyboard.modmap);
   }
 
   public void onPointerDown(KeyValue k, boolean isSwipe)
@@ -221,6 +237,7 @@ public class Keyboard2View extends View
   @Override
   public boolean onTouch(View v, MotionEvent event)
   {
+    if (_editorSelection != null) return editorTouch(event);
     int p;
     switch (event.getActionMasked())
     {
@@ -248,6 +265,38 @@ public class Keyboard2View extends View
         return (false);
     }
     return (true);
+  }
+
+  private boolean editorTouch(MotionEvent event)
+  {
+    if (event.getActionMasked() == MotionEvent.ACTION_DOWN)
+    {
+      _editorKey = getKeyAtPosition(event.getX(), event.getY());
+      _editorGesture = new EditorGesture(event.getX(), event.getY(), _config.swipe_dist_px, _config.circle_sensitivity);
+      getParent().requestDisallowInterceptTouchEvent(true);
+    }
+    else if (event.getActionMasked() == MotionEvent.ACTION_MOVE && _editorGesture != null)
+      _editorGesture.move(event.getX(), event.getY());
+    else if (event.getActionMasked() == MotionEvent.ACTION_UP && _editorGesture != null)
+    {
+      _editorGesture.move(event.getX(), event.getY());
+      EditorGesture selected = _editorGesture;
+      _editorGesture = null;
+      getParent().requestDisallowInterceptTouchEvent(false);
+      for (int row = 0; row < _keyboard.rows.size(); row++)
+        for (int col = 0; col < _keyboard.rows.get(row).keys.size(); col++)
+          if (_keyboard.rows.get(row).keys.get(col) == _editorKey)
+          {
+            _editorSelection.selected(row, col, selected.slot(), selected.name());
+            return true;
+          }
+    }
+    else if (event.getActionMasked() == MotionEvent.ACTION_CANCEL)
+    {
+      _editorKey = null; _editorGesture = null;
+      getParent().requestDisallowInterceptTouchEvent(false);
+    }
+    return true;
   }
 
   private KeyboardData.Row getRowAtPosition(float ty)
@@ -292,9 +341,10 @@ public class Keyboard2View extends View
   public void onMeasure(int wSpec, int hSpec)
   {
     DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
-    int width = dm.widthPixels;
-    _marginLeft = Math.max(_config.horizontal_margin, _insets_left);
-    _marginRight = Math.max(_config.horizontal_margin, _insets_right);
+    int width = MeasureSpec.getMode(wSpec)==MeasureSpec.UNSPECIFIED?dm.widthPixels:MeasureSpec.getSize(wSpec);
+    // Match both safe margins, including one-sided cutouts/navigation bars.
+    float safe=Math.max(_config.horizontal_margin,Math.max(_insets_left,_insets_right));
+    _marginLeft=_marginRight=Math.min(safe,width/3f);
     _marginBottom = _embeddedControls ? 0 : _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
@@ -348,6 +398,7 @@ public class Keyboard2View extends View
     _insets_left = insets.left;
     _insets_right = insets.right;
     _insets_bottom = insets.bottom;
+    requestLayout();
     return WindowInsets.CONSUMED;
   }
 

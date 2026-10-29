@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "applicationId": "org.miancak.keyboard",
+  "purpose": "MIANCAK release signing only; project and application labels are not cryptographic access control",
+  "certificateFile": "miancak-release-cert.pem",
+  "subject": "CN=MIANCAK",
+  "issuer": "CN=MIANCAK",
+  "serialNumberHex": "A960B4C02052F7E6",
+  "keyAlgorithm": "RSA",
+  "keySize": 3072,
+  "certificateSignatureAlgorithm": "SHA256withRSA",
+  "notBeforeUtc": "2026-10-29T03:12:59Z",
+  "notAfterUtc": "2056-10-29T03:12:59Z",
+  "certificateSha256": "3883a84d506b029db9d7cb6ddb7953c96ad3aa81a38e3e19290b3d50c4f9a26b",
+  "registeredOn": "2026-10-29",
+  "registrationScope": "Public certificate verified; private-key possession, keystore contents, backup recovery and APK signing not yet verified"
+}

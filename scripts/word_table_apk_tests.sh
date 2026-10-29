@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
+
+# Re-enter under a finite watchdog; nested drivers share the remaining budget.
+MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+  exec python3 "$(dirname -- "$MIANCAK_ENTRY")/../scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results word-test-data
 collect() {
-  timeout 15s adb logcat -b all -d > test-results/logcat.txt || true
-  timeout 10s adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
-  timeout 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  stop_progress
+  timeout --foreground 15s adb logcat -b all -d > test-results/logcat.txt || true
+  timeout --foreground 10s adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
+  timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  python3 - <<'PY'
+from pathlib import Path
+for name in ('word-legacy-choice.png', 'word-tables-prepare-ready.png'):
+    path = Path('test-results/device') / name
+    if path.is_file():
+        print('Screenshot artifact: ' + name + ' (' + str(path.stat().st_size) + ' bytes)')
+PY
 }
 trap collect EXIT
+start_progress
 actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ -n "${MIANCAK_TEST_API:-}" && "$actual_api" != "$MIANCAK_TEST_API" ]]; then
   echo "Unexpected guest API: $actual_api"
@@ -17,9 +33,9 @@ sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/
 python3 - <<'PY'
 from pathlib import Path
 import zipfile
-with zipfile.ZipFile('artifacts/app-debug.apk') as apk:
-    Path('word-test-data/pinyin_simp.dict.yaml').write_bytes(apk.read('assets/rime/pinyin_simp.dict.yaml'))
 with zipfile.ZipFile('artifacts/app-debug-androidTest.apk') as apk:
+    # Keep the existing comparison table pinned when the production pack changes.
+    Path('word-test-data/pinyin_simp.dict.yaml').write_bytes(apk.read('assets/quality/baseline.dict.yaml'))
     for name in ['8105.dict.yaml','others.dict.yaml','miancak_addon.dict.yaml']:
         Path('word-test-data',name).write_bytes(apk.read('assets/word-tables/'+name))
 PY
@@ -37,7 +53,8 @@ for file in word-test-data/*.dict.yaml; do adb push "$file" /sdcard/Download/; d
 run_test() {
   local name="$1"
   shift
-  timeout 360s adb shell am instrument -w "$@" org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/$name.log"
+  echo "MIANCAK stage=$name; instrumentation limit=${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s"
+  adb shell am instrument -w "$@" org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/$name.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/$name.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/$name.log"
 }
@@ -46,7 +63,7 @@ record_learning() {
 from pathlib import Path
 import hashlib,json,re,subprocess,sys
 def read(path):
-    return subprocess.check_output(['adb','exec-out','run-as','org.miancak.keyboard.debug','cat',path])
+    return subprocess.check_output(['adb','exec-out','run-as','org.miancak.keyboard.debug','cat',path],timeout=30)
 paths=read('files/word-learning-index.txt').decode().splitlines()
 files={}
 for path in paths:
@@ -68,13 +85,13 @@ cmp test-results/learning-before-install.json test-results/learning-after-instal
 run_test word-verify -e class juloo.keyboard2.WordTableUiTest -e wordPhase verify
 adb shell am force-stop org.miancak.keyboard.debug
 record_learning before-reboot
-timeout 30s adb reboot
-timeout 90s adb wait-for-device
+timeout --foreground 30s adb reboot
+timeout --foreground 90s adb wait-for-device
 for attempt in $(seq 1 60); do
-  if [[ "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
+  if [[ "$(timeout --foreground 5s adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
   sleep 1
 done
-test "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+test "$(timeout --foreground 5s adb shell getprop sys.boot_completed | tr -d '\r')" = 1
 adb shell input keyevent KEYCODE_WAKEUP
 if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then adb shell wm dismiss-keyguard; else adb shell input keyevent 82; fi
 record_learning after-reboot

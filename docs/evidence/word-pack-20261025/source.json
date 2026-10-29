@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "0d6457371a66901b20c05460bcdc1298bf9f7d77",
+  "run": 40195389098,
+  "serialization": "Original report fields unchanged; compact JSON; original downloaded report SHA-256 recorded per API",
+  "reports": {
+    "23": {
+      "rawSha256": "2eac908e3cd18498845f351466e7c549c33caff8147b272c17e8d6671ed7df8e",
+      "compactSha256": "2f1fbafd9688619624e1221e410085a2c246f2094fa56d80795a905509024391"
+    },
+    "35": {
+      "rawSha256": "131a49be9a42292d6812dfd9504691743f2081c23c401b0b415d08f3ed5c117a",
+      "compactSha256": "10ac13d978aef81e921d8e16a0525fe13bec0c36266b3ac0a776490d5767c3eb"
+    }
+  }
+}

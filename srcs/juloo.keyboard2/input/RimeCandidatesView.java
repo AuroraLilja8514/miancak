@@ -6,6 +6,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -17,8 +18,10 @@ import juloo.keyboard2.Theme;
 /** Measured compact candidates; expansion occupies the existing keyboard area. */
 public final class RimeCandidatesView extends LinearLayout
 {
-  private final TextView language, preedit, cancel, previous, next, expand;
+  private final TextView language, preedit, cancel, expand;
   private final LinearLayout candidates;
+  private final HorizontalScrollView compactScroll;
+  private final LinearLayout candidateRow;
   private final Theme theme;
   private final int rowHeight;
   private InputController controller;
@@ -29,11 +32,13 @@ public final class RimeCandidatesView extends LinearLayout
   private boolean expanded;
   private int compactWidth;
   private String pageLabel;
+  private long requestedRevision = -1;
   public void setPageLabel(String label)
   {
     pageLabel = label;
-    if (shown != null && !shown.engine.composing && shown.error.isEmpty())
+    if (shown != null && !shown.initializing && !shown.engine.composing && shown.error.isEmpty())
       preedit.setText(label != null ? label : getContext().getString(shown.mode == InputRouter.Mode.CHINESE ? R.string.miancak_pinyin : R.string.miancak_direct));
+    updateCandidateRow();
   }
   private Runnable languageAction, pageAction, expansionChanged;
   public void setLanguageAction(Runnable action) { languageAction = action; }
@@ -47,10 +52,11 @@ public final class RimeCandidatesView extends LinearLayout
     setOrientation(VERTICAL);
     setLayoutDirection(LAYOUT_DIRECTION_LTR);
     TextView probe = text(26);
-    rowHeight = Math.max(dp(44), (int)Math.ceil(probe.getPaint().getFontSpacing()) + dp(8));
+    boolean landscape=getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+    rowHeight = Math.max(dp(landscape?36:44), (int)Math.ceil(probe.getPaint().getFontSpacing()) + dp(4));
     LinearLayout top = new LinearLayout(context);
     top.setGravity(Gravity.CENTER_VERTICAL);
-    int topHeight = Math.max(dp(32), (int)Math.ceil(text(22).getPaint().getFontSpacing()) + dp(4));
+    int topHeight = Math.max(dp(landscape?28:32), (int)Math.ceil(text(18).getPaint().getFontSpacing()) + dp(2));
     addView(top, new LayoutParams(LayoutParams.MATCH_PARENT, topHeight));
     language = text(15);
     language.setId(R.id.miancak_language);
@@ -73,23 +79,16 @@ public final class RimeCandidatesView extends LinearLayout
     cancel.setContentDescription(context.getString(R.string.miancak_cancel_composition));
     clickable(cancel);
     top.addView(cancel, new LayoutParams(dp(48), LayoutParams.MATCH_PARENT));
-    LinearLayout row = new LinearLayout(context);
+    LinearLayout row = candidateRow = new LinearLayout(context);
     addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, rowHeight));
-    previous = text(26);
-    previous.setId(R.id.miancak_previous_candidates);
-    previous.setText("‹");
-    previous.setContentDescription(context.getString(R.string.miancak_previous));
-    clickable(previous);
-    row.addView(previous, new LayoutParams(dp(40), LayoutParams.MATCH_PARENT));
-    candidates = new LinearLayout(context);
-    candidates.setId(R.id.miancak_compact_candidates);
-    row.addView(candidates, new LayoutParams(0, LayoutParams.MATCH_PARENT, 1));
-    next = text(26);
-    next.setId(R.id.miancak_next_candidates);
-    next.setText("›");
-    next.setContentDescription(context.getString(R.string.miancak_next));
-    clickable(next);
-    row.addView(next, new LayoutParams(dp(40), LayoutParams.MATCH_PARENT));
+    compactScroll=new HorizontalScrollView(context) {
+      @Override protected void onScrollChanged(int x,int y,int oldX,int oldY)
+      {super.onScrollChanged(x,y,oldX,oldY);maybeLoadMore();}
+    };
+    compactScroll.setId(R.id.miancak_candidate_scroll);compactScroll.setHorizontalScrollBarEnabled(false);
+    candidates=new LinearLayout(context);candidates.setId(R.id.miancak_compact_candidates);
+    compactScroll.addView(candidates,new HorizontalScrollView.LayoutParams(LayoutParams.WRAP_CONTENT,LayoutParams.MATCH_PARENT));
+    row.addView(compactScroll,new LayoutParams(0,LayoutParams.MATCH_PARENT,1));
     expand = text(24);
     expand.setId(R.id.miancak_expand_candidates);
     clickable(expand);
@@ -101,11 +100,14 @@ public final class RimeCandidatesView extends LinearLayout
   public void attachSurface(FrameLayout surface, View keyboard)
   {
     this.keyboard = keyboard;
-    expandedScroll = new ScrollView(getContext());
+    expandedScroll = new ScrollView(getContext()) {
+      @Override protected void onScrollChanged(int x,int y,int oldX,int oldY)
+      {super.onScrollChanged(x,y,oldX,oldY);maybeLoadMore();}
+    };
     expandedScroll.setId(R.id.miancak_expanded_candidates);
     expandedScroll.setFillViewport(true);
     expandedScroll.setOnApplyWindowInsetsListener((view, insets) -> {
-      view.setPadding(dp(4), dp(4), dp(4), dp(4) + insets.getSystemWindowInsetBottom());
+      view.setPadding(0,0,0,insets.getSystemWindowInsetBottom());
       return insets;
     });
     expandedFlow = new CandidateFlow(getContext());
@@ -126,14 +128,26 @@ public final class RimeCandidatesView extends LinearLayout
 
   @Override protected void onMeasure(int widthSpec, int heightSpec)
   {
-    int available = Math.max(0, MeasureSpec.getSize(widthSpec) - dp(120));
+    int available = Math.max(0, MeasureSpec.getSize(widthSpec) - dp(40));
     if (available != compactWidth) { compactWidth = available; renderCandidates(); }
     super.onMeasure(widthSpec, heightSpec);
   }
 
+  @Override protected void onLayout(boolean changed,int left,int top,int right,int bottom)
+  {
+    super.onLayout(changed,left,top,right,bottom);
+    post(this::maybeLoadMore);
+  }
+
   public void show(InputSnapshot snapshot)
   {
-    shown = snapshot;
+    boolean continuation=shown!=null && shown.generation==snapshot.generation
+      && shown.engine.preedit.equals(snapshot.engine.preedit)
+      && snapshot.engine.candidates.size()>=shown.engine.candidates.size()
+      && snapshot.engine.candidates.subList(0,shown.engine.candidates.size()).equals(shown.engine.candidates);
+    shown=snapshot; requestedRevision=-1;
+    if(!continuation){compactScroll.scrollTo(0,0);if(expandedScroll!=null)expandedScroll.scrollTo(0,0);}
+    updateCandidateRow();
     boolean chinese = snapshot.mode == InputRouter.Mode.CHINESE;
     language.setText(chinese ? R.string.miancak_chinese : R.string.miancak_english);
     language.setEnabled(snapshot.engineAllowed);
@@ -144,27 +158,33 @@ public final class RimeCandidatesView extends LinearLayout
       else if (controller != null) controller.submit(SemanticAction.TOGGLE_LANGUAGE);
     });
     preedit.setText(!snapshot.error.isEmpty() ? getContext().getString(snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus)
+        : snapshot.initializing ? getContext().getString(R.string.miancak_initializing)
         : snapshot.engine.composing ? snapshot.engine.preedit
         : pageLabel != null ? pageLabel : getContext().getString(chinese ? R.string.miancak_pinyin : R.string.miancak_direct));
-    preedit.setContentDescription(snapshot.engine.composing ? "Pinyin: " + snapshot.engine.preedit : "Input status");
+    preedit.setContentDescription(snapshot.initializing ? "Input initializing"
+        : snapshot.engine.composing ? "Pinyin: " + snapshot.engine.preedit : "Input status");
     cancel.setVisibility(snapshot.engine.composing ? VISIBLE : INVISIBLE);
     cancel.setOnClickListener(view -> { if (controller != null) controller.cancelComposition(); });
-    previous.setEnabled(snapshot.engine.composing);
-    next.setEnabled(snapshot.engine.composing && !snapshot.engine.lastPage);
-    previous.setAlpha(previous.isEnabled() ? 1f : 0.25f);
-    next.setAlpha(next.isEnabled() ? 1f : 0.25f);
-    previous.setOnClickListener(view -> { if (controller != null) controller.page(snapshot, true); });
-    next.setOnClickListener(view -> { if (controller != null) controller.page(snapshot, false); });
     if (!snapshot.engine.composing || snapshot.engine.candidates.isEmpty()) expanded = false;
     updateExpansion();
     renderCandidates();
   }
 
+  private void updateCandidateRow()
+  {
+    // Auxiliary layouts have no candidate work to do. Reserving this empty
+    // second row can push their category header into the landscape status bar.
+    // Main text layouts retain a stable height when composition starts/ends.
+    if (candidateRow != null)
+      candidateRow.setVisibility(pageLabel != null && shown != null
+          && !shown.engine.composing && shown.engine.candidates.isEmpty() ? GONE : VISIBLE);
+  }
+
   private void setExpanded(boolean value)
   {
     expanded = value && expandedScroll != null && shown != null && !shown.engine.candidates.isEmpty();
-    updateExpansion();
-    renderCandidates();
+    compactScroll.scrollTo(0,0);if(expandedScroll!=null)expandedScroll.scrollTo(0,0);
+    updateExpansion();renderCandidates();post(this::maybeLoadMore);
   }
 
   private void updateExpansion()
@@ -184,31 +204,39 @@ public final class RimeCandidatesView extends LinearLayout
   {
     if (shown == null) return;
     candidates.removeAllViews();
-    if (expanded)
+    int available=compactWidth;
+    ArrayList<TextView> cells=new ArrayList<>();int[] widths=new int[shown.engine.candidates.size()];
+    for(int i=0;i<widths.length;i++)
     {
-      TextView label = text(15);
-      label.setText(R.string.miancak_all_candidates);
-      candidates.addView(label, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+      TextView cell=candidate(shown,i,false);
+      cell.measure(MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED),MeasureSpec.makeMeasureSpec(rowHeight,MeasureSpec.EXACTLY));
+      widths[i]=cell.getMeasuredWidth();cells.add(cell);
+    }
+    int count=expanded?CandidateRowFitter.count(available,widths):widths.length;
+    for(int i=0;i<count;i++)candidates.addView(cells.get(i),new LayoutParams(Math.min(widths[i],Math.max(1,available)),LayoutParams.MATCH_PARENT));
+    if(expandedFlow!=null)
+    {
       expandedFlow.removeAllViews();
-      for (int i = 0; i < shown.engine.candidates.size(); i++)
-        expandedFlow.addView(candidate(shown, i, true));
-      expandedScroll.scrollTo(0, 0);
-      return;
+      // An overlong first item remains abbreviated in the fixed header, but
+      // must also be readable in full in the wrapping panel.
+      int start=count>0 && widths[0]>available?0:count;
+      if(expanded)for(int i=start;i<shown.engine.candidates.size();i++)expandedFlow.addView(candidate(shown,i,true));
     }
-    int available = compactWidth;
-    ArrayList<TextView> cells = new ArrayList<>();
-    int[] widths = new int[shown.engine.candidates.size()];
-    for (int i = 0; i < widths.length; i++)
-    {
-      TextView cell = candidate(shown, i, false);
-      cell.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
-          MeasureSpec.makeMeasureSpec(rowHeight, MeasureSpec.EXACTLY));
-      widths[i] = cell.getMeasuredWidth();
-      cells.add(cell);
-    }
-    int count = CandidateRowFitter.count(available, widths);
-    for (int i = 0; i < count; i++)
-      candidates.addView(cells.get(i), new LayoutParams(Math.min(widths[i], available), LayoutParams.MATCH_PARENT));
+    post(this::maybeLoadMore);
+  }
+
+  private void maybeLoadMore()
+  {
+    // A newly appended flow still has its previous height until traversal.
+    // Measuring that stale height can queue needless successive native loads.
+    if (!isAttachedToWindow() || !isShown() || isLayoutRequested()
+        || candidates.isLayoutRequested() || expanded && expandedFlow.isLayoutRequested()) return;
+    InputSnapshot snapshot=shown;
+    if(controller==null || snapshot==null || !snapshot.engine.composing || snapshot.engine.lastPage
+        || snapshot.engine.candidates.isEmpty() || requestedRevision==snapshot.revision)return;
+    boolean nearEnd=expanded?expandedFlow.getHeight()<=expandedScroll.getScrollY()+expandedScroll.getHeight()+rowHeight
+      :candidates.getWidth()<=compactScroll.getScrollX()+compactScroll.getWidth()+dp(40);
+    if(nearEnd){requestedRevision=snapshot.revision;controller.moreCandidates(snapshot);}
   }
 
   private TextView candidate(InputSnapshot snapshot, int index, boolean full)
@@ -221,8 +249,8 @@ public final class RimeCandidatesView extends LinearLayout
     cell.setHorizontallyScrolling(false);
     if (!full) cell.setMaxLines(1);
     cell.setEllipsize(full ? null : TextUtils.TruncateAt.END);
-    cell.setPadding(dp(14), full ? dp(6) : 0, dp(14), full ? dp(6) : 0);
-    cell.setMinWidth(dp(64));
+    cell.setPadding(dp(6), full ? dp(3) : 0, dp(6), full ? dp(3) : 0);
+    cell.setMinWidth(0);
     cell.setMinHeight(rowHeight);
     if (index == snapshot.engine.highlighted) cell.setTypeface(null, android.graphics.Typeface.BOLD);
     clickable(cell);
@@ -253,30 +281,39 @@ public final class RimeCandidatesView extends LinearLayout
   private static final class CandidateFlow extends ViewGroup
   {
     CandidateFlow(Context context) { super(context); setLayoutDirection(LAYOUT_DIRECTION_LTR); }
-    @Override protected void onMeasure(int widthSpec, int heightSpec)
+    private final ArrayList<int[]> rows=new ArrayList<>();
+    @Override protected void onMeasure(int widthSpec,int heightSpec)
     {
-      int width = MeasureSpec.getSize(widthSpec), x = 0, y = 0, row = 0;
-      for (int i = 0; i < getChildCount(); i++)
+      int width=MeasureSpec.getSize(widthSpec),used=0,start=0,height=0;rows.clear();
+      for(int i=0;i<getChildCount();i++)
       {
-        View child = getChildAt(i);
-        child.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
-            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-        if (x > 0 && x + child.getMeasuredWidth() > width) { y += row; x = 0; row = 0; }
-        x += child.getMeasuredWidth();
-        row = Math.max(row, child.getMeasuredHeight());
+        View child=getChildAt(i);child.measure(MeasureSpec.makeMeasureSpec(width,MeasureSpec.AT_MOST),MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED));
+        if(i>start && used+child.getMeasuredWidth()>width){height+=finishRow(start,i,used,width);start=i;used=0;}
+        used+=child.getMeasuredWidth();
       }
-      setMeasuredDimension(resolveSize(width, widthSpec), resolveSize(y + row, heightSpec));
+      if(start<getChildCount())height+=finishRow(start,getChildCount(),used,width);
+      setMeasuredDimension(resolveSize(width,widthSpec),resolveSize(height,heightSpec));
     }
-    @Override protected void onLayout(boolean changed, int l, int t, int r, int b)
+    private int finishRow(int start,int end,int used,int width)
     {
-      int width = r - l, x = 0, y = 0, row = 0;
-      for (int i = 0; i < getChildCount(); i++)
+      int extra=Math.max(0,width-used),count=end-start,height=0;
+      for(int i=start;i<end;i++)
       {
-        View child = getChildAt(i);
-        int w = child.getMeasuredWidth(), h = child.getMeasuredHeight();
-        if (x > 0 && x + w > width) { y += row; x = 0; row = 0; }
-        child.layout(x, y, x + w, y + h);
-        x += w; row = Math.max(row, h);
+        View child=getChildAt(i);int allocated=child.getMeasuredWidth()+extra/count+(i-start<extra%count?1:0);
+        child.measure(MeasureSpec.makeMeasureSpec(allocated,MeasureSpec.EXACTLY),MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED));
+        height=Math.max(height,child.getMeasuredHeight());
+      }
+      rows.add(new int[]{start,end,height});return height;
+    }
+    @Override protected void onLayout(boolean changed,int l,int t,int r,int b)
+    {
+      int y=0;
+      for(int[] row:rows)
+      {
+        int x=0;
+        for(int i=row[0];i<row[1];i++)
+        {View child=getChildAt(i);int w=child.getMeasuredWidth();child.layout(x,y,x+w,y+row[2]);x+=w;}
+        y+=row[2];
       }
     }
     @Override protected ViewGroup.LayoutParams generateDefaultLayoutParams()

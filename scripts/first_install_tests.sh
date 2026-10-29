@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
+
+# Re-enter under a finite watchdog; nested drivers share the remaining budget.
+MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+  exec python3 "$(dirname -- "$MIANCAK_ENTRY")/../scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results
 collect() {
-  adb logcat -d > test-results/logcat.txt || true
-  adb shell dumpsys window windows > test-results/windows.txt || true
-  adb shell dumpsys input_method > test-results/input-method.txt || true
-  adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  stop_progress
+  timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
+  timeout --foreground 15s adb shell dumpsys meminfo org.miancak.keyboard.debug > test-results/app-memory.txt || true
+  timeout --foreground 15s adb shell dumpsys window windows > test-results/windows.txt || true
+  timeout --foreground 15s adb shell dumpsys input_method > test-results/input-method.txt || true
+  timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
+start_progress
 if adb shell pm list packages | tr -d '\r' | grep -qx 'package:org.miancak.keyboard.debug'; then
   echo 'Fresh-install guest already contains MIANCAK; refuse a prepared-state test.'
   exit 1
@@ -28,7 +38,7 @@ adb shell svc data disable
 run_phase() {
   local phase="$1"
   shift
-  adb shell am instrument -w -e class juloo.keyboard2.FirstInstallTest \
+  timeout --foreground "${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s" adb shell am instrument -w -e class juloo.keyboard2.FirstInstallTest \
     -e entryOrder "$MIANCAK_ENTRY_ORDER" "$@" \
     org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/$phase.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/$phase.log"; then exit 1; fi
