@@ -187,6 +187,11 @@ def main() -> None:
             native_parent = root / "native-fixture"
             native_parent.mkdir()
             native_env = dict(env)
+            for name in list(native_env):
+                if name.upper() == "PSMODULEPATH":
+                    native_env.pop(name)
+            windows_shell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0"
+            native_env["PSModulePath"] = str(windows_shell / "Modules")
             native_env["MIANCAK_GENERATOR_SOURCE"] = str(generator_source)
             native_env["MIANCAK_FIXTURE_PARENT"] = str(native_parent)
             script = root / "native-fixture.ps1"
@@ -198,7 +203,7 @@ def main() -> None:
                 "finally { $secret.Dispose() }\n",
                 encoding="utf-8-sig",
             )
-            checked(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+            checked([str(windows_shell / "powershell.exe"), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                      "-File", str(script)], native_env, root)
             bundle = native_parent / "MIANCAK-keys"
             native_info = json.loads((bundle / "certificate-info.json").read_text(encoding="utf-8-sig"))
