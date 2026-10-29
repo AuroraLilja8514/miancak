@@ -59,9 +59,9 @@ PR artifact names contain the synthetic merge SHA. The run metadata identifies t
 
 PR CI consumes no signing secrets. If no debug keystore is supplied, the inherited build creates a temporary one. Debug artifacts from different runs can therefore have different signing identities. A signature conflict requires checking the old identity and data-export/migration limits; do not treat uninstalling or clearing data as a lossless upgrade.
 
-Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying the existing release keystore/password/alias environment variables enables signing through the explicit release configuration. No signing key is stored in the repository or exposed to PR code.
+Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying the existing release keystore/password/alias environment variables enables signing through the explicit release configuration. No private signing key is stored in the repository or exposed to PR code.
 
-Stable signing is now planned as P0 in [SIGNING_PLAN.md](SIGNING_PLAN.md): begin with a maintainer-held key and local signing of a verified unsigned release artifact, while ordinary CI stays secret-free. The existing Gradle signing variables are not a recommendation to run project build code with the production key accessible. Key creation, backup, actual signed-APK checks and signing automation are not complete merely because this plan exists.
+Stable signing is now planned as P0 in [SIGNING_PLAN.md](SIGNING_PLAN.md): begin with a maintainer-held key and local signing of a verified unsigned release artifact, while ordinary CI stays secret-free. The existing Gradle signing variables are not a recommendation to run project build code with the production key accessible. The maintainer-provided public certificate has been verified and [registered](signing/README.md). Private-key/backup recovery, protected credentials, actual signed-APK checks and signing automation remain unverified or unimplemented; public registration does not complete them.
 
 ## Repository rules
 

@@ -1,15 +1,15 @@
 # 稳定签名方案与提前实施顺序
 
-更新：2026-10-27。用户确认稳定签名可以提前；从 P4 拆出为 **P0**。本文记录安全方案；正式证书尚未登记，签名 Secrets、正式 APK 签署与发布尚未完成。密钥核验和实际升级验收仍待执行。
+更新：2026-10-29。用户确认稳定签名可以提前；从 P4 拆出为 **P0**。本文记录安全方案；正式公开证书已核验并[登记](signing/README.md)。私有密钥库／备份验证、环境保护与 Secrets 配置、正式 APK 签署、升级验收及发布尚未完成。
 
-2026-10-29 接入说明：GitHub 环境 Secrets 的存放位置、审批与分支限制、Windows 上传准备及当前未完成状态见 [GitHub 签名配置](GITHUB_SIGNING_SETUP.md)。Windows 免 Java 生成包使用单私钥条目自动选择；其显示名称不保证等于 Java 内部 alias，签名身份以真实证书指纹核验。尚未登记真实证书或配置正式凭据。
+2026-10-29 接入说明：GitHub 环境 Secrets 的存放位置、审批与分支限制、Windows 上传准备及当前未完成状态见 [GitHub 签名配置](GITHUB_SIGNING_SETUP.md)。Windows 免 Java 生成包使用单私钥条目自动选择；其显示名称不保证等于 Java 内部 alias，签名身份以真实证书指纹核验。已登记真实公开证书；尚未配置正式凭据，也未验证私钥可用性。
 
 ## 1. 当前源码与目标
 
 核对基线为 PR #32 的 `3a8cbd006a1f4c4fd787f30692a77fd49862adb2`：
 
 - [构建配置](../build.gradle.kts) 的 release 包名为 `org.miancak.keyboard`；debug 使用 `.debug` 后缀。当前声明 `minSdk = 21`，实际完整场景验收已有 API 23／35 记录，不能据签名兼容性验证宣称 API 21 功能已经实测。
-- 已有 `RELEASE_KEYSTORE` 等环境变量配置，但 [普通 CI](../.github/workflows/ci.yml) 不注入正式凭据，上传未签名 release APK。没有正式签名身份已初始化的记录。
+- 已有 `RELEASE_KEYSTORE` 等环境变量配置，但 [普通 CI](../.github/workflows/ci.yml) 不注入正式凭据，上传未签名 release APK。该源码基线没有正式身份初始化记录；2026-10-29 已另行登记公开证书，尚无实际正式 APK 签名核验结果。
 - debug 缺省生成临时 keystore；已交付 debug APK 不能自动转换成正式包的覆盖升级链。
 
 推荐先采用 **CI 构建未签名 APK，维护者在可信电脑完成正式签名**。这使私钥先保持在维护者控制的设备和备份中，不等待全部功能结束。今后确需自动化时，再做第 4 节的独立受保护签名流程。
