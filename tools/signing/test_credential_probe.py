@@ -28,7 +28,9 @@ def checked(command: list[str], env: dict[str, str], cwd: Path) -> bytes:
     result = subprocess.run(command, env=env, cwd=cwd, capture_output=True, timeout=90)
     if result.returncode:
         # Fixture commands see synthetic credentials only; keep even their diagnostics private.
-        raise RuntimeError("Disposable fixture preparation failed: " + Path(command[0]).name)
+        diagnostic = (result.stdout + result.stderr).decode("utf-8", errors="replace")
+        diagnostic = diagnostic.replace(env.get("MIANCAK_FIXTURE_PASSWORD", "__not_present__"), "[disposable password redacted]")
+        raise RuntimeError("Disposable fixture preparation failed: " + Path(command[0]).name + "\n" + diagnostic[:2400])
     return result.stdout
 
 
@@ -69,7 +71,7 @@ def main() -> None:
     env = dict(os.environ)
     for name in (KEYSTORE, PASSWORD, EXPECTED, "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"):
         env.pop(name, None)
-    java_home = Path(env["JAVA_HOME"])
+    java_home = Path(env["JAVA_HOME"] if os.name == "nt" else env["JAVA_HOME_17_X64"])
     suffix = ".exe" if os.name == "nt" else ""
     java_bin = str(java_home / "bin" / ("java" + suffix))
     javac_bin = str(java_home / "bin" / ("javac" + suffix))
