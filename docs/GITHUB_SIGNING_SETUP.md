@@ -1,6 +1,6 @@
 # GitHub 签名凭据保管与接入
 
-更新：2026-10-29。本文是 miancak 的配置方案。**公开证书已核验并[登记](signing/README.md)；受保护环境、正式 Secrets、密钥库／备份验证和正式 APK 签名仍未完成。** 不把文档存在、Secret 名称存在或测试密钥通过当成正式签名已完成。
+更新：2026-10-31。公开证书已核验并[登记](signing/README.md)，master 上的实际凭据读取、证书匹配和私钥签名证明已[通过](SIGNING_CREDENTIAL_VALIDATION.md)。维护者明确取消人工审批；备份恢复、实际 APK 签名及升级仍未完成，当前连接不能独立读取全部环境设置。
 
 ## 1. 存放位置
 
@@ -14,19 +14,17 @@
 | 密钥库密码 | 环境 Secret：`MIANCAK_RELEASE_STORE_PASSWORD` | 独立填写，不写 Git 文件、聊天、日志或产物；获准签名的 job 会同时获得密钥库与密码 |
 | 恢复备份 | 维护者保管的至少两份加密副本 | GitHub Actions 凭据存储不代替独立备份和密码管理器 |
 
-Secrets 由 GitHub 接收加密值，再在获准的工作流运行时解密注入。它们提供受控使用，不是不可导出的硬件密钥；审批后的 job 仍具有完整签名能力。
+Secrets 由 GitHub 接收加密值，再在获准的工作流运行时解密注入。它们提供受控使用，不是不可导出的硬件密钥；获准运行的 job 仍具有完整签名能力。
 
-## 2. 维护者先配置环境保护
+## 2. 环境范围与当前决定
 
-进入 [仓库环境设置](https://github.com/AuroraLilja8514/miancak/settings/environments)，创建 `release-signing`：
+进入 [仓库环境设置](https://github.com/AuroraLilja8514/miancak/settings/environments)，使用 `release-signing`：
 
-1. Deployment branches and tags 使用明确的 Selected branches and tags，初期只允许分支 `master`。不要允许 `refs/pull/*`、任意开发分支或不受保护的标签。
-2. 添加维护者为 Required reviewer，使正式凭据在批准前不可获得。核对该账号／仓库实际支持并已启用此功能。
-3. 单维护者如果还要批准自己触发的任务，不能开启 Prevent self-review 后再假定自己能批准；这也不能被描述为双人审查。有条件引入第二位审查者时再启用。
-4. 在界面提供且实际适用时关闭管理员绕过。不要只凭“Protected branches only”字样推断已有分支保护；无分支保护时该选项可能允许所有分支，初期采用明确的 `master` 规则。
-5. 核对这些保护生效后，才在该环境的 Environment secrets 区录入上表两项。不要误填成 Repository variables 或普通仓库级 Secrets。
+1. Deployment branches and tags 明确选择分支 `master`；不要允许 PR refs、任意开发分支或不受保护的标签。不能只凭“Protected branches only”字样推断已有分支保护。
+2. 维护者于 2026-10-31 明确取消人工审批。本项目按此决定运行，不重新设置 Required reviewers；工作流的仓库、master 来源、触发条件和两组自测仍限制正式凭据的使用。
+3. 在该环境的 Environment secrets 区录入上表两项，不误填为 Repository variables；当前这两个固定名称的凭据已能被正式检查任务读取。连接不能独立读取管理设置，实际登记层级和保留的环境规则由维护者核对。
 
-当前 GitHub 连接未提供环境与 Secrets 管理功能时，由维护者在 GitHub 官方设置页录入。不要把管理 token 或密码贴到聊天以替代缺失的权限。若环境保护不可用，继续本机签名，直到有明确可用的受保护方案。
+当前 GitHub 连接没有环境／Secrets 管理及 workflow dispatch 功能；本次通过已审查签名配置合入 master 的正常 push 事件启动。不要把管理 token 或密码贴到聊天以替代缺失的管理功能。
 
 ## 3. Windows 上准备上传值
 
@@ -40,11 +38,13 @@ Secrets 由 GitHub 接收加密值，再在获准的工作流运行时解密注�
 
 生成包采用 Windows 原生 PKCS12 导出，证书显示名称不等于 Java 内部 alias。文件只有一个私钥条目；后续 `apksigner` 省略 `--ks-key-alias` 自动选择，并核对实际证书指纹。不要把旧 `keytool` 示例中的 `miancak-release` 字符串强行当作此文件的内部 alias。出现多个条目时拒绝自动选择。
 
-## 4. 后续签名工作流的边界
+## 4. 当前检查与后续 APK 签名
 
-以下仍是待实现／待验证内容，不是当前可用工作流：
+独立[凭据检查](SIGNING_CREDENTIAL_VALIDATION.md)已合入 master 并成功运行：签名配置相关的 master push 自动启动，或从 master 手动触发；PR／开发分支不运行正式步骤。维护者已取消人工审批，现有其余环境规则继续生效。检查器只做内存中的随机挑战证明，不处理 APK。
 
-- 仅手动触发的受信工作流申请 `release-signing` 环境；PR、fork、普通构建和测试不接触正式凭据。给出人工审批不等于允许任意输入 ref／下载产物。
+以下实际 APK 的签名流程仍待实现／验证：
+
+- 受信、来源固定的工作流申请 `release-signing` 环境；PR、fork、普通构建和测试不接触正式凭据，不能签署任意输入 ref／下载产物。
 - 在无正式凭据的步骤先核对仓库、可信源码 SHA、构建 run／产物来源和适用验收结果，再校验 APK 包名 `org.miancak.keyboard`、版本、非 debuggable 状态与原生库。
 - 有凭据的签名 job 使用已审查、固定版本的签名工具，仅处理上述确定 APK；不运行被签应用的 Gradle、依赖安装或仓库脚本。密码通过官方工具支持的环境变量／受控输入传递，不写入命令行明文。
 - 不让正式证书签 debug 或测试执行器。签名前后校验公开证书指纹；保留 API 21 声明所需签名方案及 API 23／35 实际验证。
@@ -55,7 +55,7 @@ Secrets 由 GitHub 接收加密值，再在获准的工作流运行时解密注�
 
 ## 5. 下一步与完成状态
 
-已读取维护者明确提供的公开证书与信息文件，计算并[登记真实指纹](signing/README.md)。下一步由维护者验证密钥库与加密备份、配置并核对环境保护；先用一次性密钥验证签名流程，再安全注入正式凭据，完成正式 APK 签名及覆盖升级。当前连接不能代为管理环境与 Secrets，尚未获得配置完成的证据。现有 debug 到正式包的迁移限制仍按 [稳定签名方案](SIGNING_PLAN.md) 保留。
+已[登记真实指纹](signing/README.md)，Linux 29 项／Windows 31 项一次性密钥自测及 master 上的[实际正式凭据检查](SIGNING_CREDENTIAL_VALIDATION.md)均成功。下一步验证独立加密备份恢复，实现 APK 来源校验与签名，完成正式身份的覆盖升级。连接不能代为管理或审计全部环境／Secrets 设置；现有 debug 到正式包的迁移限制仍按 [稳定签名方案](SIGNING_PLAN.md) 保留。
 
 仓库的 `.gitignore` 防止常规误加入 `.p12`／`.pfx`／`.jks` 及生成目录；它不能阻止强制添加，也不能移除已经进入历史的秘密。出现泄露时停止签名并评估影响，不以删除当前文件声称历史已经清理。
 

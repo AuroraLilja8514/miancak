@@ -1,8 +1,8 @@
 # 稳定签名方案与提前实施顺序
 
-更新：2026-10-29。用户确认稳定签名可以提前；从 P4 拆出为 **P0**。本文记录安全方案；正式公开证书已核验并[登记](signing/README.md)。私有密钥库／备份验证、环境保护与 Secrets 配置、正式 APK 签署、升级验收及发布尚未完成。
+更新：2026-10-31。用户确认稳定签名可以提前；从 P4 拆出为 **P0**。正式公开证书已核验并[登记](signing/README.md)，GitHub 上的实际密钥库读取、证书匹配和私钥签名证明已[验证成功](SIGNING_CREDENTIAL_VALIDATION.md)。备份恢复、实际 APK 签署、升级验收及发布尚未完成。
 
-2026-10-29 接入说明：GitHub 环境 Secrets 的存放位置、审批与分支限制、Windows 上传准备及当前未完成状态见 [GitHub 签名配置](GITHUB_SIGNING_SETUP.md)。Windows 免 Java 生成包使用单私钥条目自动选择；其显示名称不保证等于 Java 内部 alias，签名身份以真实证书指纹核验。已登记真实公开证书；尚未配置正式凭据，也未验证私钥可用性。
+2026-10-29 接入说明：GitHub 环境 Secrets 的存放位置、审批与分支限制、Windows 上传准备及当前未完成状态见 [GitHub 签名配置](GITHUB_SIGNING_SETUP.md)。Windows 免 Java 生成包使用单私钥条目自动选择；其显示名称不保证等于 Java 内部 alias，签名身份以真实证书指纹核验。公开证书及凭据可用性均已验证。2026-10-31 维护者明确关闭审批，独立检查已合入 master 并自动运行成功；这不等于 APK 签名工作流已完成。
 
 ## 1. 当前源码与目标
 
@@ -54,9 +54,9 @@ keytool -genkeypair -alias miancak-release -keyalg RSA -keysize 3072 -validity 1
 
 ## 4. 第二阶段：需要时接入 GitHub 自动签名
 
-这部分是后续设计，**当前工作流尚未实现**。在私钥备份和本机签名通过后再决定是否采用，最初可以继续本机签名。
+以下是实际 APK 的后续自动签名设计，**APK 签名工作流尚未实现**。目前已实现并验证的只是独立[凭据检查](SIGNING_CREDENTIAL_VALIDATION.md)，不接收 APK、不签署或发布应用。独立备份恢复和实际 APK 签名仍需完成。
 
-- 使用独立 `release-signing` environment；显式限制可运行的可信分支／标签，保留维护者手动批准，并核对实际账户／仓库是否支持及已配置这些限制。只创建一个同名 environment 不代表已有保护。
+- 使用独立 `release-signing` environment；显式限制可运行的可信分支／标签，按维护者选择配置审批，当前 2026-10-31 指令为取消人工审批；核对实际账户／仓库的其余范围限制。只创建一个同名 environment 不代表已有保护。
 - 正式凭据只授予签名 job；PR、fork、普通构建与测试 job 均不可获得。拒绝从 `pull_request_target` 执行 PR 代码，也不为任意 `workflow_run` 或用户可控 ref／产物名称自动签名。
 - 构建 job 无正式密钥；签名 job 只接收经过来源核验、绑定确切可信提交和 run 的 APK。拿到私钥后不 checkout／执行被签项目代码，不运行 Gradle、包管理器或仓库脚本。
 - Secrets 仅是受控存储，获准 job 仍可能读取并泄露它们。对能接触密钥的步骤保持最少权限，审核依赖；使用可核验的 workflow 依赖锁定或固定完整提交 SHA，不依赖可变标签作为唯一信任依据。
