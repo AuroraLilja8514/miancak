@@ -79,6 +79,14 @@ class Guards(unittest.TestCase):
                 ops.download_api("actions/artifacts/1/zip",Path(temporary)/"file",ops.digest(b"fixture"))
         self.assertIn("Authorization",seen[0].headers)
         self.assertNotIn("Authorization",seen[1].headers)
+        self.assertEqual(seen[0].headers["Accept"],"application/vnd.github+json")
+        seen.clear()
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.dict(os.environ, {"GH_TOKEN":"disposable-token"}), \
+                 mock.patch("urllib.request.build_opener",return_value=Opener()):
+                ops.download_api("releases/assets/1",Path(temporary)/"file",ops.digest(b"fixture"))
+        self.assertEqual(seen[0].headers["Accept"],"application/octet-stream")
+        self.assertNotIn("Authorization",seen[1].headers)
 
     def test_unrecognized_download_redirect_is_rejected(self):
         class Opener:

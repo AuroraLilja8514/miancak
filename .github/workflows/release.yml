@@ -366,6 +366,11 @@ jobs:
                       require(host == "api.github.com" and parsed.path.startswith("/repos/" + REPO + "/"),
                               "DOWNLOAD_DESTINATION")
                       headers["Authorization"] = "Bearer " + os.environ.get("GH_TOKEN", "")
+                      headers["X-GitHub-Api-Version"] = "2022-11-28"
+                      # Artifact archives use the REST media type; Release assets use
+                      # octet-stream to request their bytes rather than JSON metadata.
+                      headers["Accept"] = ("application/octet-stream" if path.startswith("releases/assets/")
+                                           else "application/vnd.github+json")
                   else:
                       require(host.endswith(".githubusercontent.com")
                               or host.endswith(".blob.core.windows.net")
@@ -1081,6 +1086,11 @@ jobs:
                       require(host == "api.github.com" and parsed.path.startswith("/repos/" + REPO + "/"),
                               "DOWNLOAD_DESTINATION")
                       headers["Authorization"] = "Bearer " + os.environ.get("GH_TOKEN", "")
+                      headers["X-GitHub-Api-Version"] = "2022-11-28"
+                      # Artifact archives use the REST media type; Release assets use
+                      # octet-stream to request their bytes rather than JSON metadata.
+                      headers["Accept"] = ("application/octet-stream" if path.startswith("releases/assets/")
+                                           else "application/vnd.github+json")
                   else:
                       require(host.endswith(".githubusercontent.com")
                               or host.endswith(".blob.core.windows.net")
@@ -2100,6 +2110,11 @@ jobs:
                       require(host == "api.github.com" and parsed.path.startswith("/repos/" + REPO + "/"),
                               "DOWNLOAD_DESTINATION")
                       headers["Authorization"] = "Bearer " + os.environ.get("GH_TOKEN", "")
+                      headers["X-GitHub-Api-Version"] = "2022-11-28"
+                      # Artifact archives use the REST media type; Release assets use
+                      # octet-stream to request their bytes rather than JSON metadata.
+                      headers["Accept"] = ("application/octet-stream" if path.startswith("releases/assets/")
+                                           else "application/vnd.github+json")
                   else:
                       require(host.endswith(".githubusercontent.com")
                               or host.endswith(".blob.core.windows.net")
