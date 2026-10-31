@@ -65,8 +65,13 @@ def phase(name):
                  "-e", "releasePhase", name,
                  PACKAGE + ".debug.test/androidx.test.runner.AndroidJUnitRunner", timeout=600)
     (RESULTS / (name + ".log")).write_text(text)
-    ops.require("OK (1 test)" in text and not re.search(
-        r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", text), "RELEASE_INPUT_" + name.upper())
+    passed = "OK (1 test)" in text and not re.search(
+        r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", text)
+    if not passed:
+        # This job has no signing credentials; only our synthetic guest test
+        # output is printed, so failures remain diagnosable without ZIP tools.
+        print(text[-12000:], flush=True)
+    ops.require(passed, "RELEASE_INPUT_" + name.upper())
     print("PASS: ACTUAL_SIGNED_APK_" + name.upper(), flush=True)
 
 def main():

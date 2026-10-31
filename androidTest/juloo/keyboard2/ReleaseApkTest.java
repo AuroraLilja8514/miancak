@@ -73,13 +73,17 @@ public final class ReleaseApkTest
     driver.startActivity(new Intent().setComponent(new ComponentName(APP, "juloo.keyboard2.LauncherActivity"))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
     assertNotNull(node("launcher_enable"));
+    device.waitForIdle();
   }
 
-  private void settings()
+  private void settings() throws Exception
   {
     launch();
-    UiObject2 settings = node("btnLaunchSettingsActivity");
-    assertNotNull(settings); settings.click();
+    assertNotNull(node("btnLaunchSettingsActivity"));
+    // Re-resolve at click time: APK replacement can recreate the toolbar
+    // after the first accessibility snapshot.
+    device.findObject(new UiSelector().packageName(APP)
+        .resourceId(APP + ":id/btnLaunchSettingsActivity")).click();
     assertTrue(device.wait(Until.hasObject(By.res("android", "list").pkg(APP)), 15000));
   }
 
