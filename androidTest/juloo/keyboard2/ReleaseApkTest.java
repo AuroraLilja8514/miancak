@@ -124,8 +124,13 @@ public final class ReleaseApkTest
     settings();
     String theme = driver.getString(R.string.pref_theme);
     scrollTo(theme);
+    // A preference title can be visible while its summary is below the
+    // viewport (notably Android 6). Inspect the actual selected list value.
+    device.findObject(By.pkg(APP).text(theme)).click();
     assertTrue("Explicit theme lost across release installation/reboot",
-        device.hasObject(By.pkg(APP).text(driver.getString(R.string.pref_theme_e_light))));
+        device.wait(Until.hasObject(By.text(driver.getString(R.string.pref_theme_e_light))
+            .checked(true)), 15000));
+    device.pressBack();
     openExtraKeys();
     String title = superscriptTitle();
     scrollTo(title);
