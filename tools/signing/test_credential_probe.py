@@ -2,6 +2,7 @@
 """Test the exact inline production checker using disposable credentials only."""
 from __future__ import annotations
 
+import ast
 import base64
 import hashlib
 import json
@@ -61,8 +62,48 @@ def main() -> None:
           and "github.ref == 'refs/heads/master'" in workflow
           and "github.event_name == 'workflow_dispatch'" in workflow
           and "needs: self-test" in workflow,
-          "formal credentials gated to manual master after self-tests")
+          "formal credentials gated to trusted master triggers after self-tests")
     formal = workflow.split("  formal-credential-probe:\n", 1)[1]
+    gate = formal.split("    if: >-\n", 1)[1].split("    runs-on:", 1)[0]
+    defaults = {
+        "github.repository": "AuroraLilja8514/miancak",
+        "github.ref": "refs/heads/master",
+        "github.workflow_ref": "AuroraLilja8514/miancak/.github/workflows/signing-credentials.yml@refs/heads/master",
+        "github.event_name": "push",
+        "github.event.deleted": False,
+        "inputs.test_formal_credentials": False,
+    }
+
+    def gate_allows(overrides: dict[str, object]) -> bool:
+        expression = gate
+        for name, value in {**defaults, **overrides}.items():
+            expression = re.sub(r"\b" + re.escape(name) + r"\b", repr(value), expression)
+        expression = expression.replace("&&", " and ").replace("||", " or ")
+        expression = re.sub(r"\btrue\b", "True", expression)
+        expression = re.sub(r"\bfalse\b", "False", expression)
+        parsed = ast.parse(" ".join(expression.split()), mode="eval")
+        allowed = (ast.Expression, ast.BoolOp, ast.Compare, ast.Constant, ast.And, ast.Or, ast.Eq)
+        if not all(isinstance(node, allowed) for node in ast.walk(parsed)):
+            raise AssertionError("Unsupported or unresolved formal gate expression")
+        return bool(eval(compile(parsed, "<formal-trigger-gate>", "eval"), {"__builtins__": {}}, {}))
+
+    for label, overrides, expected in [
+        ("master push permits the project credential proof", {}, True),
+        ("explicit master dispatch permits the project credential proof",
+         {"github.event_name": "workflow_dispatch", "inputs.test_formal_credentials": True}, True),
+        ("unchecked dispatch does not use formal credentials",
+         {"github.event_name": "workflow_dispatch"}, False),
+        ("PR event does not use formal credentials", {"github.event_name": "pull_request"}, False),
+        ("development push does not use formal credentials", {"github.ref": "refs/heads/test/signing-credentials"}, False),
+        ("development dispatch does not use formal credentials",
+         {"github.event_name": "workflow_dispatch", "github.ref": "refs/heads/test/signing-credentials",
+          "inputs.test_formal_credentials": True}, False),
+        ("another repository does not use formal credentials", {"github.repository": "example/other"}, False),
+        ("non-master workflow source does not use formal credentials",
+         {"github.workflow_ref": "AuroraLilja8514/miancak/.github/workflows/signing-credentials.yml@refs/heads/test/signing-credentials"}, False),
+        ("branch deletion does not use formal credentials", {"github.event.deleted": True}, False),
+    ]:
+        check(gate_allows(overrides) == expected, label)
     check("uses:" not in formal and "permissions: {}" in formal
           and "checkout" not in formal and "upload-artifact" not in formal
           and "pull_request_target" not in workflow,

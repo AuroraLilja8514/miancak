@@ -1,13 +1,13 @@
 # MIANCAK 签名凭据测试
 
-本工作流只测试 MIANCAK 专用签名凭据能否使用，不构建、签署或发布 APK。维护者已表示 GitHub 凭据应已录入；当前连接不能管理或读取环境配置，也没有据此认定真实凭据测试已通过。
+本工作流只测试 MIANCAK 专用签名凭据能否使用，不构建、签署或发布 APK。维护者已表示 GitHub 凭据应已录入，并于 2026-10-31 明确关闭审批、授权继续测试。当前连接不能管理或读取环境配置；以实际正式 job 的结果判断凭据是否可用。
 
 ## 两种测试
 
 | 任务 | 触发／凭据 | 检查 |
 | --- | --- | --- |
 | disposable credentials | PR、指定测试分支 push、master push 或手动触发；只有一次性测试密钥 | Linux JDK 17，Windows JDK 17 加固定版本原生 Windows 生成器；运行同一份内嵌 Java 检查器，覆盖成功与拒绝路径 |
-| protected MIANCAK credential proof | 仅本仓库 master 的手动触发，勾选 test_formal_credentials，并通过 release-signing 环境保护；该步才注入正式 Secrets | PKCS12 在内存中解密，严格只有一个私钥条目，不依赖 alias，证书指纹等于登记值，私钥签名随机挑战并由公开证书验签 |
+| protected MIANCAK credential proof | 仅本仓库 master 上的签名配置 push，或手动触发并勾选 test_formal_credentials；遵守 release-signing 的现有环境保护，该步才注入正式 Secrets | PKCS12 在内存中解密，严格只有一个私钥条目，不依赖 alias，证书指纹等于登记值，私钥签名随机挑战并由公开证书验签 |
 
 正式 job 使用权限为空的全新 GitHub 托管 runner，没有 checkout、Gradle、依赖安装、下载、第三方 action、缓存或 artifact 步骤。审核过的 Java 源码内嵌在工作流中，在注入凭据前编译；正式凭据只出现在运行检查器的那一步。
 
@@ -21,14 +21,14 @@
 
 ## 运行正式凭据测试
 
-1. 先审查并将这个小 PR 合并到 master，无需为此合并应用 PR #32 或生成器 PR #33。
-2. 在 Settings → Environments → release-signing 核对：Selected branches and tags 明确仅允许分支 master，Required reviewers 已生效，并按实际账号条件限制绕过。单维护者不要同时开启无法满足的 Prevent self-review。
-3. 确认 Environment secrets 中有 MIANCAK_RELEASE_KEYSTORE_B64（加密 P12 的 Base64）与 MIANCAK_RELEASE_STORE_PASSWORD；不是 Repository variables。不要将秘密值粘贴到聊天、Issue 或 PR。
-4. Actions → Signing credential checks → Run workflow，选择 master，勾选 test_formal_credentials，运行。
-5. 无正式凭据的两个 self-test 先通过；正式 job 等待时由维护者 Review deployments → 批准 release-signing。环境审批不能由这份工作流自行替代。
-6. 查看 protected MIANCAK credential proof 的实际结果。只看到两个 disposable credentials 为绿色、正式 job 被 skipped，不表示正式凭据可用。
+维护者已明确取消人工审批。本工作流不设置审批要求，也不更改 GitHub 的环境配置；实际保留的环境规则仍由 GitHub 执行。PR／开发分支不能运行正式 job，已锁定的证书指纹和专属用途保持不变。
 
-本工作流使用 workflow_dispatch，文件先进入默认分支才可从正常手动入口运行。当前 GitHub 连接没有工作流 dispatch 或部署审批操作；维护者完成第 4、5 步后，可将不含秘密的运行链接提供给本会话继续核验。
+1. 核对 release-signing 的分支规则明确只允许 master，Environment secrets 包含 MIANCAK_RELEASE_KEYSTORE_B64 与 MIANCAK_RELEASE_STORE_PASSWORD。当前连接无法代为读取设置，不能只凭自测通过就认定这些配置正确。
+2. 合并本小 PR 到 master 后，签名配置相关 push 会自动开始测试，无需先合并应用 PR #32 或生成器 PR #33。push 的路径范围仅为本工作流、tools/signing/ 和 docs/signing/。
+3. Linux／Windows 的一次性密钥自测先完成；只有两组均成功才进入 master 上的正式凭据 job。
+4. 查看 protected MIANCAK credential proof 的实际结果。只看到 disposable credentials 为绿色，或正式 job 被 skipped，不表示正式凭据可用。
+
+仍保留手动入口：Actions → Signing credential checks → Run workflow，选择 master 并勾选 test_formal_credentials。当前连接没有 dispatch 接口，所以通过已审查配置合入 master 的正常 push 事件启动测试；不通过 PR 任务、开发分支或放宽环境分支规则来取得正式凭据。若 GitHub 仍要求审批，任务会等待现有环境规则，不自行绕过。
 
 ## 结果解释
 
