@@ -237,6 +237,11 @@ public final class Pointers implements Handler.Callback
    */
   private KeyValue getNearestKeyAtDirection(Pointer ptr, int direction)
   {
+    return getNearestKeyAtDirection(ptr, direction, false);
+  }
+
+  private KeyValue getNearestKeyAtDirection(Pointer ptr, int direction, boolean raw)
+  {
     KeyValue k;
     // [i] is [0, -1, +1, ..., -3, +3], scanning 43% of the circle's area,
     // centered on the initial swipe direction.
@@ -254,7 +259,9 @@ public final class Pointers implements Handler.Callback
         // gestures without being interrupted by the slider.
         if (k.getKind() == KeyValue.Kind.Slider && Math.abs(i) >= 2)
           continue;
-        return k;
+        // A gesture modifier must see the original layered value. Resolving
+        // the normal layer here would discard its explicitly edited Shift.
+        return raw ? getKeyAtDirection(ptr.key, d) : k;
       }
     }
     return null;
@@ -507,7 +514,7 @@ public final class Pointers implements Handler.Callback
         return
           modify_key_with_extra_modifier(
               ptr,
-              getNearestKeyAtDirection(ptr, ptr.gesture.current_direction()),
+              getNearestKeyAtDirection(ptr, ptr.gesture.current_direction(), true),
               KeyValue.Modifier.GESTURE);
       case Circle:
         return

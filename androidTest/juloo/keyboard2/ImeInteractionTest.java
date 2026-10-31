@@ -37,6 +37,15 @@ public class ImeInteractionTest
 
   @Test public void touchMixedInputAndEditorLifecycles() throws Exception
   {
+    // Keep the Fn probe and subsequent lifecycle scenario in one target
+    // process. Ending a separate instrumentation force-stops the active IME
+    // and races Android's asynchronous fallback/rebind before this fixture.
+    if (!InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"))
+    {
+      new FnInteractionTest().pairedVariantsDeliverFunctionEventsAndKeepSharedControls();
+      new SymbolInteractionTest().categoriesPagesWidthsAndControlsDeliverActualText();
+    }
+    new PageEditorInteractionTest().editAndVerify(InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"));
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
     pkg = context.getPackageName();
@@ -48,7 +57,7 @@ public class ImeInteractionTest
       MiancakPreferences.initialize(settings);
       SharedPreferences.Editor prefs = settings.edit();
       prefs.putString("physical_keyboard_behavior", "show").putBoolean("miancak_chinese", true)
-        .putString("number_row", "no_number_row").putString("number_entry_layout", "number");
+        .putString("number_row", "no_number_row").putString("number_entry_layout", "number").putString("pages_last_text", "zh");
       LayoutsPreference.save_to_preferences(prefs,
           Collections.singletonList(new LayoutsPreference.NamedLayout("miancak_qwerty")));
       prefs.commit();
@@ -97,6 +106,13 @@ public class ImeInteractionTest
       tap(0.75f, 2); gesture('x', -1, -1);
       tap(0.75f, 2); gesture('b', -1, -1);
       output += "()!?"; awaitText(activity.first, output);
+      for(int variant=0;variant<2;variant++)
+      {
+        if(variant==1){tap(2.25f,3);assertTrue(device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: zh_fn;")),15000));}
+        gesture('k',-1,-1);gesture('k',1,-1);tap(.75f,2);gesture('k',-1,-1);tap(.75f,2);gesture('k',1,-1);
+        output+="（）()";awaitText(activity.first,output);
+      }
+      tap(2.25f,3);assertTrue(device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: zh;")),15000));
       gesture('m', -1, -1);
       tap(0.75f, 2); gesture('m', -1, -1);
       tap(0.75f, 2); gesture('m', -1, 1);
@@ -113,26 +129,53 @@ public class ImeInteractionTest
       type("ok"); output += "ok"; awaitText(activity.first, output);
       gesture(0.75f, 2, 1, -1); awaitMode("中文");
       screenshot("chinese-punctuation-and-separator");
-      // Opening the chooser and auxiliary pages preserves preedit. Selecting
-      // the Fn target through the chooser must light Fn just as its key does.
+      // The Chinese shortcut is separate from Fn and confirms the old
+      // composition before entering literal phonetic text.
+      type("nihao"); String phoneticCandidate = candidate();
+      gesture(5f, 3, -1, -1);
+      awaitPage("pinyin"); output += phoneticCandidate; awaitText(activity.first, output); awaitIdlePreedit();
+      tap('n'); gesture('i', -1, 1); output += "nǐ"; awaitText(activity.first, output);
+      gesture(0.75f, 2, 1, -1); awaitPage("zh");
+      device.pressBack();
+      instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      device.wait(Until.findObject(By.desc("Choose phonetic entry")), 15000).click();
+      device.wait(Until.findObject(By.text(context.getString(R.string.page_zhuyin))), 15000).click();
+      assertTrue(device.wait(Until.hasObject(By.desc("Choose phonetic entry").textContains(context.getString(R.string.page_zhuyin))), 15000));
+      assertEquals("zhuyin", PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(context)).phoneticEntry);
+      resumeEditor(); ensureChinese(); gesture(5f, 3, -1, -1); awaitPage("zhuyin");
+      phoneticGesture("zhuyin", 0, 6, 0, 0); phoneticGesture("zhuyin", 2, 0, -1, 1);
+      output += "ㄋㄧˇ"; awaitText(activity.first, output);
+      phoneticGesture("zhuyin", 3, 0, 1, -1); awaitPage("zh");
+      instrumentation.runOnMainSync(() -> PagePreferences.save(DirectBootAwarePreferences.get_shared_preferences(context),
+          PagePreferences.load(DirectBootAwarePreferences.get_shared_preferences(context)).withPhoneticEntry("pinyin")));
+      screenshot("phonetic-entry-and-return");
+      // The chooser preserves preedit. Its explicit Chinese Fn variant has
+      // the same policy as the main layout and preserves it too.
       type("nihao"); String beforePages = candidate();
       gesture(9.15f, 3, 1, 1);
       assertNotNull(find("miancak_page_chooser"));
       assertEquals(output, text(activity.first));
       screenshot("page-chooser");
-      choosePage("symbols");
+      choosePage("zh_fn");
       assertTrue(keyboard().getContentDescription().contains("Fn: true"));
       assertEquals(beforePages, candidate());
-      tap(2.25f, 3); // Fn target returns to Chinese main page.
+      tap(2.25f, 3);
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       assertEquals(beforePages, candidate());
-      tap(2.25f, 3); // Direct Fn reaches exactly the same symbols page.
-      assertTrue(keyboard().getContentDescription().contains("Fn: true"));
-      screenshot("fn-symbols-active");
+      tap(2.25f, 3);
+      assertTrue(keyboard().getContentDescription().startsWith("Page: zh_fn;"));
+      screenshot("fn-variant-active");
       device.pressBack();
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       assertEquals(beforePages, candidate());
-      find("miancak_cancel").click(); awaitIdlePreedit();
+      // Symbols has a fixed literal-input policy, independent of the route
+      // used to enter it. Entry confirms the old Chinese composition once.
+      gesture(9.15f, 3, 1, 1); choosePage("symbols");
+      output += beforePages; awaitText(activity.first, output); awaitIdlePreedit();
+      assertTrue(keyboard().getContentDescription().contains("Fn: false"));
+      tap(2.25f, 3);
+      assertTrue(keyboard().getContentDescription().startsWith("Page: symbols;"));
+      device.pressBack();
       gesture(9.15f, 3, 1, 1); choosePage("greek");
       assertTrue(keyboard().getContentDescription().startsWith("Page: greek;"));
       tap(0.5f, 0); output += "θ"; awaitText(activity.first, output);
@@ -140,17 +183,17 @@ public class ImeInteractionTest
       device.pressBack();
       type("nihao"); String emojiCandidate = candidate();
       gesture(9.15f, 3, 1, 1); choosePage("emoji");
-      UiObject2 dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
-      assertNotNull(dynamicPicker); screenshot("emoji-page");
+      assertNull(device.findObject(By.desc("Open layout chooser")));
+      assertNotNull(device.wait(Until.findObject(By.desc("Controls: emoji")), 15000)); screenshot("emoji-page");
       UiObject2 grid = find("emoji_grid"); assertNotNull(grid);
       assertFalse(grid.getChildren().isEmpty());
       UiObject2 emoji = grid.getChildren().get(0); String emojiText = emoji.getText();
       assertNotNull(emojiText); emoji.click();
       output += emojiCandidate + emojiText; awaitText(activity.first, output); awaitIdlePreedit();
-      dynamicPicker.click(); choosePage("clipboard");
-      dynamicPicker = device.wait(Until.findObject(By.desc("Open layout chooser")), 15000);
-      assertNotNull(dynamicPicker); screenshot("clipboard-page");
-      dynamicPicker.click(); choosePage("zh");
+      paneChooser("emoji"); choosePage("clipboard");
+      assertNull(device.findObject(By.desc("Open layout chooser")));
+      assertNotNull(device.wait(Until.findObject(By.desc("Controls: clipboard")), 15000)); screenshot("clipboard-page");
+      paneChooser("clipboard"); choosePage("zh");
       assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
       type("nihao"); String clipboardCandidate = candidate();
       find("miancak_pages").click(); choosePage("clipboard");
@@ -182,9 +225,19 @@ public class ImeInteractionTest
       instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       UiObject2 editLayout = device.wait(Until.findObject(By.desc("Edit layout: zh")), 15000);
       assertNotNull(editLayout); editLayout.click();
-      device.wait(Until.findObject(By.desc("Edit key: zh:0:0")), 15000).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("Layout preview: zh")), 15000));
+      // The compact preview replaced the former per-key buttons. Exercise its
+      // accessible list here; the preceding editor scenario tests gestures.
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
+          .resourceId(pkg + ":id/miancak_editor_vertical"))
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("Choose key and position"));
+      device.wait(Until.findObject(By.desc("Choose key and position")), 15000).click();
+      new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().className("android.widget.ListView"))
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().textStartsWith("1:1 · "));
+      UiObject2 firstKey = device.wait(Until.findObject(By.textStartsWith("1:1 · ")), 15000);
+      assertNotNull(firstKey); firstKey.click();
       screenshot("visual-key-editor");
-      device.wait(Until.findObject(By.desc("Edit position: 1")), 15000).click();
+      device.wait(Until.findObject(By.res(context.getPackageName(), "miancak_position_nw")), 15000).click();
       device.wait(Until.findObject(By.text(context.getString(R.string.page_literal))), 15000).click();
       UiObject2 value = device.wait(Until.findObject(By.desc("Key output text")), 15000);
       assertNotNull(value); value.setText("测试");
@@ -212,41 +265,36 @@ public class ImeInteractionTest
       device.pressBack();
       instrumentation.startActivitySync(new Intent(context, PageSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
       new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector().scrollable(true))
-        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("fn-target-zh"));
-      device.findObject(By.desc("fn-target-zh")).click();
-      device.waitForIdle();
-      androidx.test.uiautomator.UiObject pinyinTarget = device.findObject(new androidx.test.uiautomator.UiSelector()
-          .className("android.widget.CheckedTextView").text(context.getString(R.string.page_pinyin)));
-      assertTrue("Pinyin target missing from the actual Fn dialog", pinyinTarget.waitForExists(15000));
-      pinyinTarget.click();
+        .scrollIntoView(new androidx.test.uiautomator.UiSelector().description("Edit Fn variant: zh"));
+      device.findObject(By.desc("Edit Fn variant: zh")).click();
+      assertNotNull(device.wait(Until.findObject(By.desc("Layout preview: zh_fn")), 15000));
+      device.wait(Until.findObject(By.desc("Cancel layout edit")), 15000).click();
       resumeEditor(); ensureChinese();
       tap(2.25f, 3);
-      assertTrue(keyboard().getContentDescription().equals("Page: pinyin; Fn: true"));
-      tap('n'); output += "n"; awaitText(activity.first, output);
-      screenshot("configured-pinyin-fn");
+      assertTrue(keyboard().getContentDescription().equals("Page: zh_fn; Fn: true"));
+      screenshot("paired-fn-editor-return");
       tap(2.25f, 3); assertTrue(keyboard().getContentDescription().startsWith("Page: zh;"));
-      // Candidate paging uses the displayed snapshot; returning restores page one.
+      // Candidate strip scrolls; expansion starts at rank one and loads later ranks.
       type("shi"); String pageOne = candidate();
       UiObject2 compact = find("miancak_compact_candidates");
       assertTrue("Compact row must contain a fitting prefix", compact.getChildren().size() > 0);
-      assertTrue("The entire ten-item engine page must not overflow one phone row", compact.getChildren().size() < 8);
+      assertNull(device.findObject(By.res(pkg,"miancak_previous_candidates")));assertNull(device.findObject(By.res(pkg,"miancak_next_candidates")));
+      assertTrue("Reduced spacing should show more than three short items",compact.getChildren().size()>=4);
+      UiObject2 strip=find("miancak_candidate_scroll");assertNotNull(strip);
+      strip.setGestureMargin(8);strip.scroll(androidx.test.uiautomator.Direction.RIGHT,.8f);device.waitForIdle();
+      screenshot("candidate-strip-scrolled");
       Rect inputBounds = find("miancak_input_surface").getVisibleBounds();
       find("miancak_expand_candidates").click();
       assertNotNull(find("miancak_expanded_candidates"));
       assertEquals("Expansion must keep the allocated keyboard height", inputBounds, find("miancak_input_surface").getVisibleBounds());
       screenshot("expanded-candidates");
-      assertTrue(find("miancak_next_candidates").isEnabled());
-      find("miancak_next_candidates").click();
-      awaitCandidate(pageOne, false);
-      find("miancak_previous_candidates").click();
-      awaitCandidate(pageOne, true);
-      UiObject2 eighth = null;
-      for (int attempt = 0; attempt < 10; attempt++)
+      assertEquals(pageOne,candidate());UiObject2 eighth=null;
+      for(int attempt=0;attempt<16;attempt++)
       {
-        eighth = device.findObject(By.descStartsWith("Candidate 8: "));
-        if (eighth != null && eighth.getVisibleBounds().height() > 16) break;
-        UiObject2 panel = find("miancak_expanded_candidates"); assertNotNull(panel);
-        panel.setGestureMargin(20); panel.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f);
+        eighth=device.findObject(By.descStartsWith("Candidate 80: "));
+        if(eighth!=null && eighth.getVisibleBounds().height()>16)break;
+        UiObject2 panel=find("miancak_expanded_candidates");assertNotNull(panel);
+        panel.setGestureMargin(20);panel.scroll(androidx.test.uiautomator.Direction.DOWN,.6f);
       }
       assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
       String eighthText = eighth.getText();
@@ -363,7 +411,7 @@ public class ImeInteractionTest
       type("nihao"); first = candidate(); gesture('c', -1, -1);
       awaitWeb(first + "。");
       screenshot("web-editor");
-      File metrics = new File(context.getExternalFilesDir("test-results"), "interaction-metrics.txt");
+      File metrics = new File(TestEvidence.directory(context), "interaction-metrics.txt");
       try (FileOutputStream stream = new FileOutputStream(metrics))
       {
         stream.write(("Complete touch/lifecycle scenario ms=" + (SystemClock.elapsedRealtime() - began) + "\nEmulator API=" + android.os.Build.VERSION.SDK_INT + "\n").getBytes(StandardCharsets.UTF_8));
@@ -377,6 +425,25 @@ public class ImeInteractionTest
   }
 
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }
+  private void awaitPage(String page)
+  { assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: " + page + ";")), 15000)); }
+  private void paneChooser(String page)
+  {
+    UiObject2 controls = device.wait(Until.findObject(By.desc("Controls: " + page)), 15000);
+    assertNotNull(controls);
+    Rect bounds = controls.getVisibleBounds(); Config config = Config.globalConfig();
+    KeyboardData data = PageLayouts.base(context.getResources(), page);
+    float unit = (bounds.width() - 2 * config.horizontal_margin) / data.keysWidth;
+    KeyboardData.KeyPos position = data.getKeys().get(KeyValue.getKeyByName("layout_picker"));
+    KeyboardData.Key key = data.rows.get(0).keys.get(position.col);
+    float x = bounds.left + config.horizontal_margin;
+    for (int c = 0; c < position.col; c++) x += data.rows.get(0).keys.get(c).width * unit;
+    x += key.width * unit / 2;
+    float row = (bounds.height() - config.marginTop) / data.keysHeight;
+    float y = bounds.top + config.marginTop + data.rows.get(0).height * row / 2;
+    assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + key.width * unit * .55f), Math.round(y + row * .65f), 12));
+    assertNotNull(find("miancak_page_chooser"));
+  }
   private void phoneticGesture(String page, int row, int col, int dx, int dy)
   {
     KeyboardData data = PageLayouts.base(context.getResources(), page);
@@ -474,9 +541,8 @@ public class ImeInteractionTest
     assertNotNull("Editor field is not visible", field); field.click();
     instrumentation.runOnMainSync(() -> {
       edit.requestFocus(); edit.setSelection(edit.getText().length());
-      edit.post(() -> ((InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE))
-          .showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT));
     });
+    ImeTestFocus.show(instrumentation,context,edit);
     instrumentation.waitForIdleSync();
     assertNotNull("Selected IME did not appear for the visible editor", keyboard());
     device.waitForIdle();
@@ -561,7 +627,7 @@ public class ImeInteractionTest
     assertTrue("UI frames did not advance before screenshot", rendered.await(5, TimeUnit.SECONDS));
     instrumentation.waitForIdleSync();
     device.waitForIdle();
-    File directory = context.getExternalFilesDir("test-results");
+    File directory = TestEvidence.directory(context);
     assertTrue(directory.isDirectory() || directory.mkdirs());
     assertTrue("Screenshot capture failed: " + name, device.takeScreenshot(new File(directory, name + ".png")));
     device.dumpWindowHierarchy(new File(directory, name + ".xml"));

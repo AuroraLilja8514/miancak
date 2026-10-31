@@ -1,5 +1,7 @@
 # 布局、页面与切换设计
 
+> 本文保留 0.2.0／0.3.0 历史实现说明。后续设计以 [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md) 为准：布局决定输入策略，Fn 仅在当前布局与自身变体间往返；旧“任意 Fn 页面目标”和“中文 Fn 直接进入拼音／注音”规则已被替代。0.3.1 的当前定义与实际行为见 [FN_LAYOUTS.md](FN_LAYOUTS.md)／[VISUAL_LAYOUT_EDITOR.md](VISUAL_LAYOUT_EDITOR.md)，各阶段验收状态见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)；本文后续段落仍为旧版本历史说明。
+
 更新：2026-10-24。本文记录 0.2.0 的实现范围与交互规则；各里程碑的实际验收结果以 [EXECUTION_PLAN.md](EXECUTION_PLAN.md) 为准。开发顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前测试范围见 [TESTING.md](TESTING.md)。
 
 ## 1. 产品范围

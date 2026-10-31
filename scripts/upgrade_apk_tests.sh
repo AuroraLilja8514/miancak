@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
+
+# Re-enter under a finite watchdog; nested drivers share the remaining budget.
+MIANCAK_ENTRY="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
+  exec python3 "$(dirname -- "$MIANCAK_ENTRY")/../scripts/run_with_timeout.py" --script "$MIANCAK_ENTRY" -- "$@"
+fi
+source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 mkdir -p test-results upgrade-signed
 collect() {
+  stop_progress
   adb devices -l > test-results/adb-devices.txt || true
-  timeout 15s adb logcat -d > test-results/logcat.txt || true
-  timeout 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
+  timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
+  timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }
 trap collect EXIT
+start_progress
 sha256sum artifacts/app-debug.apk artifacts/app-debug-androidTest.apk artifacts/baseline.apk > test-results/original-apk-sha256.txt
 # Copies share a fresh local test identity. No release key enters PR execution.
 keytool -genkeypair -keystore upgrade-signed/test.p12 -storetype PKCS12 -storepass android \
@@ -26,7 +35,7 @@ adb shell svc data disable
 run_phase() {
   local phase="$1"
   echo "Running actual APK upgrade phase: $phase"
-  timeout 180s adb shell am instrument -w -e class juloo.keyboard2.UpgradeApkTest -e upgradePhase "$phase" \
+  timeout --foreground "${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s" adb shell am instrument -w -e class juloo.keyboard2.UpgradeApkTest -e upgradePhase "$phase" \
     org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/upgrade-$phase.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/upgrade-$phase.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/upgrade-$phase.log"
@@ -58,13 +67,13 @@ adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
 adb shell input keyevent KEYCODE_HOME
 record_ime_state before-reboot
 echo 'Rebooting the guest after verified APK replacement'
-timeout 30s adb reboot
-timeout 90s adb wait-for-device
+timeout --foreground 30s adb reboot
+timeout --foreground 90s adb wait-for-device
 for attempt in $(seq 1 60); do
-  if [[ "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
+  if [[ "$(timeout --foreground 5s adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
   sleep 1
 done
-test "$(timeout 5s adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+test "$(timeout --foreground 5s adb shell getprop sys.boot_completed | tr -d '\r')" = 1
 adb shell input keyevent KEYCODE_WAKEUP
 if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
   adb shell wm dismiss-keyguard

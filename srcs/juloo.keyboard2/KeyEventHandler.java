@@ -167,6 +167,7 @@ public final class KeyEventHandler
       case SWITCH_NUMERIC: case SWITCH_GREEKMATH: case SWITCH_EMOJI:
       case SWITCH_CLIPBOARD: case SWITCH_BACK_EMOJI: case SWITCH_BACK_CLIPBOARD:
       case SWITCH_FORWARD: case SWITCH_BACKWARD: case TOGGLE_LANGUAGE:
+      case SYMBOL_PREVIOUS: case SYMBOL_NEXT: case SWITCH_SYMBOLS:
         return true;
       default: return false;
     }

@@ -1,0 +1,210 @@
+{
+  "restartOnly": false,
+  "observations": [
+    {
+      "name": "direction-0",
+      "expected": "C",
+      "actual": "C"
+    },
+    {
+      "name": "direction-1",
+      "expected": "C1",
+      "actual": "C1"
+    },
+    {
+      "name": "direction-2",
+      "expected": "C12",
+      "actual": "C12"
+    },
+    {
+      "name": "direction-3",
+      "expected": "C123",
+      "actual": "C123"
+    },
+    {
+      "name": "direction-4",
+      "expected": "C1234",
+      "actual": "C1234"
+    },
+    {
+      "name": "direction-5",
+      "expected": "C12345",
+      "actual": "C12345"
+    },
+    {
+      "name": "direction-6",
+      "expected": "C123456",
+      "actual": "C123456"
+    },
+    {
+      "name": "direction-7",
+      "expected": "C1234567",
+      "actual": "C1234567"
+    },
+    {
+      "name": "direction-8",
+      "expected": "C12345678",
+      "actual": "C12345678"
+    },
+    {
+      "name": "shift-north",
+      "expected": "C12345678上",
+      "actual": "C12345678上"
+    },
+    {
+      "name": "cancel",
+      "expected": "C",
+      "actual": "C"
+    },
+    {
+      "name": "cleared-center",
+      "expected": "",
+      "actual": ""
+    },
+    {
+      "name": "position-reset",
+      "expected": "q",
+      "actual": "q"
+    },
+    {
+      "name": "slider-text",
+      "expected": "abcdef",
+      "actual": "abcdef"
+    },
+    {
+      "name": "layout-reset",
+      "expected": "d",
+      "actual": "d"
+    },
+    {
+      "name": "direction-0",
+      "expected": "C",
+      "actual": "C"
+    },
+    {
+      "name": "direction-1",
+      "expected": "C1",
+      "actual": "C1"
+    },
+    {
+      "name": "direction-2",
+      "expected": "C12",
+      "actual": "C12"
+    },
+    {
+      "name": "direction-3",
+      "expected": "C123",
+      "actual": "C123"
+    },
+    {
+      "name": "direction-4",
+      "expected": "C1234",
+      "actual": "C1234"
+    },
+    {
+      "name": "direction-5",
+      "expected": "C12345",
+      "actual": "C12345"
+    },
+    {
+      "name": "direction-6",
+      "expected": "C123456",
+      "actual": "C123456"
+    },
+    {
+      "name": "direction-7",
+      "expected": "C1234567",
+      "actual": "C1234567"
+    },
+    {
+      "name": "direction-8",
+      "expected": "C12345678",
+      "actual": "C12345678"
+    },
+    {
+      "name": "shift-north",
+      "expected": "C12345678上",
+      "actual": "C12345678上"
+    },
+    {
+      "name": "direction-0",
+      "expected": "C",
+      "actual": "C"
+    },
+    {
+      "name": "direction-1",
+      "expected": "C1",
+      "actual": "C1"
+    },
+    {
+      "name": "direction-2",
+      "expected": "C12",
+      "actual": "C12"
+    },
+    {
+      "name": "direction-3",
+      "expected": "C123",
+      "actual": "C123"
+    },
+    {
+      "name": "direction-4",
+      "expected": "C1234",
+      "actual": "C1234"
+    },
+    {
+      "name": "direction-5",
+      "expected": "C12345",
+      "actual": "C12345"
+    },
+    {
+      "name": "direction-6",
+      "expected": "C123456",
+      "actual": "C123456"
+    },
+    {
+      "name": "direction-7",
+      "expected": "C1234567",
+      "actual": "C1234567"
+    },
+    {
+      "name": "direction-8",
+      "expected": "C12345678",
+      "actual": "C12345678"
+    },
+    {
+      "name": "shift-north",
+      "expected": "C12345678上",
+      "actual": "C12345678上"
+    },
+    {
+      "name": "base-digit",
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "name": "typed-f12",
+      "expected": "1",
+      "actual": "1"
+    },
+    {
+      "name": "symbol-page-edit",
+      "expected": "符",
+      "actual": "符"
+    },
+    {
+      "name": "roundtrip-shift",
+      "expected": "上",
+      "actual": "上"
+    },
+    {
+      "name": "circle-shift",
+      "expected": "上转",
+      "actual": "上转"
+    },
+    {
+      "name": "gesture-fn-fallback",
+      "expected": "上转",
+      "actual": "上转"
+    }
+  ]
+}

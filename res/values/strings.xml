@@ -116,7 +116,7 @@
     <string name="launcher_button_imesettings">Enable keyboard</string>
     <string name="launcher_button_imepicker">Select keyboard</string>
     <string name="launcher_button_dictionaries">Install dictionaries</string>
-    <string name="launcher_description">MIANCAK adds Chinese Pinyin input to QWERTY. Enable it, select it, then try typing below. Tap a key or swipe toward a corner. Swipe Shift northeast for Chinese/English, or Enter southeast for the layout chooser. Double-tap or long-press Shift to lock capitals.</string>
+    <string name="launcher_description">MIANCAK adds Chinese Pinyin input to QWERTY. Enable it, select it, then try typing below. Tap the center or swipe toward a direction. Shift northeast switches Chinese/English; Enter southeast opens the chooser. Fn opens this layout’s paired variant. Chinese Space northwest opens Pinyin or the configured Zhuyin text layout. Double-tap or long-press Shift locks capitals. On first Chinese use, offline word data needs preparation; wait for candidates (this may take tens of seconds).</string>
     <string name="launcher_sourcecode">This is a free and open source application. You can find the source code or report bugs on GitHub.</string>
     <string name="launcher_tryhere">After enabling, you can try the keyboard here:</string>
     <string name="launcher_tryhere_hint">Try here</string>

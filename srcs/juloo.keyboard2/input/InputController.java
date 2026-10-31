@@ -87,7 +87,8 @@ public final class InputController implements AutoCloseable
     Handle handle = new Handle(generation.incrementAndGet(), Objects.requireNonNull(editor), engineAllowed, learning);
     active = handle;
     Mode initial = engineAllowed ? initialMode : Mode.ENGLISH;
-    snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial, engineAllowed, EngineResult.EMPTY, "");
+    snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial,
+        engineAllowed, EngineResult.EMPTY, "", initial == Mode.CHINESE && !maintenance);
     listener.changed(snapshot);
     if (maintenance) return;
     queue(handle, edits -> {
@@ -188,6 +189,18 @@ public final class InputController implements AutoCloseable
       EngineResult result = getEngine(handle).page(backward);
       state = result;
       if (!result.committed.isEmpty()) edits.add(Edit.text(result.committed));
+    }, null);
+  }
+
+  /** Extend only the exact displayed revision, on the serialized worker. */
+  public void moreCandidates(InputSnapshot displayed)
+  {
+    checkUi();
+    Handle handle = active;
+    if (maintenance || !current(handle) || displayed.generation != handle.generation) return;
+    queue(handle, edits -> {
+      if (displayed.revision != workerRevision || !state.composing || state.lastPage) return;
+      state = getEngine(handle).candidates(Math.addExact(state.candidates.size(), 40));
     }, null);
   }
 

@@ -12,6 +12,46 @@ import juloo.keyboard2.input.InputRouter.Mode;
 
 public class InputControllerTest
 {
+  @Test public void typingDuringFirstInitializationIsQueuedOnceAndDeliveredInOrder()
+  {
+    Queue worker = new Queue(), ui = new Queue();
+    Editor editor = new Editor(); FakeEngine engine = new FakeEngine();
+    int[] creations = {0}; List<InputSnapshot> shown = new ArrayList<>();
+    InputController controller = new InputController(worker, ui,
+        () -> { creations[0]++; return engine; }, shown::add);
+    controller.startEditor(editor, Mode.CHINESE, true, true);
+    assertTrue(controller.snapshot().initializing);
+    for (char c : "nihao".toCharArray()) controller.submit(engineText(String.valueOf(c)));
+    controller.submit(literalText("。"));
+    assertEquals(0, creations[0]);
+    assertEquals("", editor.text());
+    assertTrue(controller.snapshot().initializing);
+    worker.all();
+    assertEquals("", editor.text()); // Native work cannot overtake UI delivery.
+    ui.all();
+    assertEquals(1, creations[0]);
+    assertEquals(Arrays.asList("text:n", "text:i", "text:h", "text:a", "text:o"), engine.calls);
+    assertEquals("你好。", editor.text());
+    assertFalse(controller.snapshot().initializing);
+    assertFalse(controller.hasPendingRequests());
+    assertTrue(shown.stream().anyMatch(s -> s.engine.composing && s.engine.preedit.equals("nihao")));
+  }
+
+  @Test public void initializationErrorStopsThePreparingIndicatorAndKeepsEnglishUsable()
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor();
+    InputController controller = new InputController(worker, ui,
+        () -> { throw new IllegalStateException("test initialization failure"); }, snapshot -> {});
+    controller.startEditor(editor, Mode.CHINESE, true, true);
+    assertTrue(controller.snapshot().initializing);
+    worker.all(); ui.all();
+    assertFalse(controller.snapshot().initializing);
+    assertFalse(controller.snapshot().error.isEmpty());
+    assertEquals(Mode.ENGLISH, controller.snapshot().mode);
+    controller.submit(engineText("hello"));
+    assertEquals("hello", editor.text());
+  }
+
   @Test public void returningToTheCurrentProfileIsImmediateAndKeepsCandidateRevision()
   {
     Harness h = new Harness(Mode.CHINESE);
@@ -138,6 +178,20 @@ public class InputControllerTest
     h.flush();
     assertEquals("", h.editor.text());
     assertFalse(h.controller.snapshot().engine.composing);
+  }
+
+  @Test public void candidateExtensionRejectsOldAndDuplicateSnapshots()
+  {
+    Harness h=new Harness(Mode.CHINESE);h.engine.lastPage=false;
+    h.controller.submit(engineText("shi"));h.flush();InputSnapshot first=h.controller.snapshot();
+    h.controller.moreCandidates(first);h.controller.moreCandidates(first);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
+    assertEquals(42,h.controller.snapshot().engine.candidates.size());assertEquals("",h.editor.text());
+    h.controller.select(first,1);h.flush();assertEquals("",h.editor.text());
+    InputSnapshot now=h.controller.snapshot();h.controller.submit(engineText("x"));h.controller.moreCandidates(now);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
+    h.controller.startEditor(new Editor(),Mode.CHINESE,true,true);h.controller.moreCandidates(now);h.flush();
+    assertEquals(1,h.engine.calls.stream().filter(x->x.startsWith("candidates:")).count());
   }
 
   @Test public void staleCandidateTapCannotSelectANewListAtTheOldIndex()
@@ -415,12 +469,13 @@ public class InputControllerTest
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
     boolean failConfirm, partialFailure;
+    boolean lastPage=true;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
     EngineResult result(boolean handled, String commit)
     {
       return new EngineResult(handled, commit, raw,
-          raw.isEmpty() ? new String[0] : new String[] { selected(), "候选" }, 0, !raw.isEmpty(), true);
+          raw.isEmpty() ? new String[0] : new String[] { selected(), "候选" }, 0, !raw.isEmpty(), lastPage);
     }
     @Override public EngineResult processText(String text)
     {
@@ -443,6 +498,11 @@ public class InputControllerTest
       raw = ""; return result(true, "候选");
     }
     @Override public EngineResult page(boolean backward) { return result(false, ""); }
+    @Override public EngineResult candidates(int limit)
+    {
+      calls.add("candidates:"+limit);String[] values=new String[limit];Arrays.fill(values,"候选");values[0]=selected();
+      return new EngineResult(true,"",raw,values,0,true,false);
+    }
     @Override public void setLearning(boolean enabled) { learning.add(enabled); }
     @Override public void close() { closes++; }
   }
