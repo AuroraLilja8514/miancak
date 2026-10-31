@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import re
+import sys
 import textwrap
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -14,7 +15,8 @@ def file_block(name, content, delimiter):
 
 def render():
     template=(ROOT/"tools/release/release-workflow.yml.in").read_text()
-    ops=file_block("release_ops.py",(ROOT/"tools/release/release_ops.py").read_text(),"MIANCAK_OPS_EOF")
+    watchdog=file_block("run_with_timeout.py",(ROOT/"scripts/run_with_timeout.py").read_text(),"MIANCAK_TIMEOUT_EOF")
+    ops=watchdog+"\n"+file_block("release_ops.py",(ROOT/"tools/release/release_ops.py").read_text(),"MIANCAK_OPS_EOF")
     signer=file_block("sign_apk.py",(ROOT/"tools/release/sign_apk.py").read_text(),"MIANCAK_SIGNER_EOF")
     source=(ROOT/".github/workflows/signing-credentials.yml").read_text()
     java=textwrap.dedent(re.search(
@@ -28,6 +30,9 @@ def render():
     return template
 
 if __name__=="__main__":
+    sys.path.insert(0,str(ROOT/"scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     parser=argparse.ArgumentParser()
     parser.add_argument("--check",action="store_true")
     args=parser.parse_args()

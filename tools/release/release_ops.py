@@ -201,12 +201,15 @@ def java_environment():
 def inspect_apk(path):
     root, _ = sdk_tools()
     badging = command([root / "aapt2", "dump", "badging", path]).stdout.decode("utf-8")
-    package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']*)'", badging, re.M)
-    minimum = re.search(r"^sdkVersion:'(\d+)'", badging, re.M)
+    package = re.search(r"^package:\s+(.+)$", badging, re.M)
+    fields = dict(re.findall(r"(\w+)='([^']*)'", package[1])) if package else {}
+    minimum = re.search(r"^(?:sdkVersion|minSdkVersion):'(\d+)'", badging, re.M)
     native = re.search(r"^native-code: (.+)$", badging, re.M)
-    require(package and minimum, "APK_MANIFEST")
-    return {"application_id": package[1], "version_code": int(package[2]),
-            "version": package[3], "min_sdk": int(minimum[1]),
+    require({"name","versionCode","versionName"} <= fields.keys() and minimum
+            and fields["versionCode"].isdigit() and fields.get("versionCodeMajor","0") == "0",
+            "APK_MANIFEST")
+    return {"application_id": fields["name"], "version_code": int(fields["versionCode"]),
+            "version": fields["versionName"], "min_sdk": int(minimum[1]),
             "debuggable": "application-debuggable" in badging,
             "abis": sorted(re.findall(r"'([^']+)'", native[1])) if native else []}
 
@@ -467,4 +470,8 @@ def main():
         raise SystemExit(1)
 
 if __name__ == "__main__":
+    if not (Path(__file__).resolve().parent / "run_with_timeout.py").is_file():
+        sys.path.insert(0,str(Path(__file__).resolve().parents[2] / "scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     main()

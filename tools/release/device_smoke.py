@@ -147,6 +147,9 @@ def main():
         signal.alarm(0)
 
 if __name__ == "__main__":
+    sys.path.insert(0,str(Path(__file__).resolve().parents[2] / "scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     try:
         main()
     except ops.ReleaseError as failure:

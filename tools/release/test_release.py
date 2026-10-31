@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -111,6 +112,15 @@ class Guards(unittest.TestCase):
                           ("min_sdk",23),("abis",["x86_64"]),("version","../../other"),("version_code",0)]:
             with self.subTest(key=key),self.assertRaises(ops.ReleaseError):
                 ops.validate_apk({**good,key:value})
+
+    def test_badging_fields_are_named_not_order_dependent(self):
+        text=("package: name='org.miancak.keyboard' versionCode='5' versionCodeMajor='0' "
+              "versionName='0.3.2' compileSdkVersion='36'\nsdkVersion:'21'\n"
+              "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'\n")
+        import subprocess
+        with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
+             mock.patch.object(ops,"command",return_value=subprocess.CompletedProcess([],0,text.encode(),b"")):
+            ops.validate_apk(ops.inspect_apk("fixture.apk"))
 
     def test_workflow_and_generated_inline_sources(self):
         import generate_workflow
@@ -218,7 +228,13 @@ def integration():
             r"^          // MIANCAK_CREDENTIAL_PROBE_END$",workflow,re.M|re.S)[1])
         source=temp/"MiancakCredentialProbe.java";source.write_text(code)
         ops.command([java/"javac","-encoding","UTF-8","-d",temp,source],env=env)
-        data={**ops.inspect_apk(prepared/"unsigned.apk"),"repository":ops.REPO,
+        try:
+            actual=ops.inspect_apk(prepared/"unsigned.apk")
+        except ops.ReleaseError:
+            print("Disposable fixture badging:",ops.command(
+                [root/"aapt2","dump","badging",prepared/"unsigned.apk"]).stdout.decode()[:4000],flush=True)
+            raise
+        data={**actual,"repository":ops.REPO,
               "certificate_sha256":fingerprint,"unsigned_apk_sha256":ops.file_sha(prepared/"unsigned.apk"),
               "tool_sha256":hashes,"build_tools_version":ops.BUILD_TOOLS,
               "format_version":1,"source_sha":"a"*40,"ci_run_id":1,"ci_artifact_id":2,
@@ -258,6 +274,9 @@ def integration():
         print(json.dumps({"build_tools":ops.BUILD_TOOLS,"tool_sha256":hashes,"formal_key_used":False}))
 
 if __name__=="__main__":
+    sys.path.insert(0,str(ROOT/"scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     parser=argparse.ArgumentParser()
     parser.add_argument("--integration",action="store_true")
     args=parser.parse_args()

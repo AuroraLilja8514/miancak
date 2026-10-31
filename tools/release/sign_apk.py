@@ -96,4 +96,8 @@ def main():
         raise SystemExit(1)
 
 if __name__ == "__main__":
+    if not (Path(__file__).resolve().parent / "run_with_timeout.py").is_file():
+        sys.path.insert(0,str(Path(__file__).resolve().parents[2] / "scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     main()
