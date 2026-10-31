@@ -210,11 +210,12 @@ def inspect_apk(path):
     fields = dict(re.findall(r"(\w+)='([^']*)'", package[1])) if package else {}
     minimum = re.search(r"^(?:sdkVersion|minSdkVersion):'(\d+)'", badging, re.M)
     native = re.search(r"^native-code: (.+)$", badging, re.M)
-    require({"name","versionCode","versionName"} <= fields.keys() and minimum
-            and fields["versionCode"].isdigit() and fields.get("versionCodeMajor","0") == "0",
+    code = fields.get("versionCode", "")
+    require("name" in fields and minimum and (not code or code.isdigit())
+            and fields.get("versionCodeMajor","0") in ("", "0"),
             "APK_MANIFEST")
-    return {"application_id": fields["name"], "version_code": int(fields["versionCode"]),
-            "version": fields["versionName"], "min_sdk": int(minimum[1]),
+    return {"application_id": fields["name"], "version_code": int(code or "0"),
+            "version": fields.get("versionName", ""), "min_sdk": int(minimum[1]),
             "debuggable": "application-debuggable" in badging,
             "abis": sorted(re.findall(r"'([^']+)'", native[1])) if native else []}
 

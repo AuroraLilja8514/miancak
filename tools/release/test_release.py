@@ -130,6 +130,17 @@ class Guards(unittest.TestCase):
              mock.patch.object(ops,"command",return_value=subprocess.CompletedProcess([],0,text.encode(),b"")):
             ops.validate_apk(ops.inspect_apk("fixture.apk"))
 
+    def test_versionless_test_executor_is_readable_but_not_releasable(self):
+        text=("package: name='org.miancak.keyboard.debug.test' versionCode='' versionName=''\n"
+              "sdkVersion:'21'\napplication-debuggable\n")
+        import subprocess
+        with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
+             mock.patch.object(ops,"command",return_value=subprocess.CompletedProcess([],0,text.encode(),b"")):
+            info=ops.inspect_apk("test-executor.apk")
+        self.assertEqual(info["version_code"],0)
+        self.assertEqual(info["application_id"],ops.PACKAGE+".debug.test")
+        with self.assertRaises(ops.ReleaseError):ops.validate_apk(info)
+
     def test_workflow_and_generated_inline_sources(self):
         import generate_workflow
         expected=generate_workflow.render()
