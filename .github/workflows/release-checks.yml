@@ -7,6 +7,7 @@ on:
     paths: [tools/release/**, .github/workflows/release*.yml, docs/releases/**, build.gradle.kts, androidTest/juloo/keyboard2/ReleaseApkTest.java]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: release-checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -26,3 +27,77 @@ jobs:
         run: |
           python tools/release/generate_workflow.py --check
           python tools/release/test_release.py --integration
+  rehearsal-input:
+    name: prepare a disposable-key copy of the actual APK
+    needs: release-contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Retrieve this PR's actual APKs and sign only a disposable test copy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          JAVA_TOOL_OPTIONS: ''
+          _JAVA_OPTIONS: ''
+          JDK_JAVA_OPTIONS: ''
+        run: python tools/release/rehearsal.py prepare --folder rehearsal --timeout-seconds 1700
+      - name: Preserve public test APKs, never the disposable private key
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: disposable-release-rehearsal-${{ github.sha }}
+          path: rehearsal/
+          if-no-files-found: error
+          retention-days: 2
+  rehearsal-ui:
+    name: disposable-key actual APK rehearsal (${{ matrix.api }})
+    needs: rehearsal-input
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 35]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Retrieve only this rehearsal's checked public data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REHEARSAL_ID: ${{ needs.rehearsal-input.outputs.artifact_id }}
+          REHEARSAL_DIGEST: ${{ needs.rehearsal-input.outputs.artifact_digest }}
+        run: python tools/release/release_ops.py fetch --artifact-id "$REHEARSAL_ID" --run-id "$GITHUB_RUN_ID" --digest "$REHEARSAL_DIGEST" --output rehearsal
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise the exact release test driver without the formal key
+        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 35
+          system-image-api-level: ${{ matrix.api }}
+          emulator-build: ${{ matrix.api == 23 && '13823996' || '16428233' }}
+          arch: x86_64
+          target: google_apis
+          avd-name: miancak-release-rehearsal-${{ matrix.api }}
+          force-avd-creation: true
+          disable-animations: true
+          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-release-rehearsal-${{ matrix.api }}.avd/config.ini"
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
+          script: python tools/release/rehearsal.py device --folder rehearsal --api ${{ matrix.api }} --timeout-seconds 1200
+      - name: Preserve rehearsal evidence with its disposable-key scope
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: disposable-release-evidence-${{ matrix.api }}-${{ github.sha }}
+          path: test-results/release/
+          retention-days: 7
