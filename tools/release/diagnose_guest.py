@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,9 +20,32 @@ def collect():
     output = ROOT / "test-results/release"
     output.mkdir(parents=True, exist_ok=True)
     package = "org.miancak.keyboard"
+    process_rows = adb("shell", "ps").splitlines()
+    pids = set()
+    for row in process_rows:
+        parts = row.split()
+        if len(parts) > 2 and parts[-1] == package and parts[1].isdigit():
+            pids.add(parts[1])
+    print("Diagnostic UID: " + adb("shell", "id").strip(), flush=True)
+    print("Diagnostic own PIDs: " + ",".join(sorted(pids)), flush=True)
+    print("Diagnostic ANR directory: " + adb("shell", "ls", "-l", "/data/anr").strip(), flush=True)
+    for pid in sorted(pids):
+        # Snapshot a hung process even when accessibility timeouts have not
+        # caused Android's input-dispatch ANR monitor to write its trace.
+        adb("shell", "kill", "-3", pid)
+        native = adb("shell", "debuggerd", "-b", pid)
+        (output / ("miancak-native-" + pid + ".txt")).write_text(native[:200000])
+        kernel = adb("exec-out", "cat", "/proc/" + pid + "/stack")
+        (output / ("miancak-kernel-" + pid + ".txt")).write_text(kernel)
+        print("MIANCAK_KERNEL_BEGIN\n" + kernel + "\nMIANCAK_KERNEL_END", flush=True)
+    time.sleep(1)
     paths = adb("shell", "find", "/data/anr", "-type", "f").splitlines()
+    configured = adb("shell", "getprop", "dalvik.vm.stack-trace-file").strip()
+    if configured.startswith("/data/"):
+        paths.append(configured)
+    paths.append("/data/anr/traces.txt")
     own = []
-    for path in paths[:20]:
+    for path in sorted(set(paths))[:20]:
         if not re.fullmatch(r"/data/anr/[A-Za-z0-9_.-]+", path.strip()):
             continue
         value = adb("exec-out", "cat", path.strip())
@@ -31,7 +55,6 @@ def collect():
     (output / "miancak-anr.txt").write_text("\n".join(own))
     if own:
         print("MIANCAK_ANR_BEGIN\n" + "\n".join(own)[:200000] + "\nMIANCAK_ANR_END", flush=True)
-    pids = set(adb("shell", "pidof", package).split())
     logs = adb("logcat", "-d", "-v", "threadtime")
     selected = []
     for line in logs.splitlines():
