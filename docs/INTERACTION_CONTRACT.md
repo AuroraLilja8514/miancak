@@ -1,5 +1,7 @@
 # Interaction Contract
 
+> Planning amendment, 2026-10-25: [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md) replaces the old independent-language/page model and arbitrary Fn destinations for the next implementation. The active layout will own its fixed input policy and links; Fn will toggle only a layout and its paired variant while retaining upstream actions. The implementation has not started. Existing literal/engine distinctions, ordered confirmation, editor generations and one-finger operation remain requirements. References below to language switching must be interpreted through that planned layout transition, not as authorization to keep a separate mutable language mode.
+
 This document defines MIANCAK's interaction invariants. Implementations may evolve, but behavior that conflicts with these rules requires an explicit design decision and documentation update.
 
 ## 1. Stable physical layout
