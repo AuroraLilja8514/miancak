@@ -16,7 +16,7 @@ jobs:
       - name: Retrieve the exact existing public test copy, without building or signing
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/release/release_ops.py fetch --artifact-id 13755799097 --run-id 41229702734 --digest 9504c59aa4fdf83b87827b2a0d58efeb38c5a08be849cac1174e3a28b55b3491 --output rehearsal
+        run: python tools/release/release_ops.py fetch --artifact-id 13757767256 --run-id 42804006590 --digest 5a2b2711bfafa9aa7453fa9439a79ba0f43237b87c7cbdbed23f20c3604d9479 --output rehearsal
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
