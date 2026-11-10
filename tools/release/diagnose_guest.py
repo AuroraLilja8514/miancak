@@ -137,6 +137,8 @@ def main():
         output.mkdir(parents=True, exist_ok=True)
         (output / "live-system-logcat.txt").write_text("".join(lines)[-200000:])
         (output / "adb-health.txt").write_text("\n".join(health))
+        print("MIANCAK_ADB_HEALTH_BEGIN\n" + "\n".join(health)[-12000:] + "\nMIANCAK_ADB_HEALTH_END", flush=True)
+        print("MIANCAK_LIVE_LOG_BEGIN\n" + "".join(lines)[-40000:] + "\nMIANCAK_LIVE_LOG_END", flush=True)
         collect()
     raise SystemExit(result)
 
