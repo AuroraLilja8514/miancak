@@ -56,6 +56,20 @@ def collect():
     if own:
         print("MIANCAK_ANR_BEGIN\n" + "\n".join(own)[:200000] + "\nMIANCAK_ANR_END", flush=True)
     logs = adb("logcat", "-d", "-v", "threadtime")
+    # Preserve bounded system evidence from this synthetic emulator. The
+    # visible app can lose its accessibility root without an app ANR block.
+    system_component = re.compile(
+        r"UiAutomation|UiAutomator|Accessibility|InputDispatcher|WindowManager", re.I)
+    system_signal = re.compile(
+        r"miancak|timed? ?out|unresponsive|not responding|fail|died|dead|focus|accessib", re.I)
+    system_lines = [line for line in logs.splitlines()
+                    if system_component.search(line) and system_signal.search(line)]
+    (output / "system-accessibility-logcat.txt").write_text("\n".join(system_lines)[-100000:])
+    windows = adb("shell", "dumpsys", "window", "windows")
+    focus_lines = [line for line in windows.splitlines()
+                   if "org.miancak.keyboard" in line or
+                   re.search(r"mCurrentFocus|mFocusedApp|mInputMethodTarget", line)]
+    (output / "miancak-window-focus.txt").write_text("\n".join(focus_lines)[-30000:])
     selected = []
     for line in logs.splitlines():
         parts = line.split()
