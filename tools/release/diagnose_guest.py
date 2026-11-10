@@ -86,6 +86,12 @@ def main():
     parser.add_argument("--api", type=int, required=True)
     args = parser.parse_args()
     result = 1
+    # device_smoke also requires root. Restart adbd before attaching the live
+    # stream so its own subsequent adb root does not disconnect the stream.
+    subprocess.run(["adb", "root"], check=True, timeout=30,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["adb", "wait-for-device"], check=True, timeout=60,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # Keep a bounded stream on the host while the guest is alive: a fully
     # stalled guest cannot provide post-failure logcat or a Java stack.
     lines = deque(maxlen=3000)
