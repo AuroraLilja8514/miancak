@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Reproduce a pinned public APK failure and retain only its own ANR traces."""
 import argparse
+from collections import deque
 from pathlib import Path
 import re
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -84,11 +86,51 @@ def main():
     parser.add_argument("--api", type=int, required=True)
     args = parser.parse_args()
     result = 1
+    # Keep a bounded stream on the host while the guest is alive: a fully
+    # stalled guest cannot provide post-failure logcat or a Java stack.
+    lines = deque(maxlen=3000)
+    component = re.compile(r"UiAutomation|UiAutomator|Accessibility|InputDispatcher|WindowManager|ActivityManager|AndroidRuntime", re.I)
+    signal = re.compile(r"miancak|timed? ?out|unresponsive|not responding|fail|died|dead|focus|accessib|ANR", re.I)
+    stream = subprocess.Popen(["adb", "logcat", "-v", "threadtime"],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              text=True, errors="replace", bufsize=1)
+    def read_stream():
+        for line in stream.stdout:
+            if "org.miancak.keyboard" in line or (component.search(line) and signal.search(line)):
+                lines.append(line[-2000:])
+    reader = threading.Thread(target=read_stream, daemon=True)
+    reader.start()
+    health_stop = threading.Event()
+    health = deque(maxlen=500)
+    def probe_health():
+        while not health_stop.wait(10):
+            stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            try:
+                probe = subprocess.run(["adb", "shell", "echo", "ready"], capture_output=True, timeout=5)
+                health.append(stamp + " return=" + str(probe.returncode)
+                              + " output=" + repr(probe.stdout.decode("utf-8", "replace").strip()))
+            except subprocess.TimeoutExpired:
+                health.append(stamp + " shell timeout")
+    observer = threading.Thread(target=probe_health, daemon=True)
+    observer.start()
     try:
         result = subprocess.run([sys.executable, "tools/release/rehearsal.py", "device",
                                  "--folder", "rehearsal", "--api", str(args.api),
                                  "--timeout-seconds", "1000"], cwd=ROOT, timeout=1100).returncode
     finally:
+        health_stop.set()
+        stream.terminate()
+        try:
+            stream.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            stream.kill()
+            stream.wait(timeout=5)
+        reader.join(timeout=5)
+        observer.join(timeout=7)
+        output = ROOT / "test-results/release"
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "live-system-logcat.txt").write_text("".join(lines)[-200000:])
+        (output / "adb-health.txt").write_text("\n".join(health))
         collect()
     raise SystemExit(result)
 
