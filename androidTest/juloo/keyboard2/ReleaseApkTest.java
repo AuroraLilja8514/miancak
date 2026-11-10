@@ -8,6 +8,7 @@ import android.os.SystemClock;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.UiScrollable;
@@ -90,7 +91,8 @@ public final class ReleaseApkTest
   private void scrollTo(String text) throws Exception
   {
     if (!device.hasObject(By.pkg(APP).text(text)))
-      new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text(text));
+      new UiScrollable(new UiSelector().packageName(APP).resourceId("android:id/list").scrollable(true))
+          .scrollIntoView(new UiSelector().packageName(APP).text(text));
     assertNotNull("Release preference missing: " + text, device.findObject(By.pkg(APP).text(text)));
   }
 
@@ -106,21 +108,63 @@ public final class ReleaseApkTest
     openExtraKeys();
     String title = superscriptTitle();
     scrollTo(title);
-    UiObject2 toggle = checkbox(title);
-    if (!toggle.isChecked()) { toggle.click(); device.waitForIdle(); }
-    toggle = checkbox(title);
-    assertTrue(toggle.isChecked()); toggle.click(); device.waitForIdle();
-    assertFalse(checkbox(title).isChecked());
+    setCheckbox(title, true);
+    assertTrue(checkboxChecked(title));
+    setCheckbox(title, false);
+    assertFalse(checkboxChecked(title));
     device.pressBack(); device.pressBack();
   }
 
-  private UiObject2 checkbox(String title)
+  private UiObject2 findCheckbox(String title)
   {
-    UiObject2 row = device.findObject(By.pkg(APP).text(title)), box = null;
-    for (int i=0; i<5 && row!=null && box==null; i++,row=row.getParent())
-      box=row.findObject(By.checkable(true));
-    assertNotNull("Release checkbox missing: " + title,box);
-    return box;
+    UiObject2 row = device.findObject(By.pkg(APP).text(title));
+    for (int i=0; i<5 && row!=null; i++)
+    {
+      UiObject2 box = row.findObject(By.checkable(true));
+      if (box != null) return box;
+      row = row.getParent();
+    }
+    return null;
+  }
+
+  /** Preference rows can be rebound after a click; never keep their old nodes. */
+  private boolean checkboxChecked(String title)
+  {
+    long until = SystemClock.uptimeMillis() + 5000;
+    do
+    {
+      try
+      {
+        UiObject2 box = findCheckbox(title);
+        if (box != null) return box.isChecked();
+      }
+      catch (StaleObjectException changed) { /* Resolve the current row again. */ }
+      SystemClock.sleep(100);
+    } while (SystemClock.uptimeMillis() < until);
+    throw new AssertionError("Release checkbox missing or unstable: " + title);
+  }
+
+  private void setCheckbox(String title, boolean expected)
+  {
+    long until = SystemClock.uptimeMillis() + 5000;
+    boolean clicked = false;
+    do
+    {
+      try
+      {
+        UiObject2 box = findCheckbox(title);
+        if (box != null)
+        {
+          if (box.isChecked() == expected) return;
+          // A successful click is issued at most once. Re-read the state while
+          // the row settles instead of accidentally toggling it a second time.
+          if (!clicked) { box.click(); clicked = true; }
+        }
+      }
+      catch (StaleObjectException changed) { /* Resolve the current row again. */ }
+      SystemClock.sleep(100);
+    } while (SystemClock.uptimeMillis() < until);
+    throw new AssertionError("Release checkbox did not become " + expected + ": " + title);
   }
 
   private void assertPreferenceMarkers() throws Exception
@@ -138,7 +182,7 @@ public final class ReleaseApkTest
     openExtraKeys();
     String title = superscriptTitle();
     scrollTo(title);
-    assertFalse("Explicitly disabled Sup was reset by a later default", checkbox(title).isChecked());
+    assertFalse("Explicitly disabled Sup was reset by a later default", checkboxChecked(title));
     device.pressBack(); device.pressBack();
   }
 
@@ -146,7 +190,12 @@ public final class ReleaseApkTest
   {
     String entry=driver.getString(R.string.pref_extra_keys_title);
     scrollTo(entry);device.findObject(By.pkg(APP).text(entry)).click();
-    assertTrue(device.wait(Until.hasObject(By.res("android","list").pkg(APP)),15000));
+    // Both the parent settings screen and the child PreferenceScreen use
+    // android:id/list. Wait for content unique to the child, not the parent
+    // list that can still be visible while the dialog is opening.
+    String childMarker=driver.getString(R.string.pref_extra_keys_custom);
+    assertTrue("Extra-key settings did not open",
+        device.wait(Until.hasObject(By.pkg(APP).text(childMarker)),15000));
   }
 
   private String superscriptTitle()

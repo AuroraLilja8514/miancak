@@ -51,8 +51,8 @@ public final class FnInteractionTest
     device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1");
     device.executeShellCommand("ime enable " + component); device.executeShellCommand("ime set " + component);
     activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-    UiObject2 field = device.wait(Until.findObject(By.desc("first_editor")), 15000);
-    assertNotNull(field); field.click();
+    UiObject2 field = awaitFirstEditor();
+    field.click();
     instrumentation.runOnMainSync(() -> {
       activity.first.setOnKeyListener((view, code, event) -> {
         boolean function = code >= KeyEvent.KEYCODE_F1 && code <= KeyEvent.KEYCODE_F12;
@@ -149,6 +149,42 @@ public final class FnInteractionTest
       });
     }
   }
+
+  private UiObject2 awaitFirstEditor() throws Exception
+  {
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    boolean closedExternalLauncher = false;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      // As in the first-install and upgrade fixtures, retain evidence and
+      // dismiss only the known emulator launcher ANR, at most once.
+      UiObject2 blocked = device.findObject(By.res("android", "alertTitle")
+          .text("Pixel Launcher isn't responding"));
+      if (blocked != null)
+      {
+        assertFalse("The external launcher ANR returned", closedExternalLauncher);
+        java.io.File dir = TestEvidence.directory(context);
+        assertTrue("Could not capture external launcher ANR",
+            device.takeScreenshot(new java.io.File(dir, "fn-environment-pixel-launcher-anr.png")));
+        device.dumpWindowHierarchy(new java.io.File(dir, "fn-environment-pixel-launcher-anr.xml"));
+        UiObject2 close = device.findObject(By.res("android", "aerr_close"));
+        assertNotNull("Observed external launcher ANR has no close action", close);
+        android.util.Log.w("MIANCAK-Test", "Closing observed Pixel Launcher ANR in Fn fixture");
+        close.click(); closedExternalLauncher = true;
+        assertTrue("External launcher ANR did not close", device.wait(Until.gone(
+            By.res("android", "alertTitle").text("Pixel Launcher isn't responding")), 15000));
+        deadline = SystemClock.uptimeMillis() + 15000;
+      }
+      else
+      {
+        UiObject2 field = device.findObject(By.pkg(context.getPackageName()).desc("first_editor"));
+        if (field != null) return field;
+      }
+      SystemClock.sleep(100);
+    }
+    throw new AssertionError("Actual receiver editor did not become accessible");
+  }
+
   private static boolean specialCode(int code)
   {
     return code == KeyEvent.KEYCODE_ESCAPE || code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_INSERT
