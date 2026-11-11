@@ -67,6 +67,15 @@ def main():
             if settle:
                 print(f"Diagnostic: waiting {settle}s before reboot {index+1}", flush=True)
                 time.sleep(settle)
+            for label, command in (("activities", ("dumpsys", "activity", "activities")),
+                                   ("windows", ("dumpsys", "window", "windows")),
+                                   ("bootanim", ("getprop", "init.svc.bootanim")),
+                                   ("provisioned", ("settings", "get", "global", "device_provisioned"))):
+                try:
+                    value = adb(serial, "shell", *command, timeout=8)
+                    (directory / f"before-{index+1}-{label}.txt").write_text(value[-60000:] + "\n")
+                except (OSError, subprocess.SubprocessError) as diagnostic:
+                    (directory / f"before-{index+1}-{label}.txt").write_text(str(diagnostic) + "\n")
             before = adb(serial, "shell", "cat", "/proc/sys/kernel/random/boot_id")
             if not re.fullmatch(r"[a-f0-9-]{36}", before):
                 raise RuntimeError("Missing actual guest boot ID")

@@ -1,4 +1,4 @@
-name: API 23 reboot timing comparison
+name: API 23 pre-reboot state comparison
 on:
   push:
     branches: [ci/api23-reboot-timing-20261111]
@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         profile: [immediate, settle-30s]
-        trial: [1, 2, 3]
+        trial: [1, 2]
         include:
           - profile: immediate
             settle: "0"
@@ -55,5 +55,3 @@ jobs:
           path: test-results/
           if-no-files-found: warn
           retention-days: 7
-
-# Repeat the comparison on six fresh independent guests.
