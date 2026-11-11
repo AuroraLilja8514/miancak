@@ -68,11 +68,15 @@ def main():
             start = time.monotonic()
             adb(serial, "reboot", timeout=30)
             end = start + args.boot_timeout_seconds
-            after = ""; completed = ""; last_error = ""
+            after = ""; completed = ""; last_error = ""; last_poll_error = None
             while time.monotonic() < end:
                 try:
-                    after = adb(serial, "shell", "cat", "/proc/sys/kernel/random/boot_id", timeout=5)
-                    completed = adb(serial, "shell", "getprop", "sys.boot_completed", timeout=5)
+                    # Keep the ID and completion flag from the same successful
+                    # poll; an earlier offline error is not the current state.
+                    observed_id = adb(serial, "shell", "cat", "/proc/sys/kernel/random/boot_id", timeout=5)
+                    observed_completed = adb(serial, "shell", "getprop", "sys.boot_completed", timeout=5)
+                    after, completed = observed_id, observed_completed
+                    last_poll_error = ""
                     if after != before and re.fullmatch(r"[a-f0-9-]{36}", after) and completed == "1":
                         break
                 except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
@@ -82,12 +86,18 @@ def main():
                         if isinstance(output, bytes):
                             output = output.decode("utf-8", errors="replace")
                         last_error += ": " + output.strip()[-1500:]
+                    last_poll_error = last_error
                 time.sleep(1)
             else:
                 report["failedCycle"] = dict(beforeBootId=before, lastObservedBootId=after,
                     lastObservedBootCompleted=completed, lastAdbError=last_error,
+                    lastPollAdbError=last_poll_error,
                     seconds=round(time.monotonic()-start, 3))
-                raise RuntimeError("Guest did not finish a real reboot within budget; see failedCycle: " + last_error)
+                last_poll = ("no boot poll completed" if last_poll_error is None else
+                             "last poll reached guest" if last_poll_error == "" else
+                             "last poll ADB error: " + last_poll_error)
+                raise RuntimeError("Guest did not finish a real reboot within budget; "
+                    f"last successful boot ID={after!r}, boot_completed={completed!r}; {last_poll}")
             report["cycles"].append(dict(beforeBootId=before, afterBootId=after,
                                           seconds=round(time.monotonic()-start, 3)))
             checkpoint()
