@@ -48,7 +48,10 @@ def main():
         raise RuntimeError(f"Headless emulator version query exited {version_result.returncode}; see emulator-version.txt")
     if "36.1.9" not in version or "13823996" not in version:
         raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
-    report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,
+    settle = int(os.environ.get("MIANCAK_DIAGNOSTIC_SETTLE_SECONDS", "0"))
+    if not 0 <= settle <= 60:
+        raise RuntimeError("Invalid diagnostic settle interval")
+    report = dict(settleBeforeEachRebootSeconds=settle, api=int(api), serial=serial, avd=name, emulatorVersion=version,
                   configuredRenderer=os.environ.get("MIANCAK_EMULATOR_GPU_API23", "unspecified"),
                   method="adb reboot; no snapshot or app-data restore", cycles=[], passed=False)
 
@@ -61,6 +64,9 @@ def main():
     checkpoint()
     try:
         for index in range(args.cycles):
+            if settle:
+                print(f"Diagnostic: waiting {settle}s before reboot {index+1}", flush=True)
+                time.sleep(settle)
             before = adb(serial, "shell", "cat", "/proc/sys/kernel/random/boot_id")
             if not re.fullmatch(r"[a-f0-9-]{36}", before):
                 raise RuntimeError("Missing actual guest boot ID")
