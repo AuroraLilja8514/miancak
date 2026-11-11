@@ -46,8 +46,10 @@ def main():
     print(version, flush=True)
     if version_result.returncode != 0:
         raise RuntimeError(f"Headless emulator version query exited {version_result.returncode}; see emulator-version.txt")
-    if "36.1.9" not in version or "13823996" not in version:
-        raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
+    expected_version = os.environ.get("MIANCAK_DIAGNOSTIC_EMULATOR_VERSION", "36.1.9")
+    expected_build = os.environ.get("MIANCAK_DIAGNOSTIC_EMULATOR_BUILD", "13823996")
+    if expected_version not in version or expected_build not in version:
+        raise RuntimeError(f"Unexpected emulator binary; diagnostic requires {expected_version} / {expected_build}")
     report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,
                   configuredRenderer=os.environ.get("MIANCAK_EMULATOR_GPU_API23", "unspecified"),
                   method="adb reboot; no snapshot or app-data restore", cycles=[], passed=False)
