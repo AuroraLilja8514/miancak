@@ -53,18 +53,7 @@ jobs:
           force-avd-creation: true
           disable-animations: true
           emulator-options: ${{ matrix.options }}
-          script: |
-            set +e
-            python3 scripts/emulator_reboot_smoke.py --timeout-seconds 900
-            result=$?
-            if [ "$result" -ne 0 ]; then
-              mkdir -p test-results
-              timeout 10s adb shell getprop > test-results/failure-properties.txt 2>&1
-              timeout 10s adb shell dumpsys activity activities > test-results/failure-activity-stack.txt 2>&1
-              timeout 10s adb shell dumpsys window windows > test-results/failure-windows.txt 2>&1
-              timeout 10s adb shell logcat -b all -d -t 2000 > test-results/failure-logcat.txt 2>&1
-            fi
-            exit "$result"
+          script: python3 scripts/emulator_reboot_smoke.py --timeout-seconds 900
       - name: Preserve reboot evidence
         if: always()
         uses: actions/upload-artifact@v7
