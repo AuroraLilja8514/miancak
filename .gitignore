@@ -14,3 +14,12 @@
 /.native
 /.cxx
 __pycache__/
+
+# MIANCAK release signing material stays outside Git history.
+*.p12
+*.pfx
+*.jks
+*.p12.b64
+*.pfx.b64
+keystore.properties
+MIANCAK-keys/

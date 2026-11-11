@@ -1,0 +1,5309 @@
+{
+  "api": 35,
+  "abi": "x86_64",
+  "scope": "Debug APK \/ emulator \/ fresh user \/ learning disabled; same MIANCAK schema; JNI latency excludes touch; no physical-device guarantee",
+  "criteria": "70 core: top1 >=80%, top5 >=95%; candidate must not regress vs baseline. Six long sentences diagnostic; <=512MiB process PSS, <=180s cold deploy, <=200ms core JNI P95.",
+  "provenance": {
+    "default_profile": "ice-core",
+    "candidate": {
+      "url": "https:\/\/github.com\/iDvel\/rime-ice.git",
+      "commit": "da1fbe602e38f26db846fa10120ee64c2b0324c0",
+      "license": "GPL-3.0-only"
+    },
+    "files": [
+      {
+        "path": "cn_dicts\/8105.dict.yaml",
+        "sha256": "1f9a42b91dea6982baee2551981780271aeffd78876662b9c9f324e56b37b120",
+        "rows": 8757,
+        "duplicates": 0
+      },
+      {
+        "path": "cn_dicts\/base.dict.yaml",
+        "sha256": "0418d5103d8e40c8fff4b686a873ad03e9836cd0419ecae0b7e1e2526312dba0",
+        "rows": 543118,
+        "duplicates": 0
+      },
+      {
+        "path": "cn_dicts\/ext.dict.yaml",
+        "sha256": "8e49a0294c0139e63c815cc33a2d438cc144eb7889297d30cec899a368697c06",
+        "rows": 339186,
+        "duplicates": 0
+      }
+    ],
+    "uniqueRows": 891061,
+    "conversion": "8105, base, ext in order; first exact (text,code) wins; weights and readings unchanged; no scheme, Lua, OpenCC, uncoded or auxiliary tables",
+    "coreRows": 551875,
+    "coreSha256": "c62f35ac8b253b498a1947c44afa6460e798ef453510a59ee549cda86b6b03d6",
+    "candidateSha256": "0f74c417f17f5b8dfdf7ef0cde413d185dd137689f01300fccbd0dcefe0e7fac",
+    "baselineSha256": "e341598343a0f0f2035bb1aafc34a7f3bb7887deeecb3f60796262aaa2983e6b",
+    "legacyImportSha256": "90a7b962d26e9e3e6dc0bcaa464b63f1581115e2e89432d92331e4b843a89250"
+  },
+  "baseline": {
+    "name": "baseline",
+    "coreCount": 70,
+    "coreTop1": 69,
+    "coreTop5": 69,
+    "sentenceCount": 6,
+    "sentenceTop1": 6,
+    "coldDeployMicros": 3538627,
+    "coreInputP50Micros": 15838,
+    "coreInputP95Micros": 59867,
+    "processPssKiB": 79149,
+    "deployedBytes": 2871110,
+    "samples": [
+      {
+        "group": "chat",
+        "code": "nihao",
+        "expected": [
+          "你好"
+        ],
+        "actual": [
+          "你好",
+          "你",
+          "拟",
+          "尼",
+          "呢",
+          "泥",
+          "妳",
+          "妮",
+          "腻",
+          "逆"
+        ],
+        "preedit": "ni'hao",
+        "firstConfirmed": "你好",
+        "rank": 1,
+        "inputMicros": 7720
+      },
+      {
+        "group": "chat",
+        "code": "xiexie",
+        "expected": [
+          "谢谢"
+        ],
+        "actual": [
+          "谢谢",
+          "写写",
+          "歇歇",
+          "写些",
+          "歇息",
+          "写",
+          "些",
+          "谢",
+          "鞋",
+          "邪"
+        ],
+        "preedit": "xie'xie",
+        "firstConfirmed": "谢谢",
+        "rank": 1,
+        "inputMicros": 4675
+      },
+      {
+        "group": "chat",
+        "code": "duibuqi",
+        "expected": [
+          "对不起"
+        ],
+        "actual": [
+          "对不起",
+          "对不",
+          "对",
+          "队",
+          "堆",
+          "對",
+          "兑",
+          "碓",
+          "隊",
+          "対"
+        ],
+        "preedit": "dui'bu'qi",
+        "firstConfirmed": "对不起",
+        "rank": 1,
+        "inputMicros": 3999
+      },
+      {
+        "group": "chat",
+        "code": "meiguanxi",
+        "expected": [
+          "没关系"
+        ],
+        "actual": [
+          "没关系",
+          "美观",
+          "没关",
+          "每股",
+          "美股",
+          "没",
+          "每",
+          "美",
+          "梅",
+          "妹"
+        ],
+        "preedit": "mei'guan'xi",
+        "firstConfirmed": "没关系",
+        "rank": 1,
+        "inputMicros": 23739
+      },
+      {
+        "group": "chat",
+        "code": "zaoshanghao",
+        "expected": [
+          "早上好"
+        ],
+        "actual": [
+          "早上好",
+          "早上",
+          "早",
+          "造",
+          "遭",
+          "澡",
+          "糟",
+          "燥",
+          "灶",
+          "枣"
+        ],
+        "preedit": "zao'shang'hao",
+        "firstConfirmed": "早上好",
+        "rank": 1,
+        "inputMicros": 33700
+      },
+      {
+        "group": "chat",
+        "code": "wanshanghao",
+        "expected": [
+          "晚上好"
+        ],
+        "actual": [
+          "晚上好",
+          "晚上",
+          "玩",
+          "万",
+          "完",
+          "晚",
+          "碗",
+          "湾",
+          "弯",
+          "丸"
+        ],
+        "preedit": "wan'shang'hao",
+        "firstConfirmed": "晚上好",
+        "rank": 1,
+        "inputMicros": 31478
+      },
+      {
+        "group": "chat",
+        "code": "zaijian",
+        "expected": [
+          "再见"
+        ],
+        "actual": [
+          "再见",
+          "再建",
+          "在建",
+          "在家",
+          "再加",
+          "在即",
+          "在",
+          "再",
+          "载",
+          "仔"
+        ],
+        "preedit": "zai'jian",
+        "firstConfirmed": "再见",
+        "rank": 1,
+        "inputMicros": 8844
+      },
+      {
+        "group": "chat",
+        "code": "mingtianjian",
+        "expected": [
+          "明天见"
+        ],
+        "actual": [
+          "明天见",
+          "明天",
+          "命题",
+          "名",
+          "明",
+          "命",
+          "鸣",
+          "铭",
+          "冥",
+          "茗"
+        ],
+        "preedit": "ming'tian'jian",
+        "firstConfirmed": "明天见",
+        "rank": 1,
+        "inputMicros": 59867
+      },
+      {
+        "group": "chat",
+        "code": "yihuier",
+        "expected": [
+          "一会儿"
+        ],
+        "actual": [
+          "一会儿",
+          "一会",
+          "一回",
+          "议会",
+          "一挥",
+          "亦会",
+          "一",
+          "以",
+          "已",
+          "亿"
+        ],
+        "preedit": "yi'hui'er",
+        "firstConfirmed": "一会儿",
+        "rank": 1,
+        "inputMicros": 23191
+      },
+      {
+        "group": "chat",
+        "code": "buhaoyisi",
+        "expected": [
+          "不好意思"
+        ],
+        "actual": [
+          "不好意思",
+          "不好",
+          "不",
+          "部",
+          "补",
+          "布",
+          "步",
+          "卜",
+          "捕",
+          "簿"
+        ],
+        "preedit": "bu'hao'yi'si",
+        "firstConfirmed": "不好意思",
+        "rank": 1,
+        "inputMicros": 35653
+      },
+      {
+        "group": "chat",
+        "code": "zenmeyang",
+        "expected": [
+          "怎么样"
+        ],
+        "actual": [
+          "怎么样",
+          "怎么",
+          "怎",
+          "谮",
+          "囎",
+          "譛",
+          "譖",
+          "则",
+          "泽",
+          "责"
+        ],
+        "preedit": "zen'me'yang",
+        "firstConfirmed": "怎么样",
+        "rank": 1,
+        "inputMicros": 19301
+      },
+      {
+        "group": "chat",
+        "code": "weishenme",
+        "expected": [
+          "为什么"
+        ],
+        "actual": [
+          "为什么",
+          "为什",
+          "威慑",
+          "为",
+          "未",
+          "位",
+          "喂",
+          "味",
+          "微",
+          "伟"
+        ],
+        "preedit": "wei'shen'me",
+        "firstConfirmed": "为什么",
+        "rank": 1,
+        "inputMicros": 23259
+      },
+      {
+        "group": "chat",
+        "code": "zhidaole",
+        "expected": [
+          "知道了"
+        ],
+        "actual": [
+          "知道了",
+          "知道",
+          "指导",
+          "直到",
+          "之道",
+          "执导",
+          "制导",
+          "之大",
+          "直达",
+          "只打"
+        ],
+        "preedit": "zhi'dao'le",
+        "firstConfirmed": "知道了",
+        "rank": 1,
+        "inputMicros": 18347
+      },
+      {
+        "group": "chat",
+        "code": "meiwenti",
+        "expected": [
+          "没问题"
+        ],
+        "actual": [
+          "没问题",
+          "美文",
+          "没",
+          "每",
+          "美",
+          "梅",
+          "妹",
+          "煤",
+          "眉",
+          "酶"
+        ],
+        "preedit": "mei'wen'ti",
+        "firstConfirmed": "没问题",
+        "rank": 1,
+        "inputMicros": 14724
+      },
+      {
+        "group": "chat",
+        "code": "keyi",
+        "expected": [
+          "可以"
+        ],
+        "actual": [
+          "可以",
+          "刻意",
+          "可疑",
+          "可依",
+          "可",
+          "课",
+          "克",
+          "科",
+          "客",
+          "刻"
+        ],
+        "preedit": "ke'yi",
+        "firstConfirmed": "可以",
+        "rank": 1,
+        "inputMicros": 5231
+      },
+      {
+        "group": "chat",
+        "code": "dengyixia",
+        "expected": [
+          "等一下"
+        ],
+        "actual": [
+          "等一下",
+          "等",
+          "灯",
+          "登",
+          "邓",
+          "瞪",
+          "蹬",
+          "凳",
+          "噔",
+          "澄"
+        ],
+        "preedit": "deng'yi'xia",
+        "firstConfirmed": "等一下",
+        "rank": 1,
+        "inputMicros": 16484
+      },
+      {
+        "group": "chat",
+        "code": "shoudao",
+        "expected": [
+          "收到"
+        ],
+        "actual": [
+          "收到",
+          "受到",
+          "收",
+          "手",
+          "受",
+          "首",
+          "瘦",
+          "守",
+          "售",
+          "兽"
+        ],
+        "preedit": "shou'dao",
+        "firstConfirmed": "收到",
+        "rank": 1,
+        "inputMicros": 32330
+      },
+      {
+        "group": "chat",
+        "code": "zai'ma",
+        "expected": [
+          "在吗"
+        ],
+        "actual": [
+          "在马",
+          "在",
+          "再",
+          "载",
+          "仔",
+          "宰",
+          "哉",
+          "栽",
+          "灾",
+          "崽"
+        ],
+        "preedit": "zai'ma",
+        "firstConfirmed": "在马",
+        "rank": -1,
+        "inputMicros": 6566
+      },
+      {
+        "group": "chat",
+        "code": "chifan",
+        "expected": [
+          "吃饭"
+        ],
+        "actual": [
+          "吃饭",
+          "吃法",
+          "吃",
+          "持",
+          "池",
+          "迟",
+          "赤",
+          "尺",
+          "齿",
+          "痴"
+        ],
+        "preedit": "chi'fan",
+        "firstConfirmed": "吃饭",
+        "rank": 1,
+        "inputMicros": 6098
+      },
+      {
+        "group": "chat",
+        "code": "shuijiao",
+        "expected": [
+          "睡觉"
+        ],
+        "actual": [
+          "睡觉",
+          "谁叫",
+          "水饺",
+          "谁家",
+          "水价",
+          "谁",
+          "水",
+          "睡",
+          "税",
+          "说"
+        ],
+        "preedit": "shui'jiao",
+        "firstConfirmed": "睡觉",
+        "rank": 1,
+        "inputMicros": 12388
+      },
+      {
+        "group": "work",
+        "code": "gongzuo",
+        "expected": [
+          "工作"
+        ],
+        "actual": [
+          "工作",
+          "共",
+          "工",
+          "公",
+          "供",
+          "宫",
+          "功",
+          "攻",
+          "弓",
+          "龚"
+        ],
+        "preedit": "gong'zuo",
+        "firstConfirmed": "工作",
+        "rank": 1,
+        "inputMicros": 14570
+      },
+      {
+        "group": "work",
+        "code": "kaihui",
+        "expected": [
+          "开会"
+        ],
+        "actual": [
+          "开会",
+          "开",
+          "凯",
+          "楷",
+          "恺",
+          "開",
+          "铠",
+          "揩",
+          "慨",
+          "锴"
+        ],
+        "preedit": "kai'hui",
+        "firstConfirmed": "开会",
+        "rank": 1,
+        "inputMicros": 4405
+      },
+      {
+        "group": "work",
+        "code": "huiyi",
+        "expected": [
+          "会议"
+        ],
+        "actual": [
+          "会议",
+          "回忆",
+          "会以",
+          "会",
+          "回",
+          "灰",
+          "辉",
+          "汇",
+          "惠",
+          "慧"
+        ],
+        "preedit": "hui'yi",
+        "firstConfirmed": "会议",
+        "rank": 1,
+        "inputMicros": 6411
+      },
+      {
+        "group": "work",
+        "code": "youjian",
+        "expected": [
+          "邮件"
+        ],
+        "actual": [
+          "邮件",
+          "右键",
+          "又见",
+          "油价",
+          "有家",
+          "有加",
+          "邮寄",
+          "有机",
+          "游记",
+          "右击"
+        ],
+        "preedit": "you'jian",
+        "firstConfirmed": "邮件",
+        "rank": 1,
+        "inputMicros": 3500
+      },
+      {
+        "group": "work",
+        "code": "fujian",
+        "expected": [
+          "附件"
+        ],
+        "actual": [
+          "附件",
+          "福建",
+          "附加",
+          "富家",
+          "伏击",
+          "腹肌",
+          "副",
+          "付",
+          "服",
+          "福"
+        ],
+        "preedit": "fu'jian",
+        "firstConfirmed": "附件",
+        "rank": 1,
+        "inputMicros": 4366
+      },
+      {
+        "group": "work",
+        "code": "wendang",
+        "expected": [
+          "文档"
+        ],
+        "actual": [
+          "文档",
+          "稳当",
+          "问答",
+          "问",
+          "文",
+          "温",
+          "稳",
+          "闻",
+          "吻",
+          "纹"
+        ],
+        "preedit": "wen'dang",
+        "firstConfirmed": "文档",
+        "rank": 1,
+        "inputMicros": 9026
+      },
+      {
+        "group": "work",
+        "code": "xiangmu",
+        "expected": [
+          "项目"
+        ],
+        "actual": [
+          "项目",
+          "想",
+          "向",
+          "像",
+          "象",
+          "相",
+          "香",
+          "项",
+          "乡",
+          "箱"
+        ],
+        "preedit": "xiang'mu",
+        "firstConfirmed": "项目",
+        "rank": 1,
+        "inputMicros": 6034
+      },
+      {
+        "group": "work",
+        "code": "jindu",
+        "expected": [
+          "进度"
+        ],
+        "actual": [
+          "进度",
+          "禁毒",
+          "进",
+          "金",
+          "近",
+          "仅",
+          "尽",
+          "紧",
+          "今",
+          "劲"
+        ],
+        "preedit": "jin'du",
+        "firstConfirmed": "进度",
+        "rank": 1,
+        "inputMicros": 7622
+      },
+      {
+        "group": "work",
+        "code": "xuqiu",
+        "expected": [
+          "需求"
+        ],
+        "actual": [
+          "需求",
+          "需",
+          "须",
+          "徐",
+          "许",
+          "虚",
+          "续",
+          "旭",
+          "序",
+          "恤"
+        ],
+        "preedit": "xu'qiu",
+        "firstConfirmed": "需求",
+        "rank": 1,
+        "inputMicros": 10144
+      },
+      {
+        "group": "work",
+        "code": "ceshi",
+        "expected": [
+          "测试"
+        ],
+        "actual": [
+          "测试",
+          "测",
+          "侧",
+          "册",
+          "策",
+          "厕",
+          "恻",
+          "側",
+          "憡",
+          "測"
+        ],
+        "preedit": "ce'shi",
+        "firstConfirmed": "测试",
+        "rank": 1,
+        "inputMicros": 9190
+      },
+      {
+        "group": "work",
+        "code": "banben",
+        "expected": [
+          "版本"
+        ],
+        "actual": [
+          "版本",
+          "办",
+          "版",
+          "半",
+          "班",
+          "板",
+          "般",
+          "搬",
+          "伴",
+          "斑"
+        ],
+        "preedit": "ban'ben",
+        "firstConfirmed": "版本",
+        "rank": 1,
+        "inputMicros": 45571
+      },
+      {
+        "group": "work",
+        "code": "gengxin",
+        "expected": [
+          "更新"
+        ],
+        "actual": [
+          "更新",
+          "更",
+          "庚",
+          "耿",
+          "耕",
+          "梗",
+          "羹",
+          "哽",
+          "埂",
+          "鲠"
+        ],
+        "preedit": "geng'xin",
+        "firstConfirmed": "更新",
+        "rank": 1,
+        "inputMicros": 59467
+      },
+      {
+        "group": "work",
+        "code": "xiazai",
+        "expected": [
+          "下载"
+        ],
+        "actual": [
+          "下载",
+          "下",
+          "夏",
+          "吓",
+          "瞎",
+          "虾",
+          "霞",
+          "侠",
+          "峡",
+          "厦"
+        ],
+        "preedit": "xia'zai",
+        "firstConfirmed": "下载",
+        "rank": 1,
+        "inputMicros": 18952
+      },
+      {
+        "group": "work",
+        "code": "shangchuan",
+        "expected": [
+          "上传"
+        ],
+        "actual": [
+          "上传",
+          "上船",
+          "上",
+          "商",
+          "伤",
+          "尚",
+          "赏",
+          "殇",
+          "裳",
+          "熵"
+        ],
+        "preedit": "shang'chuan",
+        "firstConfirmed": "上传",
+        "rank": 1,
+        "inputMicros": 124453
+      },
+      {
+        "group": "work",
+        "code": "shurufa",
+        "expected": [
+          "输入法"
+        ],
+        "actual": [
+          "输入法",
+          "输入",
+          "书",
+          "数",
+          "树",
+          "输",
+          "属",
+          "熟",
+          "术",
+          "舒"
+        ],
+        "preedit": "shu'ru'fa",
+        "firstConfirmed": "输入法",
+        "rank": 1,
+        "inputMicros": 11939
+      },
+      {
+        "group": "work",
+        "code": "ci'ku",
+        "expected": [
+          "词库"
+        ],
+        "actual": [
+          "词库",
+          "次",
+          "此",
+          "词",
+          "刺",
+          "辞",
+          "赐",
+          "磁",
+          "瓷",
+          "慈"
+        ],
+        "preedit": "ci'ku",
+        "firstConfirmed": "词库",
+        "rank": 1,
+        "inputMicros": 2084
+      },
+      {
+        "group": "work",
+        "code": "mima",
+        "expected": [
+          "密码"
+        ],
+        "actual": [
+          "密码",
+          "米",
+          "迷",
+          "密",
+          "咪",
+          "蜜",
+          "秘",
+          "谜",
+          "弥",
+          "觅"
+        ],
+        "preedit": "mi'ma",
+        "firstConfirmed": "密码",
+        "rank": 1,
+        "inputMicros": 8303
+      },
+      {
+        "group": "work",
+        "code": "yanzhengma",
+        "expected": [
+          "验证码"
+        ],
+        "actual": [
+          "验证码",
+          "验证",
+          "炎症",
+          "严正",
+          "沿着",
+          "眼",
+          "烟",
+          "演",
+          "言",
+          "严"
+        ],
+        "preedit": "yan'zheng'ma",
+        "firstConfirmed": "验证码",
+        "rank": 1,
+        "inputMicros": 42742
+      },
+      {
+        "group": "work",
+        "code": "hulianwang",
+        "expected": [
+          "互联网"
+        ],
+        "actual": [
+          "互联网",
+          "互联",
+          "互连",
+          "护理",
+          "狐狸",
+          "互利",
+          "湖里",
+          "胡",
+          "户",
+          "湖"
+        ],
+        "preedit": "hu'lian'wang",
+        "firstConfirmed": "互联网",
+        "rank": 1,
+        "inputMicros": 16869
+      },
+      {
+        "group": "work",
+        "code": "xinxijishu",
+        "expected": [
+          "信息技术"
+        ],
+        "actual": [
+          "信息技术",
+          "信息",
+          "欣喜",
+          "心系",
+          "新",
+          "心",
+          "信",
+          "欣",
+          "馨",
+          "鑫"
+        ],
+        "preedit": "xin'xi'ji'shu",
+        "firstConfirmed": "信息技术",
+        "rank": 1,
+        "inputMicros": 34599
+      },
+      {
+        "group": "daily",
+        "code": "kuaidi",
+        "expected": [
+          "快递"
+        ],
+        "actual": [
+          "快递",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "侩",
+          "蒯",
+          "会",
+          "哙",
+          "脍"
+        ],
+        "preedit": "kuai'di",
+        "firstConfirmed": "快递",
+        "rank": 1,
+        "inputMicros": 34134
+      },
+      {
+        "group": "daily",
+        "code": "waimai",
+        "expected": [
+          "外卖"
+        ],
+        "actual": [
+          "外卖",
+          "外",
+          "歪",
+          "崴",
+          "喎",
+          "咼",
+          "瀤"
+        ],
+        "preedit": "wai'mai",
+        "firstConfirmed": "外卖",
+        "rank": 1,
+        "inputMicros": 12370
+      },
+      {
+        "group": "daily",
+        "code": "shouji",
+        "expected": [
+          "手机"
+        ],
+        "actual": [
+          "手机",
+          "收集",
+          "手记",
+          "收",
+          "手",
+          "受",
+          "首",
+          "瘦",
+          "守",
+          "售"
+        ],
+        "preedit": "shou'ji",
+        "firstConfirmed": "手机",
+        "rank": 1,
+        "inputMicros": 58417
+      },
+      {
+        "group": "daily",
+        "code": "diannao",
+        "expected": [
+          "电脑"
+        ],
+        "actual": [
+          "电脑",
+          "点",
+          "店",
+          "电",
+          "殿",
+          "垫",
+          "典",
+          "颠",
+          "掂",
+          "碘"
+        ],
+        "preedit": "dian'nao",
+        "firstConfirmed": "电脑",
+        "rank": 1,
+        "inputMicros": 16278
+      },
+      {
+        "group": "daily",
+        "code": "ditie",
+        "expected": [
+          "地铁"
+        ],
+        "actual": [
+          "地铁",
+          "地",
+          "第",
+          "低",
+          "滴",
+          "底",
+          "睇",
+          "帝",
+          "的",
+          "迪"
+        ],
+        "preedit": "di'tie",
+        "firstConfirmed": "地铁",
+        "rank": 1,
+        "inputMicros": 7524
+      },
+      {
+        "group": "daily",
+        "code": "gongjiaoche",
+        "expected": [
+          "公交车"
+        ],
+        "actual": [
+          "公交车",
+          "公交",
+          "公家",
+          "攻击",
+          "供给",
+          "共计",
+          "公鸡",
+          "功绩",
+          "共",
+          "工"
+        ],
+        "preedit": "gong'jiao'che",
+        "firstConfirmed": "公交车",
+        "rank": 1,
+        "inputMicros": 50519
+      },
+      {
+        "group": "daily",
+        "code": "chaoshi",
+        "expected": [
+          "超市"
+        ],
+        "actual": [
+          "超市",
+          "潮湿",
+          "超时",
+          "超",
+          "炒",
+          "朝",
+          "吵",
+          "抄",
+          "潮",
+          "巢"
+        ],
+        "preedit": "chao'shi",
+        "firstConfirmed": "超市",
+        "rank": 1,
+        "inputMicros": 23450
+      },
+      {
+        "group": "daily",
+        "code": "yiyuan",
+        "expected": [
+          "医院"
+        ],
+        "actual": [
+          "医院",
+          "亿元",
+          "意愿",
+          "议员",
+          "一元",
+          "一员",
+          "易于",
+          "已于",
+          "抑郁",
+          "益于"
+        ],
+        "preedit": "yi'yuan",
+        "firstConfirmed": "医院",
+        "rank": 1,
+        "inputMicros": 15838
+      },
+      {
+        "group": "daily",
+        "code": "yuyue",
+        "expected": [
+          "预约"
+        ],
+        "actual": [
+          "预约",
+          "愉悦",
+          "逾越",
+          "郁郁",
+          "与",
+          "于",
+          "鱼",
+          "雨",
+          "玉",
+          "欲"
+        ],
+        "preedit": "yu'yue",
+        "firstConfirmed": "预约",
+        "rank": 1,
+        "inputMicros": 13005
+      },
+      {
+        "group": "daily",
+        "code": "zhifubao",
+        "expected": [
+          "支付宝"
+        ],
+        "actual": [
+          "支付宝",
+          "支付",
+          "致富",
+          "制服",
+          "之父",
+          "知府",
+          "之",
+          "只",
+          "至",
+          "值"
+        ],
+        "preedit": "zhi'fu'bao",
+        "firstConfirmed": "支付宝",
+        "rank": 1,
+        "inputMicros": 19596
+      },
+      {
+        "group": "place",
+        "code": "beijing",
+        "expected": [
+          "北京"
+        ],
+        "actual": [
+          "北京",
+          "背景",
+          "北极",
+          "被",
+          "呗",
+          "北",
+          "背",
+          "倍",
+          "杯",
+          "贝"
+        ],
+        "preedit": "bei'jing",
+        "firstConfirmed": "北京",
+        "rank": 1,
+        "inputMicros": 4835
+      },
+      {
+        "group": "place",
+        "code": "shanghai",
+        "expected": [
+          "上海"
+        ],
+        "actual": [
+          "上海",
+          "伤害",
+          "上还",
+          "上",
+          "商",
+          "伤",
+          "尚",
+          "赏",
+          "殇",
+          "裳"
+        ],
+        "preedit": "shang'hai",
+        "firstConfirmed": "上海",
+        "rank": 1,
+        "inputMicros": 15464
+      },
+      {
+        "group": "place",
+        "code": "guangzhou",
+        "expected": [
+          "广州"
+        ],
+        "actual": [
+          "广州",
+          "光",
+          "广",
+          "逛",
+          "咣",
+          "廣",
+          "桄",
+          "胱",
+          "犷",
+          "洸"
+        ],
+        "preedit": "guang'zhou",
+        "firstConfirmed": "广州",
+        "rank": 1,
+        "inputMicros": 74987
+      },
+      {
+        "group": "place",
+        "code": "shenzhen",
+        "expected": [
+          "深圳"
+        ],
+        "actual": [
+          "深圳",
+          "神",
+          "深",
+          "沈",
+          "身",
+          "甚",
+          "申",
+          "肾",
+          "伸",
+          "审"
+        ],
+        "preedit": "shen'zhen",
+        "firstConfirmed": "深圳",
+        "rank": 1,
+        "inputMicros": 56510
+      },
+      {
+        "group": "place",
+        "code": "chongqing",
+        "expected": [
+          "重庆"
+        ],
+        "actual": [
+          "重庆",
+          "重启",
+          "充气",
+          "冲",
+          "重",
+          "充",
+          "虫",
+          "宠",
+          "崇",
+          "翀"
+        ],
+        "preedit": "chong'qing",
+        "firstConfirmed": "重庆",
+        "rank": 1,
+        "inputMicros": 19605
+      },
+      {
+        "group": "place",
+        "code": "xi'an",
+        "expected": [
+          "西安"
+        ],
+        "actual": [
+          "西安",
+          "西岸",
+          "系",
+          "西",
+          "洗",
+          "戏",
+          "喜",
+          "係",
+          "细",
+          "吸"
+        ],
+        "preedit": "xi'an",
+        "firstConfirmed": "西安",
+        "rank": 1,
+        "inputMicros": 1879
+      },
+      {
+        "group": "place",
+        "code": "dongjing",
+        "expected": [
+          "东京"
+        ],
+        "actual": [
+          "东京",
+          "动静",
+          "冬季",
+          "动机",
+          "动",
+          "懂",
+          "东",
+          "洞",
+          "董",
+          "冬"
+        ],
+        "preedit": "dong'jing",
+        "firstConfirmed": "东京",
+        "rank": 1,
+        "inputMicros": 10378
+      },
+      {
+        "group": "name",
+        "code": "wangwei",
+        "expected": [
+          "王维",
+          "王伟"
+        ],
+        "actual": [
+          "王伟",
+          "王维",
+          "王位",
+          "网",
+          "王",
+          "往",
+          "忘",
+          "望",
+          "汪",
+          "旺"
+        ],
+        "preedit": "wang'wei",
+        "firstConfirmed": "王伟",
+        "rank": 1,
+        "inputMicros": 6118
+      },
+      {
+        "group": "name",
+        "code": "liming",
+        "expected": [
+          "黎明",
+          "李明"
+        ],
+        "actual": [
+          "黎明",
+          "李明",
+          "厘米",
+          "里",
+          "李",
+          "离",
+          "力",
+          "理",
+          "立",
+          "利"
+        ],
+        "preedit": "li'ming",
+        "firstConfirmed": "黎明",
+        "rank": 1,
+        "inputMicros": 2713
+      },
+      {
+        "group": "name",
+        "code": "zhangsan",
+        "expected": [
+          "张三"
+        ],
+        "actual": [
+          "张三",
+          "张",
+          "涨",
+          "长",
+          "章",
+          "帐",
+          "掌",
+          "账",
+          "杖",
+          "仗"
+        ],
+        "preedit": "zhang'san",
+        "firstConfirmed": "张三",
+        "rank": 1,
+        "inputMicros": 12603
+      },
+      {
+        "group": "polyphone",
+        "code": "yinhang",
+        "expected": [
+          "银行"
+        ],
+        "actual": [
+          "银行",
+          "因",
+          "引",
+          "银",
+          "音",
+          "印",
+          "阴",
+          "饮",
+          "尹",
+          "隐"
+        ],
+        "preedit": "yin'hang",
+        "firstConfirmed": "银行",
+        "rank": 1,
+        "inputMicros": 9186
+      },
+      {
+        "group": "polyphone",
+        "code": "hangzhang",
+        "expected": [
+          "行长"
+        ],
+        "actual": [
+          "行长",
+          "行",
+          "航",
+          "杭",
+          "夯",
+          "吭",
+          "巷",
+          "绗",
+          "沆",
+          "垳"
+        ],
+        "preedit": "hang'zhang",
+        "firstConfirmed": "行长",
+        "rank": 1,
+        "inputMicros": 33425
+      },
+      {
+        "group": "polyphone",
+        "code": "chongfu",
+        "expected": [
+          "重复"
+        ],
+        "actual": [
+          "重复",
+          "冲",
+          "重",
+          "充",
+          "虫",
+          "宠",
+          "崇",
+          "翀",
+          "铳",
+          "舂"
+        ],
+        "preedit": "chong'fu",
+        "firstConfirmed": "重复",
+        "rank": 1,
+        "inputMicros": 67841
+      },
+      {
+        "group": "polyphone",
+        "code": "zhongliang",
+        "expected": [
+          "重量"
+        ],
+        "actual": [
+          "重量",
+          "中粮",
+          "种粮",
+          "中立",
+          "重力",
+          "中",
+          "种",
+          "重",
+          "钟",
+          "仲"
+        ],
+        "preedit": "zhong'liang",
+        "firstConfirmed": "重量",
+        "rank": 1,
+        "inputMicros": 56048
+      },
+      {
+        "group": "polyphone",
+        "code": "zhangda",
+        "expected": [
+          "长大"
+        ],
+        "actual": [
+          "长大",
+          "张大",
+          "张",
+          "涨",
+          "长",
+          "章",
+          "帐",
+          "掌",
+          "账",
+          "杖"
+        ],
+        "preedit": "zhang'da",
+        "firstConfirmed": "长大",
+        "rank": 1,
+        "inputMicros": 17584
+      },
+      {
+        "group": "polyphone",
+        "code": "changcheng",
+        "expected": [
+          "长城"
+        ],
+        "actual": [
+          "长城",
+          "长",
+          "唱",
+          "常",
+          "厂",
+          "场",
+          "昌",
+          "尝",
+          "肠",
+          "畅"
+        ],
+        "preedit": "chang'cheng",
+        "firstConfirmed": "长城",
+        "rank": 1,
+        "inputMicros": 54812
+      },
+      {
+        "group": "polyphone",
+        "code": "kuai'le",
+        "expected": [
+          "快乐"
+        ],
+        "actual": [
+          "快乐",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "侩",
+          "蒯",
+          "会",
+          "哙",
+          "脍"
+        ],
+        "preedit": "kuai'le",
+        "firstConfirmed": "快乐",
+        "rank": 1,
+        "inputMicros": 11997
+      },
+      {
+        "group": "polyphone",
+        "code": "yinyue",
+        "expected": [
+          "音乐"
+        ],
+        "actual": [
+          "音乐",
+          "隐约",
+          "银月",
+          "阴雨",
+          "隐喻",
+          "阴郁",
+          "音域",
+          "因",
+          "引",
+          "银"
+        ],
+        "preedit": "yin'yue",
+        "firstConfirmed": "音乐",
+        "rank": 1,
+        "inputMicros": 16311
+      },
+      {
+        "group": "polyphone",
+        "code": "bianli",
+        "expected": [
+          "便利"
+        ],
+        "actual": [
+          "便利",
+          "遍历",
+          "便",
+          "边",
+          "变",
+          "遍",
+          "编",
+          "扁",
+          "辩",
+          "彼岸"
+        ],
+        "preedit": "bian'li",
+        "firstConfirmed": "便利",
+        "rank": 1,
+        "inputMicros": 15755
+      },
+      {
+        "group": "polyphone",
+        "code": "shuju",
+        "expected": [
+          "数据"
+        ],
+        "actual": [
+          "数据",
+          "书局",
+          "书",
+          "数",
+          "树",
+          "输",
+          "属",
+          "熟",
+          "术",
+          "舒"
+        ],
+        "preedit": "shu'ju",
+        "firstConfirmed": "数据",
+        "rank": 1,
+        "inputMicros": 18390
+      },
+      {
+        "group": "sentence",
+        "code": "wojintianxiawuyougejuhui",
+        "expected": [
+          "我今天下午有个聚会"
+        ],
+        "actual": [
+          "我今天下午有个聚会",
+          "握紧",
+          "我",
+          "喔",
+          "窝",
+          "握",
+          "卧",
+          "沃",
+          "硪",
+          "涡"
+        ],
+        "preedit": "wo'jin'tian'xia'wu'you'ge'ju'hui",
+        "firstConfirmed": "我今天下午有个聚会",
+        "rank": 1,
+        "inputMicros": 199051
+      },
+      {
+        "group": "sentence",
+        "code": "mingtianzaoshangjiudianban",
+        "expected": [
+          "明天早上九点半"
+        ],
+        "actual": [
+          "明天早上九点半",
+          "明天",
+          "命题",
+          "名",
+          "明",
+          "命",
+          "鸣",
+          "铭",
+          "冥",
+          "茗"
+        ],
+        "preedit": "ming'tian'zao'shang'jiu'dian'ban",
+        "firstConfirmed": "明天早上九点半",
+        "rank": 1,
+        "inputMicros": 140757
+      },
+      {
+        "group": "sentence",
+        "code": "qingbashenqingbiaofageiwo",
+        "expected": [
+          "请把申请表发给我"
+        ],
+        "actual": [
+          "请把申请表发给我",
+          "请把",
+          "请",
+          "清",
+          "情",
+          "轻",
+          "青",
+          "庆",
+          "晴",
+          "倾"
+        ],
+        "preedit": "qing'ba'shen'qing'biao'fa'gei'wo",
+        "firstConfirmed": "请把申请表发给我",
+        "rank": 1,
+        "inputMicros": 461103
+      },
+      {
+        "group": "sentence",
+        "code": "wozhengzaiceshizhegeshurufa",
+        "expected": [
+          "我正在测试这个输入法"
+        ],
+        "actual": [
+          "我正在测试这个输入法",
+          "我正",
+          "我这",
+          "握着",
+          "我",
+          "喔",
+          "窝",
+          "握",
+          "卧",
+          "沃"
+        ],
+        "preedit": "wo'zheng'zai'ce'shi'zhe'ge'shu'ru'fa",
+        "firstConfirmed": "我正在测试这个输入法",
+        "rank": 1,
+        "inputMicros": 461043
+      },
+      {
+        "group": "sentence",
+        "code": "zhegewentiyijingjiejuele",
+        "expected": [
+          "这个问题已经解决了"
+        ],
+        "actual": [
+          "这个问题已经解决了",
+          "这个问题",
+          "这个",
+          "这歌",
+          "这",
+          "着",
+          "者",
+          "折",
+          "哲",
+          "遮"
+        ],
+        "preedit": "zhe'ge'wen'ti'yi'jing'jie'jue'le",
+        "firstConfirmed": "这个问题已经解决了",
+        "rank": 1,
+        "inputMicros": 220164
+      },
+      {
+        "group": "sentence",
+        "code": "womenkeyimingtiantaolun",
+        "expected": [
+          "我们可以明天讨论"
+        ],
+        "actual": [
+          "我们可以明天讨论",
+          "我们",
+          "我",
+          "喔",
+          "窝",
+          "握",
+          "卧",
+          "沃",
+          "硪",
+          "涡"
+        ],
+        "preedit": "wo'men'ke'yi'ming'tian'tao'lun",
+        "firstConfirmed": "我们可以明天讨论",
+        "rank": 1,
+        "inputMicros": 75979
+      }
+    ]
+  },
+  "candidate": {
+    "name": "candidate",
+    "coreCount": 70,
+    "coreTop1": 69,
+    "coreTop5": 70,
+    "sentenceCount": 6,
+    "sentenceTop1": 6,
+    "coldDeployMicros": 29925879,
+    "coreInputP50Micros": 4352,
+    "coreInputP95Micros": 20903,
+    "processPssKiB": 115935,
+    "deployedBytes": 57392464,
+    "samples": [
+      {
+        "group": "chat",
+        "code": "nihao",
+        "expected": [
+          "你好"
+        ],
+        "actual": [
+          "你好",
+          "拟好",
+          "你",
+          "尼",
+          "泥",
+          "逆",
+          "拟",
+          "腻",
+          "倪",
+          "霓"
+        ],
+        "preedit": "ni'hao",
+        "firstConfirmed": "你好",
+        "rank": 1,
+        "inputMicros": 2361
+      },
+      {
+        "group": "chat",
+        "code": "xiexie",
+        "expected": [
+          "谢谢"
+        ],
+        "actual": [
+          "谢谢",
+          "写写",
+          "写些",
+          "斜斜",
+          "歇歇",
+          "泄泻",
+          "歇息",
+          "血洗",
+          "谐戏",
+          "些"
+        ],
+        "preedit": "xie'xie",
+        "firstConfirmed": "谢谢",
+        "rank": 1,
+        "inputMicros": 2608
+      },
+      {
+        "group": "chat",
+        "code": "duibuqi",
+        "expected": [
+          "对不起"
+        ],
+        "actual": [
+          "对不起",
+          "对不齐",
+          "对不",
+          "队部",
+          "对簿",
+          "对",
+          "队",
+          "堆",
+          "兑",
+          "怼"
+        ],
+        "preedit": "dui'bu'qi",
+        "firstConfirmed": "对不起",
+        "rank": 1,
+        "inputMicros": 2882
+      },
+      {
+        "group": "chat",
+        "code": "meiguanxi",
+        "expected": [
+          "没关系"
+        ],
+        "actual": [
+          "没关系",
+          "美观",
+          "没关",
+          "没管",
+          "煤管",
+          "每罐",
+          "每股",
+          "美股",
+          "眉骨",
+          "媚骨"
+        ],
+        "preedit": "mei'guan'xi",
+        "firstConfirmed": "没关系",
+        "rank": 1,
+        "inputMicros": 4332
+      },
+      {
+        "group": "chat",
+        "code": "zaoshanghao",
+        "expected": [
+          "早上好"
+        ],
+        "actual": [
+          "早上好",
+          "早上",
+          "灶上",
+          "早",
+          "造",
+          "遭",
+          "糟",
+          "澡",
+          "躁",
+          "燥"
+        ],
+        "preedit": "zao'shang'hao",
+        "firstConfirmed": "早上好",
+        "rank": 1,
+        "inputMicros": 10052
+      },
+      {
+        "group": "chat",
+        "code": "wanshanghao",
+        "expected": [
+          "晚上好"
+        ],
+        "actual": [
+          "晚上好",
+          "晚上",
+          "玩上",
+          "腕上",
+          "挽上",
+          "腕伤",
+          "玩赏",
+          "惋伤",
+          "婉商",
+          "完"
+        ],
+        "preedit": "wan'shang'hao",
+        "firstConfirmed": "晚上好",
+        "rank": 1,
+        "inputMicros": 8801
+      },
+      {
+        "group": "chat",
+        "code": "zaijian",
+        "expected": [
+          "再见"
+        ],
+        "actual": [
+          "再见",
+          "在建",
+          "再建",
+          "再减",
+          "在肩",
+          "在即",
+          "载机",
+          "在",
+          "再",
+          "载"
+        ],
+        "preedit": "zai'jian",
+        "firstConfirmed": "再见",
+        "rank": 1,
+        "inputMicros": 3590
+      },
+      {
+        "group": "chat",
+        "code": "mingtianjian",
+        "expected": [
+          "明天见"
+        ],
+        "actual": [
+          "明天见",
+          "明天",
+          "命题",
+          "明体",
+          "明",
+          "名",
+          "命",
+          "鸣",
+          "冥",
+          "铭"
+        ],
+        "preedit": "ming'tian'jian",
+        "firstConfirmed": "明天见",
+        "rank": 1,
+        "inputMicros": 7142
+      },
+      {
+        "group": "chat",
+        "code": "yihuier",
+        "expected": [
+          "一会儿"
+        ],
+        "actual": [
+          "一会儿",
+          "一会",
+          "一回",
+          "一挥",
+          "亦会",
+          "议会",
+          "意会",
+          "已回",
+          "一",
+          "以"
+        ],
+        "preedit": "yi'hui'er",
+        "firstConfirmed": "一会儿",
+        "rank": 1,
+        "inputMicros": 2939
+      },
+      {
+        "group": "chat",
+        "code": "buhaoyisi",
+        "expected": [
+          "不好意思"
+        ],
+        "actual": [
+          "不好意思",
+          "不好意思了",
+          "不好意思啊",
+          "不好意思哦",
+          "不好意思啦",
+          "不好意思打扰了",
+          "不好意思的",
+          "不好意思哈",
+          "不好意思是",
+          "不好意思说"
+        ],
+        "preedit": "bu'hao'yi'si",
+        "firstConfirmed": "不好意思",
+        "rank": 1,
+        "inputMicros": 5311
+      },
+      {
+        "group": "chat",
+        "code": "zenmeyang",
+        "expected": [
+          "怎么样"
+        ],
+        "actual": [
+          "怎么样",
+          "怎么",
+          "怎",
+          "谮"
+        ],
+        "preedit": "zen'me'yang",
+        "firstConfirmed": "怎么样",
+        "rank": 1,
+        "inputMicros": 6567
+      },
+      {
+        "group": "chat",
+        "code": "weishenme",
+        "expected": [
+          "为什么"
+        ],
+        "actual": [
+          "为什么",
+          "喂什么",
+          "位深",
+          "委身",
+          "未深",
+          "韦神",
+          "为",
+          "位",
+          "微",
+          "未"
+        ],
+        "preedit": "wei'shen'me",
+        "firstConfirmed": "为什么",
+        "rank": 1,
+        "inputMicros": 5805
+      },
+      {
+        "group": "chat",
+        "code": "zhidaole",
+        "expected": [
+          "知道了"
+        ],
+        "actual": [
+          "知道了",
+          "知道",
+          "指导",
+          "直到",
+          "之道",
+          "执导",
+          "只到",
+          "制导",
+          "只道",
+          "之岛"
+        ],
+        "preedit": "zhi'dao'le",
+        "firstConfirmed": "知道了",
+        "rank": 1,
+        "inputMicros": 5865
+      },
+      {
+        "group": "chat",
+        "code": "meiwenti",
+        "expected": [
+          "没问题"
+        ],
+        "actual": [
+          "没问题",
+          "没问",
+          "美文",
+          "没",
+          "美",
+          "每",
+          "妹",
+          "眉",
+          "梅",
+          "媚"
+        ],
+        "preedit": "mei'wen'ti",
+        "firstConfirmed": "没问题",
+        "rank": 1,
+        "inputMicros": 4035
+      },
+      {
+        "group": "chat",
+        "code": "keyi",
+        "expected": [
+          "可以"
+        ],
+        "actual": [
+          "可以",
+          "刻意",
+          "可疑",
+          "科一",
+          "可依",
+          "课椅",
+          "可意",
+          "可",
+          "刻",
+          "克"
+        ],
+        "preedit": "ke'yi",
+        "firstConfirmed": "可以",
+        "rank": 1,
+        "inputMicros": 2106
+      },
+      {
+        "group": "chat",
+        "code": "dengyixia",
+        "expected": [
+          "等一下"
+        ],
+        "actual": [
+          "等一下",
+          "登一下",
+          "等一",
+          "等义",
+          "等",
+          "灯",
+          "登",
+          "瞪",
+          "邓",
+          "凳"
+        ],
+        "preedit": "deng'yi'xia",
+        "firstConfirmed": "等一下",
+        "rank": 1,
+        "inputMicros": 6557
+      },
+      {
+        "group": "chat",
+        "code": "shoudao",
+        "expected": [
+          "收到"
+        ],
+        "actual": [
+          "收到",
+          "受到",
+          "手刀",
+          "瘦到",
+          "守到",
+          "收刀",
+          "兽道",
+          "首道",
+          "手大",
+          "手打"
+        ],
+        "preedit": "shou'dao",
+        "firstConfirmed": "收到",
+        "rank": 1,
+        "inputMicros": 11417
+      },
+      {
+        "group": "chat",
+        "code": "zai'ma",
+        "expected": [
+          "在吗"
+        ],
+        "actual": [
+          "在吗",
+          "在",
+          "再",
+          "载",
+          "灾",
+          "宰",
+          "栽",
+          "哉",
+          "仔",
+          "崽"
+        ],
+        "preedit": "zai'ma",
+        "firstConfirmed": "在吗",
+        "rank": 1,
+        "inputMicros": 3050
+      },
+      {
+        "group": "chat",
+        "code": "chifan",
+        "expected": [
+          "吃饭"
+        ],
+        "actual": [
+          "吃饭",
+          "吃",
+          "持",
+          "迟",
+          "赤",
+          "痴",
+          "池",
+          "尺",
+          "齿",
+          "斥"
+        ],
+        "preedit": "chi'fan",
+        "firstConfirmed": "吃饭",
+        "rank": 1,
+        "inputMicros": 4251
+      },
+      {
+        "group": "chat",
+        "code": "shuijiao",
+        "expected": [
+          "睡觉"
+        ],
+        "actual": [
+          "睡觉",
+          "谁叫",
+          "水饺",
+          "谁教",
+          "水窖",
+          "水胶",
+          "水脚",
+          "水价",
+          "谁家",
+          "水迹"
+        ],
+        "preedit": "shui'jiao",
+        "firstConfirmed": "睡觉",
+        "rank": 1,
+        "inputMicros": 5590
+      },
+      {
+        "group": "work",
+        "code": "gongzuo",
+        "expected": [
+          "工作"
+        ],
+        "actual": [
+          "工作",
+          "供作",
+          "共作",
+          "拱卒",
+          "共祖",
+          "公族",
+          "共组",
+          "公",
+          "工",
+          "功"
+        ],
+        "preedit": "gong'zuo",
+        "firstConfirmed": "工作",
+        "rank": 1,
+        "inputMicros": 4352
+      },
+      {
+        "group": "work",
+        "code": "kaihui",
+        "expected": [
+          "开会"
+        ],
+        "actual": [
+          "开会",
+          "开慧",
+          "开",
+          "凯",
+          "慨",
+          "铠",
+          "楷",
+          "恺",
+          "揩",
+          "锴"
+        ],
+        "preedit": "kai'hui",
+        "firstConfirmed": "开会",
+        "rank": 1,
+        "inputMicros": 2678
+      },
+      {
+        "group": "work",
+        "code": "huiyi",
+        "expected": [
+          "会议"
+        ],
+        "actual": [
+          "会议",
+          "回忆",
+          "会意",
+          "会以",
+          "灰衣",
+          "悔意",
+          "回译",
+          "虺蜴",
+          "袆衣",
+          "会"
+        ],
+        "preedit": "hui'yi",
+        "firstConfirmed": "会议",
+        "rank": 1,
+        "inputMicros": 1964
+      },
+      {
+        "group": "work",
+        "code": "youjian",
+        "expected": [
+          "邮件"
+        ],
+        "actual": [
+          "邮件",
+          "右键",
+          "又见",
+          "右肩",
+          "诱奸",
+          "有件",
+          "有间",
+          "油煎",
+          "有机",
+          "邮寄"
+        ],
+        "preedit": "you'jian",
+        "firstConfirmed": "邮件",
+        "rank": 1,
+        "inputMicros": 3144
+      },
+      {
+        "group": "work",
+        "code": "fujian",
+        "expected": [
+          "附件"
+        ],
+        "actual": [
+          "附件",
+          "福建",
+          "复检",
+          "复健",
+          "复建",
+          "苻坚",
+          "苻健",
+          "腹肌",
+          "伏击",
+          "负极"
+        ],
+        "preedit": "fu'jian",
+        "firstConfirmed": "附件",
+        "rank": 1,
+        "inputMicros": 2384
+      },
+      {
+        "group": "work",
+        "code": "wendang",
+        "expected": [
+          "文档"
+        ],
+        "actual": [
+          "文档",
+          "稳当",
+          "问",
+          "文",
+          "温",
+          "闻",
+          "稳",
+          "吻",
+          "纹",
+          "雯"
+        ],
+        "preedit": "wen'dang",
+        "firstConfirmed": "文档",
+        "rank": 1,
+        "inputMicros": 4144
+      },
+      {
+        "group": "work",
+        "code": "xiangmu",
+        "expected": [
+          "项目"
+        ],
+        "actual": [
+          "项目",
+          "橡木",
+          "香木",
+          "向慕",
+          "向暮",
+          "想",
+          "向",
+          "相",
+          "像",
+          "象"
+        ],
+        "preedit": "xiang'mu",
+        "firstConfirmed": "项目",
+        "rank": 1,
+        "inputMicros": 3452
+      },
+      {
+        "group": "work",
+        "code": "jindu",
+        "expected": [
+          "进度"
+        ],
+        "actual": [
+          "进度",
+          "禁毒",
+          "禁赌",
+          "津渡",
+          "金都",
+          "进",
+          "今",
+          "金",
+          "紧",
+          "近"
+        ],
+        "preedit": "jin'du",
+        "firstConfirmed": "进度",
+        "rank": 1,
+        "inputMicros": 2312
+      },
+      {
+        "group": "work",
+        "code": "xuqiu",
+        "expected": [
+          "需求"
+        ],
+        "actual": [
+          "需求",
+          "许",
+          "续",
+          "需",
+          "须",
+          "虚",
+          "徐",
+          "绪",
+          "序",
+          "旭"
+        ],
+        "preedit": "xu'qiu",
+        "firstConfirmed": "需求",
+        "rank": 1,
+        "inputMicros": 1839
+      },
+      {
+        "group": "work",
+        "code": "ceshi",
+        "expected": [
+          "测试"
+        ],
+        "actual": [
+          "测试",
+          "侧视",
+          "侧室",
+          "策士",
+          "测",
+          "侧",
+          "册",
+          "策",
+          "厕",
+          "恻"
+        ],
+        "preedit": "ce'shi",
+        "firstConfirmed": "测试",
+        "rank": 1,
+        "inputMicros": 4793
+      },
+      {
+        "group": "work",
+        "code": "banben",
+        "expected": [
+          "版本"
+        ],
+        "actual": [
+          "版本",
+          "半本",
+          "扳本",
+          "坂本",
+          "半",
+          "办",
+          "般",
+          "板",
+          "班",
+          "伴"
+        ],
+        "preedit": "ban'ben",
+        "firstConfirmed": "版本",
+        "rank": 1,
+        "inputMicros": 4837
+      },
+      {
+        "group": "work",
+        "code": "gengxin",
+        "expected": [
+          "更新"
+        ],
+        "actual": [
+          "更新",
+          "更",
+          "耿",
+          "哽",
+          "耕",
+          "羹",
+          "庚",
+          "梗",
+          "赓",
+          "埂"
+        ],
+        "preedit": "geng'xin",
+        "firstConfirmed": "更新",
+        "rank": 1,
+        "inputMicros": 4163
+      },
+      {
+        "group": "work",
+        "code": "xiazai",
+        "expected": [
+          "下载"
+        ],
+        "actual": [
+          "下载",
+          "下崽",
+          "下",
+          "吓",
+          "夏",
+          "侠",
+          "霞",
+          "瞎",
+          "狭",
+          "暇"
+        ],
+        "preedit": "xia'zai",
+        "firstConfirmed": "下载",
+        "rank": 1,
+        "inputMicros": 2792
+      },
+      {
+        "group": "work",
+        "code": "shangchuan",
+        "expected": [
+          "上传"
+        ],
+        "actual": [
+          "上传",
+          "上船",
+          "商船",
+          "上穿",
+          "伤处",
+          "上",
+          "伤",
+          "商",
+          "尚",
+          "赏"
+        ],
+        "preedit": "shang'chuan",
+        "firstConfirmed": "上传",
+        "rank": 1,
+        "inputMicros": 16820
+      },
+      {
+        "group": "work",
+        "code": "shurufa",
+        "expected": [
+          "输入法"
+        ],
+        "actual": [
+          "输入法",
+          "输入",
+          "书",
+          "数",
+          "术",
+          "树",
+          "属",
+          "熟",
+          "叔",
+          "束"
+        ],
+        "preedit": "shu'ru'fa",
+        "firstConfirmed": "输入法",
+        "rank": 1,
+        "inputMicros": 5740
+      },
+      {
+        "group": "work",
+        "code": "ci'ku",
+        "expected": [
+          "词库"
+        ],
+        "actual": [
+          "词库",
+          "此",
+          "次",
+          "刺",
+          "词",
+          "辞",
+          "慈",
+          "赐",
+          "磁",
+          "伺"
+        ],
+        "preedit": "ci'ku",
+        "firstConfirmed": "词库",
+        "rank": 1,
+        "inputMicros": 2152
+      },
+      {
+        "group": "work",
+        "code": "mima",
+        "expected": [
+          "密码"
+        ],
+        "actual": [
+          "密码",
+          "密",
+          "米",
+          "迷",
+          "秘",
+          "弥",
+          "蜜",
+          "眯",
+          "咪",
+          "谜"
+        ],
+        "preedit": "mi'ma",
+        "firstConfirmed": "密码",
+        "rank": 1,
+        "inputMicros": 1544
+      },
+      {
+        "group": "work",
+        "code": "yanzhengma",
+        "expected": [
+          "验证码"
+        ],
+        "actual": [
+          "验证码",
+          "验证",
+          "炎症",
+          "严正",
+          "严整",
+          "盐政",
+          "衍征",
+          "严政",
+          "眼",
+          "言"
+        ],
+        "preedit": "yan'zheng'ma",
+        "firstConfirmed": "验证码",
+        "rank": 1,
+        "inputMicros": 10237
+      },
+      {
+        "group": "work",
+        "code": "hulianwang",
+        "expected": [
+          "互联网"
+        ],
+        "actual": [
+          "互联网",
+          "互联",
+          "虎脸",
+          "互怜",
+          "护理",
+          "狐狸",
+          "互利",
+          "湖里",
+          "壶里",
+          "鹄立"
+        ],
+        "preedit": "hu'lian'wang",
+        "firstConfirmed": "互联网",
+        "rank": 1,
+        "inputMicros": 5229
+      },
+      {
+        "group": "work",
+        "code": "xinxijishu",
+        "expected": [
+          "信息技术"
+        ],
+        "actual": [
+          "信息技术",
+          "信息技术有限公司",
+          "信息技术课程",
+          "信息技术行业",
+          "信息技术系",
+          "信息技术系统",
+          "信息技术产品协议",
+          "信息技术基础",
+          "信息技术有限",
+          "信息机"
+        ],
+        "preedit": "xin'xi'ji'shu",
+        "firstConfirmed": "信息技术",
+        "rank": 1,
+        "inputMicros": 8554
+      },
+      {
+        "group": "daily",
+        "code": "kuaidi",
+        "expected": [
+          "快递"
+        ],
+        "actual": [
+          "快递",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "会",
+          "蒯",
+          "哙",
+          "侩",
+          "脍"
+        ],
+        "preedit": "kuai'di",
+        "firstConfirmed": "快递",
+        "rank": 1,
+        "inputMicros": 2512
+      },
+      {
+        "group": "daily",
+        "code": "waimai",
+        "expected": [
+          "外卖"
+        ],
+        "actual": [
+          "外卖",
+          "外",
+          "歪",
+          "崴"
+        ],
+        "preedit": "wai'mai",
+        "firstConfirmed": "外卖",
+        "rank": 1,
+        "inputMicros": 2216
+      },
+      {
+        "group": "daily",
+        "code": "shouji",
+        "expected": [
+          "手机"
+        ],
+        "actual": [
+          "手机",
+          "收集",
+          "手记",
+          "熟记",
+          "首级",
+          "守纪",
+          "手迹",
+          "首季",
+          "受挤",
+          "授技"
+        ],
+        "preedit": "shou'ji",
+        "firstConfirmed": "手机",
+        "rank": 1,
+        "inputMicros": 10903
+      },
+      {
+        "group": "daily",
+        "code": "diannao",
+        "expected": [
+          "电脑"
+        ],
+        "actual": [
+          "电脑",
+          "点那",
+          "狄安娜",
+          "点哪",
+          "点",
+          "电",
+          "店",
+          "殿",
+          "典",
+          "颠"
+        ],
+        "preedit": "dian'nao",
+        "firstConfirmed": "电脑",
+        "rank": 1,
+        "inputMicros": 3302
+      },
+      {
+        "group": "daily",
+        "code": "ditie",
+        "expected": [
+          "地铁"
+        ],
+        "actual": [
+          "地铁",
+          "地",
+          "第",
+          "弟",
+          "底",
+          "低",
+          "帝",
+          "敌",
+          "抵",
+          "递"
+        ],
+        "preedit": "di'tie",
+        "firstConfirmed": "地铁",
+        "rank": 1,
+        "inputMicros": 2140
+      },
+      {
+        "group": "daily",
+        "code": "gongjiaoche",
+        "expected": [
+          "公交车"
+        ],
+        "actual": [
+          "公交车",
+          "公交",
+          "攻角",
+          "宫角",
+          "工交",
+          "公家",
+          "工价",
+          "公假",
+          "共价",
+          "功架"
+        ],
+        "preedit": "gong'jiao'che",
+        "firstConfirmed": "公交车",
+        "rank": 1,
+        "inputMicros": 13164
+      },
+      {
+        "group": "daily",
+        "code": "chaoshi",
+        "expected": [
+          "超市"
+        ],
+        "actual": [
+          "超市",
+          "潮湿",
+          "超时",
+          "巢室",
+          "潮式",
+          "超",
+          "朝",
+          "潮",
+          "吵",
+          "嘲"
+        ],
+        "preedit": "chao'shi",
+        "firstConfirmed": "超市",
+        "rank": 1,
+        "inputMicros": 13208
+      },
+      {
+        "group": "daily",
+        "code": "yiyuan",
+        "expected": [
+          "医院"
+        ],
+        "actual": [
+          "医院",
+          "意愿",
+          "亿元",
+          "一员",
+          "一元",
+          "遗愿",
+          "议员",
+          "已远",
+          "一院",
+          "议院"
+        ],
+        "preedit": "yi'yuan",
+        "firstConfirmed": "医院",
+        "rank": 1,
+        "inputMicros": 2470
+      },
+      {
+        "group": "daily",
+        "code": "yuyue",
+        "expected": [
+          "预约"
+        ],
+        "actual": [
+          "预约",
+          "愉悦",
+          "逾越",
+          "鱼跃",
+          "逾约",
+          "逾月",
+          "俞樾",
+          "郁郁",
+          "欲与",
+          "寓于"
+        ],
+        "preedit": "yu'yue",
+        "firstConfirmed": "预约",
+        "rank": 1,
+        "inputMicros": 1981
+      },
+      {
+        "group": "daily",
+        "code": "zhifubao",
+        "expected": [
+          "支付宝"
+        ],
+        "actual": [
+          "支付宝",
+          "致富报",
+          "支付",
+          "致富",
+          "制服",
+          "之父",
+          "知府",
+          "只服",
+          "之福",
+          "治服"
+        ],
+        "preedit": "zhi'fu'bao",
+        "firstConfirmed": "支付宝",
+        "rank": 1,
+        "inputMicros": 5452
+      },
+      {
+        "group": "place",
+        "code": "beijing",
+        "expected": [
+          "北京"
+        ],
+        "actual": [
+          "北京",
+          "背景",
+          "北境",
+          "倍镜",
+          "被",
+          "备",
+          "北",
+          "背",
+          "呗",
+          "杯"
+        ],
+        "preedit": "bei'jing",
+        "firstConfirmed": "北京",
+        "rank": 1,
+        "inputMicros": 3286
+      },
+      {
+        "group": "place",
+        "code": "shanghai",
+        "expected": [
+          "上海"
+        ],
+        "actual": [
+          "上海",
+          "伤害",
+          "商海",
+          "上",
+          "伤",
+          "商",
+          "尚",
+          "赏",
+          "晌",
+          "裳"
+        ],
+        "preedit": "shang'hai",
+        "firstConfirmed": "上海",
+        "rank": 1,
+        "inputMicros": 10242
+      },
+      {
+        "group": "place",
+        "code": "guangzhou",
+        "expected": [
+          "广州"
+        ],
+        "actual": [
+          "广州",
+          "光州",
+          "光轴",
+          "光",
+          "广",
+          "逛",
+          "咣",
+          "犷",
+          "胱",
+          "桄"
+        ],
+        "preedit": "guang'zhou",
+        "firstConfirmed": "广州",
+        "rank": 1,
+        "inputMicros": 20903
+      },
+      {
+        "group": "place",
+        "code": "shenzhen",
+        "expected": [
+          "深圳"
+        ],
+        "actual": [
+          "深圳",
+          "神",
+          "深",
+          "身",
+          "甚",
+          "什",
+          "伸",
+          "沈",
+          "审",
+          "申"
+        ],
+        "preedit": "shen'zhen",
+        "firstConfirmed": "深圳",
+        "rank": 1,
+        "inputMicros": 14929
+      },
+      {
+        "group": "place",
+        "code": "chongqing",
+        "expected": [
+          "重庆"
+        ],
+        "actual": [
+          "重庆",
+          "虫情",
+          "冲",
+          "充",
+          "重",
+          "虫",
+          "崇",
+          "宠",
+          "忡",
+          "憧"
+        ],
+        "preedit": "chong'qing",
+        "firstConfirmed": "重庆",
+        "rank": 1,
+        "inputMicros": 22075
+      },
+      {
+        "group": "place",
+        "code": "xi'an",
+        "expected": [
+          "西安"
+        ],
+        "actual": [
+          "西安",
+          "西岸",
+          "锡安",
+          "洗",
+          "西",
+          "喜",
+          "系",
+          "息",
+          "细",
+          "希"
+        ],
+        "preedit": "xi'an",
+        "firstConfirmed": "西安",
+        "rank": 1,
+        "inputMicros": 1792
+      },
+      {
+        "group": "place",
+        "code": "dongjing",
+        "expected": [
+          "东京"
+        ],
+        "actual": [
+          "动静",
+          "东京",
+          "东经",
+          "冬景",
+          "动",
+          "东",
+          "洞",
+          "懂",
+          "冬",
+          "董"
+        ],
+        "preedit": "dong'jing",
+        "firstConfirmed": "动静",
+        "rank": 2,
+        "inputMicros": 5095
+      },
+      {
+        "group": "name",
+        "code": "wangwei",
+        "expected": [
+          "王维",
+          "王伟"
+        ],
+        "actual": [
+          "王伟",
+          "王位",
+          "妄为",
+          "枉为",
+          "网胃",
+          "王威",
+          "王维",
+          "王薇",
+          "王",
+          "望"
+        ],
+        "preedit": "wang'wei",
+        "firstConfirmed": "王伟",
+        "rank": 1,
+        "inputMicros": 9884
+      },
+      {
+        "group": "name",
+        "code": "liming",
+        "expected": [
+          "黎明",
+          "李明"
+        ],
+        "actual": [
+          "黎明",
+          "李明",
+          "立命",
+          "立名",
+          "李铭",
+          "里",
+          "力",
+          "理",
+          "李",
+          "立"
+        ],
+        "preedit": "li'ming",
+        "firstConfirmed": "黎明",
+        "rank": 1,
+        "inputMicros": 2626
+      },
+      {
+        "group": "name",
+        "code": "zhangsan",
+        "expected": [
+          "张三"
+        ],
+        "actual": [
+          "张三",
+          "长",
+          "张",
+          "章",
+          "掌",
+          "丈",
+          "帐",
+          "仗",
+          "障",
+          "涨"
+        ],
+        "preedit": "zhang'san",
+        "firstConfirmed": "张三",
+        "rank": 1,
+        "inputMicros": 10668
+      },
+      {
+        "group": "polyphone",
+        "code": "yinhang",
+        "expected": [
+          "银行"
+        ],
+        "actual": [
+          "银行",
+          "引航",
+          "引吭",
+          "因",
+          "音",
+          "引",
+          "隐",
+          "银",
+          "阴",
+          "印"
+        ],
+        "preedit": "yin'hang",
+        "firstConfirmed": "银行",
+        "rank": 1,
+        "inputMicros": 3425
+      },
+      {
+        "group": "polyphone",
+        "code": "hangzhang",
+        "expected": [
+          "行长"
+        ],
+        "actual": [
+          "行长",
+          "行",
+          "航",
+          "杭",
+          "夯",
+          "沆",
+          "颃",
+          "绗",
+          "吭",
+          "巷"
+        ],
+        "preedit": "hang'zhang",
+        "firstConfirmed": "行长",
+        "rank": 1,
+        "inputMicros": 19802
+      },
+      {
+        "group": "polyphone",
+        "code": "chongfu",
+        "expected": [
+          "重复"
+        ],
+        "actual": [
+          "重复",
+          "冲服",
+          "宠夫",
+          "崇福",
+          "冲",
+          "充",
+          "重",
+          "虫",
+          "崇",
+          "宠"
+        ],
+        "preedit": "chong'fu",
+        "firstConfirmed": "重复",
+        "rank": 1,
+        "inputMicros": 21139
+      },
+      {
+        "group": "polyphone",
+        "code": "zhongliang",
+        "expected": [
+          "重量"
+        ],
+        "actual": [
+          "重量",
+          "种粮",
+          "中粮",
+          "忠良",
+          "中量",
+          "中立",
+          "重力",
+          "钟离",
+          "重礼",
+          "重利"
+        ],
+        "preedit": "zhong'liang",
+        "firstConfirmed": "重量",
+        "rank": 1,
+        "inputMicros": 25415
+      },
+      {
+        "group": "polyphone",
+        "code": "zhangda",
+        "expected": [
+          "长大"
+        ],
+        "actual": [
+          "长大",
+          "张大",
+          "胀大",
+          "长",
+          "张",
+          "章",
+          "掌",
+          "丈",
+          "帐",
+          "仗"
+        ],
+        "preedit": "zhang'da",
+        "firstConfirmed": "长大",
+        "rank": 1,
+        "inputMicros": 9921
+      },
+      {
+        "group": "polyphone",
+        "code": "changcheng",
+        "expected": [
+          "长城"
+        ],
+        "actual": [
+          "长城",
+          "唱成",
+          "长程",
+          "长",
+          "常",
+          "场",
+          "唱",
+          "厂",
+          "尝",
+          "昌"
+        ],
+        "preedit": "chang'cheng",
+        "firstConfirmed": "长城",
+        "rank": 1,
+        "inputMicros": 15599
+      },
+      {
+        "group": "polyphone",
+        "code": "kuai'le",
+        "expected": [
+          "快乐"
+        ],
+        "actual": [
+          "快乐",
+          "快了",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "会",
+          "蒯",
+          "哙",
+          "侩"
+        ],
+        "preedit": "kuai'le",
+        "firstConfirmed": "快乐",
+        "rank": 1,
+        "inputMicros": 2818
+      },
+      {
+        "group": "polyphone",
+        "code": "yinyue",
+        "expected": [
+          "音乐"
+        ],
+        "actual": [
+          "音乐",
+          "隐约",
+          "银月",
+          "淫乐",
+          "阴雨",
+          "隐喻",
+          "引语",
+          "音域",
+          "阴郁",
+          "淫欲"
+        ],
+        "preedit": "yin'yue",
+        "firstConfirmed": "音乐",
+        "rank": 1,
+        "inputMicros": 2817
+      },
+      {
+        "group": "polyphone",
+        "code": "bianli",
+        "expected": [
+          "便利"
+        ],
+        "actual": [
+          "便利",
+          "遍历",
+          "变例",
+          "边",
+          "便",
+          "变",
+          "遍",
+          "编",
+          "辩",
+          "鞭"
+        ],
+        "preedit": "bian'li",
+        "firstConfirmed": "便利",
+        "rank": 1,
+        "inputMicros": 2672
+      },
+      {
+        "group": "polyphone",
+        "code": "shuju",
+        "expected": [
+          "数据"
+        ],
+        "actual": [
+          "数据",
+          "书局",
+          "数句",
+          "书",
+          "数",
+          "术",
+          "树",
+          "属",
+          "熟",
+          "叔"
+        ],
+        "preedit": "shu'ju",
+        "firstConfirmed": "数据",
+        "rank": 1,
+        "inputMicros": 4496
+      },
+      {
+        "group": "sentence",
+        "code": "wojintianxiawuyougejuhui",
+        "expected": [
+          "我今天下午有个聚会"
+        ],
+        "actual": [
+          "我今天下午有个聚会",
+          "我今天下午",
+          "我今天",
+          "握紧",
+          "我今",
+          "我进",
+          "沃金",
+          "我",
+          "握",
+          "窝"
+        ],
+        "preedit": "wo'jin'tian'xia'wu'you'ge'ju'hui",
+        "firstConfirmed": "我今天下午有个聚会",
+        "rank": 1,
+        "inputMicros": 36444
+      },
+      {
+        "group": "sentence",
+        "code": "mingtianzaoshangjiudianban",
+        "expected": [
+          "明天早上九点半"
+        ],
+        "actual": [
+          "明天早上九点半",
+          "明天",
+          "命题",
+          "明体",
+          "明",
+          "名",
+          "命",
+          "鸣",
+          "冥",
+          "铭"
+        ],
+        "preedit": "ming'tian'zao'shang'jiu'dian'ban",
+        "firstConfirmed": "明天早上九点半",
+        "rank": 1,
+        "inputMicros": 83101
+      },
+      {
+        "group": "sentence",
+        "code": "qingbashenqingbiaofageiwo",
+        "expected": [
+          "请把申请表发给我"
+        ],
+        "actual": [
+          "请把申请表发给我",
+          "请把",
+          "请吧",
+          "请",
+          "轻",
+          "清",
+          "青",
+          "情",
+          "庆",
+          "晴"
+        ],
+        "preedit": "qing'ba'shen'qing'biao'fa'gei'wo",
+        "firstConfirmed": "请把申请表发给我",
+        "rank": 1,
+        "inputMicros": 128812
+      },
+      {
+        "group": "sentence",
+        "code": "wozhengzaiceshizhegeshurufa",
+        "expected": [
+          "我正在测试这个输入法"
+        ],
+        "actual": [
+          "我正在测试这个输入法",
+          "我正在",
+          "我正",
+          "我",
+          "握",
+          "窝",
+          "卧",
+          "沃",
+          "喔",
+          "倭"
+        ],
+        "preedit": "wo'zheng'zai'ce'shi'zhe'ge'shu'ru'fa",
+        "firstConfirmed": "我正在测试这个输入法",
+        "rank": 1,
+        "inputMicros": 260101
+      },
+      {
+        "group": "sentence",
+        "code": "zhegewentiyijingjiejuele",
+        "expected": [
+          "这个问题已经解决了"
+        ],
+        "actual": [
+          "这个问题已经解决了",
+          "这个问题",
+          "这个",
+          "这歌",
+          "这",
+          "着",
+          "者",
+          "折",
+          "哲",
+          "遮"
+        ],
+        "preedit": "zhe'ge'wen'ti'yi'jing'jie'jue'le",
+        "firstConfirmed": "这个问题已经解决了",
+        "rank": 1,
+        "inputMicros": 113646
+      },
+      {
+        "group": "sentence",
+        "code": "womenkeyimingtiantaolun",
+        "expected": [
+          "我们可以明天讨论"
+        ],
+        "actual": [
+          "我们可以明天讨论",
+          "我们可以",
+          "我们科",
+          "我们",
+          "我",
+          "握",
+          "窝",
+          "卧",
+          "沃",
+          "喔"
+        ],
+        "preedit": "wo'men'ke'yi'ming'tian'tao'lun",
+        "firstConfirmed": "我们可以明天讨论",
+        "rank": 1,
+        "inputMicros": 51585
+      }
+    ]
+  },
+  "core": {
+    "name": "core",
+    "coreCount": 70,
+    "coreTop1": 69,
+    "coreTop5": 70,
+    "sentenceCount": 6,
+    "sentenceTop1": 6,
+    "coldDeployMicros": 16251351,
+    "coreInputP50Micros": 4411,
+    "coreInputP95Micros": 18671,
+    "processPssKiB": 249795,
+    "deployedBytes": 34059620,
+    "samples": [
+      {
+        "group": "chat",
+        "code": "nihao",
+        "expected": [
+          "你好"
+        ],
+        "actual": [
+          "你好",
+          "拟好",
+          "你",
+          "尼",
+          "泥",
+          "逆",
+          "拟",
+          "腻",
+          "倪",
+          "霓"
+        ],
+        "preedit": "ni'hao",
+        "firstConfirmed": "你好",
+        "rank": 1,
+        "inputMicros": 2162
+      },
+      {
+        "group": "chat",
+        "code": "xiexie",
+        "expected": [
+          "谢谢"
+        ],
+        "actual": [
+          "谢谢",
+          "写写",
+          "写些",
+          "斜斜",
+          "歇歇",
+          "泄泻",
+          "歇息",
+          "血洗",
+          "谐戏",
+          "些"
+        ],
+        "preedit": "xie'xie",
+        "firstConfirmed": "谢谢",
+        "rank": 1,
+        "inputMicros": 2526
+      },
+      {
+        "group": "chat",
+        "code": "duibuqi",
+        "expected": [
+          "对不起"
+        ],
+        "actual": [
+          "对不起",
+          "对不齐",
+          "对不",
+          "队部",
+          "对簿",
+          "对",
+          "队",
+          "堆",
+          "兑",
+          "怼"
+        ],
+        "preedit": "dui'bu'qi",
+        "firstConfirmed": "对不起",
+        "rank": 1,
+        "inputMicros": 2905
+      },
+      {
+        "group": "chat",
+        "code": "meiguanxi",
+        "expected": [
+          "没关系"
+        ],
+        "actual": [
+          "没关系",
+          "美观",
+          "没关",
+          "没管",
+          "煤管",
+          "每罐",
+          "每股",
+          "美股",
+          "眉骨",
+          "媚骨"
+        ],
+        "preedit": "mei'guan'xi",
+        "firstConfirmed": "没关系",
+        "rank": 1,
+        "inputMicros": 4260
+      },
+      {
+        "group": "chat",
+        "code": "zaoshanghao",
+        "expected": [
+          "早上好"
+        ],
+        "actual": [
+          "早上好",
+          "早上",
+          "灶上",
+          "早",
+          "造",
+          "遭",
+          "糟",
+          "澡",
+          "躁",
+          "燥"
+        ],
+        "preedit": "zao'shang'hao",
+        "firstConfirmed": "早上好",
+        "rank": 1,
+        "inputMicros": 9552
+      },
+      {
+        "group": "chat",
+        "code": "wanshanghao",
+        "expected": [
+          "晚上好"
+        ],
+        "actual": [
+          "晚上好",
+          "晚上",
+          "玩上",
+          "腕上",
+          "挽上",
+          "腕伤",
+          "玩赏",
+          "惋伤",
+          "婉商",
+          "完"
+        ],
+        "preedit": "wan'shang'hao",
+        "firstConfirmed": "晚上好",
+        "rank": 1,
+        "inputMicros": 8577
+      },
+      {
+        "group": "chat",
+        "code": "zaijian",
+        "expected": [
+          "再见"
+        ],
+        "actual": [
+          "再见",
+          "在建",
+          "再建",
+          "再减",
+          "在肩",
+          "在即",
+          "载机",
+          "在",
+          "再",
+          "载"
+        ],
+        "preedit": "zai'jian",
+        "firstConfirmed": "再见",
+        "rank": 1,
+        "inputMicros": 3575
+      },
+      {
+        "group": "chat",
+        "code": "mingtianjian",
+        "expected": [
+          "明天见"
+        ],
+        "actual": [
+          "明天见",
+          "明天",
+          "命题",
+          "明体",
+          "明",
+          "名",
+          "命",
+          "鸣",
+          "冥",
+          "铭"
+        ],
+        "preedit": "ming'tian'jian",
+        "firstConfirmed": "明天见",
+        "rank": 1,
+        "inputMicros": 7048
+      },
+      {
+        "group": "chat",
+        "code": "yihuier",
+        "expected": [
+          "一会儿"
+        ],
+        "actual": [
+          "一会儿",
+          "一会",
+          "一回",
+          "一挥",
+          "亦会",
+          "议会",
+          "意会",
+          "已回",
+          "一",
+          "以"
+        ],
+        "preedit": "yi'hui'er",
+        "firstConfirmed": "一会儿",
+        "rank": 1,
+        "inputMicros": 3059
+      },
+      {
+        "group": "chat",
+        "code": "buhaoyisi",
+        "expected": [
+          "不好意思"
+        ],
+        "actual": [
+          "不好意思",
+          "不好意思了",
+          "不好意思啊",
+          "不好意思哦",
+          "不好意思啦",
+          "不好",
+          "补好",
+          "不",
+          "部",
+          "步"
+        ],
+        "preedit": "bu'hao'yi'si",
+        "firstConfirmed": "不好意思",
+        "rank": 1,
+        "inputMicros": 4811
+      },
+      {
+        "group": "chat",
+        "code": "zenmeyang",
+        "expected": [
+          "怎么样"
+        ],
+        "actual": [
+          "怎么样",
+          "怎么",
+          "怎",
+          "谮"
+        ],
+        "preedit": "zen'me'yang",
+        "firstConfirmed": "怎么样",
+        "rank": 1,
+        "inputMicros": 6395
+      },
+      {
+        "group": "chat",
+        "code": "weishenme",
+        "expected": [
+          "为什么"
+        ],
+        "actual": [
+          "为什么",
+          "位深",
+          "委身",
+          "未深",
+          "韦神",
+          "为",
+          "位",
+          "微",
+          "未",
+          "围"
+        ],
+        "preedit": "wei'shen'me",
+        "firstConfirmed": "为什么",
+        "rank": 1,
+        "inputMicros": 5582
+      },
+      {
+        "group": "chat",
+        "code": "zhidaole",
+        "expected": [
+          "知道了"
+        ],
+        "actual": [
+          "知道了",
+          "知道",
+          "指导",
+          "直到",
+          "之道",
+          "执导",
+          "只到",
+          "制导",
+          "只道",
+          "之岛"
+        ],
+        "preedit": "zhi'dao'le",
+        "firstConfirmed": "知道了",
+        "rank": 1,
+        "inputMicros": 6084
+      },
+      {
+        "group": "chat",
+        "code": "meiwenti",
+        "expected": [
+          "没问题"
+        ],
+        "actual": [
+          "没问题",
+          "没问",
+          "美文",
+          "没",
+          "美",
+          "每",
+          "妹",
+          "眉",
+          "梅",
+          "媚"
+        ],
+        "preedit": "mei'wen'ti",
+        "firstConfirmed": "没问题",
+        "rank": 1,
+        "inputMicros": 4008
+      },
+      {
+        "group": "chat",
+        "code": "keyi",
+        "expected": [
+          "可以"
+        ],
+        "actual": [
+          "可以",
+          "刻意",
+          "可疑",
+          "科一",
+          "可依",
+          "课椅",
+          "可意",
+          "可",
+          "刻",
+          "克"
+        ],
+        "preedit": "ke'yi",
+        "firstConfirmed": "可以",
+        "rank": 1,
+        "inputMicros": 2179
+      },
+      {
+        "group": "chat",
+        "code": "dengyixia",
+        "expected": [
+          "等一下"
+        ],
+        "actual": [
+          "等一下",
+          "登一下",
+          "等一",
+          "等义",
+          "等",
+          "灯",
+          "登",
+          "瞪",
+          "邓",
+          "凳"
+        ],
+        "preedit": "deng'yi'xia",
+        "firstConfirmed": "等一下",
+        "rank": 1,
+        "inputMicros": 6214
+      },
+      {
+        "group": "chat",
+        "code": "shoudao",
+        "expected": [
+          "收到"
+        ],
+        "actual": [
+          "收到",
+          "受到",
+          "手刀",
+          "瘦到",
+          "守到",
+          "收刀",
+          "兽道",
+          "首道",
+          "手大",
+          "手打"
+        ],
+        "preedit": "shou'dao",
+        "firstConfirmed": "收到",
+        "rank": 1,
+        "inputMicros": 14255
+      },
+      {
+        "group": "chat",
+        "code": "zai'ma",
+        "expected": [
+          "在吗"
+        ],
+        "actual": [
+          "在吗",
+          "在",
+          "再",
+          "载",
+          "灾",
+          "宰",
+          "栽",
+          "哉",
+          "仔",
+          "崽"
+        ],
+        "preedit": "zai'ma",
+        "firstConfirmed": "在吗",
+        "rank": 1,
+        "inputMicros": 3017
+      },
+      {
+        "group": "chat",
+        "code": "chifan",
+        "expected": [
+          "吃饭"
+        ],
+        "actual": [
+          "吃饭",
+          "吃",
+          "持",
+          "迟",
+          "赤",
+          "痴",
+          "池",
+          "尺",
+          "齿",
+          "斥"
+        ],
+        "preedit": "chi'fan",
+        "firstConfirmed": "吃饭",
+        "rank": 1,
+        "inputMicros": 4295
+      },
+      {
+        "group": "chat",
+        "code": "shuijiao",
+        "expected": [
+          "睡觉"
+        ],
+        "actual": [
+          "睡觉",
+          "谁叫",
+          "水饺",
+          "谁教",
+          "水窖",
+          "水胶",
+          "水脚",
+          "水价",
+          "谁家",
+          "水迹"
+        ],
+        "preedit": "shui'jiao",
+        "firstConfirmed": "睡觉",
+        "rank": 1,
+        "inputMicros": 5747
+      },
+      {
+        "group": "work",
+        "code": "gongzuo",
+        "expected": [
+          "工作"
+        ],
+        "actual": [
+          "工作",
+          "供作",
+          "共作",
+          "拱卒",
+          "共祖",
+          "公族",
+          "共组",
+          "公",
+          "工",
+          "功"
+        ],
+        "preedit": "gong'zuo",
+        "firstConfirmed": "工作",
+        "rank": 1,
+        "inputMicros": 4411
+      },
+      {
+        "group": "work",
+        "code": "kaihui",
+        "expected": [
+          "开会"
+        ],
+        "actual": [
+          "开会",
+          "开慧",
+          "开",
+          "凯",
+          "慨",
+          "铠",
+          "楷",
+          "恺",
+          "揩",
+          "锴"
+        ],
+        "preedit": "kai'hui",
+        "firstConfirmed": "开会",
+        "rank": 1,
+        "inputMicros": 2600
+      },
+      {
+        "group": "work",
+        "code": "huiyi",
+        "expected": [
+          "会议"
+        ],
+        "actual": [
+          "会议",
+          "回忆",
+          "会意",
+          "会以",
+          "灰衣",
+          "悔意",
+          "回译",
+          "虺蜴",
+          "袆衣",
+          "会"
+        ],
+        "preedit": "hui'yi",
+        "firstConfirmed": "会议",
+        "rank": 1,
+        "inputMicros": 1954
+      },
+      {
+        "group": "work",
+        "code": "youjian",
+        "expected": [
+          "邮件"
+        ],
+        "actual": [
+          "邮件",
+          "右键",
+          "又见",
+          "右肩",
+          "诱奸",
+          "有件",
+          "有间",
+          "油煎",
+          "有机",
+          "邮寄"
+        ],
+        "preedit": "you'jian",
+        "firstConfirmed": "邮件",
+        "rank": 1,
+        "inputMicros": 2908
+      },
+      {
+        "group": "work",
+        "code": "fujian",
+        "expected": [
+          "附件"
+        ],
+        "actual": [
+          "附件",
+          "福建",
+          "复检",
+          "复健",
+          "复建",
+          "苻坚",
+          "苻健",
+          "腹肌",
+          "伏击",
+          "负极"
+        ],
+        "preedit": "fu'jian",
+        "firstConfirmed": "附件",
+        "rank": 1,
+        "inputMicros": 2469
+      },
+      {
+        "group": "work",
+        "code": "wendang",
+        "expected": [
+          "文档"
+        ],
+        "actual": [
+          "文档",
+          "稳当",
+          "问",
+          "文",
+          "温",
+          "闻",
+          "稳",
+          "吻",
+          "纹",
+          "雯"
+        ],
+        "preedit": "wen'dang",
+        "firstConfirmed": "文档",
+        "rank": 1,
+        "inputMicros": 3908
+      },
+      {
+        "group": "work",
+        "code": "xiangmu",
+        "expected": [
+          "项目"
+        ],
+        "actual": [
+          "项目",
+          "橡木",
+          "香木",
+          "向慕",
+          "向暮",
+          "想",
+          "向",
+          "相",
+          "像",
+          "象"
+        ],
+        "preedit": "xiang'mu",
+        "firstConfirmed": "项目",
+        "rank": 1,
+        "inputMicros": 3519
+      },
+      {
+        "group": "work",
+        "code": "jindu",
+        "expected": [
+          "进度"
+        ],
+        "actual": [
+          "进度",
+          "禁毒",
+          "禁赌",
+          "津渡",
+          "金都",
+          "进",
+          "今",
+          "金",
+          "紧",
+          "近"
+        ],
+        "preedit": "jin'du",
+        "firstConfirmed": "进度",
+        "rank": 1,
+        "inputMicros": 2346
+      },
+      {
+        "group": "work",
+        "code": "xuqiu",
+        "expected": [
+          "需求"
+        ],
+        "actual": [
+          "需求",
+          "许",
+          "续",
+          "需",
+          "须",
+          "虚",
+          "徐",
+          "绪",
+          "序",
+          "旭"
+        ],
+        "preedit": "xu'qiu",
+        "firstConfirmed": "需求",
+        "rank": 1,
+        "inputMicros": 2331
+      },
+      {
+        "group": "work",
+        "code": "ceshi",
+        "expected": [
+          "测试"
+        ],
+        "actual": [
+          "测试",
+          "侧视",
+          "侧室",
+          "策士",
+          "测",
+          "侧",
+          "册",
+          "策",
+          "厕",
+          "恻"
+        ],
+        "preedit": "ce'shi",
+        "firstConfirmed": "测试",
+        "rank": 1,
+        "inputMicros": 4595
+      },
+      {
+        "group": "work",
+        "code": "banben",
+        "expected": [
+          "版本"
+        ],
+        "actual": [
+          "版本",
+          "半本",
+          "扳本",
+          "坂本",
+          "半",
+          "办",
+          "般",
+          "板",
+          "班",
+          "伴"
+        ],
+        "preedit": "ban'ben",
+        "firstConfirmed": "版本",
+        "rank": 1,
+        "inputMicros": 9079
+      },
+      {
+        "group": "work",
+        "code": "gengxin",
+        "expected": [
+          "更新"
+        ],
+        "actual": [
+          "更新",
+          "更",
+          "耿",
+          "哽",
+          "耕",
+          "羹",
+          "庚",
+          "梗",
+          "赓",
+          "埂"
+        ],
+        "preedit": "geng'xin",
+        "firstConfirmed": "更新",
+        "rank": 1,
+        "inputMicros": 3892
+      },
+      {
+        "group": "work",
+        "code": "xiazai",
+        "expected": [
+          "下载"
+        ],
+        "actual": [
+          "下载",
+          "下崽",
+          "下",
+          "吓",
+          "夏",
+          "侠",
+          "霞",
+          "瞎",
+          "狭",
+          "暇"
+        ],
+        "preedit": "xia'zai",
+        "firstConfirmed": "下载",
+        "rank": 1,
+        "inputMicros": 2663
+      },
+      {
+        "group": "work",
+        "code": "shangchuan",
+        "expected": [
+          "上传"
+        ],
+        "actual": [
+          "上传",
+          "上船",
+          "商船",
+          "上穿",
+          "伤处",
+          "上",
+          "伤",
+          "商",
+          "尚",
+          "赏"
+        ],
+        "preedit": "shang'chuan",
+        "firstConfirmed": "上传",
+        "rank": 1,
+        "inputMicros": 16107
+      },
+      {
+        "group": "work",
+        "code": "shurufa",
+        "expected": [
+          "输入法"
+        ],
+        "actual": [
+          "输入法",
+          "输入",
+          "书",
+          "数",
+          "术",
+          "树",
+          "属",
+          "熟",
+          "叔",
+          "束"
+        ],
+        "preedit": "shu'ru'fa",
+        "firstConfirmed": "输入法",
+        "rank": 1,
+        "inputMicros": 6402
+      },
+      {
+        "group": "work",
+        "code": "ci'ku",
+        "expected": [
+          "词库"
+        ],
+        "actual": [
+          "词库",
+          "此",
+          "次",
+          "刺",
+          "词",
+          "辞",
+          "慈",
+          "赐",
+          "磁",
+          "伺"
+        ],
+        "preedit": "ci'ku",
+        "firstConfirmed": "词库",
+        "rank": 1,
+        "inputMicros": 2286
+      },
+      {
+        "group": "work",
+        "code": "mima",
+        "expected": [
+          "密码"
+        ],
+        "actual": [
+          "密码",
+          "密",
+          "米",
+          "迷",
+          "秘",
+          "弥",
+          "蜜",
+          "眯",
+          "咪",
+          "谜"
+        ],
+        "preedit": "mi'ma",
+        "firstConfirmed": "密码",
+        "rank": 1,
+        "inputMicros": 1708
+      },
+      {
+        "group": "work",
+        "code": "yanzhengma",
+        "expected": [
+          "验证码"
+        ],
+        "actual": [
+          "验证码",
+          "验证",
+          "炎症",
+          "严正",
+          "严整",
+          "盐政",
+          "衍征",
+          "严政",
+          "眼",
+          "言"
+        ],
+        "preedit": "yan'zheng'ma",
+        "firstConfirmed": "验证码",
+        "rank": 1,
+        "inputMicros": 11426
+      },
+      {
+        "group": "work",
+        "code": "hulianwang",
+        "expected": [
+          "互联网"
+        ],
+        "actual": [
+          "互联网",
+          "互联",
+          "虎脸",
+          "互怜",
+          "护理",
+          "狐狸",
+          "互利",
+          "湖里",
+          "壶里",
+          "鹄立"
+        ],
+        "preedit": "hu'lian'wang",
+        "firstConfirmed": "互联网",
+        "rank": 1,
+        "inputMicros": 5293
+      },
+      {
+        "group": "work",
+        "code": "xinxijishu",
+        "expected": [
+          "信息技术"
+        ],
+        "actual": [
+          "信息技术",
+          "信息技术有限公司",
+          "信息技术课程",
+          "信息技术产品协议",
+          "信息技术基础",
+          "信息技术有限",
+          "信息机",
+          "信息",
+          "欣喜",
+          "心系"
+        ],
+        "preedit": "xin'xi'ji'shu",
+        "firstConfirmed": "信息技术",
+        "rank": 1,
+        "inputMicros": 8278
+      },
+      {
+        "group": "daily",
+        "code": "kuaidi",
+        "expected": [
+          "快递"
+        ],
+        "actual": [
+          "快递",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "会",
+          "蒯",
+          "哙",
+          "侩",
+          "脍"
+        ],
+        "preedit": "kuai'di",
+        "firstConfirmed": "快递",
+        "rank": 1,
+        "inputMicros": 2757
+      },
+      {
+        "group": "daily",
+        "code": "waimai",
+        "expected": [
+          "外卖"
+        ],
+        "actual": [
+          "外卖",
+          "外",
+          "歪",
+          "崴"
+        ],
+        "preedit": "wai'mai",
+        "firstConfirmed": "外卖",
+        "rank": 1,
+        "inputMicros": 2194
+      },
+      {
+        "group": "daily",
+        "code": "shouji",
+        "expected": [
+          "手机"
+        ],
+        "actual": [
+          "手机",
+          "收集",
+          "手记",
+          "熟记",
+          "首级",
+          "守纪",
+          "手迹",
+          "首季",
+          "受挤",
+          "授技"
+        ],
+        "preedit": "shou'ji",
+        "firstConfirmed": "手机",
+        "rank": 1,
+        "inputMicros": 10501
+      },
+      {
+        "group": "daily",
+        "code": "diannao",
+        "expected": [
+          "电脑"
+        ],
+        "actual": [
+          "电脑",
+          "点那",
+          "狄安娜",
+          "点哪",
+          "点",
+          "电",
+          "店",
+          "殿",
+          "典",
+          "颠"
+        ],
+        "preedit": "dian'nao",
+        "firstConfirmed": "电脑",
+        "rank": 1,
+        "inputMicros": 3414
+      },
+      {
+        "group": "daily",
+        "code": "ditie",
+        "expected": [
+          "地铁"
+        ],
+        "actual": [
+          "地铁",
+          "地",
+          "第",
+          "弟",
+          "底",
+          "低",
+          "帝",
+          "敌",
+          "抵",
+          "递"
+        ],
+        "preedit": "di'tie",
+        "firstConfirmed": "地铁",
+        "rank": 1,
+        "inputMicros": 2255
+      },
+      {
+        "group": "daily",
+        "code": "gongjiaoche",
+        "expected": [
+          "公交车"
+        ],
+        "actual": [
+          "公交车",
+          "公交",
+          "攻角",
+          "宫角",
+          "工交",
+          "公家",
+          "工价",
+          "公假",
+          "共价",
+          "功架"
+        ],
+        "preedit": "gong'jiao'che",
+        "firstConfirmed": "公交车",
+        "rank": 1,
+        "inputMicros": 13347
+      },
+      {
+        "group": "daily",
+        "code": "chaoshi",
+        "expected": [
+          "超市"
+        ],
+        "actual": [
+          "超市",
+          "潮湿",
+          "超时",
+          "巢室",
+          "潮式",
+          "超",
+          "朝",
+          "潮",
+          "吵",
+          "嘲"
+        ],
+        "preedit": "chao'shi",
+        "firstConfirmed": "超市",
+        "rank": 1,
+        "inputMicros": 11605
+      },
+      {
+        "group": "daily",
+        "code": "yiyuan",
+        "expected": [
+          "医院"
+        ],
+        "actual": [
+          "医院",
+          "意愿",
+          "亿元",
+          "一员",
+          "一元",
+          "遗愿",
+          "议员",
+          "已远",
+          "一院",
+          "议院"
+        ],
+        "preedit": "yi'yuan",
+        "firstConfirmed": "医院",
+        "rank": 1,
+        "inputMicros": 2654
+      },
+      {
+        "group": "daily",
+        "code": "yuyue",
+        "expected": [
+          "预约"
+        ],
+        "actual": [
+          "预约",
+          "愉悦",
+          "逾越",
+          "鱼跃",
+          "逾约",
+          "逾月",
+          "俞樾",
+          "郁郁",
+          "欲与",
+          "寓于"
+        ],
+        "preedit": "yu'yue",
+        "firstConfirmed": "预约",
+        "rank": 1,
+        "inputMicros": 2125
+      },
+      {
+        "group": "daily",
+        "code": "zhifubao",
+        "expected": [
+          "支付宝"
+        ],
+        "actual": [
+          "支付宝",
+          "致富报",
+          "支付",
+          "致富",
+          "制服",
+          "之父",
+          "知府",
+          "只服",
+          "之福",
+          "治服"
+        ],
+        "preedit": "zhi'fu'bao",
+        "firstConfirmed": "支付宝",
+        "rank": 1,
+        "inputMicros": 5583
+      },
+      {
+        "group": "place",
+        "code": "beijing",
+        "expected": [
+          "北京"
+        ],
+        "actual": [
+          "北京",
+          "背景",
+          "北境",
+          "倍镜",
+          "被",
+          "备",
+          "北",
+          "背",
+          "呗",
+          "杯"
+        ],
+        "preedit": "bei'jing",
+        "firstConfirmed": "北京",
+        "rank": 1,
+        "inputMicros": 3375
+      },
+      {
+        "group": "place",
+        "code": "shanghai",
+        "expected": [
+          "上海"
+        ],
+        "actual": [
+          "上海",
+          "伤害",
+          "商海",
+          "上",
+          "伤",
+          "商",
+          "尚",
+          "赏",
+          "晌",
+          "裳"
+        ],
+        "preedit": "shang'hai",
+        "firstConfirmed": "上海",
+        "rank": 1,
+        "inputMicros": 9737
+      },
+      {
+        "group": "place",
+        "code": "guangzhou",
+        "expected": [
+          "广州"
+        ],
+        "actual": [
+          "广州",
+          "光州",
+          "光轴",
+          "光",
+          "广",
+          "逛",
+          "咣",
+          "犷",
+          "胱",
+          "桄"
+        ],
+        "preedit": "guang'zhou",
+        "firstConfirmed": "广州",
+        "rank": 1,
+        "inputMicros": 18671
+      },
+      {
+        "group": "place",
+        "code": "shenzhen",
+        "expected": [
+          "深圳"
+        ],
+        "actual": [
+          "深圳",
+          "神",
+          "深",
+          "身",
+          "甚",
+          "什",
+          "伸",
+          "沈",
+          "审",
+          "申"
+        ],
+        "preedit": "shen'zhen",
+        "firstConfirmed": "深圳",
+        "rank": 1,
+        "inputMicros": 14015
+      },
+      {
+        "group": "place",
+        "code": "chongqing",
+        "expected": [
+          "重庆"
+        ],
+        "actual": [
+          "重庆",
+          "虫情",
+          "冲",
+          "充",
+          "重",
+          "虫",
+          "崇",
+          "宠",
+          "忡",
+          "憧"
+        ],
+        "preedit": "chong'qing",
+        "firstConfirmed": "重庆",
+        "rank": 1,
+        "inputMicros": 20390
+      },
+      {
+        "group": "place",
+        "code": "xi'an",
+        "expected": [
+          "西安"
+        ],
+        "actual": [
+          "西安",
+          "西岸",
+          "锡安",
+          "洗",
+          "西",
+          "喜",
+          "系",
+          "息",
+          "细",
+          "希"
+        ],
+        "preedit": "xi'an",
+        "firstConfirmed": "西安",
+        "rank": 1,
+        "inputMicros": 1786
+      },
+      {
+        "group": "place",
+        "code": "dongjing",
+        "expected": [
+          "东京"
+        ],
+        "actual": [
+          "动静",
+          "东京",
+          "东经",
+          "冬景",
+          "动",
+          "东",
+          "洞",
+          "懂",
+          "冬",
+          "董"
+        ],
+        "preedit": "dong'jing",
+        "firstConfirmed": "动静",
+        "rank": 2,
+        "inputMicros": 5109
+      },
+      {
+        "group": "name",
+        "code": "wangwei",
+        "expected": [
+          "王维",
+          "王伟"
+        ],
+        "actual": [
+          "王伟",
+          "王位",
+          "妄为",
+          "枉为",
+          "网胃",
+          "王威",
+          "王维",
+          "王薇",
+          "王",
+          "望"
+        ],
+        "preedit": "wang'wei",
+        "firstConfirmed": "王伟",
+        "rank": 1,
+        "inputMicros": 9164
+      },
+      {
+        "group": "name",
+        "code": "liming",
+        "expected": [
+          "黎明",
+          "李明"
+        ],
+        "actual": [
+          "黎明",
+          "李明",
+          "立命",
+          "立名",
+          "李铭",
+          "里",
+          "力",
+          "理",
+          "李",
+          "立"
+        ],
+        "preedit": "li'ming",
+        "firstConfirmed": "黎明",
+        "rank": 1,
+        "inputMicros": 2656
+      },
+      {
+        "group": "name",
+        "code": "zhangsan",
+        "expected": [
+          "张三"
+        ],
+        "actual": [
+          "张三",
+          "长",
+          "张",
+          "章",
+          "掌",
+          "丈",
+          "帐",
+          "仗",
+          "障",
+          "涨"
+        ],
+        "preedit": "zhang'san",
+        "firstConfirmed": "张三",
+        "rank": 1,
+        "inputMicros": 10213
+      },
+      {
+        "group": "polyphone",
+        "code": "yinhang",
+        "expected": [
+          "银行"
+        ],
+        "actual": [
+          "银行",
+          "引航",
+          "引吭",
+          "因",
+          "音",
+          "引",
+          "隐",
+          "银",
+          "阴",
+          "印"
+        ],
+        "preedit": "yin'hang",
+        "firstConfirmed": "银行",
+        "rank": 1,
+        "inputMicros": 3542
+      },
+      {
+        "group": "polyphone",
+        "code": "hangzhang",
+        "expected": [
+          "行长"
+        ],
+        "actual": [
+          "行长",
+          "行",
+          "航",
+          "杭",
+          "夯",
+          "沆",
+          "颃",
+          "绗",
+          "吭",
+          "巷"
+        ],
+        "preedit": "hang'zhang",
+        "firstConfirmed": "行长",
+        "rank": 1,
+        "inputMicros": 17643
+      },
+      {
+        "group": "polyphone",
+        "code": "chongfu",
+        "expected": [
+          "重复"
+        ],
+        "actual": [
+          "重复",
+          "冲服",
+          "宠夫",
+          "崇福",
+          "冲",
+          "充",
+          "重",
+          "虫",
+          "崇",
+          "宠"
+        ],
+        "preedit": "chong'fu",
+        "firstConfirmed": "重复",
+        "rank": 1,
+        "inputMicros": 19214
+      },
+      {
+        "group": "polyphone",
+        "code": "zhongliang",
+        "expected": [
+          "重量"
+        ],
+        "actual": [
+          "重量",
+          "种粮",
+          "中粮",
+          "忠良",
+          "中量",
+          "中立",
+          "重力",
+          "钟离",
+          "重礼",
+          "重利"
+        ],
+        "preedit": "zhong'liang",
+        "firstConfirmed": "重量",
+        "rank": 1,
+        "inputMicros": 23846
+      },
+      {
+        "group": "polyphone",
+        "code": "zhangda",
+        "expected": [
+          "长大"
+        ],
+        "actual": [
+          "长大",
+          "张大",
+          "胀大",
+          "长",
+          "张",
+          "章",
+          "掌",
+          "丈",
+          "帐",
+          "仗"
+        ],
+        "preedit": "zhang'da",
+        "firstConfirmed": "长大",
+        "rank": 1,
+        "inputMicros": 9240
+      },
+      {
+        "group": "polyphone",
+        "code": "changcheng",
+        "expected": [
+          "长城"
+        ],
+        "actual": [
+          "长城",
+          "唱成",
+          "长程",
+          "长",
+          "常",
+          "场",
+          "唱",
+          "厂",
+          "尝",
+          "昌"
+        ],
+        "preedit": "chang'cheng",
+        "firstConfirmed": "长城",
+        "rank": 1,
+        "inputMicros": 18108
+      },
+      {
+        "group": "polyphone",
+        "code": "kuai'le",
+        "expected": [
+          "快乐"
+        ],
+        "actual": [
+          "快乐",
+          "快了",
+          "快",
+          "块",
+          "酷爱",
+          "筷",
+          "会",
+          "蒯",
+          "哙",
+          "侩"
+        ],
+        "preedit": "kuai'le",
+        "firstConfirmed": "快乐",
+        "rank": 1,
+        "inputMicros": 3791
+      },
+      {
+        "group": "polyphone",
+        "code": "yinyue",
+        "expected": [
+          "音乐"
+        ],
+        "actual": [
+          "音乐",
+          "隐约",
+          "银月",
+          "淫乐",
+          "阴雨",
+          "隐喻",
+          "引语",
+          "音域",
+          "阴郁",
+          "淫欲"
+        ],
+        "preedit": "yin'yue",
+        "firstConfirmed": "音乐",
+        "rank": 1,
+        "inputMicros": 3991
+      },
+      {
+        "group": "polyphone",
+        "code": "bianli",
+        "expected": [
+          "便利"
+        ],
+        "actual": [
+          "便利",
+          "遍历",
+          "变例",
+          "边",
+          "便",
+          "变",
+          "遍",
+          "编",
+          "辩",
+          "鞭"
+        ],
+        "preedit": "bian'li",
+        "firstConfirmed": "便利",
+        "rank": 1,
+        "inputMicros": 3023
+      },
+      {
+        "group": "polyphone",
+        "code": "shuju",
+        "expected": [
+          "数据"
+        ],
+        "actual": [
+          "数据",
+          "书局",
+          "数句",
+          "书",
+          "数",
+          "术",
+          "树",
+          "属",
+          "熟",
+          "叔"
+        ],
+        "preedit": "shu'ju",
+        "firstConfirmed": "数据",
+        "rank": 1,
+        "inputMicros": 5869
+      },
+      {
+        "group": "sentence",
+        "code": "wojintianxiawuyougejuhui",
+        "expected": [
+          "我今天下午有个聚会"
+        ],
+        "actual": [
+          "我今天下午有个聚会",
+          "握紧",
+          "我今",
+          "我进",
+          "沃金",
+          "我",
+          "握",
+          "窝",
+          "卧",
+          "沃"
+        ],
+        "preedit": "wo'jin'tian'xia'wu'you'ge'ju'hui",
+        "firstConfirmed": "我今天下午有个聚会",
+        "rank": 1,
+        "inputMicros": 40299
+      },
+      {
+        "group": "sentence",
+        "code": "mingtianzaoshangjiudianban",
+        "expected": [
+          "明天早上九点半"
+        ],
+        "actual": [
+          "明天早上九点半",
+          "明天",
+          "命题",
+          "明体",
+          "明",
+          "名",
+          "命",
+          "鸣",
+          "冥",
+          "铭"
+        ],
+        "preedit": "ming'tian'zao'shang'jiu'dian'ban",
+        "firstConfirmed": "明天早上九点半",
+        "rank": 1,
+        "inputMicros": 98995
+      },
+      {
+        "group": "sentence",
+        "code": "qingbashenqingbiaofageiwo",
+        "expected": [
+          "请把申请表发给我"
+        ],
+        "actual": [
+          "请把申请表发给我",
+          "请把",
+          "请吧",
+          "请",
+          "轻",
+          "清",
+          "青",
+          "情",
+          "庆",
+          "晴"
+        ],
+        "preedit": "qing'ba'shen'qing'biao'fa'gei'wo",
+        "firstConfirmed": "请把申请表发给我",
+        "rank": 1,
+        "inputMicros": 116582
+      },
+      {
+        "group": "sentence",
+        "code": "wozhengzaiceshizhegeshurufa",
+        "expected": [
+          "我正在测试这个输入法"
+        ],
+        "actual": [
+          "我正在测试这个输入法",
+          "我正",
+          "我",
+          "握",
+          "窝",
+          "卧",
+          "沃",
+          "喔",
+          "倭",
+          "涡"
+        ],
+        "preedit": "wo'zheng'zai'ce'shi'zhe'ge'shu'ru'fa",
+        "firstConfirmed": "我正在测试这个输入法",
+        "rank": 1,
+        "inputMicros": 241124
+      },
+      {
+        "group": "sentence",
+        "code": "zhegewentiyijingjiejuele",
+        "expected": [
+          "这个问题已经解决了"
+        ],
+        "actual": [
+          "这个问题已经解决了",
+          "这个问题",
+          "这个",
+          "这歌",
+          "这",
+          "着",
+          "者",
+          "折",
+          "哲",
+          "遮"
+        ],
+        "preedit": "zhe'ge'wen'ti'yi'jing'jie'jue'le",
+        "firstConfirmed": "这个问题已经解决了",
+        "rank": 1,
+        "inputMicros": 104074
+      },
+      {
+        "group": "sentence",
+        "code": "womenkeyimingtiantaolun",
+        "expected": [
+          "我们可以明天讨论"
+        ],
+        "actual": [
+          "我们可以明天讨论",
+          "我们可以",
+          "我们",
+          "我",
+          "握",
+          "窝",
+          "卧",
+          "沃",
+          "喔",
+          "倭"
+        ],
+        "preedit": "wo'men'ke'yi'ming'tian'tao'lun",
+        "firstConfirmed": "我们可以明天讨论",
+        "rank": 1,
+        "inputMicros": 54897
+      }
+    ]
+  }
+}

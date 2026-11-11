@@ -1,3 +1,7 @@
+> 当前 R0–R5 的实际布局／Fn／符号／编辑器结果见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。R6／R7 应用检查点的 18 项验收与原始证据见 [R7_APK_ACCEPTANCE.md](R7_APK_ACCEPTANCE.md)；新增原始轨迹组件及最终诊断驱动由 PR 最新 CI 复核。下文保留旧版本证据；任意 Fn 目标和辅助面板重复整行入口已废弃。模拟器固定构建与连续重启门禁见 [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md)。
+
+All maintained execution scripts accept `--timeout-seconds N` or `MIANCAK_SCRIPT_TIMEOUT_SECONDS` (default one hour). Nested calls share the remaining budget, ADB stages have shorter limits, and timeout returns 124. See [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md) for cancellation and subprocess-cleanup checks.
+
 # APK Testing
 
 The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.md`. CI artifacts contain unit XML reports, emulator logs/screenshots and scoped native latency measurements. Device images run on independent GitHub-hosted runners; no user environment is required.
@@ -51,10 +55,10 @@ These implemented scenarios follow [LAYOUT_DESIGN.md](LAYOUT_DESIGN.md). Their f
 | --- | --- |
 | Retired main layouts | No old built-in catalog/source/resource references remain in the shipped layout system; generated metadata, subtype defaults and fallback paths resolve. Test migration separately from U0 first-run defaults. |
 | Selector gesture | Enter southeast opens the page selector without a newline/editor action; cancel restores the original page and preedit. All enabled/available pages are listed, and dynamic panes expose the same selector. |
-| Equivalent navigation | Reach each target by its shortcut and by the selector; compare page ID, effective language, return target, Shift/legacy-Fn state, indicators and actual output. Selecting the configured Fn target lights Fn regardless of route. |
+| Equivalent navigation | Reach each layout by its shortcut and by the selector; compare the active layout, its input policy, fixed links, Shift/Fn indicators and actual output. Selecting a paired Fn variant directly lights Fn; Fn returns only to that variant's base. |
 | Composition and return | Page-only switching preserves composition; an explicit literal confirms before appending; Chinese/English profile changes honor confirmation ordering. Repeated Fn/Greek/numeric switches, selector cancel, rotation and view recreation must not strand a page or retain an unintended modifier. |
 | Configuration/editor policy | Disable/reorder/edit pages and change shortcut targets; validate unavailable targets and recover defaults. Respect password/numeric/no-learning policies. Persist valid edits across restart/upgrade and reject malformed imports without replacing the prior configuration. |
-| Phonetic text pages | Select the Chinese Fn target as pinyin or Zhuyin, check tone directions and reviewed compound-final/Unicode outputs, punctuation/control reachability, Fn indicators and return. Compare exact literal output, not Hanzi candidates. Verify editable static keys and applicable dynamic-panel controls against real touches. |
+| Phonetic text pages | Use Chinese Space northwest to enter Pinyin text, change the configured phonetic shortcut to Zhuyin and repeat; Shift northeast returns to Chinese. Check tone directions, reviewed compound-final/Unicode outputs and shared controls. Compare exact literal output, not Hanzi candidates. Fn must retain its own layout pairing and cannot select either phonetic destination. |
 
 ## Running
 
@@ -145,3 +149,10 @@ API 35 整体触控另以系统字体 1.3 倍运行；首装设置先开路径�
 历史旧 APK 升级、四种正常 UI 首装、完整页面／输入／文件回归和三 ABI debug／release 检查均保留，全部 15 项通过后才能合并交付。词表导入和编译在独立工作线程执行；维护期间暂停键盘输入，先确认当前候选、写入学习事务，再释放会话并部署，新编辑器代次拒绝旧结果。隐私字段仍以无用户词典方案运行。
 
 首装驱动遇到已观察到的模拟器 Pixel Launcher 无响应弹窗时，单独截图与记录日志，仅关闭这一明确命名的系统桌面弹窗一次，再重新进入普通 Android 键盘设置。MIANCAK 自身错误不由该恢复路径处理，启用、选择及实际正文断言仍全部执行。
+
+
+## Pointer component traces and script diagnostics
+
+`PointerTraceTest` adds nine on-device component tests against the shipped Pointers/Gesture code. They cover center/eight directions, both sides of all eight sector boundaries, distance settings, roundtrip direction and explicit Shift, clockwise center and independent anticircle, sensitivity/wrap/reversal, a latched Shift, cancellation, and Slider capture/repeat/Ctrl behavior. Controlled raw coordinates and callback action kinds are recorded in `pointer-traces.jsonl`; this is not a substitute for system-injected IME touch and actual editor-event evidence. The interaction driver requires the trace report before it can pass.
+
+The upgrade driver records and closes at most one specifically observed Pixel Launcher ANR over the shipped launcher; it does not dismiss MIANCAK failures. Reboot failures retain bounded ADB stderr and device-list diagnostics. Screenshots remain in artifacts; console logs contain filenames/sizes instead of large Base64 lines. All these operations stay under the script and stage deadlines.

@@ -1,0 +1,135 @@
+{
+  "featureCommit": "26df492fc1289412c2f8cf42623982afec701963",
+  "ciCheckoutMerge": "2c20496e52c179611a09454da190305a53640c6b",
+  "runId": 40261737343,
+  "apkSha256": "4d7aa1806afeb857080a4c74e52da1dbf379811ff03a80027289e890cb2444d9",
+  "scope": "Selected unmodified test reports from actual x86_64 APK guests; source artifacts retain full logs/screenshots. No physical-device claim.",
+  "files": [
+    {
+      "path": "api23/fn-received-events.csv",
+      "artifactId": 12626105003,
+      "sha256": "ac5576c6626cbde4998ea411e2e3cca5fe8d55d3d8443d24a759bf76fa9361b2"
+    },
+    {
+      "path": "api23/fn-editing-effects.json",
+      "artifactId": 12626105003,
+      "sha256": "9eaf70c60bf0a09573e1a0dd54f5a0d6f6ab1b2cf89ebc5982ed4047a8a71a14"
+    },
+    {
+      "path": "api23/editor-receiver.json",
+      "artifactId": 12626105003,
+      "sha256": "1e36273010d26d8b7e6faf3e8393b70f097d36556f31656626a69021b2681414"
+    },
+    {
+      "path": "api23/editor-restart-receiver.json",
+      "artifactId": 12626105003,
+      "sha256": "99a9d44448ef3637386f3ddaddc9de623906160f891e2b67d8388bb5d8d4b197"
+    },
+    {
+      "path": "api23/editor-events.csv",
+      "artifactId": 12626105003,
+      "sha256": "9078ac9b77c231fc9e13c7e17d544e892b28becd50c1679f763c60aae95d5ce0"
+    },
+    {
+      "path": "api23/editor-restart-events.csv",
+      "artifactId": 12626105003,
+      "sha256": "9078ac9b77c231fc9e13c7e17d544e892b28becd50c1679f763c60aae95d5ce0"
+    },
+    {
+      "path": "api23/symbol-receiver.json",
+      "artifactId": 12626105003,
+      "sha256": "54e17664ad70076d4ac0180ff1791b950a15a01d78002bd9ea6f923382ea85ca"
+    },
+    {
+      "path": "api23/word-pack-quality.json",
+      "artifactId": 12625057263,
+      "sha256": "3c626126ffee9893d03cab044c1bbbe300018da57f9cc22af66e8ae8488857d6"
+    },
+    {
+      "path": "api35/fn-received-events.csv",
+      "artifactId": 12626050233,
+      "sha256": "ac5576c6626cbde4998ea411e2e3cca5fe8d55d3d8443d24a759bf76fa9361b2"
+    },
+    {
+      "path": "api35/fn-editing-effects.json",
+      "artifactId": 12626050233,
+      "sha256": "9eaf70c60bf0a09573e1a0dd54f5a0d6f6ab1b2cf89ebc5982ed4047a8a71a14"
+    },
+    {
+      "path": "api35/editor-receiver.json",
+      "artifactId": 12626050233,
+      "sha256": "6a9139b66aeaa537ddf17c921d0f9a7bd63a3af470a7433d1dc0dc2c3465b71a"
+    },
+    {
+      "path": "api35/editor-restart-receiver.json",
+      "artifactId": 12626050233,
+      "sha256": "99a9d44448ef3637386f3ddaddc9de623906160f891e2b67d8388bb5d8d4b197"
+    },
+    {
+      "path": "api35/editor-events.csv",
+      "artifactId": 12626050233,
+      "sha256": "9078ac9b77c231fc9e13c7e17d544e892b28becd50c1679f763c60aae95d5ce0"
+    },
+    {
+      "path": "api35/editor-restart-events.csv",
+      "artifactId": 12626050233,
+      "sha256": "9078ac9b77c231fc9e13c7e17d544e892b28becd50c1679f763c60aae95d5ce0"
+    },
+    {
+      "path": "api35/symbol-receiver.json",
+      "artifactId": 12626050233,
+      "sha256": "350a7ad7ffc43b9dbdc63b6026f23f2925edf4ca843542efd2b48f23fa4e7d1b"
+    },
+    {
+      "path": "api35/word-pack-quality.json",
+      "artifactId": 12625286821,
+      "sha256": "741fdb73f83046cd27d751555827dcabf0127b9ec93b1729ebaeeedef014eef3"
+    },
+    {
+      "path": "learning-api35/learning-before-reboot.json",
+      "artifactId": 12625861872,
+      "sha256": "4f542a40ec82251a70eef865af468b1e8783502f3b693945a73fdb6d8ed647b7"
+    },
+    {
+      "path": "learning-api35/learning-before-install.json",
+      "artifactId": 12625861872,
+      "sha256": "64fd1dc52b575c97580fae877fbf2f8ada3cafa6002a913acb5b8ccb2794a3d4"
+    },
+    {
+      "path": "learning-api35/learning-after-install.json",
+      "artifactId": 12625861872,
+      "sha256": "64fd1dc52b575c97580fae877fbf2f8ada3cafa6002a913acb5b8ccb2794a3d4"
+    },
+    {
+      "path": "learning-api35/learning-after-reboot.json",
+      "artifactId": 12625861872,
+      "sha256": "4f542a40ec82251a70eef865af468b1e8783502f3b693945a73fdb6d8ed647b7"
+    },
+    {
+      "path": "api35/first-run-mixed-text-state.txt",
+      "artifactId": 12625207129,
+      "sha256": "63ef08846758f399005afa8944695dbc03264fe93f7017e8a6a2a6dfd7f14868"
+    },
+    {
+      "path": "api35/first-input-pending-state.txt",
+      "artifactId": 12625207129,
+      "sha256": "2b32eb25ad428ea4176c28c1e3586f79c25480003627e3a0f14a37a820045b6d"
+    }
+  ],
+  "validation": {
+    "conclusion": "success",
+    "expandedChecks": 18,
+    "runId": 40261737343,
+    "finalAttempt": 3,
+    "recordedEnvironmentFailures": [
+      {
+        "jobId": 121375380306,
+        "reason": "Empty API 23 guest did not reconnect after its second reboot; bounded failure, one new-guest retry passed three reboots"
+      },
+      {
+        "jobId": 121378122772,
+        "reason": "Observed Pixel Launcher ANR blocked actual old-APK prepare; one new-guest retry passed prepare/verify/reboot"
+      }
+    ]
+  }
+}

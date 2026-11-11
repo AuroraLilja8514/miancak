@@ -64,10 +64,13 @@ public final class WordTable
       if (number == 1 && line.startsWith("\ufeff")) line = line.substring(1);
       if (!ended)
       {
-        headerBytes += line.getBytes(StandardCharsets.UTF_8).length + 1;
-        if (headerBytes > 65536) throw error(number, "Header exceeds 64 KiB / 表头过大");
         String value = comment(line).trim();
         if (value.isEmpty()) continue;
+        // Upstream word lists can have lengthy provenance and changelog
+        // comments. Bound parsed YAML, while the file/line bounds still cover
+        // every source byte, including comments.
+        headerBytes += value.getBytes(StandardCharsets.UTF_8).length + 1;
+        if (headerBytes > 65536) throw error(number, "Header exceeds 64 KiB / 表头过大");
         if (!started)
         {
           if (!value.equals("---")) throw error(number, "Expected --- / 缺少词表表头");

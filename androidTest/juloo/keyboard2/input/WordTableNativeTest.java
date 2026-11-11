@@ -33,7 +33,7 @@ public class WordTableNativeTest
     return new WordTableStore.Source() {
       @Override public String filename() { return filename; }
       @Override public InputStream open() throws Exception
-      { return filename.equals("pinyin_simp.dict.yaml") ? app.getAssets().open("rime/" + filename) : tests.getAssets().open("word-tables/" + filename); }
+      { return filename.equals("pinyin_simp.dict.yaml") ? tests.getAssets().open("quality/baseline.dict.yaml") : tests.getAssets().open("word-tables/" + filename); }
     };
   }
   private WordTableStore.Source text(String name, String value)
@@ -83,6 +83,28 @@ public class WordTableNativeTest
     store.apply(b, Collections.emptyList()); assertFalse(candidates("ceshi").contains("MIANCAK·附加词表"));
     assertEquals(learning, store.currentPaths().user); store.remove(addon);
     store.apply(WordTableStore.BUNDLED, Collections.emptyList()); assertTrue(candidates("nihao").contains("你好"));
+  }
+  @Test public void offlineLegacyFallbackRetainsSupplementAndRealLearning() throws Exception
+  {
+    String learned; File user = store.currentPaths().user;
+    try (RimeEngine engine = new RimeEngine(store.currentPaths()))
+    {
+      engine.setLearning(true); EngineResult result = engine.processText("ni'hao'ni'hao");
+      assertFalse(result.candidates.isEmpty()); learned = result.candidates.get(0);
+      assertEquals(learned, engine.confirm().committed);
+    }
+    byte[] bytes = learned.getBytes(StandardCharsets.UTF_8);
+    assertTrue(containsLearned(user, bytes, false));
+    store.importTables(Arrays.asList(asset("miancak_addon.dict.yaml")));
+    String addon = id("miancak_addon"); store.apply(WordTableStore.BUNDLED, Arrays.asList(addon));
+    store.useLegacyBase();
+    assertEquals(id(WordTableStore.LEGACY), store.view().selection.base);
+    assertEquals(Arrays.asList(addon), store.view().selection.extras);
+    assertEquals(user, store.currentPaths().user); assertTrue(containsLearned(user, bytes, false));
+    assertTrue(candidates("ceshi").contains("MIANCAK·附加词表"));
+    store.apply(WordTableStore.BUNDLED, Arrays.asList(addon));
+    assertEquals(user, store.currentPaths().user); assertTrue(containsLearned(user, bytes, false));
+    assertTrue(candidates("ceshi").contains("MIANCAK·附加词表"));
   }
   @Test public void invalidMultiImportDoesNotCommitAnyTablesOrLeaveStagedBodies() throws Exception
   {

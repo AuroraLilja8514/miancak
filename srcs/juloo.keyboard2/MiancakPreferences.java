@@ -24,6 +24,7 @@ public final class MiancakPreferences
       editor.apply();
     }
     retire_main_layouts(preferences);
+    PagePreferences.migrate(preferences);
   }
 
   /** Retire shipped layouts once, retaining custom XML and the original data. */

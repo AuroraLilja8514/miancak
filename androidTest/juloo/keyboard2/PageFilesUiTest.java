@@ -64,9 +64,10 @@ public final class PageFilesUiTest
       new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().description("page-enabled-pinyin"));
       device.findObject(By.desc("page-enabled-pinyin")).click();
       long disabledUntil = SystemClock.uptimeMillis() + 10000;
-      while (!PagePreferences.load(preferences).chineseFn.isEmpty() && SystemClock.uptimeMillis() < disabledUntil)
+      while (PagePreferences.load(preferences).enabled.contains("pinyin") && SystemClock.uptimeMillis() < disabledUntil)
         SystemClock.sleep(30);
-      assertEquals("", PagePreferences.load(preferences).chineseFn);
+      assertFalse(PagePreferences.load(preferences).enabled.contains("pinyin"));
+      assertEquals("zh_fn", PagePreferences.load(preferences).fn("zh"));
       clickText(R.string.page_import);
       UiObject2 file = device.wait(Until.findObject(By.text(name)), 15000);
       if (file == null)

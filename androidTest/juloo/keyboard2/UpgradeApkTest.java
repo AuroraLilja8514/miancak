@@ -47,7 +47,7 @@ public final class UpgradeApkTest
     context = instrumentation.getTargetContext(); pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation); device.wakeUp(); device.setOrientationNatural();
     String phase = InstrumentationRegistry.getArguments().getString("upgradePhase", "verify");
-    assertEquals(phase.equals("prepare") ? 1 : 3, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
+    assertEquals(phase.equals("prepare") ? 3 : BuildConfig.VERSION_CODE, context.getPackageManager().getPackageInfo(pkg, 0).versionCode);
     try
     {
       if (phase.equals("prepare"))
@@ -60,11 +60,16 @@ public final class UpgradeApkTest
       }
       else
       {
-        assertEquals("baseline-c939", canonical().getString("upgrade_marker", ""));
+        assertEquals("baseline-0.3.0", canonical().getString("upgrade_marker", ""));
         assertFalse(canonical().getBoolean("lock_double_tap", true));
         byte[] bytes = new byte[4];
         try (FileInputStream input = new FileInputStream(marker())) { assertEquals(4, input.read(bytes)); }
         assertEquals("kept", new String(bytes, StandardCharsets.UTF_8));
+        String learned = readLearnedText();
+        assertTrue("Old real learning entry must exist before opening the new IME",
+            userDictionaryContains(new File(context.getFilesDir(), "rime/user"), learned.getBytes(StandardCharsets.UTF_8), false));
+        learningReport(phase, learned);
+        verifyImportedSelection();
       }
       selectThroughShippedLauncher();
       instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.ImeTestActivity")
@@ -83,27 +88,141 @@ public final class UpgradeApkTest
       assertTrue(new File(context.getFilesDir(), "rime/user").isDirectory());
       if (phase.equals("prepare"))
       {
+        assertTrue("Old APK must actually persist the selected entry",
+            userDictionaryContains(new File(context.getFilesDir(), "rime/user"), text.getBytes(StandardCharsets.UTF_8), false));
+        try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "upgrade-learned-text")))
+        { out.write(text.getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
+        learningReport(phase, text);
+        prepareImportedSelection();
         try (FileOutputStream out = new FileOutputStream(marker())) { out.write("kept".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
         for (Context store : stores())
-          prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-c939")
-            .putInt("current_layout_portrait", 0).putInt("current_layout_landscape", 0).putInt("miancak_layout_version", 0).commit();
+          prefs(store).edit().putString("layouts", "[\"latn_dvorak\"]").putString("upgrade_marker", "baseline-0.3.0")
+            .putString("upgrade_previous_layouts", prefs(store).getString("miancak_previous_layouts", ""))
+            .putInt("current_layout_portrait", 0).putInt("current_layout_landscape", 0).putInt("miancak_layout_version", 0)
+            .putInt("pages_version", 1).putString("pages_fn_zh", "pinyin").putString("pages_fn_en", "clipboard")
+            .putString("page_customization", "{\"zh\":{\"0:0:1\":\":literal:'保留'\"}}").commit();
         screenshot("upgrade-old-retired-selection");
       }
       else
       {
-        assertTrue(canonical().getString("miancak_previous_layouts", "").contains("latn_dvorak"));
+        assertEquals(canonical().getString("upgrade_previous_layouts", ""), canonical().getString("miancak_previous_layouts", ""));
         assertEquals("[\"miancak_qwerty\"]", canonical().getString("layouts", ""));
         assertEquals(1, canonical().getInt("miancak_layout_version", 0));
         assertFalse(canonical().getBoolean("lock_double_tap", true));
+        assertEquals(2, canonical().getInt("pages_version", 0));
+        org.json.JSONObject previous = new org.json.JSONObject(canonical().getString("pages_v1_backup", ""));
+        assertEquals("pinyin", previous.getString("fn_zh"));
+        assertEquals("clipboard", previous.getString("fn_en"));
+        assertEquals("zh_fn", PagePreferences.load(canonical()).fn("zh"));
+        assertEquals(":literal:'保留'", PageKeyOverrides.load(canonical()).action("zh", 0, 0, 1, false));
       }
     }
     finally { screenshot("upgrade-" + phase + "-final"); device.unfreezeRotation(); }
   }
+  private String readLearnedText() throws Exception
+  {
+    try (FileInputStream input = new FileInputStream(new File(context.getFilesDir(), "upgrade-learned-text")))
+    {
+      byte[] bytes = new byte[1024]; int count = input.read(bytes); assertTrue(count > 0);
+      return new String(bytes, 0, count, StandardCharsets.UTF_8);
+    }
+  }
+  private void prepareImportedSelection() throws Exception
+  {
+    Context assets = InstrumentationRegistry.getInstrumentation().getContext();
+    instrumentation.runOnMainSync(() -> juloo.keyboard2.input.WordTableRuntime.run(context, true, store -> {
+      java.util.List<juloo.keyboard2.input.WordTableStore.Source> sources = new java.util.ArrayList<>();
+      for (String name : new String[] {"8105.dict.yaml", "miancak_addon.dict.yaml"})
+        sources.add(new juloo.keyboard2.input.WordTableStore.Source() {
+          public String filename() { return name; }
+          public java.io.InputStream open() throws Exception { return assets.getAssets().open("word-tables/" + name); }
+        });
+      store.importTables(sources); String base = null, addon = null;
+      for (juloo.keyboard2.input.WordTableStore.Entry entry : store.view().entries)
+      { if (entry.name.equals("8105")) base = entry.id; if (entry.name.equals("miancak_addon")) addon = entry.id; }
+      assertNotNull(base); assertNotNull(addon); store.apply(base, java.util.Collections.singletonList(addon));
+      org.json.JSONObject expected = new org.json.JSONObject().put("base", base).put("addon", addon)
+        .put("slot", store.view().selection.slot).put("packaged", juloo.keyboard2.input.RimeData.bundled(context).shared.getName());
+      try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "upgrade-word-selection.json")))
+      { out.write(expected.toString().getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
+    }));
+    final boolean[] busy = {true}; long deadline = SystemClock.uptimeMillis() + 120000;
+    do
+    {
+      instrumentation.runOnMainSync(() -> busy[0] = juloo.keyboard2.input.WordTableRuntime.busy);
+      if (!busy[0]) break; SystemClock.sleep(30);
+    } while (SystemClock.uptimeMillis() < deadline);
+    assertFalse("Old vocabulary maintenance did not finish", busy[0]);
+    assertEquals("", juloo.keyboard2.input.WordTableRuntime.error);
+    verifyImportedSelection();
+  }
+  private void verifyImportedSelection() throws Exception
+  {
+    org.json.JSONObject expected;
+    try (FileInputStream in = new FileInputStream(new File(context.getFilesDir(), "upgrade-word-selection.json")))
+    { byte[] bytes = new byte[4096]; int count = in.read(bytes); assertTrue(count > 0); expected = new org.json.JSONObject(new String(bytes, 0, count, StandardCharsets.UTF_8)); }
+    juloo.keyboard2.input.WordTableStore store = new juloo.keyboard2.input.WordTableStore(context);
+    // currentPaths performs an update rebuild against the new packaged hash.
+    store.currentPaths(); juloo.keyboard2.input.WordTableStore.Selection selected = store.view().selection;
+    assertEquals(expected.getString("base"), selected.base);
+    assertEquals(java.util.Collections.singletonList(expected.getString("addon")), selected.extras);
+    if (!expected.getString("packaged").equals(juloo.keyboard2.input.RimeData.bundled(context).shared.getName()))
+      assertNotEquals("Changed packaged data must rebuild without discarding custom vocabulary", expected.getString("slot"), selected.slot);
+  }
+  private boolean userDictionaryContains(File file, byte[] needle, boolean database) throws Exception
+  {
+    database |= file.getName().contains(".userdb");
+    if (file.isDirectory())
+    { for (File child : file.listFiles()) if (userDictionaryContains(child, needle, database)) return true; return false; }
+    if (!database || file.length() > 8 * 1024 * 1024) return false;
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    try (FileInputStream input = new FileInputStream(file))
+    { byte[] bytes = new byte[8192]; int count; while ((count = input.read(bytes)) != -1) out.write(bytes, 0, count); }
+    byte[] bytes = out.toByteArray();
+    outer: for (int i = 0; i <= bytes.length - needle.length; i++)
+    { for (int j = 0; j < needle.length; j++) if (bytes[i + j] != needle[j]) continue outer; return true; }
+    return false;
+  }
+  private void learningReport(String phase, String learned) throws Exception
+  {
+    File directory = context.getExternalFilesDir("test-results"); assertTrue(directory.isDirectory() || directory.mkdirs());
+    org.json.JSONObject report = new org.json.JSONObject().put("phase", phase).put("learnedText", learned)
+      .put("persistedEntryObserved", true).put("checkedBeforeOpeningUpdatedIme", !phase.equals("prepare"));
+    try (FileOutputStream out = new FileOutputStream(new File(directory, "upgrade-learning-" + phase + ".json")))
+    { out.write(report.toString(2).getBytes(StandardCharsets.UTF_8)); }
+  }
+  /** Prepare only the old-APK fixture. Never repair enablement in verify or
+   * reboot phases: those phases must prove retained state after replacement. */
+  private void ensureBaselineEnabled() throws Exception
+  {
+    String component = pkg + "/juloo.keyboard2.Keyboard2";
+    InputMethodManager manager = (InputMethodManager)context.getSystemService(Context.INPUT_METHOD_SERVICE);
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    boolean requested = false;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      for (InputMethodInfo method : manager.getEnabledInputMethodList())
+        if (component.equals(method.getId())) return;
+      if (!requested)
+        for (InputMethodInfo method : manager.getInputMethodList())
+          if (component.equals(method.getId()))
+          {
+            android.util.Log.i("MIANCAK-Test", "Preparing old-APK enabled-state precondition after instrumentation start");
+            device.executeShellCommand("ime enable " + component); requested = true; break;
+          }
+      SystemClock.sleep(100);
+    }
+    screenshot("upgrade-baseline-enable-precondition");
+    fail("Old-APK fixture did not enter Android's enabled IME list");
+  }
+
   private void selectThroughShippedLauncher() throws Exception
   {
     boolean restored = !InstrumentationRegistry.getArguments().getString("upgradePhase", "verify").equals("prepare");
+    if (!restored) ensureBaselineEnabled();
     instrumentation.startActivitySync(new Intent().setClassName(pkg, "juloo.keyboard2.LauncherActivity")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    awaitLauncher();
     if (restored)
     {
       // am instrument force-stops its target. The host has already asserted
@@ -165,6 +284,31 @@ public final class UpgradeApkTest
     catch (androidx.test.uiautomator.UiObjectNotFoundException missing) { throw new AssertionError(missing); }
     assertTrue("Android's picker did not close after selecting the updated IME",
         device.wait(Until.gone(By.pkg("android").text(name)), 15000));
+  }
+
+  private void awaitLauncher() throws Exception
+  {
+    long deadline = SystemClock.uptimeMillis() + 15000;
+    boolean closedExternalLauncher = false;
+    while (SystemClock.uptimeMillis() < deadline)
+    {
+      // The API 35 image can show its own launcher's ANR over our activity.
+      // Record and close that observed external app once. Never dismiss an
+      // application failure or bypass any enablement/upgrade assertion.
+      UiObject2 blocked = device.findObject(By.res("android", "alertTitle")
+          .text("Pixel Launcher isn't responding"));
+      if (!closedExternalLauncher && blocked != null)
+      {
+        screenshot("environment-pixel-launcher-anr");
+        android.util.Log.w("MIANCAK-Test", "Closing observed Pixel Launcher ANR in old-APK upgrade fixture");
+        UiObject2 close = device.findObject(By.res("android", "aerr_close"));
+        assertNotNull("Observed external launcher ANR has no close action", close);
+        close.click(); closedExternalLauncher = true;
+      }
+      else if (device.hasObject(By.pkg(pkg).clazz("android.widget.ScrollView"))) return;
+      SystemClock.sleep(100);
+    }
+    fail("Shipped launcher is not accessible for actual APK upgrade");
   }
 
   private void tap(char letter, boolean northwest)

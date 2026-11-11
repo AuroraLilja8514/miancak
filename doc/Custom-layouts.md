@@ -136,7 +136,7 @@ This means that when the Fn modifier is on, the key `before` is changed into `af
 ```
 This means that when the Ctrl modifier is on, the key `before` is changed into `after`. The `<ctrl />` mapping is special in that the Ctrl modifier is applied to `after` after the mapping.
 
-The clockwise circle and the round-trip gestures are affected by the `<fn />` mappings. Otherwise, they are defined by the Shift mappings (including the `<shift />` mappings), then, if that did not modify the key, the builtin Fn mappings are used instead.
+The clockwise circle and round-trip gestures first try the Shift mapping (including an explicit Shift layer or `<shift />`). If it leaves the action unchanged, they try the Fn mapping (including `<fn />`), then the inherited special gesture actions. A circle uses the center action; a round trip uses its direction's action. This describes action transformation, not a switch to another input layout. MIANCAK's Fn key itself only switches between a layout and its paired variant. Advanced per-gesture editing is deferred; the visual editor currently edits normal and Shift actions.
 
 ### Examples
 ① Turkish keyboards use the Latin alphabet, but when "i" is shifted, it should produce "İ". This is achieved with the following mapping: 

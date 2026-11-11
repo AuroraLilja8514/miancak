@@ -546,6 +546,9 @@ public final class KeyboardData
       int flags = (keysflags & ~(ALL_FLAGS << i));
       return new Key(ks, anticircle, flags, width, shift, indication, role);
     }
+    public Key withAnticircle(KeyValue value)
+    { return new Key(keys, value, keysflags, width, shift, indication, role); }
+
 
     public Key withWidth(float w)
     {

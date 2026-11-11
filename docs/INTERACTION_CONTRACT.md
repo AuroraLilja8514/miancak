@@ -1,5 +1,7 @@
 # Interaction Contract
 
+> Repair amendment, 2026-10-25: [LAYOUT_REPAIR_PLAN.md](LAYOUT_REPAIR_PLAN.md) replaces the old independent-language/page model and arbitrary Fn destinations for 0.3.1. The active layout owns its fixed input policy and links; Fn toggles only a layout and its paired variant while retaining upstream actions. Current implementation and APK evidence are recorded in [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md). Existing literal/engine distinctions, ordered confirmation, editor generations and one-finger operation remain requirements. References below to language switching must be interpreted through that explicit layout transition, not as authorization to keep a separate mutable language mode.
+
 This document defines MIANCAK's interaction invariants. Implementations may evolve, but behavior that conflicts with these rules requires an explicit design decision and documentation update.
 
 ## 1. Stable physical layout
@@ -163,6 +165,8 @@ When there is a conflict between a clever context-sensitive behavior and a predi
 
 MIANCAK should use Unexpected Keyboard's dense swipe surface to expose more exact actions rather than compensating with hidden heuristics.
 
-## Implemented page navigation
+## Current repair-branch navigation
 
-The ordered enabled-page registry is the single source for direct page keys, Fn targets and the chooser. Opening/cancelling the chooser and entering auxiliary pages do not confirm composition. Explicit profile selection is idempotent and applies after successful engine confirmation/editor delivery. Page indicators derive from presentation state and the effective language. Per-position normal/Shift edits are resolved before dispatch; literal payloads, including apostrophes and backslashes, remain exact.
+The active layout ID owns its fixed input policy and links. Fn toggles only an explicitly paired base/variant (Chinese, English, numeric or Greek). A variant is independently editable and selectable; its indicator derives from the selected ID. Chinese/English switching maps a base to the other base and a variant to the other variant. Auxiliary layouts use a fixed literal-input policy and return link; no return behavior is inferred from navigation history.
+
+Opening/cancelling the chooser leaves composition alone. Entering a different input policy confirms existing composition before displaying the destination. Entering the Chinese Fn variant keeps the Chinese input policy. Per-position normal/Shift edits remain exact, and shared controls keep the same meaning across layouts. Corrupt or obsolete arbitrary Fn targets do not replace the pair graph; their original data is backed up during migration. R3–R7 and advanced gesture editing are not claimed complete by this contract.

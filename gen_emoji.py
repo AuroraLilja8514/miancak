@@ -1,3 +1,12 @@
+
+# A finite watchdog also bounds imports, child commands and shutdown.
+if __name__ == "__main__":
+    import sys as _timeout_sys
+    from pathlib import Path as _TimeoutPath
+    _timeout_sys.path.insert(0, str(_TimeoutPath(__file__).resolve().parents[0] / "scripts"))
+    from run_with_timeout import guard_script as _guard_script
+    _guard_script(__file__)
+
 import urllib.request
 import os.path
 
@@ -13,7 +22,12 @@ def getEmojiTestContents():
         print(f'Using existing {EMOJI_TEST_PATH}')
     else:
         print(f'Downloading {EMOJI_TEST_URL}')
-        urllib.request.urlretrieve(EMOJI_TEST_URL, EMOJI_TEST_PATH)
+        from pathlib import Path
+        import shutil
+        temporary = Path(EMOJI_TEST_PATH + '.partial')
+        with urllib.request.urlopen(EMOJI_TEST_URL, timeout=120) as response, temporary.open('wb') as output:
+            shutil.copyfileobj(response, output)
+        temporary.replace(EMOJI_TEST_PATH)
     return open(EMOJI_TEST_PATH, mode='r', encoding='UTF-8').read()
         
 

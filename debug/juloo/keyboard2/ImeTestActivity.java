@@ -14,6 +14,13 @@ import android.webkit.WebViewClient;
 /** Test fixture is present only in debug APKs; it is not exported. */
 public final class ImeTestActivity extends Activity
 {
+  public static final class RecordingEditText extends EditText
+  {
+    public final java.util.List<Integer> menuActions = new java.util.concurrent.CopyOnWriteArrayList<>();
+    public RecordingEditText(android.content.Context context) { super(context); }
+    @Override public boolean onTextContextMenuItem(int id)
+    { menuActions.add(id); return super.onTextContextMenuItem(id); }
+  }
   public EditText first, second, password, number, privateField;
   public WebView web;
   public volatile boolean webReady;
@@ -53,7 +60,7 @@ public final class ImeTestActivity extends Activity
   }
   private EditText editor(LinearLayout root, int id, String name, int type)
   {
-    EditText edit = new EditText(this);
+    EditText edit = new RecordingEditText(this);
     edit.setId(id);
     edit.setContentDescription(name);
     edit.setHint(name);

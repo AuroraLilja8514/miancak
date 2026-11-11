@@ -1,12 +1,15 @@
 #include <jni.h>
 #include <rime_api.h>
 #include <mutex>
+#include <map>
+#include <vector>
 #include <set>
 #include <string>
 
 namespace {
 std::mutex mutex;
 std::set<RimeSessionId> sessions;
+std::map<RimeSessionId,int> candidate_bases;
 std::string shared_path, user_path, build_path, prebuilt_path;
 RimeApi* api = nullptr;
 
@@ -69,7 +72,7 @@ bool confirm_selection(RimeSessionId id) {
   return false;
 }
 
-jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
+jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0) {
   RIME_STRUCT(RimeCommit, commit);
   std::string committed;
   if (api->get_commit(id, &commit)) {
@@ -79,14 +82,29 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
   if (!committed.empty()) flush_idle_learning(id);
   RIME_STRUCT(RimeContext, context);
   bool has_context = api->get_context(id, &context);
-  int count = has_context ? context.menu.num_candidates : 0;
-  jclass string_class = env->FindClass("java/lang/String");
-  jobjectArray candidates = env->NewObjectArray(count, string_class, nullptr);
-  env->DeleteLocalRef(string_class);
-  for (int i = 0; i < count; ++i) {
-    jstring text = string(env, context.menu.candidates[i].text);
-    env->SetObjectArrayElement(candidates, i, text);
-    env->DeleteLocalRef(text);
+  std::vector<std::string> values;
+  bool last_page=!has_context || context.menu.is_last_page;
+  int base=has_context?context.menu.page_no*context.menu.page_size:0;
+  int highlighted=has_context?context.menu.highlighted_candidate_index:0;
+  if(prefix_limit>0 && has_context && context.composition.length>0) {
+    // Browse lazily, leaving ordinary key strokes at the cheap first menu.
+    RimeCandidateListIterator iterator={};last_page=true;
+    if(api->candidate_list_begin(id,&iterator)) {
+      while(api->candidate_list_next(&iterator)) {
+        if(static_cast<int>(values.size())==prefix_limit){last_page=false;break;}
+        values.emplace_back(iterator.candidate.text?iterator.candidate.text:"");
+      }
+      api->candidate_list_end(&iterator);
+    }
+    highlighted+=base;base=0;
+  } else if(has_context) {
+    for(int i=0;i<context.menu.num_candidates;i++)values.emplace_back(context.menu.candidates[i].text?context.menu.candidates[i].text:"");
+  }
+  candidate_bases[id]=base;
+  jclass string_class=env->FindClass("java/lang/String");
+  jobjectArray candidates=env->NewObjectArray(values.size(),string_class,nullptr);env->DeleteLocalRef(string_class);
+  for(size_t i=0;i<values.size();i++) {
+    jstring value=string(env,values[i].c_str());env->SetObjectArrayElement(candidates,i,value);env->DeleteLocalRef(value);
   }
   jstring text = string(env, committed.c_str());
   jstring preedit = string(env, has_context ? context.composition.preedit : "");
@@ -94,9 +112,9 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled) {
   jobject result = env->NewObject(cls, env->GetMethodID(cls, "<init>",
       "(ZLjava/lang/String;Ljava/lang/String;[Ljava/lang/String;IZZ)V"),
       static_cast<jboolean>(handled), text, preedit, candidates,
-      has_context ? context.menu.highlighted_candidate_index : 0,
+      highlighted,
       static_cast<jboolean>(has_context && context.composition.length > 0),
-      static_cast<jboolean>(!has_context || context.menu.is_last_page));
+      static_cast<jboolean>(last_page));
   if (has_context) api->free_context(&context);
   env->DeleteLocalRef(cls);
   env->DeleteLocalRef(text);
@@ -172,9 +190,12 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
   switch (cmd) {
     case 0: handled = confirm_selection(id); break;
     case 1: api->clear_composition(id); flush_idle_learning(id); break;
-    case 2: handled = arg >= 0 && api->select_candidate_on_current_page(id, arg); break;
+    case 2: handled = arg >= 0 && api->select_candidate(id,static_cast<size_t>(candidate_bases[id])+arg); break;
     case 3: handled = api->change_page(id, arg != 0); break;
     case 4: break; // Inspect without changing composition or re-emitting an old commit.
+    case 5:
+      if(arg<=0){fail(env,"Invalid candidate prefix length");return nullptr;}
+      return snapshot(env,id,true,arg);
     default: fail(env, "Invalid Rime command"); return nullptr;
   }
   return snapshot(env, id, handled);
@@ -196,6 +217,7 @@ Java_juloo_keyboard2_input_RimeEngine_destroy(JNIEnv*, jclass, jlong id) {
   api->clear_composition(id);
   flush_idle_learning(id);
   sessions.erase(id);
+  candidate_bases.erase(id);
   api->destroy_session(id);
   if (sessions.empty()) { api->finalize(); api = nullptr; }
 }
