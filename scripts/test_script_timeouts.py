@@ -113,7 +113,7 @@ class ScriptTimeoutTest(unittest.TestCase):
                 path = fake / name
                 path.write_text("#!/bin/sh\nsleep 90\n")
                 path.chmod(0o755)
-            env = dict(os.environ, PATH=str(fake) + os.pathsep + os.environ["PATH"],
+            env = dict(os.environ, MIANCAK_TEST_DISPOSABLE_GUEST="true", PATH=str(fake) + os.pathsep + os.environ["PATH"],
                        JAVA_HOME=str(fake), MIANCAK_TIMEOUT_GRACE_SECONDS=".2")
             (fake / "bin").mkdir()
             (fake / "bin/java").symlink_to(fake / "java")
@@ -144,34 +144,36 @@ class ScriptTimeoutTest(unittest.TestCase):
             fake = Path(directory)
             adb = fake / "adb"
             adb.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> adb-commands.txt\ncase \"$*\" in\n"
+                           "  'get-serialno') echo emulator-5554 ;;\n"
+                           "  '-s emulator-5554 emu avd name') echo miancak-interactions ;;\n"
+                           "  '-s emulator-5554 shell getprop ro.kernel.qemu') echo 1 ;;\n"
+                           "  '-s emulator-5554 shell getprop ro.build.version.sdk') echo 23 ;;\n"
+                           "  '-s emulator-5554 shell pm list packages org.miancak.keyboard') : ;;\n"
+                           "  'install '*) exit 7 ;;\n"
                            "  'logcat -v brief '*) sleep 90 ;;\n"
-                           "  'shell getprop ro.build.version.sdk') echo 23 ;;\n"
-                           "  'shell ps') printf 'USER PID PPID NAME\\r\\n"
-                           "u0_a62 991 1 org.miancak.keyboard.debug.other\\r\\n"
-                           "u0_a61 4242 1 org.miancak.keyboard.debug\\r\\n' ;;\n"
-                           "  'shell cat /data/anr/traces.txt') echo 'test ART trace' ;;\n"
+                           "  'logcat -b all -d') echo LOCAL_RAW_LOG_SENTINEL ;;\n"
                            "  'exec-out '*) exit 1 ;;\nesac\n")
             adb.chmod(0o755)
-            env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
-                       MIANCAK_TEST_API="35")
+            env = dict(os.environ, MIANCAK_TEST_DISPOSABLE_GUEST="true", PATH=str(fake)+os.pathsep+os.environ["PATH"],
+                       MIANCAK_TEST_API="23")
             env.pop("MIANCAK_TIMEOUT_DEADLINE", None)
             result = subprocess.run(["/bin/bash", str(ROOT / "scripts/emulator_tests.sh"),
                                      "--timeout-seconds", "5"], cwd=fake, env=env,
                                     capture_output=True, text=True, timeout=10)
-            self.assertEqual(1, result.returncode, result.stderr)
-            self.assertIn("Unexpected emulator API: 23", result.stdout)
+            self.assertEqual(7, result.returncode, result.stderr)
+            self.assertNotIn("LOCAL_RAW_LOG_SENTINEL", result.stdout + result.stderr)
+            self.assertEqual("LOCAL_RAW_LOG_SENTINEL\n", (fake / "test-results/logcat.txt").read_text())
             commands = (fake / "adb-commands.txt").read_text()
             # Reject active probes regardless of signal spelling, shell wrapper
             # or absolute executable path, including debuggerd's stack modes.
             self.assertNotRegex(commands,
                                 r"(?i)(?<![\w.-])(?:kill(?:all)?|pkill|debuggerd(?:32|64)?)(?![\w.-])")
-            self.assertIn("shell cat /data/anr/traces.txt", commands)
+            self.assertNotIn("shell ps", commands)
+            self.assertNotIn("/data/anr/traces.txt", commands)
             self.assertFalse((fake / "test-results/thread-dump-request.txt").exists())
-            self.assertEqual(b"USER PID PPID NAME\r\nu0_a62 991 1 org.miancak.keyboard.debug.other\r\n"
-                             b"u0_a61 4242 1 org.miancak.keyboard.debug\r\n",
-                             (fake / "test-results/processes-at-failure.txt").read_bytes())
-            self.assertEqual("test ART trace\n",
-                             (fake / "test-results/art-thread-dump.txt").read_text())
+            self.assertFalse((fake / "test-results/processes-at-failure.txt").exists())
+            self.assertFalse((fake / "test-results/art-thread-dump.txt").exists())
+
 
 
 if __name__ == "__main__":

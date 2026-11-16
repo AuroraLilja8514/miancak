@@ -6,7 +6,7 @@ start_progress() {
   if [[ "${MIANCAK_PROGRESS:-1}" == 0 ]]; then return; fi
   # Separate watchdog shares the outer deadline; cancellation reaches logcat.
   python3 "$MIANCAK_ADB_HELPER_DIR/run_with_timeout.py" -- adb logcat -v brief \
-    'MIANCAK-Acceptance:I' 'MIANCAK-Focus:I' 'MIANCAK-WordTables:I' '*:S' >&2 &
+    'MIANCAK-Acceptance:I' 'MIANCAK-Focus:I' 'MIANCAK-WordTables:I' '*:S' >> test-results/live-progress-local.log 2>&1 &
   MIANCAK_PROGRESS_PID=$!
 }
 stop_progress() {
@@ -30,4 +30,12 @@ adb() {
       fi ;;
   esac
   command timeout --foreground --signal=TERM --kill-after=5s "${seconds}s" adb "$@"
+}
+
+# Refuse unrelated/pre-existing app installs before collectors or mutation.
+# CI independently creates the fresh wiped AVD; this never clears user data.
+verify_test_target() {
+  local serial
+  serial="$(python3 "$MIANCAK_ADB_HELPER_DIR/public_test_evidence.py" target --scenario "$1")" || return
+  export ANDROID_SERIAL="$serial"
 }

@@ -27,8 +27,10 @@ ordinary main-queue callbacks, and external-storage writes/flushes. These can
 change scheduling, GC, contention and reproduction. No target-thread state/stack
 inspection, ART suspension, signals, debuggerd, root, asynchronous Handler or
 front-of-queue posting is used. Active ART stack probes can suspend other
-threads and fatally abort Android 6 processes; the host failure collector instead
-retains bounded read-only process listings and any already-existing ART trace.
+threads and fatally abort Android 6 processes; the interaction collector
+does not collect process lists or global ART traces. Other bounded local raw
+diagnostics are never a public-data sanitization boundary; only the typed public
+exporter output is eligible for upload.
 
 Only the sampler's marker/startup/worker failures are best-effort and do not
 replace acceptance exceptions. Its `close()` only sets a stop flag. Existing

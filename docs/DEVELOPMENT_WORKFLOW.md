@@ -188,7 +188,7 @@ Do not silently vendor binaries, schemas, dictionaries, models, or generated nat
 
 ## Release work
 
-CI delivers short-lived installable debug APKs and minified unsigned release APKs; logs/screenshots and test reports accompany them.
+CI delivers short-lived installable debug APKs and minified unsigned release APKs, with typed public test summaries. Device logs and screenshots stay local under the [public evidence policy](PUBLIC_TEST_EVIDENCE.md).
 
 Stable signing identity and key custody move forward to P0; see [SIGNING_PLAN.md](SIGNING_PLAN.md). Start with a maintainer-held key, verified unsigned CI artifacts and local signing. Do not expose the production key to Gradle/project code or PR workflows. The maintainer-provided public certificate has been verified and [registered](signing/README.md); the actual [credential proof](SIGNING_CREDENTIAL_VALIDATION.md) passed on master on 2026-10-31 after the maintainer explicitly disabled approval. The isolated proof runs only for trusted master signing-configuration changes or explicit master dispatch; backup recovery and actual signed-APK/upgrade acceptance remain pending. Protected signing automation, GitHub Releases, store publishing and F-Droid-specific automation are separate follow-ups. Any later signing automation must use explicitly protected environments, approved trusted refs and artifact provenance checks, isolated from pull-request-controlled code.
 

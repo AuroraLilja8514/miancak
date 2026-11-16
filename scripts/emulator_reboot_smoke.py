@@ -126,8 +126,6 @@ def main():
             # from a stale ADB transport error. These probes cannot extend the
             # inherited script deadline and are each bounded independently.
             for label, command in (("boot-logcat", ("logcat", "-b", "all", "-d", "-t", "400")),
-                                   ("boot-processes", ("ps",)),
-                                   ("boot-activities", ("dumpsys", "activity", "processes")),
                                    ("boot-windows", ("dumpsys", "window", "windows"))):
                 try:
                     value = adb(serial, "shell", *command, timeout=8)

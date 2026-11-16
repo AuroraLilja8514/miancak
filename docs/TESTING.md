@@ -4,7 +4,7 @@ All maintained execution scripts accept `--timeout-seconds N` or `MIANCAK_SCRIPT
 
 # APK Testing
 
-The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.md`. CI artifacts contain unit XML reports, emulator logs/screenshots and scoped native latency measurements. Device images run on independent GitHub-hosted runners; no user environment is required.
+The initial offline Chinese-input implementation follows `INTERACTION_CONTRACT.md`. CI artifacts contain unit XML reports and typed device summaries with scoped numeric native measurements. Raw emulator logs/screenshots remain local under the [public evidence policy](PUBLIC_TEST_EVIDENCE.md). Device images run on independent GitHub-hosted runners; no user environment is required.
 
 ## Verification layers
 
@@ -70,7 +70,7 @@ python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 ```
 
-For an already running emulator, put the APKs at `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`, then run `bash scripts/emulator_tests.sh`. It runs native, touch/lifecycle and process-restart phases, fails on instrumentation errors, and collects device screenshots, logs and metrics under `test-results/`.
+For a newly created wiped dedicated `miancak-interactions` emulator, put the APKs at `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`, attest `MIANCAK_TEST_DISPOSABLE_GUEST=true`, then run `python3 scripts/public_test_evidence.py run --scenario interaction -- bash scripts/emulator_tests.sh`. The driver refuses unrelated or pre-existing application installs before collection or mutation. It runs native, touch/lifecycle and process-restart phases, fails on instrumentation errors, and collects local screenshots, logs and metrics under `test-results/`. Only the separate allowlist exporter produces public evidence.
 
 The editor fixture is debug-only and not exported. It is absent from release APKs. Existing inherited suggestion/autocorrect/automatic-capitalisation preferences are not offered by the MVP: English is direct, while manual Shift remains supported. The U0 initializer preserves then-supported layouts/settings and assigns MIANCAK QWERTY on a fresh installation; the new first-install suite checks both entry orders. C3 deliberately retires other built-in main layouts through a separate migration; removed built-ins do not remain available.
 
@@ -102,7 +102,7 @@ Runtime-open cost includes native initialization/maintenance in this test sequen
 
 ## Measurement limits
 
-`native-metrics.json` reports the measured deployment verification/runtime-open cost, warm JNI composition-and-confirmation p50/p95 and test-process PSS. Those are debug/emulator observations, not physical-device touch-to-editor performance or production memory guarantees. The full UI scenario duration is also recorded, including deliberate test waits/gestures. CI logs record actual APK/dictionary bytes; the emulator report records allocated Rime-directory KiB after testing, including compiled data and test learning. These are not a production user-data size guarantee. No physical-device benchmark, release signing or store publication is claimed.
+`native-metrics.json` reports the measured deployment verification/runtime-open cost, warm JNI composition-and-confirmation p50/p95 and test-process PSS. Those are debug/emulator observations, not physical-device touch-to-editor performance or production memory guarantees. The full UI scenario duration is also recorded, including deliberate test waits/gestures. Local build/test records retain actual APK/dictionary bytes; the public numeric summary can include allocated Rime-directory KiB after testing, including compiled data and synthetic test learning. These are not a production user-data size guarantee. No physical-device benchmark, release signing or store publication is claimed.
 
 ### C3 统一页面 APK 场景
 
@@ -155,4 +155,4 @@ API 35 整体触控另以系统字体 1.3 倍运行；首装设置先开路径�
 
 `PointerTraceTest` adds nine on-device component tests against the shipped Pointers/Gesture code. They cover center/eight directions, both sides of all eight sector boundaries, distance settings, roundtrip direction and explicit Shift, clockwise center and independent anticircle, sensitivity/wrap/reversal, a latched Shift, cancellation, and Slider capture/repeat/Ctrl behavior. Controlled raw coordinates and callback action kinds are recorded in `pointer-traces.jsonl`; this is not a substitute for system-injected IME touch and actual editor-event evidence. The interaction driver requires the trace report before it can pass.
 
-The upgrade driver records and closes at most one specifically observed Pixel Launcher ANR over the shipped launcher; it does not dismiss MIANCAK failures. Reboot failures retain bounded ADB stderr and device-list diagnostics. Screenshots remain in artifacts; console logs contain filenames/sizes instead of large Base64 lines. All these operations stay under the script and stage deadlines.
+The upgrade driver records and closes at most one specifically observed Pixel Launcher ANR over the shipped launcher; it does not dismiss MIANCAK failures. Reboot failures retain bounded local ADB diagnostics. Raw screenshots, diagnostic text and hierarchies remain local; public artifacts contain typed summaries and the job console contains fixed status tokens. All these operations stay under the script and stage deadlines.

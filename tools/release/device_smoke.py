@@ -124,7 +124,7 @@ def diagnostic_write(directory, name, text):
     return len(data), truncated
 
 def focused_diagnostic(text, extra_pattern=None):
-    """Keep app-related context, not complete system/process/user-data dumps."""
+    """Bound local app-related context; this is not personal-data redaction."""
     lines = text.splitlines()
     pattern = re.escape(PACKAGE) + r"(?=[:/\s.})]|$)"
     if extra_pattern:
@@ -136,7 +136,7 @@ def focused_diagnostic(text, extra_pattern=None):
     return "\n".join(lines[index] for index in sorted(indexes)) + ("\n" if indexes else "")
 
 def matching_anr_traces(text):
-    """ANR files may contain many processes. Export only this app's blocks."""
+    """Keep this app's blocks locally; app stacks are not a public-data sanitizer."""
     result = []
     for block in re.split(r"(?m)(?=^----- pid [0-9]+ at )", text):
         if not block.startswith("----- pid "):
@@ -278,7 +278,11 @@ def root():
     ops.require(shell("id", "-u") == "0", "RELEASE_TEST_ROOT_UNAVAILABLE")
 
 def snapshot(name):
-    """Only public-test data hashes leave the emulator, never raw user files."""
+    """Read app-private bytes into host memory; persist only local paths/counts/hashes.
+
+    Preservation comparisons use the complete map. Public staging excludes its
+    per-file paths/hashes and never receives the raw preference/learning bytes.
+    """
     paths = []
     roots = ["/data/user/0/" + PACKAGE + "/files/rime/user",
              "/data/user/0/" + PACKAGE + "/shared_prefs",
@@ -311,11 +315,29 @@ def phase(name):
     passed = "OK (1 test)" in text and not re.search(
         r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", text)
     if not passed:
-        # This job has no signing credentials; only our synthetic guest test
-        # output is printed, so failures remain diagnosable without ZIP tools.
-        print(text[-12000:], flush=True)
+        # Raw instrumentation text remains local behind the console boundary.
+        print("FAIL: RELEASE_INPUT_PHASE", flush=True)
     ops.require(passed, "RELEASE_INPUT_" + name.upper())
     print("PASS: ACTUAL_SIGNED_APK_" + name.upper(), flush=True)
+
+
+def verify_release_target(api):
+    """Read-only identity/empty-install guard before IME, root or app data access."""
+    ops.require(os.environ.get('MIANCAK_TEST_DISPOSABLE_GUEST') == 'true', 'RELEASE_TARGET_DISPOSABLE_REQUIRED')
+    def read(*args):
+        text, state = diagnostic_capture(['adb', *args], 10, 4096)
+        ops.require(state['status'] == 'captured' and not state.get('truncated'), 'RELEASE_TARGET_UNAVAILABLE')
+        return text.strip()
+    serial = read('get-serialno')
+    ops.require(re.fullmatch(r'emulator-[0-9]+', serial), 'RELEASE_TARGET_SERIAL')
+    def guest(*args): return read('-s', serial, *args)
+    name = guest('emu', 'avd', 'name').splitlines()[0]
+    ops.require(api in (23, 35) and name in ('miancak-release-'+str(api), 'miancak-release-rehearsal-'+str(api)),
+                'RELEASE_TARGET_AVD')
+    ops.require(guest('shell', 'getprop', 'ro.kernel.qemu') == '1' and
+                guest('shell', 'getprop', 'ro.build.version.sdk') == str(api), 'RELEASE_TARGET_API')
+    ops.require(not guest('shell', 'pm', 'list', 'packages', PACKAGE), 'RELEASE_TARGET_PREEXISTING_APP')
+    os.environ['ANDROID_SERIAL'] = serial
 
 def main():
     parser = argparse.ArgumentParser()
@@ -329,6 +351,7 @@ def main():
     signal.signal(signal.SIGALRM, expired)
     signal.alarm(args.timeout_seconds)
     RESULTS.mkdir(parents=True, exist_ok=True)
+    verify_release_target(args.api)
     global original_ime
     original_ime = shell("settings", "get", "secure", "default_input_method")
     ops.require(original_ime and original_ime != "null" and not original_ime.startswith(PACKAGE + "/"),

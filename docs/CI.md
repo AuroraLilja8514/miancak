@@ -50,8 +50,15 @@ Artifacts are retained for seven days:
 - `miancak-debug-<sha>`: installable debug APK and its instrumentation APK.
 - `miancak-unsigned-release-<sha>`: minified release APK requiring a signing identity before installation.
 - `unit-results-<sha>`: debug/release JUnit XML reports.
-- `instrumented-results-api-<api>-<sha>`: native/touch/restart logs, screenshots, UI dump, logcat and scoped measurements.
-- `first-install-api-<api>-<entry>-<sha>`: APK hash, device properties, installation/input/reopen assertions, UI hierarchies and screenshots.
+- `instrumented-results-api-<api>-<sha>`: typed native/touch/restart outcomes, counts/timing, input hashes, numeric metrics and bounded heartbeat fields.
+- `first-install-api-<api>-<entry>-<sha>`: typed installation/input/reopen outcomes, input hashes and bounded heartbeat fields.
+
+All device families, including release acceptance, upload only reconstructed
+`public-test-results/summary.json` and `heartbeat.jsonl` after successful staging.
+Driver stdout/stderr is captured locally; the job console contains fixed status
+tokens. Raw logs, hierarchies, screenshots and private maps remain local and are
+excluded from default uploads. See [PUBLIC_TEST_EVIDENCE.md](PUBLIC_TEST_EVIDENCE.md)
+for the allowlist, target guards, failure semantics and interpretation limits.
 
 PR artifact names contain the synthetic merge SHA. The run metadata identifies the source branch head. See [TESTING.md](TESTING.md) for scenario coverage and measurement limits.
 
@@ -87,7 +94,7 @@ API 35 interaction tests use system font scale 1.3. The API 35 settings-first fr
 
 ## Layout repair and formal word-pack checks
 
-The repair branch adds `word-pack-quality (23/35)` and the independent reboot check, making 18 applicable jobs. The quality jobs install the same APK/test artifacts into separate unused offline guests and compare the pinned old vocabulary, full Ice data and chosen Ice core with fresh isolated users. Reports retain actual candidates/commits, cold deployment, JNI latency, observed process PSS and footprint. The core is now the explicit production default; the full pack remains a comparison asset and the old pack an offline fallback. A failed quality threshold remains a failed gate independently of UI results; passing a comparison cannot silently change the default.
+The repair branch adds `word-pack-quality (23/35)` and the independent reboot check, making 18 applicable jobs. The quality jobs install the same APK/test artifacts into separate unused offline guests and compare the pinned old vocabulary, full Ice data and chosen Ice core with fresh isolated users. Reports retain actual candidates/commits locally; public summaries project only numeric cold deployment, JNI latency, observed process PSS and footprint. The core is now the explicit production default; the full pack remains a comparison asset and the old pack an offline fallback. A failed quality threshold remains a failed gate independently of UI results; passing a comparison cannot silently change the default.
 
 Interaction evidence now includes real F1–F12 and navigation events, Fn literal Tab/NBSP and editing actions, categorized symbols, center plus eight directions, explicit Shift and paired edits, existing gesture compatibility, Files round trips and process restart. Runtime slot inventories cover normal/Shift outputs and Fn reachability under six number-row/numpad/order configurations; they complement actual touches and do not claim every slot was physically touched. Shared controls are read-only, Compose is unchanged, and advanced gesture editing H1 is deferred.
 

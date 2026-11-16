@@ -82,6 +82,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Exercise the exact release test driver without the formal key
+        id: device-tests
+        env:
+          MIANCAK_TEST_DISPOSABLE_GUEST: "true"
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 35
@@ -94,11 +97,18 @@ jobs:
           disable-animations: true
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-release-rehearsal-${{ matrix.api }}.avd/config.ini"
           emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: python tools/release/rehearsal.py device --folder rehearsal --api ${{ matrix.api }} --timeout-seconds 1200
-      - name: Preserve rehearsal evidence with its disposable-key scope
+          script: python3 scripts/public_test_evidence.py run --scenario release -- python tools/release/rehearsal.py device --folder rehearsal --api ${{ matrix.api }} --timeout-seconds 1200
+      - name: Stage typed public device evidence
         if: always()
+        id: public-evidence
+        timeout-minutes: 2
+        run: python3 scripts/public_test_evidence.py stage --scenario release --outcome '${{ steps.device-tests.outcome }}' --source '${{ github.sha }}' --api '${{ matrix.api }}'
+      - name: Preserve rehearsal evidence with its disposable-key scope
+        if: ${{ always() && steps.public-evidence.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: disposable-release-evidence-${{ matrix.api }}-${{ github.sha }}
-          path: test-results/release/
+          path: |
+            public-test-results/summary.json
+            public-test-results/heartbeat.jsonl
           retention-days: 7

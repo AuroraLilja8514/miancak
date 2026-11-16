@@ -7,16 +7,11 @@ if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
 fi
 source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
+verify_test_target interaction
 mkdir -p test-results
 collect() {
   local test_exit=$?
   stop_progress
-  if [[ "$test_exit" -ne 0 ]]; then
-    # Read-only evidence only. Android 6 cross-thread ART stack suspension
-    # can abort the app: never send SIGQUIT or request active stack probes.
-    adb shell ps > test-results/processes-at-failure.txt || true
-    timeout --foreground 10s adb shell cat /data/anr/traces.txt > test-results/art-thread-dump.txt 2>&1 || true
-  fi
   adb logcat -b all -d > test-results/logcat.txt || true
   adb shell dumpsys input_method > test-results/input-method.txt || true
   adb shell dumpsys window windows > test-results/windows.txt || true
@@ -24,17 +19,6 @@ collect() {
   adb shell cat /proc/meminfo > test-results/guest-memory.txt || true
   adb shell uiautomator dump /sdcard/miancak-window.xml || true
   adb pull /sdcard/miancak-window.xml test-results/window.xml || true
-  python3 - <<'PY'
-from pathlib import Path
-lines = Path("test-results/logcat.txt").read_text(errors="replace").splitlines()
-indexes = set()
-for i, line in enumerate(lines):
-    if any(marker in line for marker in ("AndroidRuntime", "FATAL EXCEPTION", "MIANCAK", "Fatal signal", "ANR in")):
-        indexes.update(range(max(0, i - 2), min(len(lines), i + 15)))
-for i in sorted(indexes)[-240:]:
-    print(lines[i])
-print(Path("test-results/window.xml").read_text() if Path("test-results/window.xml").exists() else "No UI dump")
-PY
   adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
   if adb exec-out run-as org.miancak.keyboard.debug tar -C files/test-results -cf - . > test-results/private-evidence.tar; then
     python3 - <<'PY'
@@ -53,10 +37,6 @@ for name in ('editor-eight-directions.png', 'editor-landscape-draft.png', 'symbo
         print('Screenshot artifact: ' + name + ' (' + str(path.stat().st_size) + ' bytes)')
 PY
   adb shell run-as org.miancak.keyboard.debug du -sk files/rime > test-results/rime-footprint-kib.txt || true
-  cat test-results/rime-footprint-kib.txt
-  if [[ -f test-results/device/native-metrics.json ]]; then
-    cat test-results/device/native-metrics.json
-  fi
   if [[ "$test_exit" -eq 0 ]]; then
     for evidence in fn-received-events.csv symbol-receiver.json editor-receiver.json editor-restart-receiver.json pointer-traces.jsonl; do
       if [[ ! -s "test-results/device/$evidence" ]]; then
