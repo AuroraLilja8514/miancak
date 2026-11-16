@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/Julow/Unexpected-Keyboard",
+  "commit": "c87d9b8fbd501197286eaafeae88278dfbdd56b7",
+  "license": "GPL-3.0 (repository LICENSE)",
+  "files": {
+    "srcs/layouts/latn_qwerty_us.xml": "eb1a5872dc47c66682708e102041f652d273b3909f7c27b54284b6bce30ff840",
+    "res/xml/bottom_row.xml": "6dcdfefbad2c79333699859e5e725b3fb4716dece16d30292a00e67508ef4555",
+    "res/xml/greekmath.xml": "7bb79bf4f66c7e80974650132290cde0515156a1af3a29c0e04cf2abefacb84c",
+    "res/xml/numeric.xml": "3bf8f2e526efffe5f7a45bf4410f8adbee1863770849bb008c3c53d11b34f055",
+    "res/xml/numeric_landscape.xml": "22c64471776c80ee49b6ddc1fe894885c138b81be8c935553fcb2b6108c5c6e7",
+    "res/xml/emoji_bottom_row.xml": "34029c1893a12dae7c2545d38c96439f57edd79dcb7165b0f4ec5bd7a9842d5a",
+    "res/xml/clipboard_bottom_row.xml": "853cbe55c8498b4675791341d70f0e21fd6ef0ef44b3277b1ab1042a83d32ed0",
+    "srcs/compose/fn.json": "72f0ea6cd076f16eca412639c84f65d948eeb5fbd145d366e43c7e75b14d466f"
+  }
+}

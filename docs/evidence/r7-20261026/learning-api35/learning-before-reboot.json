@@ -1,0 +1,38 @@
+{
+  "files/rime/user/pinyin_simp.userdb/000005.ldb": {
+    "bytes": 367,
+    "sha256": "02c1e158b0e6a42803a7babe78cc4f9958ea1431f6360cc71462821a72306088"
+  },
+  "files/rime/user/pinyin_simp.userdb/000010.ldb": {
+    "bytes": 174,
+    "sha256": "0c3f43bfe36174df1f0dac3643c2eb1c26aa6c5b48922e9d4abf12e6335cd3df"
+  },
+  "files/rime/user/pinyin_simp.userdb/000021.ldb": {
+    "bytes": 161,
+    "sha256": "c05b351c40a2f67d0d3486fad5597d8949ef3f9dee4d456e25f1a589637f43e0"
+  },
+  "files/rime/user/pinyin_simp.userdb/000022.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "files/rime/user/pinyin_simp.userdb/CURRENT": {
+    "bytes": 16,
+    "sha256": "01bd196d6a114691ec642082ebf6591765c0168d4098a0cd834869bd11c8b87d"
+  },
+  "files/rime/user/pinyin_simp.userdb/LOCK": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "files/rime/user/pinyin_simp.userdb/LOG": {
+    "bytes": 329,
+    "sha256": "86637544b37bfd947abad810eab59c4f9d394cf9dbe835c86b2c59b86b2255b3"
+  },
+  "files/rime/user/pinyin_simp.userdb/LOG.old": {
+    "bytes": 184,
+    "sha256": "441598c070d3bdb2e8877dd52d27e794a5a780d74f9056a88a145b28d4c17bdc"
+  },
+  "files/rime/user/pinyin_simp.userdb/MANIFEST-000020": {
+    "bytes": 208,
+    "sha256": "9f24ba1766dabb2d2e5c15a47f591e7c7476725efa724af6b724da781f276524"
+  }
+}

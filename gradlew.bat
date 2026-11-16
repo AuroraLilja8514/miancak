@@ -17,6 +17,11 @@
 @rem
 
 @if "%DEBUG%"=="" @echo off
+@rem Every invocation has a configurable finite deadline (requires Python 3).
+@if /I "%MIANCAK_TIMEOUT_SCRIPT%"=="%~f0" goto miancakTimeoutStarted
+@python "%~dp0scripts\run_with_timeout.py" --script "%~f0" -- %*
+@exit /b %ERRORLEVEL%
+:miancakTimeoutStarted
 @rem ##########################################################################
 @rem
 @rem  Gradle startup script for Windows

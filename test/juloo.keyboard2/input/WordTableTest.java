@@ -67,4 +67,24 @@ public class WordTableTest
     try (InputStream input = new FileInputStream("androidTest/assets/word-tables/others.dict.yaml"))
     { try { WordTable.parse(input, new StringWriter()); fail(); } catch (IOException expected) { assertTrue(expected.getMessage().contains("Pinyin")); } }
   }
+  @Test public void parsesAllSelectedUnmodifiedPinnedDailyWordTables() throws Exception
+  {
+    int[] counts = {8757, 543118, 339186}; int i = 0;
+    Writer sink = new Writer() { public void write(char[] b, int o, int n) {} public void flush() {} public void close() {} };
+    for (String name : Arrays.asList("8105", "base", "ext"))
+      try (InputStream input = new FileInputStream(".native/rime-ice/cn_dicts/" + name + ".dict.yaml"))
+      { assertEquals(counts[i++], WordTable.parse(input, sink).rows); }
+  }
+  @Test public void largeProvenanceCommentsDoNotCountAsParsedYaml() throws Exception
+  {
+    StringBuilder source = new StringBuilder("---\n");
+    for (int i = 0; i < 5000; i++) source.append("# upstream provenance and changelog\n");
+    source.append("name: provenance\n...\n词库\tci ku\t100\n");
+    StringWriter out = new StringWriter();
+    assertEquals(1, parse(source.toString(), out).rows);
+    assertEquals("词库\tci ku\t100\n", out.toString());
+    StringBuilder oversized = new StringBuilder("---\nname: bound\nimport_tables:\n");
+    for (int i = 0; i < 4000; i++) oversized.append("  - repeated_dependency\n");
+    rejects(oversized.append("...\n").toString());
+  }
 }

@@ -118,6 +118,9 @@ public final class WordTableActivity extends Activity
     apply.setId(R.id.word_tables_apply); if (state == null) apply.setEnabled(false); root.addView(apply, new LinearLayout.LayoutParams(-1, -2));
     root.addView(button(R.string.words_restore, () ->
         WordTableRuntime.run(this, true, store -> store.apply(WordTableStore.BUNDLED, Collections.emptyList()))), new LinearLayout.LayoutParams(-1, -2));
+    if (WordTableStore.hasFormalBundledPack(this))
+      root.addView(button(R.string.words_legacy, () -> WordTableRuntime.run(this, true, WordTableStore::useLegacyBase)),
+          new LinearLayout.LayoutParams(-1, -2));
   }
   private void radio(RadioGroup parent, String label, String id)
   {
@@ -134,6 +137,7 @@ public final class WordTableActivity extends Activity
     if (label == R.string.words_apply) button.setId(R.id.word_tables_apply);
     if (label == R.string.words_restore) button.setId(R.id.word_tables_restore);
     if (label == R.string.words_help) button.setId(R.id.word_tables_help);
+    if (label == R.string.words_legacy) button.setId(R.id.word_tables_legacy);
     button.setEnabled(!WordTableRuntime.busy); button.setOnClickListener(view -> action.run()); return button;
   }
   @Override protected void onActivityResult(int request, int result, Intent data)

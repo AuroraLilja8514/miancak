@@ -12,6 +12,12 @@ import org.json.*;
 public final class WordTableStore
 {
   public static final String BUNDLED = "bundled";
+  public static final String LEGACY = "miancak_legacy_0_3";
+  public static boolean hasFormalBundledPack(Context context)
+  {
+    try (InputStream input = context.getAssets().open("word-pack/current.json")) { return input.read() >= 0; }
+    catch (IOException absent) { return false; }
+  }
   private static final long MAX_TOTAL = 256L * 1024 * 1024;
   public interface Source { String filename(); InputStream open() throws Exception; }
   public static final class Entry
@@ -196,6 +202,23 @@ public final class WordTableStore
       try { cleanup(); } catch (Exception ignored) { /* A committed working selection must not be reported as failed because GC failed. */ }
     }
     finally { if (!committed) erase(shared); }
+  }
+  /** Explicit offline fallback. It follows the same import, validation,
+   * compilation and atomic pointer path as user vocabulary. */
+  public void useLegacyBase() throws Exception
+  {
+    Selection before = view().selection;
+    importTables(Collections.singletonList(new Source() {
+      @Override public String filename() { return LEGACY + ".dict.yaml"; }
+      @Override public InputStream open() throws Exception
+      { return context.getAssets().open("word-pack/" + filename()); }
+    }));
+    for (Entry entry : entries()) if (entry.name.equals(LEGACY))
+    {
+      List<String> extras = new ArrayList<>(before.extras); extras.remove(entry.id);
+      apply(entry.id, extras); return;
+    }
+    throw new IOException("Legacy vocabulary was not imported / 旧版词表未能导入");
   }
   public RimeData.Paths currentPaths() throws IOException
   {

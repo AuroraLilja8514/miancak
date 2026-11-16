@@ -1,0 +1,1 @@
+juloo.keyboard2.LauncherActivity softInput=16 rootHeight=640 visibleFrame=Rect(0, 24 - 320, 333) text=[] shown=true editor=Rect(24, 287 - 296, 333) viewportHeight=253 bottomPadding=0 imeInset=307

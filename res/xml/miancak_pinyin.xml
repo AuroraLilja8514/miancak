@@ -99,7 +99,7 @@
   <row height="0.95">
     <key width="1.7" role="action" key0="ctrl" key1="switch_greekmath" key2="loc meta" key3="switch_clipboard" key4="switch_numeric" />
     <key width="1.1" role="action" key0="fn_page" key1="loc alt" key2="loc change_method" key3="switch_emoji" key4="config" />
-    <key width="4.4" role="space_bar" key0="space" key7="switch_pinyin_finals" key8="switch_zhuyin" key5="cursor_left" key6="cursor_right" />
+    <key width="4.4" role="space_bar" key0="space" key7="switch_forward" key8="switch_backward" key5="cursor_left" key6="cursor_right" key1="switch_pinyin_finals" />
     <key width="1.1" c=":literal:'。'" nw=":literal:'，'" ne=":literal:'？'" sw=":literal:'！'" se=":literal:'；'" n=":literal:'：'" s=":literal:'、'" w=":literal:'\''" e=":literal:'˙'" />
     <key width="1.7" role="action" key0="enter" key1="loc voice_typing" key2="action" key4="layout_picker" />
   </row>

@@ -12,6 +12,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 
@@ -259,4 +260,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     main()

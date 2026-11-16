@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/** Immutable result of one serialized engine operation. Candidate indices are page-local. */
+/** Immutable result of one serialized engine operation. Candidate indices belong to this displayed window. */
 public final class EngineResult
 {
   public static final EngineResult EMPTY = new EngineResult(true, "", "", new String[0], 0, false, true);

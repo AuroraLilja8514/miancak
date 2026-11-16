@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """Literal phonetic pages; no implicit engine or punctuation conversion."""
+
+# A finite watchdog also bounds imports, child commands and shutdown.
+if __name__ == "__main__":
+    import sys as _timeout_sys
+    from pathlib import Path as _TimeoutPath
+    _timeout_sys.path.insert(0, str(_TimeoutPath(__file__).resolve().parents[1] / "scripts"))
+    from run_with_timeout import guard_script as _guard_script
+    _guard_script(__file__)
+
 from pathlib import Path
 from copy import deepcopy
 import xml.etree.ElementTree as ET
@@ -31,8 +40,7 @@ def literal(text):
 
 def bottom():
     row = ET.parse("res/xml/bottom_row.xml").getroot()
-    row[2].set("key7", "switch_pinyin_finals")
-    row[2].set("key8", "switch_zhuyin")
+    row[2].set("key1", "switch_pinyin_finals")
     punctuation = row[3]
     punctuation.attrib.clear()
     punctuation.set("width", "1.1")
@@ -77,7 +85,7 @@ def gen():
             for number in range(5):
                 value = tone(final, number)
                 ET.SubElement(final_modmap, "shift", {"a": literal(value), "b": literal(value.upper())})
-    row = bottom(); row[2].set("key7", "switch_pinyin")
+    row = bottom()
     row[0].set("key0", "shift"); row[0].set("key2", "language_switch")
     row[2].set("key1", "backspace"); row[2].set("key2", "delete")
     finals.append(row)
@@ -100,7 +108,6 @@ def gen():
     row = bottom()
     for key in row:
         key.set("width", str(float(key.get("width")) * 1.1))
-    row[2].set("key7", "switch_pinyin"); row[2].set("key8", "switch_pinyin_finals")
     zhuyin.append(row); save(zhuyin, "miancak_zhuyin")
 
 if __name__ == "__main__":

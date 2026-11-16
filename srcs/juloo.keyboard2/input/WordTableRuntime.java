@@ -32,11 +32,23 @@ public final class WordTableRuntime
 
   public static CompositionEngine createEngine(Context context) throws Exception
   {
+    long started = android.os.SystemClock.elapsedRealtime();
+    android.util.Log.i("MIANCAK-Rime", "Preparing offline input");
     WordTableStore store = new WordTableStore(context);
     for (int attempt = 0; ; attempt++)
     {
-      try { return new RimeEngine(store.currentPaths()); }
-      catch (RuntimeException unavailable) { if (attempt == 2) throw unavailable; store.recover(); }
+      try
+      {
+        CompositionEngine engine = new RimeEngine(store.currentPaths());
+        android.util.Log.i("MIANCAK-Rime", "Offline input ready after "
+            + (android.os.SystemClock.elapsedRealtime() - started) + " ms; attempt=" + (attempt + 1));
+        return engine;
+      }
+      catch (RuntimeException unavailable)
+      {
+        android.util.Log.w("MIANCAK-Rime", "Offline initialization failed; attempt=" + (attempt + 1), unavailable);
+        if (attempt == 2) throw unavailable; store.recover();
+      }
     }
   }
   public static void refresh(Context context) { if (!busy) run(context, false, store -> {}); }

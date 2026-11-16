@@ -1,0 +1,95 @@
+{
+  "applicationSource": "b0f14a2549fda14318bcaeba98a25bbdc82fadc6",
+  "applicationFeatureSource": "bc5f56783d4eed631096f849aca9c7ea03174923",
+  "ciCheckoutMerge": "92acd6521e8316eb3090d9bf5e4144dacfc1f38c",
+  "status": "Selected exact APK application scenarios verified; original failures retained",
+  "apk": {
+    "versionName": "0.3.2",
+    "versionCode": 5,
+    "package": "org.miancak.keyboard.debug",
+    "bytes": 20737013,
+    "sha256": "9a21b2c0e0d2ef60e8c7f74df1d86679410ac6b7d0880b280f785b47451a87c5",
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ]
+  },
+  "primary": {
+    "runId": 40445163115,
+    "success": 17,
+    "failure": 1,
+    "failedJobId": 121997422359,
+    "failurePreserved": true
+  },
+  "api23Complete": {
+    "runId": 40449099700,
+    "source": "e1da3607262cbeda1eec3c447f00f0d370de63c4",
+    "sameApksVerified": true,
+    "conclusion": "success",
+    "nativeTests": 7,
+    "componentTests": 39,
+    "interactionSeconds": 749.167,
+    "filesSeconds": 45.912,
+    "restartSeconds": 38.424
+  },
+  "api23ModernComparison": {
+    "runId": 40450015057,
+    "source": "3e3a8cd4773d2589b18e7b9054b7032c5ff7d259",
+    "emulatorBuild": 16428233,
+    "renderer": "swangle",
+    "sameApksVerified": true,
+    "conclusion": "success",
+    "interactionSeconds": 744.324,
+    "filesSeconds": 42.787,
+    "restartSeconds": 38.431
+  },
+  "api35Complete": {
+    "runId": 40445163115,
+    "conclusion": "success",
+    "nativeTests": 7,
+    "componentTests": 39,
+    "interactionSeconds": 760.888,
+    "filesSeconds": 48.327,
+    "restartSeconds": 35.813
+  },
+  "unit": {
+    "distinctTests": 118,
+    "executions": 236,
+    "failures": 0,
+    "errors": 0
+  },
+  "scriptWatchdog": {
+    "linuxTests": 9,
+    "failures": 0,
+    "defaultTimeoutSeconds": 3600,
+    "adbTimeoutSeconds": 30,
+    "instrumentationTimeoutSeconds": 900,
+    "crlfCollectorRegressionVerified": true
+  },
+  "regressions": {
+    "freshInstallPathsPassed": 4,
+    "oldVersionUpgradeAndRebootPathsPassed": 2,
+    "wordTableLearningReplacementRollbackAndRebootPassedOnApis": [
+      23,
+      35
+    ],
+    "wordPackQualityPassedOnApis": [
+      23,
+      35
+    ],
+    "emptyGuestRealKernelRebootsPassed": 3,
+    "fnAndNavigationEventsPerApi": 74,
+    "deviceComponentsPerApi": 39,
+    "nativeWordTableTestsPerApi": 7,
+    "actualTouchCandidateRankVerified": 80,
+    "nativeCandidateRankVerified": 28
+  },
+  "limits": [
+    "No ARM physical-device validation",
+    "Debug signing; old distributed APK signature compatibility not established",
+    "Earlier API 23 virtual pipe/accessibility stall root cause remains unconfirmed",
+    "Documentation and the tested diagnostic collector do not change application/build inputs"
+  ],
+  "privacyScope": "Summary only. No runtime process listings, input text, raw learning files, learning fingerprints or raw XML/CSV/log payloads are included in this repository update."
+}

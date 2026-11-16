@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """Fetch pinned build inputs and generate packaged assets. Never used at runtime."""
+
+# A finite watchdog also bounds imports, child commands and shutdown.
+if __name__ == "__main__":
+    import sys as _timeout_sys
+    from pathlib import Path as _TimeoutPath
+    _timeout_sys.path.insert(0, str(_TimeoutPath(__file__).resolve().parents[1] / "scripts"))
+    from run_with_timeout import guard_script as _guard_script
+    _guard_script(__file__)
+
 import hashlib
 import json
 from pathlib import Path
@@ -15,7 +24,9 @@ ASSETS = ROOT / "build/generated-rime-assets"
 
 
 def git(path, *args):
-    return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
+    import os
+    return subprocess.check_output(["git", "-C", str(path), *args], text=True,
+                                   timeout=float(os.environ.get("MIANCAK_FETCH_TIMEOUT_SECONDS", "600"))).strip()
 
 
 def checkout(name, spec):
@@ -25,7 +36,7 @@ def checkout(name, spec):
         git(dest, "init", "--quiet")
         git(dest, "remote", "add", "origin", spec["url"])
     try:
-        actual = git(dest, "rev-parse", "HEAD")
+        actual = git(dest, "rev-parse", "--verify", "--quiet", "HEAD")
     except subprocess.CalledProcessError:
         actual = None
     if actual != spec["commit"]:
@@ -79,9 +90,17 @@ def main():
     data = ASSETS / "rime"
     shutil.copytree(ROOT / "native/data", data)
     shutil.copyfile(pinyin / "pinyin_simp.dict.yaml", data / "pinyin_simp.dict.yaml")
+    from prepare_word_pack import prepare, install_default, SPEC
+    report = prepare()
+    profile = SPEC.get("default_profile", "legacy")
+    if profile not in ("legacy", "ice-core"):
+        raise RuntimeError("Unsupported default word-pack profile: " + str(profile))
+    word_pack = install_default(report, ASSETS) if profile == "ice-core" else None
     manifest = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(data.iterdir())}
     (data / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
     metadata = dict(LOCK)
+    if word_pack is not None:
+        metadata["word_pack"] = word_pack
     metadata["dependencies"] = {name: git(rime / "deps" / name, "rev-parse", "HEAD")
                                 for name in ["leveldb", "yaml-cpp", "marisa-trie", "opencc"]}
     (ASSETS / "native-sources.json").write_text(json.dumps(metadata, indent=2) + "\n")

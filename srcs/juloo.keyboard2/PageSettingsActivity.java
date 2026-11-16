@@ -37,6 +37,15 @@ public class PageSettingsActivity extends Activity
     content.setPadding(padding, padding, padding, padding);
     scroll.addView(content); setContentView(scroll);
     ActivityInsets.install(this, scroll);
+    Button phonetic = new Button(this);
+    phonetic.setText(getString(R.string.page_phonetic_entry, getString(PagePreferences.label(config.phoneticEntry))));
+    phonetic.setContentDescription("Choose phonetic entry");
+    phonetic.setOnClickListener(view -> new AlertDialog.Builder(this).setTitle(R.string.page_phonetic_entry_title)
+      .setSingleChoiceItems(new String[] {getString(R.string.page_pinyin), getString(R.string.page_zhuyin)},
+          config.phoneticEntry.equals("pinyin") ? 0 : 1, (dialog, which) -> {
+            save(config.withPhoneticEntry(which == 0 ? "pinyin" : "zhuyin")); dialog.dismiss();
+          }).setNegativeButton(android.R.string.cancel, null).show());
+    content.addView(phonetic);
     for (String id : config.order)
     {
       LinearLayout row = new LinearLayout(this);
@@ -45,7 +54,7 @@ public class PageSettingsActivity extends Activity
       enabled.setText(PagePreferences.label(id));
       enabled.setContentDescription("page-enabled-" + id);
       enabled.setChecked(config.enabled.contains(id));
-      enabled.setEnabled(!PageConfig.isText(id));
+      enabled.setEnabled(!PageConfig.isText(id) && !PageConfig.isVariant(id));
       enabled.setOnCheckedChangeListener((button, checked) -> save(config.enable(id, checked)));
       row.addView(enabled, new LinearLayout.LayoutParams(0, -2, 1));
       Button up = new Button(this); up.setText("↑");
@@ -59,11 +68,11 @@ public class PageSettingsActivity extends Activity
       edit.setOnClickListener(view -> startActivity(new android.content.Intent(this, PageEditorActivity.class).putExtra("page", id)));
       content.addView(edit);
     }
-    fnButton(InputRouter.Mode.CHINESE); fnButton(InputRouter.Mode.ENGLISH);
+    fnButton("zh"); fnButton("en");
     Button reset = new Button(this); reset.setText(R.string.pages_reset);
     reset.setOnClickListener(view -> new AlertDialog.Builder(this).setMessage(R.string.pages_reset_confirm)
         .setNegativeButton(android.R.string.cancel, null)
-        .setPositiveButton(android.R.string.ok, (dialog, which) -> save(new PageConfig(null, null, null, null))).show());
+        .setPositiveButton(android.R.string.ok, (dialog, which) -> save(new PageConfig(null, null))).show());
     content.addView(reset);
     Button export = new Button(this); export.setText(R.string.page_export);
     export.setOnClickListener(view -> startActivityForResult(new android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT)
@@ -76,29 +85,21 @@ public class PageSettingsActivity extends Activity
     restore.setEnabled(preferences.contains(PageKeyOverrides.KEY + "_previous_bundle"));
     restore.setOnClickListener(view -> new AlertDialog.Builder(this).setMessage(R.string.page_restore_confirm)
         .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok, (dialog, which) -> {
-          try { PageKeyOverrides.importJson(preferences, getResources(), preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "")); render(); }
+          try { PageKeyOverrides.importJson(preferences, this, preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "")); render(); }
           catch (Exception error) { error(error.getMessage()); }
         }).show()); content.addView(restore);
     android.widget.TextView note = new android.widget.TextView(this);
-    note.setText(getString(R.string.pages_explanation) + "\n\n" + getString(R.string.page_phonetic_help)); content.addView(note);
+    note.setText(getString(R.string.pages_explanation) + "\n\n" + getString(R.string.page_phonetic_help)
+        + "\n\n" + getString(R.string.symbol_panel_help)); content.addView(note);
   }
-  private void fnButton(InputRouter.Mode mode)
+  private void fnButton(String base)
   {
-    String target = config.fn(mode);
+    String target = config.fn(base);
     Button button = new Button(this);
-    button.setContentDescription(mode == InputRouter.Mode.CHINESE ? "fn-target-zh" : "fn-target-en");
-    button.setText(getString(mode == InputRouter.Mode.CHINESE ? R.string.page_chinese_fn : R.string.page_english_fn,
-          target.isEmpty() ? getString(R.string.page_none) : getString(PagePreferences.label(target))));
-    button.setOnClickListener(view -> {
-      ArrayList<String> ids = new ArrayList<>(); ids.add("");
-      for (String id : config.visible()) if (!PageConfig.isText(id)) ids.add(id);
-      String[] labels = new String[ids.size()];
-      for (int i = 0; i < labels.length; i++) labels[i] = ids.get(i).isEmpty() ? getString(R.string.page_none) : getString(PagePreferences.label(ids.get(i)));
-      new AlertDialog.Builder(this).setTitle(R.string.page_fn_target)
-        .setSingleChoiceItems(labels, ids.indexOf(target), (dialog, which) -> {
-          save(config.withFn(mode, ids.get(which))); dialog.dismiss();
-        }).setNegativeButton(android.R.string.cancel, null).show();
-    });
+    button.setContentDescription("Edit Fn variant: " + base);
+    button.setText(getString(base.equals("zh") ? R.string.page_chinese_fn : R.string.page_english_fn,
+          getString(PagePreferences.label(target))));
+    button.setOnClickListener(view -> startActivity(new android.content.Intent(this, PageEditorActivity.class).putExtra("page", target)));
     content.addView(button);
   }
   protected void save(PageConfig next) { PagePreferences.save(preferences, next); render(); }
@@ -129,7 +130,7 @@ public class PageSettingsActivity extends Activity
         String json = new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
         new AlertDialog.Builder(this).setMessage(R.string.page_import_confirm).setNegativeButton(android.R.string.cancel, null)
           .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-            try { PageKeyOverrides.importJson(preferences, getResources(), json); render(); }
+            try { PageKeyOverrides.importJson(preferences, this, json); render(); }
             catch (Exception error) { error(error.getMessage()); }
           }).show();
       }

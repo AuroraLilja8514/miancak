@@ -26,66 +26,106 @@ public final class LayoutModifier
    *  - Add the extra keys
    */
   public static KeyboardData modify_layout(KeyboardData kw)
+  { return modify_layout(kw, false); }
+
+  public static KeyboardData modify_layout(KeyboardData kw, boolean fnVariant)
+  { return modify_layout(kw, fnVariant, null, ""); }
+
+  public static KeyboardData modify_layout(KeyboardData kw, boolean fnVariant, PageKeyOverrides edits, String page)
+  {
+    boolean symbols = page.equals("symbols") || page.startsWith("symbols/");
+    kw = symbols ? prepare_symbols(kw) : prepare_layout(kw, fnVariant, globalConfig.extra_keys_param,
+        globalConfig.extra_keys_custom, globalConfig.extra_keys_subtype);
+    if (edits != null) kw = edits.apply(page, kw);
+    return present_layout(kw, fnVariant, symbols);
+  }
+
+  /** Fixed symbol coordinates do not inherit text-layout extras or digit rows. */
+  public static KeyboardData prepare_symbols(KeyboardData kw)
+  { return prepare_layout(kw, false, java.util.Collections.emptyMap(), java.util.Collections.emptyMap(), null); }
+
+  /** Shared logical coordinates, before responsive splitting and digit rows. */
+  public static KeyboardData prepare_layout(KeyboardData kw, boolean fnVariant,
+      Map<KeyValue, KeyboardData.PreferredPos> standard,
+      Map<KeyValue, KeyboardData.PreferredPos> custom, ExtraKeys subtype)
   {
     // Extra keys are removed from the set as they are encountered during the
     // first iteration then automatically added.
     final TreeMap<KeyValue, KeyboardData.PreferredPos> extra_keys = new TreeMap<KeyValue, KeyboardData.PreferredPos>();
-    final Set<KeyValue> remove_keys = new HashSet<KeyValue>();
     // Make sure the config key is accessible to avoid being locked in a custom
     // layout.
     extra_keys.put(KeyValue.CONFIG, KeyboardData.PreferredPos.ANYWHERE);
-    extra_keys.putAll(globalConfig.extra_keys_param);
-    extra_keys.putAll(globalConfig.extra_keys_custom);
-    // Number row and numpads are added after the modification pass to allow
-    // removing the number keys from the main layout.
-    KeyboardData.Row added_number_row = null;
-    KeyboardData added_numpad = null;
-    if (globalConfig.show_numpad)
-    {
-      added_numpad = modify_numpad(num_pad, kw);
-      remove_keys.addAll(added_numpad.getKeys().keySet());
-    }
-    else if (globalConfig.add_number_row && !kw.embedded_number_row) // The numpad removes the number row
-    {
-      added_number_row = modify_number_row(globalConfig.number_row_symbols ? number_row_symbols : number_row_no_symbols, kw);
-      if (globalConfig.split_layout)
-        added_number_row = LayoutLandscapeModifier.transform_number_row(added_number_row);
-      remove_keys.addAll(added_number_row.getKeys(0).keySet());
-    }
+    extra_keys.putAll(standard);
+    extra_keys.putAll(custom);
     // Add the bottom row before computing the extra keys
     if (kw.bottom_row)
       kw = kw.insert_row(bottom_row, kw.rows.size());
-    // Split the layout in landscape orientation
-    if (globalConfig.split_layout)
-      kw = LayoutLandscapeModifier.transform_to_landscape(kw);
     // Compose keys to add to the layout
     // 'extra_keys_keyset' reflects changes made to 'extra_keys'
     Set<KeyValue> extra_keys_keyset = extra_keys.keySet();
     // 'kw_keys' contains the keys present on the layout without any extra keys
     Set<KeyValue> kw_keys = kw.getKeys().keySet();
-    if (globalConfig.extra_keys_subtype != null && kw.locale_extra_keys)
+    if (subtype != null && kw.locale_extra_keys)
     {
       Set<KeyValue> present = new HashSet<KeyValue>(kw_keys);
       present.addAll(extra_keys_keyset);
-      globalConfig.extra_keys_subtype.compute(extra_keys,
+      subtype.compute(extra_keys,
           new ExtraKeys.Query(kw.script, present));
+    }
+    if (fnVariant)
+    {
+      TreeMap<KeyValue, KeyboardData.PreferredPos> mapped = new TreeMap<>();
+      for (Map.Entry<KeyValue, KeyboardData.PreferredPos> entry : extra_keys.entrySet())
+      {
+        KeyValue value = KeyModifier.fn_value(entry.getKey(), kw.modmap);
+        KeyboardData.PreferredPos position = new KeyboardData.PreferredPos(entry.getValue());
+        if (position.next_to != null && !kw_keys.contains(position.next_to))
+          position.next_to = KeyModifier.fn_value(position.next_to, kw.modmap);
+        if (!value.getString().isEmpty()) mapped.put(value, position);
+      }
+      extra_keys.clear(); extra_keys.putAll(mapped);
     }
     kw = kw.mapKeys(new KeyboardData.MapKeyValues() {
       public KeyValue apply(KeyValue key, boolean localized)
       {
         if (localized && !extra_keys.containsKey(key))
           return null;
-        if (remove_keys.contains(key))
-          return null;
-        return modify_key(key);
+        return key;
       }
     });
-    if (added_numpad != null)
-      kw = kw.addNumPad(added_numpad);
     // Add extra keys that are not on the layout (including 'loc' keys)
     extra_keys_keyset.removeAll(kw_keys);
     if (extra_keys.size() > 0)
       kw = kw.addExtraKeys(extra_keys.entrySet().iterator());
+    return kw.with_bottom_row(false);
+  }
+
+  private static KeyboardData present_layout(KeyboardData kw, boolean fnVariant, boolean symbols)
+  {
+    final Set<KeyValue> remove_keys = new HashSet<>();
+    KeyboardData.Row added_number_row = null;
+    KeyboardData added_numpad = null;
+    if (!symbols && globalConfig.show_numpad)
+    {
+      added_numpad = modify_numpad(num_pad, kw);
+      if (fnVariant) added_numpad = FnLayout.materialize(added_numpad, false);
+      remove_keys.addAll(added_numpad.getKeys().keySet());
+    }
+    else if (!symbols && globalConfig.add_number_row && !kw.embedded_number_row)
+    {
+      added_number_row = modify_number_row(globalConfig.number_row_symbols ? number_row_symbols : number_row_no_symbols, kw);
+      if (fnVariant) added_number_row = added_number_row.mapKeys(new KeyboardData.MapKeyValues() {
+        public KeyValue apply(KeyValue value, boolean localized) { return KeyModifier.fn_value(value, null); }
+      });
+      if (globalConfig.split_layout) added_number_row = LayoutLandscapeModifier.transform_number_row(added_number_row);
+      remove_keys.addAll(added_number_row.getKeys(0).keySet());
+    }
+    if (globalConfig.split_layout) kw = LayoutLandscapeModifier.transform_to_landscape(kw);
+    kw = kw.mapKeys(new KeyboardData.MapKeyValues() {
+      public KeyValue apply(KeyValue key, boolean localized)
+      { return remove_keys.contains(key) ? null : modify_key(key); }
+    });
+    if (added_numpad != null) kw = kw.addNumPad(added_numpad);
     // Avoid adding extra keys to the number row
     if (added_number_row != null)
       kw = kw.insert_row(added_number_row, 0);
@@ -156,6 +196,8 @@ public final class LayoutModifier
    */
   static KeyValue modify_key(KeyValue orig)
   {
+    // Fn is always a paired-layout action, including imported/custom keys.
+    if (orig.equals(KeyValue.getKeyByName("fn"))) return KeyValue.getKeyByName("fn_page");
     EditorConfig ec = globalConfig.editor_config;
     switch (orig.getKind())
     {

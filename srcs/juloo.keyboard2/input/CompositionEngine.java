@@ -10,6 +10,8 @@ public interface CompositionEngine extends AutoCloseable
   EngineResult clear();
   EngineResult select(int pageIndex);
   EngineResult page(boolean backward);
+  /** Ranked prefix from the start, without changing the composition. */
+  default EngineResult candidates(int limit) { throw new UnsupportedOperationException("Candidate browsing"); }
   void setLearning(boolean enabled);
   @Override void close();
 }
