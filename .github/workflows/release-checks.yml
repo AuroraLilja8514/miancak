@@ -27,6 +27,7 @@ jobs:
         run: |
           python tools/release/generate_workflow.py --check
           python tools/release/test_release.py --integration
+          python tools/release/test_device_diagnostics.py --timeout-seconds 120
   rehearsal-input:
     name: prepare a disposable-key copy of the actual APK
     needs: release-contract
