@@ -101,7 +101,15 @@ public final class PageEditorInteractionTest
       assertTrue("Connection restart changed the chosen symbol layout",device.wait(Until.hasObject(By.res(pkg,"keyboard_view").descStartsWith("Page: symbols;")),15000));
       assertTrue(device.wait(Until.hasObject(By.res(pkg,"miancak_symbol_page").text(context.getString(R.string.symbol_page,2,5))),15000));
       touch(0,0,0); expect("符","symbol-page-edit");
-      choose("en"); clear(); roundtrip(1,2,7); expect("上","roundtrip-shift"); circle(); expect("上转","circle-shift"); anticircle(); expect("上转逆","anticircle-independent");
+      choose("en"); clear();
+      // Measurement only: unchanged gestures/defaults and exact receiver assertions.
+      // Resource cleanup failures are suppressed behind the original assertion.
+      try (GestureTimingEvidence timing = GestureTimingEvidence.start(instrumentation, context, restartOnly))
+      {
+        roundtrip(1,2,7,timing); expect("上","roundtrip-shift");
+        circle(timing); expect("上转","circle-shift");
+        anticircle(timing); expect("上转逆","anticircle-independent");
+      }
       before=events.size(); roundtrip(0,0,2); function(before,KeyEvent.KEYCODE_F1); expect("上转逆","gesture-fn-fallback");
       shot(restartOnly?"editor-after-restart":"editor-input"); choose("zh");
     }
@@ -278,11 +286,13 @@ public final class PageEditorInteractionTest
   private void touch(int r,int c,int d)
   {Point p=point(r,c);int[] v=VECTORS[d];if(d==0)assertTrue(device.click(p.x,p.y));else assertTrue(device.swipe(p.x,p.y,Math.round(p.x+v[0]*unit()*.85f),Math.round(p.y+v[1]*height()*.65f),12));instrumentation.waitForIdleSync();}
   private void roundtrip(int r,int c,int d)
-  {Point p=point(r,c);int[] v=VECTORS[d];assertTrue(device.swipe(new Point[]{p,new Point(Math.round(p.x+v[0]*unit()*.9f),Math.round(p.y+v[1]*height()*.7f)),p},12));}
-  private void circle()
-  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-y),new Point(p.x+x,p.y),new Point(p.x,p.y+y),new Point(p.x-x,p.y),p},10));}
-  private void anticircle()
-  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);assertTrue(device.swipe(new Point[]{p,new Point(p.x,p.y-y),new Point(p.x-x,p.y),new Point(p.x,p.y+y),new Point(p.x+x,p.y),p},10));}
+  {roundtrip(r,c,d,null);}
+  private void roundtrip(int r,int c,int d,GestureTimingEvidence timing)
+  {Point p=point(r,c);int[] v=VECTORS[d];Point[] points={p,new Point(Math.round(p.x+v[0]*unit()*.9f),Math.round(p.y+v[1]*height()*.7f)),p};assertTrue(timing==null?device.swipe(points,12):timing.inject("roundtrip-shift",points,12,()->device.swipe(points,12)));}
+  private void circle(GestureTimingEvidence timing)
+  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);Point[] points={p,new Point(p.x,p.y-y),new Point(p.x+x,p.y),new Point(p.x,p.y+y),new Point(p.x-x,p.y),p};assertTrue(timing.inject("circle-shift",points,10,()->device.swipe(points,10)));}
+  private void anticircle(GestureTimingEvidence timing)
+  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);Point[] points={p,new Point(p.x,p.y-y),new Point(p.x-x,p.y),new Point(p.x,p.y+y),new Point(p.x+x,p.y),p};assertTrue(timing.inject("anticircle-independent",points,10,()->device.swipe(points,10)));}
   private void orientation(int expected)
   {long end=SystemClock.uptimeMillis()+15000;while(context.getResources().getConfiguration().orientation!=expected&&SystemClock.uptimeMillis()<end)SystemClock.sleep(30);assertEquals(expected,context.getResources().getConfiguration().orientation);device.waitForIdle();}
   private void shot(String name){device.waitForIdle();device.takeScreenshot(new java.io.File(TestEvidence.directory(context),name+".png"));}
