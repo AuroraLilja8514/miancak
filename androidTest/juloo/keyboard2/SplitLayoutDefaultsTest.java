@@ -1,7 +1,6 @@
 package juloo.keyboard2;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -95,15 +94,15 @@ public final class SplitLayoutDefaultsTest
           Config live = Config.globalConfig();
           Config preview = Config.forPreview(display, preferences);
           assertSame("Activity previews must not replace the live IME config", live, Config.globalConfig());
+          String profile = policy + " at width=" + width + ", orientation=" + orientation + ", unfolded=" + unfolded;
           for (Config config : new Config[] {live, preview})
           {
-            assertEquals(width >= Config.WIDE_DEVICE_THRESHOLD, config.wide_screen);
-            assertEquals(orientation == Configuration.ORIENTATION_LANDSCAPE, config.orientation_landscape);
-            assertEquals(unfolded, config.foldable_unfolded);
+            assertEquals(profile, width >= Config.WIDE_DEVICE_THRESHOLD, config.wide_screen);
+            assertEquals(profile, orientation == Configuration.ORIENTATION_LANDSCAPE, config.orientation_landscape);
+            assertEquals(profile, unfolded, config.foldable_unfolded);
             boolean expected = policy.equals("wide") ? config.wide_screen
               : policy.equals("landscape") && config.orientation_landscape;
-            assertEquals(policy + " at width=" + width + ", orientation=" + orientation + ", unfolded=" + unfolded,
-                expected, config.split_layout);
+            assertEquals(profile, expected, config.split_layout);
           }
         }
   }
@@ -112,18 +111,44 @@ public final class SplitLayoutDefaultsTest
   private Context displayContext(int widthDp, int orientation)
   {
     Resources original = context().getResources();
+    DisplayMetrics originalMetrics = new DisplayMetrics();
+    originalMetrics.setTo(original.getDisplayMetrics());
+    Configuration originalConfiguration = new Configuration(original.getConfiguration());
     DisplayMetrics metrics = new DisplayMetrics();
     metrics.setTo(original.getDisplayMetrics());
+    // An exact synthetic scale keeps the 599/600dp boundary independent of
+    // physical-device density and integer pixel rounding.
+    metrics.density = 2f;
+    metrics.densityDpi = 320;
+    metrics.scaledDensity = metrics.density * original.getConfiguration().fontScale;
+    metrics.xdpi = metrics.ydpi = metrics.densityDpi;
     metrics.widthPixels = Math.round(widthDp * metrics.density);
     metrics.heightPixels = Math.round((orientation == Configuration.ORIENTATION_LANDSCAPE ? 360 : 1000) * metrics.density);
-    Configuration configuration = new Configuration(original.getConfiguration());
+    Configuration configuration = new Configuration(originalConfiguration);
+    configuration.densityDpi = metrics.densityDpi;
     configuration.orientation = orientation;
     configuration.screenWidthDp = widthDp;
     configuration.screenHeightDp = Math.round(metrics.heightPixels / metrics.density);
     configuration.smallestScreenWidthDp = Math.min(configuration.screenWidthDp, configuration.screenHeightDp);
-    final Resources resources = new Resources(original.getAssets(), metrics, configuration);
-    return new ContextWrapper(context()) {
-      @Override public Resources getResources() { return resources; }
-    };
+    Context display = context().createConfigurationContext(configuration);
+    Resources resources = display.getResources();
+    // Resources creation applies CompatibilityInfo on Android, restoring
+    // width/height from the copied noncompat (physical display) fields. This
+    // is a synthetic fixture, so restore its independent public metrics after
+    // creation rather than accidentally testing the original phone size. The
+    // configuration context owns a separate AssetManager too: sharing the
+    // Activity's manager would change its resource qualifiers on older APIs.
+    assertNotSame(original, resources);
+    assertNotSame(original.getAssets(), resources.getAssets());
+    assertNotSame(original.getDisplayMetrics(), resources.getDisplayMetrics());
+    assertNotSame(original.getConfiguration(), resources.getConfiguration());
+    resources.getDisplayMetrics().setTo(metrics);
+    resources.getConfiguration().setTo(configuration);
+    assertEquals("Synthetic display must retain its requested width", widthDp,
+        resources.getDisplayMetrics().widthPixels / resources.getDisplayMetrics().density, 0f);
+    assertEquals(orientation, resources.getConfiguration().orientation);
+    assertEquals("Synthetic resources must not change the real display", originalMetrics, original.getDisplayMetrics());
+    assertEquals("Synthetic resources must not change Activity configuration", originalConfiguration, original.getConfiguration());
+    return display;
   }
 }
