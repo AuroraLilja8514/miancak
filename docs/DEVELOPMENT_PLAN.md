@@ -1,5 +1,7 @@
 # 开发计划
 
+> 2026-11-16：v0.3.2 已正式发布；后续开发从 N1/N2 默认偏好开始，当前实现及迁移／验收边界见 [默认偏好说明](DEFAULT_PREFERENCES.md)。N3/N4 未开始，0.3.3 尚未发布。以下日期与旧状态作为历史计划保留。
+
 > 后续顺序与项目边界以 [后续开发计划](NEXT_DEVELOPMENT_PLAN.md) 为准：N1 分体默认关闭、N2 主键盘默认 Sup/Sub、N3 设置对齐、N4 项目身份／文档／反馈入口统一均待处理；稳定签名已从 P4 提前为 P0，采用 [稳定签名方案](SIGNING_PLAN.md)；已核验并[登记维护者提供的公开证书](signing/README.md)，2026-10-31 的[实际凭据证明](SIGNING_CREDENTIAL_VALIDATION.md)已通过；备份恢复、实际 APK 签名／升级及 N1–N4 功能仍待完成。原 [R0–R7 修复计划](LAYOUT_REPAIR_PLAN.md) 和 0.3.2 [界面验收](INPUT_UI_FOLLOWUP.md) 保留已完成范围及限制。本页 C1–C6／W1–W3 为历史范围；旧任意 Fn 目标、独立语言模式与中文 Fn 进入发音页均已废弃。Compose 保持现状；H1 高级手势编辑与 #18 跨语言 cdict／Rime 共同词源迁移后置。
 
 更新：2026-10-27。计划以当前源码、用户反馈和实际 APK 验收为依据；功能代码存在、模拟器测试通过、物理设备验证及正式发布分别记录。当前修复状态与 CI 证据以 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md) 为准；历史记录见 [EXECUTION_PLAN.md](EXECUTION_PLAN.md)，交互规则以 [INTERACTION_CONTRACT.md](INTERACTION_CONTRACT.md) 为准。

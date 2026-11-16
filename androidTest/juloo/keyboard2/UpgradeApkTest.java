@@ -57,11 +57,30 @@ public final class UpgradeApkTest
             .putBoolean("need_migration", false).putBoolean("miancak_chinese", true)
             .putString("physical_keyboard_behavior", "show").putString("number_row", "no_number_row")
             .putBoolean("lock_double_tap", false).commit();
+        assertFalse(canonical().contains("split_layout"));
+        // Inflate the real old Settings screen rather than pretending that a
+        // saved old default proves the user actively chose it.
+        SettingsActivity oldSettings = (SettingsActivity)instrumentation.startActivitySync(
+            new Intent().setClassName(pkg, "juloo.keyboard2.SettingsActivity")
+              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try
+        {
+          instrumentation.runOnMainSync(() -> assertEquals("wide",
+              ((android.preference.ListPreference)oldSettings.findPreference("split_layout")).getValue()));
+          assertEquals("wide", canonical().getString("split_layout", ""));
+          assertFalse(canonical().getBoolean("extra_key_superscript", true));
+          assertFalse(canonical().getBoolean("extra_key_subscript", true));
+        }
+        finally { instrumentation.runOnMainSync(oldSettings::finish); instrumentation.waitForIdleSync(); }
       }
       else
       {
         assertEquals("baseline-0.3.0", canonical().getString("upgrade_marker", ""));
         assertFalse(canonical().getBoolean("lock_double_tap", true));
+        assertEquals("Old automatically saved split policy must survive replacement/reboot",
+            "wide", canonical().getString("split_layout", ""));
+        assertFalse(canonical().getBoolean("extra_key_superscript", true));
+        assertFalse(canonical().getBoolean("extra_key_subscript", true));
         byte[] bytes = new byte[4];
         try (FileInputStream input = new FileInputStream(marker())) { assertEquals(4, input.read(bytes)); }
         assertEquals("kept", new String(bytes, StandardCharsets.UTF_8));

@@ -39,7 +39,7 @@ run_phase() {
   local phase="$1"
   shift
   timeout --foreground "${MIANCAK_INSTRUMENT_TIMEOUT_SECONDS:-900}s" adb shell am instrument -w -e class juloo.keyboard2.FirstInstallTest \
-    -e entryOrder "$MIANCAK_ENTRY_ORDER" "$@" \
+    -e entryOrder "$MIANCAK_ENTRY_ORDER" -e evidencePhase "$phase" "$@" \
     org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee "test-results/$phase.log"
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/$phase.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/$phase.log"
@@ -47,3 +47,38 @@ run_phase() {
 run_phase clean-install
 adb shell am force-stop org.miancak.keyboard.debug
 run_phase reopen -e revisit true
+# Revisit the same normally configured install after a real guest reboot.
+# Require a new kernel ID and completed Android boot, not just ADB reconnect.
+before_boot="$(adb shell cat /proc/sys/kernel/random/boot_id | tr -d '\r')"
+[[ "$before_boot" =~ ^[a-f0-9-]{36}$ ]]
+printf '%s\n' "$before_boot" > test-results/first-install-boot-id-before.txt
+adb reboot
+boot_deadline=$((SECONDS + 180))
+boot_complete=false
+while (( SECONDS < boot_deadline )); do
+  after_boot=""; completed=""
+  if after_boot="$(timeout --foreground 5s adb shell cat /proc/sys/kernel/random/boot_id 2>>test-results/first-install-reboot-adb-errors.txt | tr -d '\r')"; then
+    printf '%s\n' "$after_boot" > test-results/first-install-boot-id-after.txt
+  fi
+  if completed="$(timeout --foreground 5s adb shell getprop sys.boot_completed 2>>test-results/first-install-reboot-adb-errors.txt | tr -d '\r')"; then
+    printf '%s\n' "$completed" > test-results/first-install-boot-completed.txt
+  fi
+  printf 'elapsed=%s bootId=%s bootCompleted=%s\n' "$((180 + SECONDS - boot_deadline))" "$after_boot" "$completed" \
+    >> test-results/first-install-reboot-observations.txt
+  if [[ "$after_boot" =~ ^[a-f0-9-]{36}$ && "$after_boot" != "$before_boot" && "$completed" == 1 ]]; then
+    boot_complete=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$boot_complete" != true ]]; then
+  echo 'Fresh-install guest did not complete a real reboot within 180 seconds.' >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_WAKEUP
+if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
+  adb shell wm dismiss-keyguard
+else
+  adb shell input keyevent 82
+fi
+run_phase reboot -e revisit true
