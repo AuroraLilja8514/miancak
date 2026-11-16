@@ -64,25 +64,10 @@ public final class FirstInstallTest
         enableThroughAndroidUi();
         screenshot("android-keyboard-enabled");
       }
-        // Android can select its fallback IME after a force-stop (and after
-        // instrumentation terminates the app). Re-select through the same
-        // visible system picker on reopen; never set the default via shell.
-        launch();
-        object("launcher_select").click();
-        String appName = context.getString(R.string.app_name);
-        assertTrue("Android input-method picker did not list MIANCAK",
-            device.wait(Until.hasObject(By.pkg("android").text(appName)), 15000));
-        // A selector-backed UiObject re-resolves after the dialog's layout;
-        // a cached launcher text node can disappear while the picker opens.
-        boolean selected = false;
-        for (int attempt = 0; attempt < 3 && !selected; attempt++)
-        {
-          device.waitForIdle();
-          try { device.findObject(new UiSelector().packageName("android").text(appName)).click(); }
-          catch (androidx.test.uiautomator.UiObjectNotFoundException changed) { continue; }
-          selected = device.wait(Until.gone(By.pkg("android").text(appName)), 4000);
-        }
-        assertTrue("Android did not select MIANCAK through its visible picker", selected);
+      // Android may retain this IME or choose its fallback after a force-stop
+      // or reboot. Inspect the real system picker and handle either state.
+      launch();
+      selectThroughAndroidPicker(revisit);
       launch();
       focusEditor();
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
@@ -175,6 +160,59 @@ public final class FirstInstallTest
     assertNotNull(object("launcher_enable"));
   }
 
+  private void selectThroughAndroidPicker(boolean revisit) throws Exception
+  {
+    String component = pkg + "/juloo.keyboard2.Keyboard2";
+    object("launcher_select").click();
+    String appName = context.getString(R.string.app_name);
+    assertTrue("Android input-method picker did not list MIANCAK",
+        device.wait(Until.hasObject(By.pkg("android").text(appName)), 15000));
+    screenshot("system-picker-before-selection");
+    UiObject2 row = pickerRow(appName);
+    String before = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD);
+    if (revisit && component.equals(before))
+    {
+      // The already-selected case is not a new selection. Confirm retention
+      // through Android's actual checked row, cancel the picker, then exercise
+      // the same real input assertions below. Never set the IME through shell.
+      assertTrue("Retained MIANCAK default is not checked in Android's picker",
+          row.findObject(By.res("android", "radio")).isChecked());
+      device.pressBack();
+      assertTrue("Cancelling the unchanged system picker must dismiss it",
+          device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
+    }
+    else
+    {
+      boolean selected = false;
+      for (int attempt = 0; attempt < 3 && !selected; attempt++)
+      {
+        device.waitForIdle();
+        try
+        {
+          // Click the complete current radio row, not a cached second-line
+          // label whose bounds can move during the dialog's initial layout.
+          row = pickerRow(appName); row.click();
+        }
+        catch (androidx.test.uiautomator.StaleObjectException changed) { continue; }
+        selected = device.wait(Until.gone(By.pkg("android").text(appName)), 4000);
+      }
+      assertTrue("Android did not select MIANCAK through its visible picker", selected);
+    }
+    long end = SystemClock.uptimeMillis() + 10000;
+    while (!component.equals(Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD))
+        && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
+    assertEquals("The visible picker must leave MIANCAK as the actual selected IME", component,
+        Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD));
+  }
+
+  private UiObject2 pickerRow(String appName)
+  {
+    UiObject2 row = device.wait(Until.findObject(By.pkg("android").text(appName)), 10000);
+    for (int depth = 0; depth < 5 && row != null; depth++, row = row.getParent())
+      if (row.findObjects(By.res("android", "radio")).size() == 1) return row;
+    throw new AssertionError("MIANCAK's specific Android picker radio row is missing");
+  }
+
   private void openSettings()
   {
     UiObject2 settings = object("btnLaunchSettingsActivity");
@@ -224,9 +262,23 @@ public final class FirstInstallTest
       .scrollIntoView(new UiSelector().packageName(pkg).text(labels[0]));
     UiObject2 row = device.findObject(By.pkg(pkg).text(labels[0])); assertNotNull(row); row.click();
     UiObject2 choice = device.wait(Until.findObject(By.pkg(pkg).text(labels[1])), 10000);
-    assertNotNull("Split policy dialog did not show " + value, choice); choice.click(); device.waitForIdle();
-    instrumentation.runOnMainSync(() -> assertEquals(value,
-        ((android.preference.ListPreference)currentSettings().findPreference("split_layout")).getValue()));
+    assertNotNull("Split policy dialog did not show " + value, choice); choice.click();
+    // Input dispatch and the ListPreference callback are different frames.
+    // Wait for the actual saved/visible state instead of reading immediately
+    // after UiAutomator injects the click (which can still return the old value).
+    final String[] actual = new String[1];
+    long end = SystemClock.uptimeMillis() + 10000;
+    do
+    {
+      instrumentation.runOnMainSync(() -> actual[0] =
+          ((android.preference.ListPreference)currentSettings().findPreference("split_layout")).getValue());
+      if (value.equals(actual[0])) break;
+      SystemClock.sleep(30);
+    } while (SystemClock.uptimeMillis() < end);
+    assertEquals(value, actual[0]);
+    assertEquals(value, DirectBootAwarePreferences.get_shared_preferences(context).getString("split_layout", ""));
+    assertTrue("The split-policy dialog must close after applying the choice",
+        device.wait(Until.gone(By.res("android", "alertTitle").text(labels[0])), 10000));
   }
 
   private void awaitOrientation(int rotation)
