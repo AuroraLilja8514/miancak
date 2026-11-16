@@ -51,7 +51,11 @@ publication. There is no raw-upload override.
 
 Legacy shell drivers verify emulator serial, QEMU/API, exact dedicated AVD name
 and absence of a pre-existing MIANCAK install before installing, mutating or
-starting collection. Release acceptance performs the equivalent early guard
+starting collection. Empty-install queries require host success, an explicit
+complete remote zero-status marker and no other output. Empty stdout alone is
+unavailable, including on legacy shell-v1 transports; partial/invalid markers,
+nonzero status, whitespace and error/package text are refused without echoing it.
+Release acceptance performs the equivalent early guard
 before reading the IME, obtaining its existing root access or reading app data.
 An explicit `MIANCAK_TEST_DISPOSABLE_GUEST=true` attestation is required by those
 drivers and release acceptance; the reviewed CI device steps set it only for

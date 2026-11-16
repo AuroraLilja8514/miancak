@@ -460,12 +460,60 @@ class EarlyReleaseGuard(unittest.TestCase):
             suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
             values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
                     ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
-                    ('shell','pm','list','packages',smoke.PACKAGE):'package:'+smoke.PACKAGE}
-            return values[tuple(suffix)], {'status':'captured','truncated':False}
+                    ('exec-out',smoke.diagnostic_remote_command('pm list packages '+smoke.PACKAGE)):
+                        remote_output('package:'+smoke.PACKAGE)}
+            return values[tuple(suffix)], {'status':'captured','returncode':0,'truncated':False}
         with mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}), mock.patch.object(smoke,'diagnostic_capture',capture), contextlib.redirect_stdout(io.StringIO()) as output:
             with self.assertRaises(smoke.ops.ReleaseError): smoke.verify_release_target(23)
         self.assertEqual('',output.getvalue())
         self.assertFalse(any('root' in c or 'install' in c or 'cat' in c for c in calls))
+
+    def test_package_completion_protocol_refuses_before_all_release_operations(self):
+        marker=remote_output('')
+        samples=[('',0,False),(marker[:-1],0,False),(marker[:-2],0,False),
+            (marker.replace('=0','=bad'),0,False),(marker.replace('=0','=00'),0,False),
+            (remote_output('',7),0,False),('PRIVATE_LEARNING_SENTINEL'+marker,0,False),
+            (' '+marker,0,False),(marker+marker,0,False),(marker,1,False),(marker,0,True)]
+        for text,host,truncated in samples:
+            with self.subTest(text=text,host=host,truncated=truncated), tempfile.TemporaryDirectory() as temporary, contextlib.ExitStack() as stack:
+                previous=Path.cwd();os.chdir(temporary);stack.callback(os.chdir,previous)
+                stack.enter_context(mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}))
+                stack.enter_context(mock.patch.object(sys,'argv',['device_smoke.py','--api','23']))
+                stack.enter_context(mock.patch.object(smoke.signal,'signal'))
+                stack.enter_context(mock.patch.object(smoke.signal,'alarm'))
+                calls=[]
+                def capture(command,timeout,limit):
+                    calls.append(command)
+                    if command[3:4]==['exec-out']:
+                        self.assertTrue(is_probe(command,'pm list packages '+smoke.PACKAGE))
+                        self.assertEqual((10,4096),(timeout,limit))
+                        return text,dict(status='captured' if host==0 else 'command-error',returncode=host,truncated=truncated)
+                    suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
+                    values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
+                            ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23'}
+                    return values[tuple(suffix)],dict(status='captured',returncode=0,truncated=False)
+                stack.enter_context(mock.patch.object(smoke,'diagnostic_capture',capture))
+                operations=[stack.enter_context(mock.patch.object(smoke,name)) for name in
+                            ('root','adb','shell','snapshot','inactive','phase','collect_failure_diagnostics')]
+                with contextlib.redirect_stdout(io.StringIO()) as output,contextlib.redirect_stderr(io.StringIO()) as errors:
+                    with self.assertRaises(smoke.ops.ReleaseError):smoke.main()
+                self.assertEqual('',output.getvalue()+errors.getvalue())
+                for operation in operations:operation.assert_not_called()
+                self.assertEqual(1,sum(c[3:4]==['exec-out'] for c in calls))
+
+    def test_package_query_accepts_only_complete_empty_remote_zero(self):
+        for newline in ('\n','\r\n'):
+            calls=[]
+            def capture(command,timeout,limit):
+                calls.append(command)
+                if command[3:4]==['exec-out']:return remote_output('',newline=newline),dict(status='captured',returncode=0,truncated=False)
+                suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
+                values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
+                        ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23'}
+                return values[tuple(suffix)],dict(status='captured',returncode=0,truncated=False)
+            with mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}),mock.patch.object(smoke,'diagnostic_capture',capture):
+                smoke.verify_release_target(23)
+            self.assertEqual(1,sum(c[3:4]==['exec-out'] for c in calls))
 
 
 class RemoteStatus(unittest.TestCase):

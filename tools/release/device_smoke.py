@@ -336,7 +336,14 @@ def verify_release_target(api):
                 'RELEASE_TARGET_AVD')
     ops.require(guest('shell', 'getprop', 'ro.kernel.qemu') == '1' and
                 guest('shell', 'getprop', 'ro.build.version.sdk') == str(api), 'RELEASE_TARGET_API')
-    ops.require(not guest('shell', 'pm', 'list', 'packages', PACKAGE), 'RELEASE_TARGET_PREEXISTING_APP')
+    text, state = diagnostic_capture(['adb', '-s', serial, 'exec-out',
+        diagnostic_remote_command('pm list packages ' + PACKAGE)], 10, 4096)
+    # Do not strip the result. Require complete canonical status and no package,
+    # error or whitespace bytes; shell-v1 host success alone is ambiguous.
+    ops.require(state['status'] == 'captured' and state.get('returncode') == 0
+                and not state.get('truncated') and re.fullmatch(
+                    r'\r?\n' + re.escape(DIAGNOSTIC_REMOTE_STATUS) + r'0\r?\n', text),
+                'RELEASE_TARGET_PREEXISTING_OR_UNAVAILABLE_APP')
     os.environ['ANDROID_SERIAL'] = serial
 
 def main():

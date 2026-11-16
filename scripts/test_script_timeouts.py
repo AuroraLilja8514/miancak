@@ -148,7 +148,7 @@ class ScriptTimeoutTest(unittest.TestCase):
                            "  '-s emulator-5554 emu avd name') echo miancak-interactions ;;\n"
                            "  '-s emulator-5554 shell getprop ro.kernel.qemu') echo 1 ;;\n"
                            "  '-s emulator-5554 shell getprop ro.build.version.sdk') echo 23 ;;\n"
-                           "  '-s emulator-5554 shell pm list packages org.miancak.keyboard') : ;;\n"
+                           "  '-s emulator-5554 exec-out '*) printf '\\nMIANCAK_EMPTY_INSTALL_EXIT=0\\n' ;;\n"
                            "  'install '*) exit 7 ;;\n"
                            "  'logcat -v brief '*) sleep 90 ;;\n"
                            "  'logcat -b all -d') echo LOCAL_RAW_LOG_SENTINEL ;;\n"

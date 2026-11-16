@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import selectors
+import shlex
 import shutil
 import stat
 import subprocess
@@ -36,6 +37,27 @@ RUNS = {'progress-interactions-main.jsonl': ('interactions', 'main'),
         'progress-first-install-reboot.jsonl': ('first-install', 'reboot')}
 EVENTS = {'start', 'reserved_before_post', 'pending', 'exit_stop', 'exit_deadline'}
 POSTS = {'none', 'accepted', 'rejected', 'threw_outcome_unknown', 'cancelled_before_post'}
+EMPTY_INSTALL_STATUS = 'MIANCAK_EMPTY_INSTALL_EXIT='
+
+
+def empty_install_command(package):
+    if package not in ('org.miancak.keyboard', 'org.miancak.keyboard.debug'):
+        raise ValueError('invalid package')
+    # Like the read-only release collector: exec-out/shell-v1 cannot establish
+    # remote success from the host adb exit alone. Keep status in the byte stream.
+    script = ('{ pm list packages ' + package + '; } 2>&1; install_status=$?; '
+              'printf "\\n' + EMPTY_INSTALL_STATUS + '%s\\n" "$install_status"')
+    return 'sh -c ' + shlex.quote(script)
+
+
+def require_empty_install(serial, package):
+    if not re.fullmatch(r'emulator-[0-9]+', serial): raise ValueError('invalid serial')
+    result = subprocess.run(['adb', '-s', serial, 'exec-out', empty_install_command(package)],
+                            capture_output=True, timeout=10)
+    # No strip(): even whitespace/error output is not a verified empty result.
+    if result.returncode or result.stderr or len(result.stdout) > 4096 \
+            or not re.fullmatch(rb'\r?\n' + EMPTY_INSTALL_STATUS.encode() + rb'0\r?\n', result.stdout):
+        raise ValueError('existing or unavailable application install')
 
 
 def number(value, maximum=2**63-1):
@@ -345,8 +367,7 @@ def target(scenario):
     name = guest('emu', 'avd', 'name').splitlines()[0]
     if scenario not in names or name != names[scenario]:
         raise ValueError('not named test guest')
-    packages = guest('shell', 'pm', 'list', 'packages', 'org.miancak.keyboard')
-    if packages: raise ValueError('existing or unavailable application install')
+    require_empty_install(serial, 'org.miancak.keyboard')
     # Identity/absence checks are not proof of a user's data being absent. CI
     # independently provisions a fresh wiped named AVD; no existing data is cleared.
     print(serial, flush=True)
@@ -360,6 +381,9 @@ def main():
     parser = SafeParser(description=__doc__)
     sub = parser.add_subparsers(dest='operation', required=True, parser_class=SafeParser)
     check = sub.add_parser('target'); check.add_argument('--scenario', choices=sorted(SCENARIOS), required=True)
+    empty = sub.add_parser('empty-install')
+    empty.add_argument('--serial', required=True)
+    empty.add_argument('--package', choices=['org.miancak.keyboard', 'org.miancak.keyboard.debug'], required=True)
     execute = sub.add_parser('run'); execute.add_argument('--scenario', choices=sorted(SCENARIOS), required=True)
     execute.add_argument('command', nargs=argparse.REMAINDER)
     export = sub.add_parser('stage'); export.add_argument('--scenario', choices=sorted(SCENARIOS), required=True)
@@ -370,6 +394,8 @@ def main():
     export.add_argument('--entry-order', choices=['settings-first','ime-first'])
     args = parser.parse_args()
     try:
+        if args.operation == 'empty-install':
+            require_empty_install(args.serial, args.package); print('EMPTY_INSTALL_VERIFIED', flush=True); return 0
         if args.operation == 'target': target(args.scenario); return 0
         if args.operation == 'stage': stage(Path.cwd(), args.scenario, args.outcome, args.source, args.api, args.locale, args.entry_order); return 0
         command = args.command[1:] if args.command[:1] == ['--'] else args.command

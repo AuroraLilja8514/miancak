@@ -9,6 +9,7 @@ import io
 import json
 import os
 import re
+import shlex
 from pathlib import Path
 import subprocess
 import sys
@@ -174,11 +175,79 @@ class Privacy(unittest.TestCase):
             suffix=cmd[3:] if cmd[1:3]==['-s','emulator-5554'] else cmd[1:]
             values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-interactions\nOK',
                     ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
-                    ('shell','pm','list','packages','org.miancak.keyboard'):''}
+                    ('exec-out',evidence.empty_install_command('org.miancak.keyboard')):'\n'+evidence.EMPTY_INSTALL_STATUS+'0\n'}
             return subprocess.CompletedProcess(cmd,0,values[tuple(suffix)].encode(),b'')
         with mock.patch.object(evidence.subprocess,'run',fake), contextlib.redirect_stdout(io.StringIO()) as output:
             evidence.target('interaction')
         self.assertEqual('emulator-5554\n',output.getvalue())
+
+    def test_empty_install_requires_host_success_and_complete_canonical_remote_zero(self):
+        marker=b'\n'+evidence.EMPTY_INSTALL_STATUS.encode()+b'0\n'
+        for payload,host,stderr in [(b'',0,b''),(marker[:-1],0,b''),(marker[:-2],0,b''),
+                (marker.replace(b'=0',b'=x'),0,b''),(marker.replace(b'=0',b'=00'),0,b''),
+                (marker.replace(b'=0',b'=1'),0,b''),(marker+marker,0,b''),
+                (b' '+marker,0,b''),(SECRET.encode()+marker,0,b''),(marker,7,b''),(marker,0,SECRET.encode())]:
+            with self.subTest(payload=payload,host=host,stderr=stderr):
+                with mock.patch.object(evidence.subprocess,'run',return_value=
+                        subprocess.CompletedProcess([],host,payload,stderr)) as run:
+                    with self.assertRaises(ValueError) as failure:
+                        evidence.require_empty_install('emulator-5554','org.miancak.keyboard')
+                self.assertNotIn(SECRET,str(failure.exception))
+                self.assertEqual(['adb','-s','emulator-5554','exec-out',
+                    evidence.empty_install_command('org.miancak.keyboard')],run.call_args.args[0])
+                self.assertEqual(10,run.call_args.kwargs['timeout'])
+        for payload in (marker,marker.replace(b'\n',b'\r\n')):
+            with mock.patch.object(evidence.subprocess,'run',return_value=subprocess.CompletedProcess([],0,payload,b'')):
+                evidence.require_empty_install('emulator-5554','org.miancak.keyboard')
+
+    def test_empty_install_failure_console_is_fixed_and_contains_no_remote_bytes(self):
+        for payload in (b'',SECRET.encode()+b'\n'+evidence.EMPTY_INSTALL_STATUS.encode()+b'0\n'):
+            with mock.patch.object(sys,'argv',['public_test_evidence.py','empty-install','--serial',
+                    'emulator-5554','--package','org.miancak.keyboard.debug']), \
+                    mock.patch.object(evidence.subprocess,'run',return_value=subprocess.CompletedProcess([],0,payload,b'')), \
+                    contextlib.redirect_stdout(io.StringIO()) as output,contextlib.redirect_stderr(io.StringIO()) as errors:
+                self.assertEqual(1,evidence.main())
+            self.assertEqual('PUBLIC_EVIDENCE_FAILED\n',output.getvalue())
+            self.assertEqual('',errors.getvalue())
+
+    def test_empty_install_shell_wrapper_records_remote_exit_and_arbitrary_output(self):
+        pm=self.put('bin/pm',b'#!/bin/sh\nprintf "%s" "$PM_TEXT"\nexit "$PM_EXIT"\n');pm.chmod(0o755)
+        for remote,text in ((0,''),(7,''),(0,SECRET)):
+            with self.subTest(remote=remote,text=text):
+                result=subprocess.run(['sh','-c',evidence.empty_install_command('org.miancak.keyboard.debug')],
+                    capture_output=True,timeout=2,env=dict(os.environ,PATH=str(pm.parent)+os.pathsep+os.environ['PATH'],
+                    PM_EXIT=str(remote),PM_TEXT=text))
+                self.assertEqual(0,result.returncode)  # Legacy transport host-zero is insufficient.
+                self.assertEqual((text+'\n'+evidence.EMPTY_INSTALL_STATUS+str(remote)+'\n').encode(),result.stdout)
+
+    def test_all_five_shell_drivers_refuse_unmarked_empty_query_before_collection(self):
+        fake=self.put('bin/adb',r'''#!/usr/bin/env python3
+import json,os,sys
+from pathlib import Path
+args=sys.argv[1:]
+with Path('commands.jsonl').open('a') as out:out.write(json.dumps(args)+'\n')
+if args[:2]==['-s','emulator-5554']:args=args[2:]
+values={('get-serialno',):'emulator-5554',('emu','avd','name'):os.environ['FAKE_AVD'],
+('shell','getprop','ro.build.version.sdk'):'23',('shell','getprop','ro.kernel.qemu'):'1'}
+if tuple(args) in values:print(values[tuple(args)])
+elif args[:1]==['exec-out']:pass  # host zero, remote EOF, no completion marker
+else:raise SystemExit(98)
+''');fake.chmod(0o755)
+        for script,name in [('emulator_tests.sh','miancak-interactions'),('first_install_tests.sh','miancak-clean'),
+                ('word_pack_quality_tests.sh','miancak-quality'),('word_table_apk_tests.sh','miancak-words'),
+                ('upgrade_apk_tests.sh','miancak-upgrade')]:
+            with self.subTest(script=script):
+                directory=self.root/script;directory.mkdir()
+                env=dict(os.environ,PATH=str(fake.parent)+os.pathsep+os.environ['PATH'],FAKE_AVD=name,
+                         MIANCAK_TEST_API='23',MIANCAK_TEST_DISPOSABLE_GUEST='true')
+                result=subprocess.run(['bash',str(ROOT/'scripts'/script),'--timeout-seconds','5'],
+                                      cwd=directory,env=env,capture_output=True,text=True,timeout=10)
+                self.assertNotEqual(0,result.returncode)
+                self.assertFalse((directory/'test-results').exists())
+                calls=[json.loads(line) for line in (directory/'commands.jsonl').read_text().splitlines()]
+                self.assertEqual(1,sum(call[2:3]==['exec-out'] for call in calls))
+                self.assertTrue(all(call==['get-serialno'] or call[:2]==['-s','emulator-5554'] and
+                    (call[2:4] in (['shell','getprop'],['emu','avd']) or call[2:3]==['exec-out']) for call in calls))
 
     def test_workflows_gate_exact_file_uploads_and_capture_every_device_driver(self):
         paths=['.github/workflows/ci.yml','.github/workflows/release-checks.yml','tools/release/release-workflow.yml.in','.github/workflows/release.yml']
@@ -236,7 +305,7 @@ class Privacy(unittest.TestCase):
             suffix=cmd[3:] if cmd[1:3]==['-s','emulator-5554'] else cmd[1:]
             values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-interactions\nOK',
                     ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
-                    ('shell','pm','list','packages','org.miancak.keyboard'):'package:org.miancak.keyboard.debug'}
+                    ('exec-out',evidence.empty_install_command('org.miancak.keyboard')):'package:org.miancak.keyboard.debug\n'+evidence.EMPTY_INSTALL_STATUS+'0\n'}
             return subprocess.CompletedProcess(cmd,0,values[tuple(suffix)].encode(),b'')
         with mock.patch.object(evidence.subprocess,'run',fake), self.assertRaises(ValueError): evidence.target('interaction')
         self.assertFalse(any('install' in c or 'root' in c or 'force-stop' in c for c in calls))
