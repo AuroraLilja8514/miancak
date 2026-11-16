@@ -222,11 +222,13 @@ def stage(root, scenario, outcome, source, api=None, locale=None, entry_order=No
                     if type(entry.get(key)) is int and number(entry[key], 1048576):
                         report['diagnostics'][name][key] = entry[key]
     report['raw_markers_seen'] = {key: False for key in ('anr', 'fatal_exception', 'fatal_signal')}
+    report['raw_marker_sources_read'] = 0
     for path in ('test-results/logcat.txt','test-results/windows.txt',
                  'test-results/release/failure-diagnostics/system-log.txt',
                  'test-results/release/failure-diagnostics/windows.txt'):
         try: text = read_file(root, path, 8*1024*1024).decode('utf-8', errors='replace')
         except (OSError, ValueError): continue
+        report['raw_marker_sources_read'] += 1
         for key, pattern in [('anr', r"ANR in|Application Not Responding|isn't responding"),
                              ('fatal_exception', 'FATAL EXCEPTION'), ('fatal_signal', 'Fatal signal')]:
             report['raw_markers_seen'][key] |= bool(re.search(pattern, text))

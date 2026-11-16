@@ -209,6 +209,7 @@ class Privacy(unittest.TestCase):
             'windows':{'status':'captured','read_bytes':123,'file':SECRET},SECRET:{'status':'captured'}}}))
         report=self.stage()
         self.assertTrue(report['raw_markers_seen']['anr'])
+        self.assertEqual(1,report['raw_marker_sources_read'])
         self.assertEqual({'status':'captured','read_bytes':123},report['diagnostics']['windows'])
 
     def test_marker_ids_are_exactly_the_test_protocol(self):
@@ -287,6 +288,7 @@ class Privacy(unittest.TestCase):
         self.put('test-results/device/progress-interactions-main.jsonl',SECRET*2000)
         report=self.stage()
         self.assertEqual('unavailable',report['heartbeat']['progress-interactions-main.jsonl'])
+        self.assertEqual(0,report['raw_marker_sources_read'])
 
 
 if __name__=='__main__':unittest.main()

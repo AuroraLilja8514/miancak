@@ -30,7 +30,9 @@ timings, numeric native/word-pack/footprint metrics, the harness Git revision an
 SHA-256 hashes of explicit APK inputs,
 fixed diagnostic availability statuses, coarse raw-log marker booleans and
 strictly checked heartbeat protocol fields. Raw marker booleans do not identify
-an app, prove an ANR, establish a cause or establish health. Raw log text, stack
+an app, prove an ANR, establish a cause or establish health. They mean only
+"seen in the bounded files read"; `raw_marker_sources_read=0` means no source
+was available, and false does not establish the absence of a failure. Raw log text, stack
 traces, process/package listings, exception messages, receiver text, preference
 values, per-file learning paths/digests, databases, backups, XML, images, APK
 copies and opaque archives are excluded. Learning preservation still compares
