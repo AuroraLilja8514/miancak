@@ -1,108 +1,110 @@
 # MIANCAK
 
-**MIANCAK Is Another New Chinese Android Keyboard.**
+**MIANCAK：又一款全新的中文 Android 输入法。**
 
-MIANCAK is a personal, open-source Android input method project based on [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard). Its goal is to keep Unexpected Keyboard's compact, swipe-oriented mobile interaction model while adding first-class Chinese composition through Rime.
+MIANCAK 是基于 [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard) 开发的个人开源 Android 输入法项目。它希望保留 Unexpected Keyboard 紧凑、以滑动为主的手机键盘交互，同时通过 Rime 提供完整的中文输入体验。
 
-This project is primarily developed for self use. It is public so that its source, history, licenses, and third-party provenance remain transparent and auditable.
+本项目主要为自用而开发。公开源码是为了让项目的源代码、历史、许可证和第三方来源保持透明、可审查。
 
-Chinese vocabulary uses pinned Rime Ice 8105 + base pure word tables (551,875 entries), with the existing MIANCAK schema. First offline compilation can take tens of seconds. **Settings → Chinese word tables** can add/switch supported explicit-Pinyin Rime tables or choose the bundled offline 0.3.0 fallback while preserving learning. See [sources and measured limits](docs/WORD_PACK_EVALUATION.md); a word table does not install a complete external scheme.
+中文词库采用固定版本的雾凇拼音（Rime Ice）8105 与基础纯词表，共 551,875 条，沿用 MIANCAK 现有输入方案。首次离线编译可能需要数十秒。通过**设置 → 中文词表**，可以添加或切换受支持的显式拼音 Rime 词表，也可以选择内置的 0.3.0 离线回退词库，同时保留学习数据。详情见[词库来源与实测限制](docs/WORD_PACK_EVALUATION.md)；导入词表不等于安装完整的外部输入方案。
 
-## Project status
+## 项目现状
 
-MIANCAK has an **experimental offline simplified-pinyin implementation** with a pinned librime runtime, semantic input controller, exact literal output and a dedicated touch candidate strip. The R0–R7 application checkpoint passed the 18-check APK matrix and fixed vocabulary corpus; broader everyday/device usability remains tracked in [issue #20](https://github.com/AuroraLilja8514/miancak/issues/20). The inherited gestures and one-finger Shift latch/lock remain in place. See [docs/TESTING.md](docs/TESTING.md) for the actual validation scope.
+MIANCAK 已实现**实验性的离线简体拼音输入**，包括固定版本的 librime 运行库、语义输入控制器、按字面精确输出，以及独立的触控候选栏。R0–R7 应用阶段验收已通过包含 18 项检查的 APK 测试矩阵和固定词汇测试集；更广泛的日常使用与设备适配仍在[问题 #20](https://github.com/AuroraLilja8514/miancak/issues/20) 中跟踪。原有手势和单指 Shift 临时大写／锁定行为均予以保留。实际验证范围见[测试说明](docs/TESTING.md)。
 
-Settings and the IME share one preference store. New installations select MIANCAK QWERTY and enable double-tap Shift locking. The candidate row measures a ranked prefix that fits; expansion makes the full engine page reachable in the keyboard area.
+设置界面和输入法共用同一份偏好设置。全新安装默认选择 MIANCAK QWERTY，并启用双击 Shift 锁定。候选栏按排序依次显示当前宽度能够完整容纳的候选；展开后可在键盘区域查看引擎当前页的全部候选。
 
-Chinese and English are separate layout states using one built-in QWERTY template. Symbols, numbers, Greek/math, emoji, clipboard, Pinyin text, Pinyin finals and Zhuyin text are configurable pages. Enter southeast or the header layout button opens the chooser. Fn toggles only the current layout’s own paired variant; the indicator follows the selected layout. Settings provide layout order, pair enablement, center plus eight directions, independent normal/Shift layers, paired Fn-variant editing, Android file import/export and recovery. The other inherited built-in main layouts have been retired with a backup migration; valid independent custom XML is retained. See [docs/FN_LAYOUTS.md](docs/FN_LAYOUTS.md) for the current layout rules and [docs/FN_REPAIR_PROGRESS.md](docs/FN_REPAIR_PROGRESS.md) for current acceptance status.
+中文和英文是两个独立的布局状态，共用一套内置 QWERTY 模板。符号、数字、希腊字母／数学、表情、剪贴板、拼音文本、拼音韵母和注音文本均为可配置页面。向右下滑动回车键，或点击顶部的布局按钮，可以打开选择器。Fn 只切换当前布局自身配对的变体，指示状态随所选布局变化。设置支持布局排序、配对启用、中心加八向键位、独立的普通／Shift 层、配对 Fn 变体编辑、通过 Android 文件选择器导入／导出，以及恢复配置。其余继承自上游的内置主布局已停用，并提供备份迁移；有效的独立自定义 XML 布局仍会保留。当前布局规则见[Fn 布局说明](docs/FN_LAYOUTS.md)，验收进度见[Fn 修复进度](docs/FN_REPAIR_PROGRESS.md)。
 
-See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) for the current milestones, acceptance gates and next work.
+当前里程碑、验收要求和后续工作见[开发计划](docs/DEVELOPMENT_PLAN.md)。
 
-Current development is recorded in [the repair progress log](docs/FN_REPAIR_PROGRESS.md); the [R7 acceptance report](docs/R7_APK_ACCEPTANCE.md) pins the tested APK and raw receiver evidence. The [visual editor guide](docs/VISUAL_LAYOUT_EDITOR.md) describes the current controls. The [word-pack evaluation](docs/WORD_PACK_EVALUATION.md) records the chosen Rime Ice core, measured limits and offline legacy fallback; [table import](docs/RIME_WORD_TABLES.md) is a separate capability.
+当前开发情况记录在[修复进度日志](docs/FN_REPAIR_PROGRESS.md)中；[R7 验收报告](docs/R7_APK_ACCEPTANCE.md)记录了确切的测试 APK 和原始接收端证据。[可视化编辑器指南](docs/VISUAL_LAYOUT_EDITOR.md)介绍现有控件。[词库评估](docs/WORD_PACK_EVALUATION.md)记录了选定的雾凇拼音核心词表、实测限制和离线旧版回退方案；[词表导入](docs/RIME_WORD_TABLES.md)是独立功能。
 
-The 0.3.2 update adds a denser scrolling candidate strip, symbols that page across categories, an editor that displays the keyboard at its normal size, and a shorter landscape keyboard with symmetric margins. The [input UI report](docs/INPUT_UI_FOLLOWUP.md) records the exact APK, verification of that identical APK on API 23 and 35, retained failures, and device/signing limits.
+0.3.2 更新加入了更紧凑的滚动候选栏、跨类别翻页的符号页、按正常键盘尺寸显示的编辑器，以及高度更低、左右边距对称的横屏键盘。[输入界面报告](docs/INPUT_UI_FOLLOWUP.md)记录了确切 APK、同一 APK 在 API 23 和 35 上的验证、保留的失败记录，以及设备和签名方面的验证限制。
 
-The prototype integrates:
+目前集成的功能包括：
 
-- Unexpected Keyboard's existing key layout and swipe interaction model;
-- explicit literal symbols and punctuation;
-- Chinese composition powered by librime;
-- direct, interference-free English input;
-- a touch-oriented Chinese candidate strip;
-- offline operation with no network dependency in the input path.
+- Unexpected Keyboard 原有的键位布局和滑动交互；
+- 显式的字面符号和标点输入；
+- 由 librime 驱动的中文组词；
+- 直接、不受干扰的英文输入；
+- 面向触控的中文候选栏；
+- 输入过程完全离线，不依赖网络。
 
-## Trying the prototype
+## 安装与使用
 
-Download the debug APK from a successful [MIANCAK CI run](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml), install it, then enable MIANCAK in Android's input-method settings and select it. The unsigned release artifact is intended for a separate signing step. Debug APKs use `org.miancak.keyboard.debug`, so they coexist with Unexpected Keyboard.
+请从 [GitHub 正式发布页](https://github.com/AuroraLilja8514/miancak/releases/latest)下载已签名的 APK，安装后在 Android 输入法设置中启用并选择 MIANCAK。正式版包名为 `org.miancak.keyboard`。
 
-- Tap **中文 / EN**, or swipe **Shift northeast**, to switch explicitly; key geometry stays the same.
-- In Chinese mode, ordinary lowercase letters build pinyin. Tap a candidate or press space to select. The row shows whole candidates that fit; tap the expand arrow to see the full engine page, and use previous/next for more pages. Selecting or collapsing restores the letter keys.
-- On MIANCAK QWERTY, swipe **c northwest** for `。` or **c southwest** for `.`, and **v northwest** for `，` or **v southwest** for `,`. These positions work identically in both languages. First installation selects this layout. Retired built-in selections migrate to MIANCAK with their original configuration backed up.
-- Digits and other literal symbols confirm current composition before appending exactly what is shown. Shift latch/lock produces direct uppercase ASCII without leaving Chinese mode.
-- Swipe **m northwest** for the `’` separator: during Chinese composition it separates syllables without committing; otherwise it types the displayed right single quote. Shift at the same position gives a literal ASCII apostrophe. The [key map](docs/KEYMAP.md) lists brackets, punctuation and quotation pairs.
-- Enter confirms composition before the editor's newline/action; Escape or × cancels composition. Uncommitted pinyin stays in the IME preedit row and is cancelled when changing fields or moving the cursor.
-- Open **Settings → Layouts and pages** to choose enabled layouts, their order and the paired Fn variant to edit. Tap **Edit key positions**, choose a key and its center or one of eight directions, then save. Changes can be exact text, engine text or a keyboard action; the Shift layer is independent. Export a layout file before larger changes, or restore the previous configuration.
-- Symbols are grouped into seven categories and 22 content pages. Tap a category to return to its first page; Space northwest/northeast goes backward/forward within it. Shift switches explicit full/half-width pairs, and Fn has no special effect.
-- Chinese Space northwest opens Pinyin text; Settings can select Zhuyin at the same position. Shift northeast in a phonetic layout returns to Chinese. Space up/down always cycles layouts. Emoji/clipboard use Enter southeast for the chooser; they have no extra top chooser row.
-- Pinyin/Zhuyin pages output phonetic **text**, such as `nǐ hǎo` and `ㄋㄧˇ`. Vowel/final corners map NW/NE/SW/SE to tones 1/2/3/4. Pinyin `v` outputs `ü`; the dedicated finals page includes 36 finals. Their bottom punctuation key is separate from tone corners. On the finals page, Space northwest is Backspace.
-- Password, numeric and raw-key editors use direct input. No-learning text fields use a schema without a user dictionary. Rime user data is kept locally and excluded from Android backup/transfer rules.
+开发测试仍可从成功的 [MIANCAK 持续集成运行](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml)中下载调试版 APK；未签名的发布构建产物不能代替正式版，须另行签名。调试版包名为 `org.miancak.keyboard.debug`，可与正式版及 Unexpected Keyboard 共存。**正式版不会自动迁移调试版的私有数据，请保留旧应用及其数据。**
 
-Current Chinese vocabulary limits:
+- 点击 **中文 / EN**，或向**右上滑动 Shift**，可以明确切换语言；键位形状和位置保持不变。
+- 中文模式下，普通小写字母用于输入拼音。点击候选或按空格选词。候选栏只显示能够完整容纳的候选；点击展开箭头可查看引擎当前页的全部候选，再用上一页／下一页查看更多。选词或收起后恢复字母键。
+- 在 MIANCAK QWERTY 中，向**左上滑动 c** 输入 `。`，向**左下滑动 c** 输入 `.`；向**左上滑动 v** 输入 `，`，向**左下滑动 v** 输入 `,`。中英文模式下这些位置的行为完全一致。首次安装默认选择此布局；已停用的内置布局会迁移至 MIANCAK，并备份原有配置。
+- 数字和其他字面符号会先确认当前组词，再按键面所示追加字符。Shift 临时大写／锁定可直接输出 ASCII 大写字母，无须退出中文模式。
+- 向**左上滑动 m** 输入 `’` 分隔符：中文组词时用于分隔音节，不提交组词；其他情况下输出键面所示的右单引号。同一位置的 Shift 层输出 ASCII 单引号。[键位表](docs/KEYMAP.md)列出了括号、标点和引号配对。
+- 回车键先确认组词，再执行编辑框的换行或其他动作；Escape 或 × 取消组词。未提交的拼音保留在输入法预编辑栏中，切换输入框或移动光标时会取消。
+- 打开**设置 → 布局与页面**，选择启用的布局、排列顺序，以及要编辑的配对 Fn 变体。点击**编辑键位**，选择一个按键及其中心或八个方向之一，然后保存。可配置内容包括精确文本、引擎文本或键盘动作；Shift 层独立配置。进行较大修改前请先导出布局文件，也可以恢复之前的配置。
+- 符号分为七个类别，共 22 页内容。点击类别会返回该类别的第一页；向左上／右上滑动空格键，可在其中向前／向后翻页。Shift 切换显式的全角／半角配对符号；Fn 没有特殊作用。
+- 中文布局中，向左上滑动空格键打开拼音文本页；也可在设置中将该位置改为注音。语音符号布局中，向右上滑动 Shift 返回中文布局。向上／向下滑动空格键始终用于循环切换布局。表情和剪贴板页面通过向右下滑动回车键打开选择器，不再额外设置顶部选择栏。
+- 拼音／注音页输出的是语音符号**文本**，例如 `nǐ hǎo` 和 `ㄋㄧˇ`。元音／韵母按键的左上、右上、左下、右下分别对应第一、二、三、四声。拼音页的 `v` 输出 `ü`；独立韵母页包含 36 个韵母。页面底部的标点键与声调角标分开设置。韵母页中，向左上滑动空格键执行退格。
+- 密码框、数字输入框和原始按键编辑器采用直接输入。要求不学习的文本框使用不含用户词典的方案。Rime 用户数据保存在本地，并被排除在 Android 备份和传输规则之外。
 
-- Rime user learning is enabled in normal fields; it is separate from manual phrase editing or bulk dictionary import.
-- **Settings → Chinese word tables** imports compatible UTF-8 `.dict.yaml` files through Android Files. Select a base, optionally enable supplementary tables, then Apply. Restore the bundled vocabulary or remove inactive imports from the same page. Compilation runs offline and retains the last working selection on failure; personal learning and layouts stay separate.
-- The [supported data profile](docs/RIME_WORD_TABLES.md) requires explicit lowercase untoned Pinyin codes. Import required tables too; uncoded rows, preset essay weights, auxiliary-code rules, scripts and complete third-party schemes are unsupported. This applies equally to MediaWiki-derived and other existing Rime tables. Implementation and actual APK acceptance for [issue #22](https://github.com/AuroraLilja8514/miancak/issues/22) are recorded in [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30).
-- Manual phrase editing is a separate capability and is not a prerequisite for using an existing word table.
+当前中文词库的能力与限制：
 
-Custom layout authors can use explicit `:engine:'text'`, `:literal:'text'` and `language_switch` actions; see [doc/Possible-key-values.md](doc/Possible-key-values.md).
+- 普通输入框中启用 Rime 用户学习；这与手动编辑短语或批量导入词典是不同功能。
+- **设置 → 中文词表**通过 Android 文件选择器导入兼容的 UTF-8 `.dict.yaml` 文件。选择基础词表，可按需启用补充词表，然后应用。也可以在同一页面恢复内置词库，或移除未启用的导入词表。编译在离线环境中进行；失败时保留上一次可用的选择。个人学习数据和布局配置分别保留。
+- [支持的数据格式](docs/RIME_WORD_TABLES.md)要求显式的小写、无声调拼音编码。依赖的词表也需要一并导入；不支持无编码词条、预设语料权重、辅助码规则、脚本或完整的第三方输入方案。这同样适用于来自 MediaWiki 的词表及其他现有 Rime 词表。[问题 #22](https://github.com/AuroraLilja8514/miancak/issues/22) 的实现与实际 APK 验收记录见 [PR #30](https://github.com/AuroraLilja8514/miancak/pull/30)。
+- 手动编辑短语是独立功能，不是使用现有词表的前提。
 
-## Interaction principles
+自定义布局可使用显式的 `:engine:'text'`、`:literal:'text'` 和 `language_switch` 动作；详见[可用按键值](doc/Possible-key-values.md)。
 
-The interaction model is treated as a product contract, not an implementation detail. In particular:
+## 交互原则
 
-- Chinese and English use the same physical keyboard layout.
-- Unexpected Keyboard's one-finger Shift latch/lock behavior is preserved.
-- No normal interaction requires simultaneously holding Shift and another key.
-- Engine input and literal input are distinct semantics.
-- Literal punctuation, digits, and symbols always mean exactly what is shown.
-- `.` and `。`, `,` and `，` may coexist as separate explicit inputs.
-- Candidate selection is touch-first; digits are not candidate shortcuts by default.
-- The keyboard must not guess punctuation from surrounding text.
+交互模型是产品约定，而不只是实现细节。具体包括：
 
-See [docs/INTERACTION_CONTRACT.md](docs/INTERACTION_CONTRACT.md) for the normative rules.
+- 中英文使用相同的物理键位布局。
+- 保留 Unexpected Keyboard 的单指 Shift 临时大写／锁定行为。
+- 正常交互不要求同时按住 Shift 和其他按键。
+- 引擎输入和字面输入具有不同语义。
+- 字面标点、数字和符号始终严格输出键面所示内容。
+- `.` 与 `。`、`,` 与 `，` 可以作为独立的显式输入同时存在。
+- 候选选择以触控为主；数字默认不是候选快捷键。
+- 键盘不得根据上下文猜测标点。
 
-## Architecture direction
+规范性规则见[交互约定](docs/INTERACTION_CONTRACT.md)。
 
-The runtime keeps inherited gestures behind a semantic adapter. The controller sends idle literal/English input directly to the editor and serializes Chinese operations through a persistent Rime worker/JNI session. Immutable results update the candidate strip and ordered editor transactions.
+## 架构方向
 
-MIANCAK does **not** plan to embed Fcitx5 core as a runtime dependency, and it does not plan to provide a general executable plugin system. Word lists and Rime configuration are treated as data.
+运行时通过语义适配层衔接继承的手势机制。没有组词时，控制器将字面输入和英文直接发送给编辑框；中文操作则通过持久的 Rime 工作线程／JNI 会话串行处理。不可变的处理结果用于更新候选栏，并按顺序执行编辑框操作。
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+MIANCAK **不计划**将 Fcitx5 核心嵌入为运行时依赖，也不计划提供通用的可执行插件系统。词表和 Rime 配置均作为数据处理。
 
-## Development
+详见[架构说明](docs/ARCHITECTURE.md)。
 
-Development happens through Issues, short-lived branches, Draft Pull Requests, and required CI checks. Normal project work should not be pushed directly to `master`.
+## 开发
 
-Start with:
+开发通过问题单、短期分支、草稿合并请求和必需的持续集成检查推进。常规项目改动不应直接推送到 `master`。
 
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md)
-- [docs/CI.md](docs/CI.md)
-- [docs/UPSTREAM.md](docs/UPSTREAM.md)
-- [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)
+请先阅读：
 
-## Upstream
+- [贡献指南](CONTRIBUTING.md)
+- [开发流程](docs/DEVELOPMENT_WORKFLOW.md)
+- [持续集成说明](docs/CI.md)
+- [上游关系说明](docs/UPSTREAM.md)
+- [开发计划](docs/DEVELOPMENT_PLAN.md)
 
-MIANCAK is a fork of [Julow/Unexpected-Keyboard](https://github.com/Julow/Unexpected-Keyboard). The fork relationship, original Git history, copyright notices, and license are intentionally preserved.
+## 上游项目
 
-Changes that do not need to diverge from upstream should remain easy to rebase or port when practical.
+MIANCAK 派生自 [Julow/Unexpected-Keyboard](https://github.com/Julow/Unexpected-Keyboard)。项目有意保留派生关系、原始 Git 历史、版权声明和许可证。
 
-## Licensing
+对于不必偏离上游的改动，应尽可能保持易于变基或移植的形式。
 
-This repository remains licensed under the GNU General Public License v3.0 as inherited from Unexpected Keyboard. See [LICENSE](LICENSE).
+## 许可证
 
-The pinned native libraries, dictionary, licenses and packaged provenance are documented. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+本仓库沿用 Unexpected Keyboard 的 GNU 通用公共许可证第 3 版（GPL-3.0）。详见 [LICENSE](LICENSE)。
 
-## Acknowledgement
+固定版本的原生库、词典、许可证及随包提供的来源记录均有文档说明。详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 
-MIANCAK would not exist without Unexpected Keyboard and its contributors. The project deliberately reuses its interaction model and codebase rather than pretending to be an independent clean-room implementation.
+## 致谢
+
+没有 Unexpected Keyboard 及其贡献者，就不会有 MIANCAK。本项目明确复用其交互模型和代码基础，不将自身描述为独立、从零重写的实现。
