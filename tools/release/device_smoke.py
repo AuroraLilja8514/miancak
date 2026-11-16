@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import selectors
+import shlex
 import signal
 import subprocess
 import sys
@@ -21,6 +22,38 @@ DIAGNOSTIC_SECONDS = 25
 DIAGNOSTIC_PROBE_SECONDS = 3
 DIAGNOSTIC_READ_LIMIT = 512 * 1024
 DIAGNOSTIC_FILE_LIMIT = 64 * 1024
+DIAGNOSTIC_REMOTE_STATUS = "MIANCAK_DIAGNOSTIC_EXIT="
+
+def diagnostic_remote_command(script, arguments=()):
+    """One explicitly quoted, non-PTY command, with a legacy-adb-safe status.
+
+    shell v1 and exec-out do not convey the remote exit code. The fixed
+    trailer distinguishes an unreadable probe from an empty successful read.
+    Scripts are static read-only probes; only allowlisted trace paths vary.
+    """
+    script = ('{ ' + script + '; } 2>&1; diagnostic_status=$?; '
+              'printf "\\n' + DIAGNOSTIC_REMOTE_STATUS + '%s\\n" "$diagnostic_status"')
+    return "sh -c " + shlex.quote(script) + " diagnostic-read" + "".join(
+        " " + shlex.quote(argument) for argument in arguments)
+
+def diagnostic_remote_output(text, record):
+    record = dict(record)
+    marker = re.search(r"\r?\n" + re.escape(DIAGNOSTIC_REMOTE_STATUS) + r"([0-9]{1,3})\r?\n\Z", text)
+    if not marker or int(marker[1]) > 255:
+        if record["status"] == "captured":
+            record.update(status="unavailable", reason="remote-status-missing-or-invalid")
+        return text, record
+    text = text[:marker.start()]
+    record["remote_returncode"] = int(marker[1])
+    if record["status"] == "captured":
+        if record["remote_returncode"]:
+            record["status"] = "remote-error"
+        # dumpsys can return zero even when the service rejects its command.
+        elif re.search(r"(?m)^(?:Bad activity command, or no activities match:|Can't find service:|"
+                       r"Permission Denial:|DUMP TIMEOUT|Error dumping service info:|"
+                       r"(?:/system/bin/)?sh:|ls:|cat:|/data/anr:)", text):
+            record.update(status="unavailable", reason="remote-error-response")
+    return text, record
 
 def diagnostic_capture(command, timeout, limit=DIAGNOSTIC_READ_LIMIT):
     """Bound the host adb reader too; never signal or restart an app/guest."""
@@ -135,7 +168,7 @@ def collect_failure_diagnostics(api, failure):
     if isinstance(failure, ops.ReleaseError) and re.fullmatch(r"[A-Z0-9_]{1,100}", str(failure)):
         report["failure_code"] = str(failure)
 
-    def probe(name, command, transform=None, limit=DIAGNOSTIC_READ_LIMIT):
+    def probe(name, command, transform=None, limit=DIAGNOSTIC_READ_LIMIT, remote=False, expected=None):
         remaining = deadline - time.monotonic()
         if remaining <= .1:
             text, record = "", {"status": "budget-exhausted", "truncated": False, "read_bytes": 0}
@@ -147,10 +180,15 @@ def collect_failure_diagnostics(api, failure):
             except Exception as error:
                 text, record = "", {"status": "unavailable", "error_type": type(error).__name__,
                                      "truncated": False, "read_bytes": 0}
+        if remote:
+            text, record = diagnostic_remote_output(text, record)
+        if expected is not None and record["status"] == "captured" and not re.search(expected, text):
+            record.update(status="unavailable", reason="unexpected-response")
         report["probes"][name] = record
         if transform is not None:
             content = transform(text)
-            record["content"] = "matching-context" if content else "no-matching-context"
+            record["content"] = ("matching-context" if content else "no-matching-context"
+                                 if record["status"] == "captured" and not record["truncated"] else "unavailable")
             record["file"] = name + ".txt"
             record["bytes"], clipped = diagnostic_write(directory, record["file"], content)
             record["truncated"] = record["truncated"] or clipped
@@ -170,34 +208,52 @@ def collect_failure_diagnostics(api, failure):
             report["scope"] = "refused-or-unavailable-named-guest"
             return report
         report.update(scope="named-synthetic-release-guest", api=api)
-        probe("last-anr", prefix + ["shell", "dumpsys", "activity", "lastanr"], focused_diagnostic)
+
+        def remote_probe(name, script, transform=None, limit=DIAGNOSTIC_READ_LIMIT, arguments=(), expected=None):
+            return probe(name, prefix + ["exec-out", diagnostic_remote_command(script, arguments)],
+                         transform, limit, remote=True, expected=expected)
+
+        # AOSP 6 ActivityManagerService.dump has no lastanr command or retained
+        # last-ANR summary. Do not replace it with a broad activity/process dump.
+        if api == 23:
+            report["probes"]["last-anr"] = {"status": "unsupported", "reason": "aosp-6-no-lastanr-command",
+                "truncated": False, "read_bytes": 0, "content": "unavailable"}
+        else:
+            remote_probe("last-anr", "dumpsys activity lastanr", focused_diagnostic,
+                         expected=r"(?m)^ACTIVITY MANAGER LAST ANR(?:\s|$)")
         # Prefer existing app stacks before potentially stalled system dumps.
-        listing, state = probe("anr-files", prefix + ["shell", "ls", "-1t", "/data/anr"], limit=4096)
-        if state["status"] == "captured":
-            names = [line.strip() for line in listing.splitlines()
-                     if re.fullmatch(r"(?:traces\.txt(?:\.[A-Za-z0-9_-]+)?|anr_[A-Za-z0-9_.-]+)", line.strip())]
+        # AOSP 6 toolbox ls accepts neither -1 nor -t. Its plain listing is
+        # newline-delimited; exec-out avoids PTY formatting on either API.
+        listing, state = remote_probe("anr-files", "ls /data/anr" if api == 23 else "ls -1t /data/anr",
+                                      lambda text: text, limit=4096)
+        state["content"] = "listing-output" if state["status"] == "captured" and not state["truncated"] else "unavailable"
+        if state["status"] == "captured" and not state["truncated"]:
+            names = [line for line in listing.splitlines()
+                     if re.fullmatch(r"(?:traces\.txt(?:\.[A-Za-z0-9_-]+)?|anr_[A-Za-z0-9_.-]+)", line)]
+            names = list(dict.fromkeys(names))
             if "traces.txt" in names:
                 names.remove("traces.txt"); names.insert(0, "traces.txt")
             state["eligible_files"] = len(names)
-            for index, name in enumerate(dict.fromkeys(names)):
+            state["listing_lines"] = len(listing.splitlines())
+            for index, name in enumerate(names):
                 if index >= 2:
                     break
                 # The basename was allowlisted. Refuse a symlink, and never
                 # use a guest-provided path as a local output filename.
-                # adb exec-out treats its first argument as command text.
-                # Make the sh -c script's quoting self-contained in that text.
-                command = 'sh -c \'test ! -L "$1" && cat "$1"\' anr-read /data/anr/' + name
-                probe("app-anr-trace-" + str(index + 1), prefix + ["exec-out", command], matching_anr_traces)
-        probe("activities", prefix + ["shell", "dumpsys", "activity", "activities", PACKAGE], focused_diagnostic)
-        probe("windows", prefix + ["shell", "dumpsys", "window", "windows"],
-              lambda text: focused_diagnostic(text, r"mCurrentFocus=|mFocusedApp="))
-        probe("system-log", prefix + ["logcat", "-b", "system", "-b", "main", "-d", "-v", "threadtime", "-t", "300",
+                remote_probe("app-anr-trace-" + str(index + 1), 'test ! -L "$1" && cat "$1"',
+                             matching_anr_traces, arguments=("/data/anr/" + name,))
+        remote_probe("activities", "dumpsys activity activities " + PACKAGE, focused_diagnostic,
+                     expected=r"(?m)^ACTIVITY MANAGER ACTIVITIES(?:\s|$)")
+        remote_probe("windows", "dumpsys window windows",
+              lambda text: focused_diagnostic(text, r"mCurrentFocus=|mFocusedApp="),
+              expected=r"(?m)^WINDOW MANAGER WINDOWS(?:\s|$)")
+        remote_probe("system-log", shlex.join(["logcat", "-b", "system", "-b", "main", "-d", "-v", "threadtime", "-t", "300",
               "ActivityManager:I", "ActivityTaskManager:I", "WindowManager:I", "InputDispatcher:I",
-              "InputManager-JNI:I", "AndroidRuntime:E", "*:S"],
+              "InputManager-JNI:I", "AndroidRuntime:E", "*:S"]),
               lambda text: focused_diagnostic(text, r"\bInputDispatcher\s*:|\bInputManager-JNI\s*:"))
-        probe("event-log", prefix + ["logcat", "-b", "events", "-d", "-v", "threadtime", "-t", "300",
+        remote_probe("event-log", shlex.join(["logcat", "-b", "events", "-d", "-v", "threadtime", "-t", "300",
               "am_anr:I", "am_crash:I", "am_proc_died:I", "am_create_activity:I", "am_resume_activity:I",
-              "am_pause_activity:I", "am_finish_activity:I", "*:S"], focused_diagnostic)
+              "am_pause_activity:I", "am_finish_activity:I", "*:S"]), focused_diagnostic)
     finally:
         report["seconds"] = round(time.monotonic() - started, 3)
         diagnostic_write(directory, "manifest.json", json.dumps(report, sort_keys=True, indent=2) + "\n")
