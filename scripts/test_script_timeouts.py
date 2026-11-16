@@ -143,13 +143,12 @@ class ScriptTimeoutTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fake = Path(directory)
             adb = fake / "adb"
-            adb.write_text("#!/bin/sh\ncase \"$*\" in\n"
+            adb.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> adb-commands.txt\ncase \"$*\" in\n"
                            "  'logcat -v brief '*) sleep 90 ;;\n"
                            "  'shell getprop ro.build.version.sdk') echo 23 ;;\n"
                            "  'shell ps') printf 'USER PID PPID NAME\\r\\n"
                            "u0_a62 991 1 org.miancak.keyboard.debug.other\\r\\n"
                            "u0_a61 4242 1 org.miancak.keyboard.debug\\r\\n' ;;\n"
-                           "  'shell run-as org.miancak.keyboard.debug kill -3 4242') echo 'requested test ART stacks' ;;\n"
                            "  'shell cat /data/anr/traces.txt') echo 'test ART trace' ;;\n"
                            "  'exec-out '*) exit 1 ;;\nesac\n")
             adb.chmod(0o755)
@@ -161,10 +160,16 @@ class ScriptTimeoutTest(unittest.TestCase):
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(1, result.returncode, result.stderr)
             self.assertIn("Unexpected emulator API: 23", result.stdout)
-            # Android 6's shell protocol emits CRLF. Capture the exact debug
-            # process, ignoring a similarly named package, before cleanup.
-            self.assertEqual("requested test ART stacks\n",
-                             (fake / "test-results/thread-dump-request.txt").read_text())
+            commands = (fake / "adb-commands.txt").read_text()
+            # Reject active probes regardless of signal spelling, shell wrapper
+            # or absolute executable path, including debuggerd's stack modes.
+            self.assertNotRegex(commands,
+                                r"(?i)(?<![\w.-])(?:kill(?:all)?|pkill|debuggerd(?:32|64)?)(?![\w.-])")
+            self.assertIn("shell cat /data/anr/traces.txt", commands)
+            self.assertFalse((fake / "test-results/thread-dump-request.txt").exists())
+            self.assertEqual(b"USER PID PPID NAME\r\nu0_a62 991 1 org.miancak.keyboard.debug.other\r\n"
+                             b"u0_a61 4242 1 org.miancak.keyboard.debug\r\n",
+                             (fake / "test-results/processes-at-failure.txt").read_bytes())
             self.assertEqual("test ART trace\n",
                              (fake / "test-results/art-thread-dump.txt").read_text())
 

@@ -119,6 +119,7 @@ jobs:
 
       - name: Run unit tests and compile Android test driver
         run: |
+          python3 scripts/test_progress_evidence.py --timeout-seconds 90
           mkdir -p build/generated-resources/xml build/generated-resources/raw
           echo '<keyboard/>' > build/generated-resources/xml/latn_legacy_probe.xml
           echo '<keyboard/>' > build/generated-resources/raw/latn_legacy_probe.xml
