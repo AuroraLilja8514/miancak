@@ -1764,6 +1764,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Install and actually use the formally signed APK, preserve data and reboot
+        id: device-tests
+        env:
+          MIANCAK_TEST_DISPOSABLE_GUEST: "true"
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 35
@@ -1776,13 +1779,20 @@ jobs:
           disable-animations: true
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-release-${{ matrix.api }}.avd/config.ini"
           emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: python tools/release/device_smoke.py --api ${{ matrix.api }} --prepared prepared --signed signed --timeout-seconds 1200
-      - name: Preserve only synthetic APK acceptance evidence
+          script: python3 scripts/public_test_evidence.py run --scenario release -- python tools/release/device_smoke.py --api ${{ matrix.api }} --prepared prepared --signed signed --timeout-seconds 1200
+      - name: Stage typed public device evidence
         if: always()
+        id: public-evidence
+        timeout-minutes: 2
+        run: python3 scripts/public_test_evidence.py stage --scenario release --outcome '${{ steps.device-tests.outcome }}' --source '${{ needs.prepare.outputs.source_sha }}' --api '${{ matrix.api }}'
+      - name: Preserve only synthetic APK acceptance evidence
+        if: ${{ always() && steps.public-evidence.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: signed-release-acceptance-${{ matrix.api }}-${{ needs.prepare.outputs.source_sha }}
-          path: test-results/release/
+          path: |
+            public-test-results/summary.json
+            public-test-results/heartbeat.jsonl
           retention-days: 14
 
   publish:

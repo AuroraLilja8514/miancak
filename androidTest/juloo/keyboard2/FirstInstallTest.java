@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
+import static juloo.keyboard2.ProgressEvidence.Stage.*;
 
 /** Drives the shipped launcher and Android settings. Never writes preferences
  * or enables/selects an IME through shell commands. Run before prepared tests. */
@@ -31,18 +32,41 @@ public final class FirstInstallTest
   private UiDevice device;
   private String pkg;
   private boolean firstCandidate = true;
+  private ProgressEvidence progress = ProgressEvidence.NONE;
+  private int screenshotId;
+
+  private void mark(ProgressEvidence.Stage stage)
+  { progress.mark(stage, screenshotId, 0, -1, -1); }
 
   @Test public void installEnableAndUseTheDefaultKeyboard() throws Exception
   {
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
+    String phase = InstrumentationRegistry.getArguments().getString("evidencePhase", "clean-install");
+    ProgressEvidence.Run run = phase.equals("reopen") ? ProgressEvidence.Run.REOPEN
+        : phase.equals("reboot") ? ProgressEvidence.Run.REBOOT : ProgressEvidence.Run.CLEAN_INSTALL;
+    progress = AndroidProgressEvidence.start(context, run);
+    progress.scope(ProgressEvidence.Scope.FIRST_INSTALL);
+    try { runWithProgress(); }
+    catch (Exception | Error failure)
+    {
+      AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.FLOW, failure);
+      throw failure;
+    }
+    finally { progress.close(); }
+  }
+
+  private void runWithProgress() throws Exception
+  {
+    mark(START);
     pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation);
-    device.wakeUp();
-    device.setOrientationNatural();
+    mark(WAKE_ENTER); device.wakeUp(); mark(WAKE_RETURN);
+    setOrientation(android.view.Surface.ROTATION_0);
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
+    Throwable primary = null;
     try
     {
       if (!revisit)
@@ -53,7 +77,7 @@ public final class FirstInstallTest
           openSettings();
           assertDefaultLayout();
           screenshot("settings-first-default");
-          device.pressBack();
+          pressBack();
           object("launcher_enable").click();
         }
         else
@@ -101,11 +125,11 @@ public final class FirstInstallTest
       object("miancak_language").click();
       screenshot("first-run-mixed-text");
       // Covers IME-first -> settings, and a later settings visit in either order.
-      device.pressBack();
+      pressBack();
       openSettings();
       assertDefaultLayout();
       screenshot("settings-after-input");
-      device.pressBack();
+      pressBack();
       focusEditor();
       type("nihao"); candidate = candidate();
       swipe('v', -1, -1);
@@ -121,47 +145,68 @@ public final class FirstInstallTest
       // both landscape directions. Do not prewrite the preference under test.
       for (boolean left : new boolean[] {true, false})
       {
-        if (left) device.setOrientationLeft(); else device.setOrientationRight();
+        if (left) setOrientation(android.view.Surface.ROTATION_90); else setOrientation(android.view.Surface.ROTATION_270);
         awaitOrientation(left ? android.view.Surface.ROTATION_90 : android.view.Surface.ROTATION_270);
         assertKeyboardDefaults("zh");
         press("2", "zh"); expected += "2"; awaitEditor(expected);
         screenshot(left ? "default-landscape-left" : "default-landscape-right");
       }
-      device.setOrientationNatural(); awaitOrientation(android.view.Surface.ROTATION_0);
+      setOrientation(android.view.Surface.ROTATION_0); awaitOrientation(android.view.Surface.ROTATION_0);
       assertKeyboardDefaults("zh");
       press("2", "zh"); expected += "2"; awaitEditor(expected);
       screenshot("default-restored-portrait");
       // Keep the optional legacy splitting behavior available through the
       // shipped Settings UI, then leave the new default selected for reopen.
-      device.pressBack(); openSettings(); chooseSplitPolicy("landscape");
-      device.pressBack(); focusEditor();
-      device.setOrientationLeft(); awaitOrientation(android.view.Surface.ROTATION_90);
+      pressBack(); openSettings(); chooseSplitPolicy("landscape");
+      pressBack(); focusEditor();
+      setOrientation(android.view.Surface.ROTATION_90); awaitOrientation(android.view.Surface.ROTATION_90);
       assertTrue("Manual landscape splitting must remain available", Config.globalConfig().split_layout);
       press("2", "zh"); expected += "2"; awaitEditor(expected);
       screenshot("manual-landscape-split");
-      device.setOrientationNatural(); awaitOrientation(android.view.Surface.ROTATION_0);
-      device.pressBack(); openSettings(); chooseSplitPolicy("never");
-      device.pressBack(); focusEditor();
-      device.setOrientationRight(); awaitOrientation(android.view.Surface.ROTATION_270); assertKeyboardDefaults("zh");
+      setOrientation(android.view.Surface.ROTATION_0); awaitOrientation(android.view.Surface.ROTATION_0);
+      pressBack(); openSettings(); chooseSplitPolicy("never");
+      pressBack(); focusEditor();
+      setOrientation(android.view.Surface.ROTATION_270); awaitOrientation(android.view.Surface.ROTATION_270); assertKeyboardDefaults("zh");
       press("2", "zh"); expected += "2"; awaitEditor(expected);
-      device.setOrientationNatural(); awaitOrientation(android.view.Surface.ROTATION_0); assertKeyboardDefaults("zh");
+      setOrientation(android.view.Surface.ROTATION_0); awaitOrientation(android.view.Surface.ROTATION_0); assertKeyboardDefaults("zh");
+    }
+    catch (Exception | Error failure)
+    {
+      primary = failure;
+      AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.FLOW, failure);
+      throw failure;
     }
     finally
     {
-      screenshot("first-run-final");
-      device.unfreezeRotation();
+      try
+      {
+        ProgressEvidence.cleanup(primary, () -> {
+          mark(FINALLY_ENTER);
+          mark(EVIDENCE_ENTER); screenshot("first-run-final"); mark(EVIDENCE_RETURN);
+          mark(TEARDOWN_ENTER); device.unfreezeRotation(); mark(TEARDOWN_RETURN);
+          mark(FINALLY_RETURN);
+        });
+      }
+      catch (Exception | Error cleanup)
+      {
+        AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.CLEANUP, cleanup);
+        if (primary == null) throw cleanup;
+      }
     }
   }
 
   private void launch()
   {
+    mark(LAUNCH_ENTER);
     context.startActivity(new Intent(context, LauncherActivity.class)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     assertNotNull(object("launcher_enable"));
+    mark(LAUNCH_RETURN);
   }
 
   private void selectThroughAndroidPicker(boolean revisit) throws Exception
   {
+    mark(PICKER_ENTER);
     String component = pkg + "/juloo.keyboard2.Keyboard2";
     object("launcher_select").click();
     String appName = context.getString(R.string.app_name);
@@ -177,16 +222,18 @@ public final class FirstInstallTest
       // the same real input assertions below. Never set the IME through shell.
       assertTrue("Retained MIANCAK default is not checked in Android's picker",
           row.findObject(By.res("android", "radio")).isChecked());
-      device.pressBack();
+      pressBack();
+      mark(PICKER_DISMISS_ENTER);
       assertTrue("Cancelling the unchanged system picker must dismiss it",
           device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
+      mark(PICKER_DISMISS_RETURN);
     }
     else
     {
       boolean selected = false;
       for (int attempt = 0; attempt < 3 && !selected; attempt++)
       {
-        device.waitForIdle();
+        uiIdle();
         try
         {
           // Click the complete current radio row, not a cached second-line
@@ -198,11 +245,14 @@ public final class FirstInstallTest
       }
       assertTrue("Android did not select MIANCAK through its visible picker", selected);
     }
+    mark(PICKER_CURRENT_IME_ENTER);
     long end = SystemClock.uptimeMillis() + 10000;
     while (!component.equals(Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD))
         && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
     assertEquals("The visible picker must leave MIANCAK as the actual selected IME", component,
         Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD));
+    mark(PICKER_CURRENT_IME_RETURN);
+    mark(PICKER_RETURN);
   }
 
   private UiObject2 pickerRow(String appName)
@@ -215,12 +265,15 @@ public final class FirstInstallTest
 
   private void openSettings()
   {
+    mark(SETTINGS_ENTER);
     UiObject2 settings = object("btnLaunchSettingsActivity");
     assertNotNull("Shipped settings action is missing", settings);
-    settings.click();
+    mark(SETTINGS_CLICK_ENTER); settings.click(); mark(SETTINGS_CLICK_RETURN);
+    mark(SETTINGS_WAIT_ENTER);
     // The instrumentation's package Context can retain the old locale while
     // the Settings Activity has adopted Android's per-app Chinese locale.
     assertTrue(device.wait(Until.hasObject(By.res("android", "list").pkg(pkg)), 15000));
+    mark(SETTINGS_WAIT_RETURN); mark(SETTINGS_RETURN);
   }
 
   private void assertDefaultLayout()
@@ -234,7 +287,7 @@ public final class FirstInstallTest
     assertEquals(1, layouts.size());
     assertEquals("MIANCAK QWERTY", layouts.get(0).name);
     assertTrue(layouts.get(0).getKeys().containsKey(KeyValue.getKeyByName("。")));
-    instrumentation.runOnMainSync(() -> {
+    mainSync(() -> {
       SettingsActivity settings = currentSettings();
       android.preference.ListPreference split = (android.preference.ListPreference)settings.findPreference("split_layout");
       assertEquals("The actual settings list must select the runtime default", "never", split.getValue());
@@ -251,27 +304,40 @@ public final class FirstInstallTest
 
   private void chooseSplitPolicy(String value) throws Exception
   {
+    mark(POLICY_ENTER);
     final String[] labels = new String[2];
+    mark(POLICY_READ_ENTER);
     instrumentation.runOnMainSync(() -> {
       android.preference.ListPreference preference = (android.preference.ListPreference)currentSettings().findPreference("split_layout");
       labels[0] = preference.getTitle().toString();
       int index = preference.findIndexOfValue(value); assertTrue(index >= 0);
       labels[1] = preference.getEntries()[index].toString();
     });
+    mark(POLICY_READ_RETURN);
+    mark(POLICY_SCROLL_ENTER);
     new UiScrollable(new UiSelector().packageName(pkg).resourceId("android:id/list"))
       .scrollIntoView(new UiSelector().packageName(pkg).text(labels[0]));
-    UiObject2 row = device.findObject(By.pkg(pkg).text(labels[0])); assertNotNull(row); row.click();
+    mark(POLICY_SCROLL_RETURN);
+    mark(POLICY_LOOKUP_ENTER);
+    UiObject2 row = device.findObject(By.pkg(pkg).text(labels[0])); assertNotNull(row);
+    mark(POLICY_LOOKUP_RETURN); mark(POLICY_CLICK_ENTER); row.click(); mark(POLICY_CLICK_RETURN);
+    mark(POLICY_LOOKUP_ENTER);
     UiObject2 choice = device.wait(Until.findObject(By.pkg(pkg).text(labels[1])), 10000);
-    assertNotNull("Split policy dialog did not show " + value, choice); choice.click();
+    mark(POLICY_LOOKUP_RETURN);
+    assertNotNull("Split policy dialog did not show " + value, choice);
+    mark(POLICY_CLICK_ENTER); choice.click(); mark(POLICY_CLICK_RETURN);
     // Input dispatch and the ListPreference callback are different frames.
     // Wait for the actual saved/visible state instead of reading immediately
     // after UiAutomator injects the click (which can still return the old value).
+    mark(POLICY_WAIT_ENTER);
     final String[] actual = new String[1];
     long end = SystemClock.uptimeMillis() + 10000;
     do
     {
+      mark(POLICY_READ_ENTER);
       instrumentation.runOnMainSync(() -> actual[0] =
           ((android.preference.ListPreference)currentSettings().findPreference("split_layout")).getValue());
+      mark(POLICY_READ_RETURN);
       if (value.equals(actual[0])) break;
       SystemClock.sleep(30);
     } while (SystemClock.uptimeMillis() < end);
@@ -279,25 +345,26 @@ public final class FirstInstallTest
     assertEquals(value, DirectBootAwarePreferences.get_shared_preferences(context).getString("split_layout", ""));
     assertTrue("The split-policy dialog must close after applying the choice",
         device.wait(Until.gone(By.res("android", "alertTitle").text(labels[0])), 10000));
+    mark(POLICY_WAIT_RETURN); mark(POLICY_RETURN);
   }
 
   private void awaitOrientation(int rotation)
   {
     boolean landscape = rotation == android.view.Surface.ROTATION_90 || rotation == android.view.Surface.ROTATION_270;
     long end = SystemClock.uptimeMillis() + 15000;
-    while ((device.getDisplayRotation() != rotation || Config.globalConfig().orientation_landscape != landscape)
+    while ((rotation() != rotation || Config.globalConfig().orientation_landscape != landscape)
         && SystemClock.uptimeMillis() < end)
       SystemClock.sleep(30);
-    assertEquals("The physical display must reach the requested rotation", rotation, device.getDisplayRotation());
+    assertEquals("The physical display must reach the requested rotation", rotation, rotation());
     assertEquals(landscape, Config.globalConfig().orientation_landscape);
-    assertNotNull(object("keyboard_view")); device.waitForIdle();
+    assertNotNull(object("keyboard_view")); uiIdle();
   }
 
   private float horizontalMargin(Rect keyboardBounds)
   {
     final float[] margin = {Config.globalConfig().horizontal_margin};
     if (android.os.Build.VERSION.SDK_INT >= 35)
-      instrumentation.runOnMainSync(() -> {
+      mainSync(() -> {
         boolean found = false;
         for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
             .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
@@ -342,14 +409,15 @@ public final class FirstInstallTest
     KeyboardData.Key key = row.keys.get(position.col); x += (key.shift + key.width / 2) * unit;
     int[][] directions = {{0,0},{-1,-1},{1,-1},{-1,1},{1,1},{-1,0},{1,0},{0,-1},{0,1}};
     int[] direction = directions[position.dir];
-    if (position.dir == 0) assertTrue(device.click(Math.round(x), Math.round(y)));
-    else assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + direction[0] * unit * .85f),
+    if (position.dir == 0) assertTrue(click(Math.round(x), Math.round(y)));
+    else assertTrue(swipe(Math.round(x), Math.round(y), Math.round(x + direction[0] * unit * .85f),
         Math.round(y + direction[1] * height * .65f), 12));
-    instrumentation.waitForIdleSync();
+    instrumentationIdle();
   }
 
   private void enableThroughAndroidUi() throws Exception
   {
+    mark(ENABLE_ENTER);
     String appName = context.getString(R.string.app_name);
     // A cold API 35 Google image can put its own launcher ANR dialog above
     // Settings. Record and close only that named external app once, then take
@@ -389,7 +457,7 @@ public final class FirstInstallTest
       toggle.click();
       UiObject2 confirm = device.wait(Until.findObject(By.res("android", "button1")), 5000);
       if (confirm != null) confirm.click();
-      device.waitForIdle();
+      uiIdle();
     }
     // The warning dialog's dismissal and Settings' row recreation are separate
     // frames on Android 15. Re-resolve until the actual switch reports enabled.
@@ -401,7 +469,7 @@ public final class FirstInstallTest
         row = device.findObject(By.pkg("com.android.settings").text(appName)); toggle = null;
         for (int i = 0; i < 4 && row != null && toggle == null; i++, row = row.getParent())
           toggle = row.findObject(By.checkable(true));
-        if (toggle != null && toggle.isChecked()) return;
+        if (toggle != null && toggle.isChecked()) { mark(ENABLE_RETURN); return; }
       }
       catch (androidx.test.uiautomator.StaleObjectException ignored) {}
       SystemClock.sleep(50);
@@ -411,11 +479,17 @@ public final class FirstInstallTest
 
   private UiObject2 object(String id)
   {
-    return device.wait(Until.findObject(By.res(pkg, id)), 15000);
+    boolean keyboard = id.equals("keyboard_view");
+    boolean settings = id.equals("btnLaunchSettingsActivity");
+    mark(keyboard ? KEYBOARD_LOOKUP_ENTER : settings ? SETTINGS_LOOKUP_ENTER : LOOKUP_ENTER);
+    UiObject2 value = device.wait(Until.findObject(By.res(pkg, id)), 15000);
+    mark(keyboard ? KEYBOARD_LOOKUP_RETURN : settings ? SETTINGS_LOOKUP_RETURN : LOOKUP_RETURN);
+    return value;
   }
 
   private void focusEditor() throws Exception
   {
+    mark(FOCUS_ENTER);
     new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(
         new UiSelector().resourceId(pkg + ":id/launcher_tryhere_area"));
     UiObject2 editor = object("launcher_tryhere_area");
@@ -423,18 +497,22 @@ public final class FirstInstallTest
     editor.click();
     assertNotNull("First keyboard did not appear", object("keyboard_view"));
     device.pressKeyCode(android.view.KeyEvent.KEYCODE_MOVE_END);
-    device.waitForIdle();
+    uiIdle();
+    mark(FOCUS_RETURN);
   }
 
   private void awaitEditor(String expected)
   {
+    mark(RECEIVER_WAIT_ENTER);
     assertTrue("Actual editor text differs from: " + expected,
         device.wait(Until.hasObject(By.res(pkg, "launcher_tryhere_area").text(expected)), 20000));
+    mark(RECEIVER_WAIT_RETURN);
   }
 
   private String launcherState()
   {
     StringBuilder state = new StringBuilder();
+    mark(STATE_READ_ENTER);
     instrumentation.runOnMainSync(() -> {
       for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
           .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED))
@@ -457,11 +535,13 @@ public final class FirstInstallTest
         state.append('\n');
       }
     });
+    mark(STATE_READ_RETURN);
     return state.toString();
   }
 
   private String candidate()
   {
+    mark(CANDIDATE_ENTER);
     // Keep typing immediately after showing the keyboard. Only the first
     // offline deployment receives the same 180s cold-start budget as R6;
     // never retype the text or wait for readiness before these real taps.
@@ -482,6 +562,7 @@ public final class FirstInstallTest
         if (!value.isEmpty() && SystemClock.uptimeMillis() - stableSince >= 250)
         {
           android.util.Log.i("MIANCAK-Test", "Candidate wait completed in " + (SystemClock.uptimeMillis() - started) + " ms");
+          mark(CANDIDATE_RETURN);
           return value;
         }
       }
@@ -522,7 +603,7 @@ public final class FirstInstallTest
   private void tap(float column, int row)
   {
     float[] p = point(column, row);
-    assertTrue(device.click(Math.round(p[0]), Math.round(p[1])));
+    assertTrue(click(Math.round(p[0]), Math.round(p[1])));
   }
 
   private void type(String value)
@@ -530,31 +611,82 @@ public final class FirstInstallTest
     for (char c : value.toCharArray())
     {
       float[] p = key(c);
-      assertTrue(device.click(Math.round(p[0]), Math.round(p[1])));
+      assertTrue(click(Math.round(p[0]), Math.round(p[1])));
     }
   }
 
   private void swipe(char c, int dx, int dy)
   {
     float[] p = key(c);
-    assertTrue(device.swipe(Math.round(p[0]), Math.round(p[1]),
+    assertTrue(swipe(Math.round(p[0]), Math.round(p[1]),
         Math.round(p[0] + dx * p[2] * 0.85f), Math.round(p[1] + dy * p[3] * 0.65f), 5));
   }
 
   private void screenshot(String name) throws Exception
   {
+    screenshotId = screenshotNumber(name); mark(SCREENSHOT_ENTER);
     name = InstrumentationRegistry.getArguments().getString("evidencePhase", "first-install") + "-" + name;
-    instrumentation.waitForIdleSync();
-    device.waitForIdle();
+    instrumentationIdle();
+    uiIdle();
     CountDownLatch frames = new CountDownLatch(1);
-    instrumentation.runOnMainSync(() -> android.view.Choreographer.getInstance().postFrameCallback(
+    mainSync(() -> android.view.Choreographer.getInstance().postFrameCallback(
         first -> android.view.Choreographer.getInstance().postFrameCallback(second -> frames.countDown())));
-    assertTrue(frames.await(5, TimeUnit.SECONDS));
+    mark(FRAME_WAIT_ENTER); assertTrue(frames.await(5, TimeUnit.SECONDS)); mark(FRAME_WAIT_RETURN);
+    mark(SCREENSHOT_FILES_ENTER);
     File dir = context.getExternalFilesDir("test-results");
     assertTrue(dir.isDirectory() || dir.mkdirs());
     try (java.io.FileOutputStream stream = new java.io.FileOutputStream(new File(dir, name + "-state.txt")))
-    { stream.write(launcherState().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
-    assertTrue(device.takeScreenshot(new File(dir, name + ".png")));
-    device.dumpWindowHierarchy(new File(dir, name + ".xml"));
+    {
+      String state = launcherState();
+      mark(SCREENSHOT_FILES_ENTER);
+      stream.write(state.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+    mark(SCREENSHOT_FILES_RETURN);
+    mark(PNG_ENTER); assertTrue(device.takeScreenshot(new File(dir, name + ".png"))); mark(PNG_RETURN);
+    mark(HIERARCHY_ENTER); device.dumpWindowHierarchy(new File(dir, name + ".xml")); mark(HIERARCHY_RETURN);
+    mark(SCREENSHOT_RETURN);
   }
+  private static int screenshotNumber(String name)
+  {
+    switch (name)
+    {
+      case "settings-first-default": return 1; case "android-keyboard-enabled": return 2;
+      case "reopened-default-keyboard": return 3; case "first-visible-keyboard": return 4;
+      case "reopened-input-pending": return 5; case "first-input-pending": return 6;
+      case "first-run-mixed-text": return 7; case "settings-after-input": return 8;
+      case "input-after-settings": return 9; case "default-landscape-left": return 10;
+      case "default-landscape-right": return 11; case "default-restored-portrait": return 12;
+      case "manual-landscape-split": return 13; case "first-run-final": return 14;
+      case "system-picker-before-selection": return 15; case "environment-pixel-launcher-anr": return 16;
+      default: return 0;
+    }
+  }
+  private void setOrientation(int rotation) throws Exception
+  {
+    progress.mark(ORIENTATION_ENTER, screenshotId, 0, rotation, -1);
+    if (rotation == android.view.Surface.ROTATION_0) device.setOrientationNatural();
+    else if (rotation == android.view.Surface.ROTATION_90) device.setOrientationLeft();
+    else device.setOrientationRight();
+    progress.mark(ORIENTATION_RETURN, screenshotId, 0, rotation, -1);
+  }
+  private int rotation()
+  {
+    mark(ROTATION_ENTER);
+    int value = device.getDisplayRotation();
+    progress.mark(ROTATION_RETURN, screenshotId, 0, value, -1);
+    return value;
+  }
+  private void pressBack()
+  { mark(BACK_ENTER); device.pressBack(); mark(BACK_RETURN); }
+  private void instrumentationIdle()
+  { mark(INSTRUMENTATION_IDLE_ENTER); instrumentation.waitForIdleSync(); mark(INSTRUMENTATION_IDLE_RETURN); }
+  private void uiIdle()
+  { mark(UI_IDLE_ENTER); device.waitForIdle(); mark(UI_IDLE_RETURN); }
+  private void mainSync(Runnable action)
+  { mark(MAIN_SYNC_ENTER); instrumentation.runOnMainSync(action); mark(MAIN_SYNC_RETURN); }
+  private boolean click(int x, int y)
+  { mark(TOUCH_ENTER); boolean value = device.click(x, y); mark(TOUCH_RETURN); return value; }
+  private boolean swipe(int x, int y, int endX, int endY, int steps)
+  { mark(TOUCH_ENTER); boolean value = device.swipe(x, y, endX, endY, steps); mark(TOUCH_RETURN); return value; }
+
 }

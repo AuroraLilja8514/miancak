@@ -7,6 +7,7 @@ if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
 fi
 source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
+verify_test_target first-install
 mkdir -p test-results
 collect() {
   stop_progress

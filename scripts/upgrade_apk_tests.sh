@@ -7,10 +7,10 @@ if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
 fi
 source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
+verify_test_target upgrade
 mkdir -p test-results upgrade-signed
 collect() {
   stop_progress
-  adb devices -l > test-results/adb-devices.txt || true
   timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
   timeout --foreground 15s adb pull /sdcard/Android/data/org.miancak.keyboard.debug/files/test-results test-results/device || true
 }

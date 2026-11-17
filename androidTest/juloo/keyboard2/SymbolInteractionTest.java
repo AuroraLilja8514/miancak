@@ -17,6 +17,7 @@ import androidx.test.uiautomator.Until;
 import juloo.keyboard2.input.SymbolState;
 import juloo.keyboard2.input.SymbolCatalog;
 import static org.junit.Assert.*;
+import static juloo.keyboard2.ProgressEvidence.Stage.*;
 
 /** Invoked in the same instrumentation as the IME lifecycle acceptance. */
 public final class SymbolInteractionTest
@@ -27,6 +28,13 @@ public final class SymbolInteractionTest
   private final String pkg = context.getPackageName();
   private final SymbolState state = new SymbolState();
   private String output = "";
+  private final ProgressEvidence progress;
+  private int categoryCall, categoryId, markerPage = -1, markerAttempt = -1;
+
+  SymbolInteractionTest(ProgressEvidence progress) { this.progress = progress; }
+
+  private void mark(ProgressEvidence.Stage stage)
+  { progress.mark(stage, categoryCall, categoryId, markerPage, markerAttempt); }
 
   public void categoriesPagesWidthsAndControlsDeliverActualText() throws Exception
   {
@@ -35,7 +43,7 @@ public final class SymbolInteractionTest
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     UiObject2 field = device.wait(Until.findObject(By.desc("first_editor")), 15000);
     assertNotNull("Receiver must be visible before requesting the IME", field); field.click();
-    instrumentation.runOnMainSync(() -> {
+    mainSync(() -> {
       activity.first.requestFocus();
     });
     ImeTestFocus.show(instrumentation,context,activity.first);
@@ -50,17 +58,17 @@ public final class SymbolInteractionTest
       touch(2, 0, 0); touch(0, 1, 0); output += "−"; awaitText();
       touch(3, 2, 2); state.turn(1); awaitSymbolPage("math", 1);
       String previousTheme = DirectBootAwarePreferences.get_shared_preferences(context).getString("theme", "system");
-      instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit()
+      mainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit()
           .putString("theme", previousTheme.equals("light") ? "dark" : "light").commit());
       awaitSymbolPage("math", 1); touch(0, 0, 0); output += "∯"; awaitText(); screenshot("symbols-math");
       // Rotation starts a fresh editor generation. Re-enter symbols and check
       // its independently retained category/page and actual literal output.
-      instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit()
+      mainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit()
           .putString("split_layout","never").putString("show_numpad","never").commit());
       device.setOrientationLeft();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
-      device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
+      uiIdle(); choose("symbols"); awaitSymbolPage("math", 1);
       assertAuxiliaryHeaderFits();
       Rect input=device.findObject(By.res(pkg,"miancak_input_surface")).getVisibleBounds();
       assertTrue("Landscape input surface must leave room for the app: "+input,input.height()<=device.getDisplayHeight()*.65f);
@@ -71,10 +79,10 @@ public final class SymbolInteractionTest
       long rotated=SystemClock.uptimeMillis()+15000;
       while(device.getDisplayRotation()!=android.view.Surface.ROTATION_270 && SystemClock.uptimeMillis()<rotated)SystemClock.sleep(30);
       assertEquals(android.view.Surface.ROTATION_270,device.getDisplayRotation());
-      device.waitForIdle();choose("symbols");awaitSymbolPage("math",1);assertAuxiliaryHeaderFits();
+      uiIdle();choose("symbols");awaitSymbolPage("math",1);assertAuxiliaryHeaderFits();
       touch(0,0,0);output+="∯";awaitText();screenshot("symbols-landscape-right");
       device.setOrientationNatural(); awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
-      device.waitForIdle(); choose("symbols"); awaitSymbolPage("math", 1);
+      uiIdle(); choose("symbols"); awaitSymbolPage("math", 1);
       // Space up/down always uses the enabled layout registry; it does not
       // browse categories or symbol pages.
       touch(3, 2, 7); awaitLayout("numeric");
@@ -84,10 +92,15 @@ public final class SymbolInteractionTest
     }
     finally
     {
+      mark(FINALLY_ENTER);
+      mark(TEARDOWN_ENTER);
       device.unfreezeRotation();
+      mark(TEARDOWN_RETURN);
+      mark(EVIDENCE_ENTER);
       java.io.File dir = TestEvidence.directory(context);
       assertTrue(dir.isDirectory() || dir.mkdirs());
       String actual = receivedText();
+      mark(EVIDENCE_ENTER);
       org.json.JSONObject report = new org.json.JSONObject().put("expected", output)
         .put("actual", actual == null ? org.json.JSONObject.NULL : actual)
         .put("api", android.os.Build.VERSION.SDK_INT)
@@ -95,10 +108,14 @@ public final class SymbolInteractionTest
       try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "symbol-receiver.json")))
       { out.write(report.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
       device.takeScreenshot(new java.io.File(dir, "symbol-final-state.png"));
+      mark(EVIDENCE_RETURN);
+      mark(TEARDOWN_ENTER);
       instrumentation.runOnMainSync(() -> {
         for (android.app.Activity current : new java.util.ArrayList<>(ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)))
           if (current instanceof ImeTestActivity) current.finish();
       });
+      mark(TEARDOWN_RETURN);
+      mark(FINALLY_RETURN);
     }
   }
   private void verifyEveryCategoryAndPage() throws Exception
@@ -129,28 +146,60 @@ public final class SymbolInteractionTest
   }
   private void category(String id)
   {
+    categoryCall++;
+    categoryId = categoryNumber(id); markerPage = 0; markerAttempt = -1;
+    mark(CATEGORY_ENTER);
     android.util.Log.i("MIANCAK-Acceptance", "Symbol category " + id);
     UiObject2 choice = null;
     for (int attempt = 0; attempt < 12; attempt++)
     {
+      markerAttempt = attempt;
+      mark(CATEGORY_LOOKUP_ENTER);
       choice = device.findObject(By.res(pkg, "symbol_category_" + id));
-      if (choice != null && choice.getVisibleBounds().width() > 24) break;
+      mark(CATEGORY_LOOKUP_RETURN);
+      if (choice != null)
+      {
+        mark(CATEGORY_BOUNDS_ENTER);
+        int width = choice.getVisibleBounds().width();
+        mark(CATEGORY_BOUNDS_RETURN);
+        if (width > 24) break;
+      }
+      mark(CATEGORY_SCROLL_LOOKUP_ENTER);
       UiObject2 header = device.findObject(By.res(pkg, "miancak_symbol_categories")); assertNotNull(header);
       UiObject2 scroll = header.findObject(By.clazz("android.widget.HorizontalScrollView")); assertNotNull(scroll);
+      mark(CATEGORY_SCROLL_LOOKUP_RETURN);
+      mark(SCROLL_ENTER);
       scroll.scroll(attempt < 6 ? Direction.RIGHT : Direction.LEFT, .75f);
-      device.waitForIdle();
+      mark(SCROLL_RETURN);
+      uiIdle();
     }
-    assertNotNull("Unreachable symbol category: " + id, choice); choice.click(); state.select(id);
-    awaitSymbolPage(id, 0); device.waitForIdle();
+    assertNotNull("Unreachable symbol category: " + id, choice);
+    mark(CLICK_ENTER); choice.click(); mark(CLICK_RETURN); state.select(id);
+    awaitSymbolPage(id, 0); uiIdle();
+    markerAttempt = -1; mark(CATEGORY_RETURN);
+  }
+  private static int categoryNumber(String id)
+  {
+    switch (id)
+    {
+      case "common": return 1; case "punctuation": return 2; case "brackets": return 3;
+      case "math": return 4; case "arrows": return 5; case "currency": return 6; case "shapes": return 7;
+      default: return 0;
+    }
   }
   private void awaitSymbolPage(String id, int page)
   {
+    categoryId = categoryNumber(id); markerPage = page;
+    mark(PAGE_WAIT_ENTER);
     assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_symbol_page").text(context.getString(R.string.symbol_page, page + 1, SymbolCatalog.pageCount(id)))), 15000));
+    mark(PAGE_WAIT_RETURN);
+    mark(TAB_WAIT_ENTER);
     assertTrue(device.wait(Until.hasObject(By.res(pkg, "symbol_category_" + id).selected(true)), 15000));
+    mark(TAB_WAIT_RETURN);
     awaitLayout("symbols");
   }
   private void awaitLayout(String id)
-  { assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: " + id + ";")), 15000)); }
+  { mark(LAYOUT_WAIT_ENTER); assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view").descStartsWith("Page: " + id + ";")), 15000)); mark(LAYOUT_WAIT_RETURN); }
   private void awaitOrientation(int expected)
   {
     long end = SystemClock.uptimeMillis() + 15000;
@@ -158,7 +207,7 @@ public final class SymbolInteractionTest
     assertEquals(expected, context.getResources().getConfiguration().orientation);
   }
   private UiObject2 keyboard()
-  { return device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000); }
+  { mark(KEYBOARD_LOOKUP_ENTER); UiObject2 value = device.wait(Until.findObject(By.res(pkg, "keyboard_view")), 15000); mark(KEYBOARD_LOOKUP_RETURN); return value; }
   private void assertAuxiliaryHeaderFits()
   {
     assertNull("Empty candidate navigation must not consume auxiliary height",
@@ -182,9 +231,9 @@ public final class SymbolInteractionTest
       UiObject2 chooser = device.findObject(By.res(pkg, "miancak_page_chooser")); assertNotNull(chooser);
       chooser.setGestureMargin(Math.round(32 * context.getResources().getDisplayMetrics().density));
       chooser.scroll(attempt < 14 ? Direction.DOWN : Direction.UP, .5f,
-          Math.round(120 * context.getResources().getDisplayMetrics().density)); device.waitForIdle();
+          Math.round(120 * context.getResources().getDisplayMetrics().density)); uiIdle();
     }
-    assertNotNull(button); button.click(); awaitLayout(id); device.waitForIdle();
+    assertNotNull(button); button.click(); awaitLayout(id); uiIdle();
   }
   private void touch(int row, int col, int direction)
   { touchData(PageLayouts.symbols(context.getResources(), state), row, col, direction); }
@@ -197,7 +246,9 @@ public final class SymbolInteractionTest
   private void touchData(KeyboardData logical, int row, int col, int direction)
   {
     KeyboardData data = LayoutModifier.modify_layout(logical);
-    Config config = Config.globalConfig(); Rect bounds = keyboard().getVisibleBounds();
+    Config config = Config.globalConfig();
+    UiObject2 view = keyboard();
+    mark(BOUNDS_ENTER); Rect bounds = view.getVisibleBounds(); mark(BOUNDS_RETURN);
     float unit = (bounds.width() - 2 * config.horizontal_margin) / data.keysWidth;
     float rowSize = Math.min(config.keyboard_rows_height_pixels, (config.screenHeightPixels - config.keyboard_rows_height_pixels) / data.keysHeight);
     float x = bounds.left + config.horizontal_margin, y = bounds.top + config.marginTop;
@@ -207,10 +258,13 @@ public final class SymbolInteractionTest
     KeyboardData.Key key = line.keys.get(col); x += (key.shift + key.width / 2) * unit;
     int[][] vectors = {{0,0},{-1,-1},{1,-1},{-1,1},{1,1},{-1,0},{1,0},{0,-1},{0,1}};
     int[] vector = vectors[direction];
+    markerPage = state.page();
+    mark(TOUCH_ENTER);
     if (direction == 0) assertTrue(device.click(Math.round(x), Math.round(y)));
     else assertTrue(device.swipe(Math.round(x), Math.round(y), Math.round(x + vector[0] * unit * .85f),
           Math.round(y + vector[1] * rowSize * .65f), 12));
-    instrumentation.waitForIdleSync(); device.waitForIdle();
+    mark(TOUCH_RETURN);
+    instrumentationIdle(); uiIdle();
   }
   private void awaitText()
   {
@@ -229,16 +283,27 @@ public final class SymbolInteractionTest
   private String receivedText()
   {
     final String[] value = {null};
+    mark(RECEIVED_TEXT_ENTER);
     instrumentation.runOnMainSync(() -> {
       for (android.app.Activity current : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))
         if (current instanceof ImeTestActivity && ((ImeTestActivity)current).first.hasFocus())
           value[0] = ((ImeTestActivity)current).first.getText().toString();
     });
+    mark(RECEIVED_TEXT_RETURN);
     return value[0];
   }
   private void screenshot(String name)
   {
+    mark(SCREENSHOT_ENTER);
     java.io.File dir = TestEvidence.directory(context); assertTrue(dir.isDirectory() || dir.mkdirs());
-    device.waitForIdle(); device.takeScreenshot(new java.io.File(dir, name + ".png"));
+    uiIdle(); mark(PNG_ENTER); device.takeScreenshot(new java.io.File(dir, name + ".png")); mark(PNG_RETURN);
+    mark(SCREENSHOT_RETURN);
   }
+  private void instrumentationIdle()
+  { mark(INSTRUMENTATION_IDLE_ENTER); instrumentation.waitForIdleSync(); mark(INSTRUMENTATION_IDLE_RETURN); }
+  private void uiIdle()
+  { mark(UI_IDLE_ENTER); device.waitForIdle(); mark(UI_IDLE_RETURN); }
+  private void mainSync(Runnable action)
+  { mark(MAIN_SYNC_ENTER); instrumentation.runOnMainSync(action); mark(MAIN_SYNC_RETURN); }
+
 }

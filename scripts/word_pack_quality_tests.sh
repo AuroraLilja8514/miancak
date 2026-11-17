@@ -7,14 +7,11 @@ if [ "${MIANCAK_TIMEOUT_SCRIPT:-}" != "$MIANCAK_ENTRY" ]; then
 fi
 source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
+verify_test_target word-pack
 mkdir -p test-results/device
 collect() {
   local status=$?
   stop_progress
-  echo MIANCAK_WORD_PACK_REPORT_BEGIN
-  adb exec-out run-as org.miancak.keyboard.debug cat files/test-results/word-pack-quality.json || true
-  echo
-  echo MIANCAK_WORD_PACK_REPORT_END
   adb logcat -b all -d > test-results/logcat.txt || true
   if adb exec-out run-as org.miancak.keyboard.debug tar -C files/test-results -cf - . > test-results/evidence.tar; then
     python3 - <<'PY'

@@ -24,6 +24,7 @@ import juloo.keyboard2.prefs.LayoutsPreference;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
+import static juloo.keyboard2.ProgressEvidence.Stage.*;
 
 @RunWith(AndroidJUnit4.class)
 public class ImeInteractionTest
@@ -37,15 +38,33 @@ public class ImeInteractionTest
 
   @Test public void touchMixedInputAndEditorLifecycles() throws Exception
   {
+    ProgressEvidence progress = AndroidProgressEvidence.start(
+        InstrumentationRegistry.getInstrumentation().getTargetContext(),
+        InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true")
+          ? ProgressEvidence.Run.RESTART : ProgressEvidence.Run.INTERACTIONS);
+    try { runWithProgress(progress); }
+    finally { progress.close(); }
+  }
+
+  private void runWithProgress(ProgressEvidence progress) throws Exception
+  {
+    progress.mark(START);
     // Keep the Fn probe and subsequent lifecycle scenario in one target
     // process. Ending a separate instrumentation force-stops the active IME
     // and races Android's asynchronous fallback/rebind before this fixture.
     if (!InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"))
     {
+      progress.scope(ProgressEvidence.Scope.FN); progress.mark(FN_ENTER);
       new FnInteractionTest().pairedVariantsDeliverFunctionEventsAndKeepSharedControls();
-      new SymbolInteractionTest().categoriesPagesWidthsAndControlsDeliverActualText();
+      progress.mark(FN_RETURN);
+      progress.scope(ProgressEvidence.Scope.SYMBOL); progress.mark(SYMBOL_ENTER);
+      new SymbolInteractionTest(progress).categoriesPagesWidthsAndControlsDeliverActualText();
+      progress.mark(SYMBOL_RETURN);
     }
+    progress.scope(ProgressEvidence.Scope.PAGE_EDITOR); progress.mark(PAGE_EDITOR_ENTER);
     new PageEditorInteractionTest().editAndVerify(InstrumentationRegistry.getArguments().getString("restartOnly", "false").equals("true"));
+    progress.mark(PAGE_EDITOR_RETURN);
+    progress.scope(ProgressEvidence.Scope.LIFECYCLE); progress.mark(LIFECYCLE_ENTER);
     instrumentation = InstrumentationRegistry.getInstrumentation();
     context = instrumentation.getTargetContext();
     pkg = context.getPackageName();
@@ -419,9 +438,16 @@ public class ImeInteractionTest
     }
     finally
     {
+      progress.mark(FINALLY_ENTER);
+      progress.mark(EVIDENCE_ENTER);
       screenshot("final-state");
+      progress.mark(EVIDENCE_RETURN);
+      progress.mark(TEARDOWN_ENTER);
       device.unfreezeRotation();
+      progress.mark(TEARDOWN_RETURN);
+      progress.mark(FINALLY_RETURN);
     }
+    progress.mark(LIFECYCLE_RETURN);
   }
 
   private UiObject2 find(String id) { return device.wait(Until.findObject(By.res(pkg, id)), 10000); }

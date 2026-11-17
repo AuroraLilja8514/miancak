@@ -15,6 +15,12 @@
 /.cxx
 __pycache__/
 
+# Local device diagnostics and reconstructed public evidence are not source.
+/test-results/
+/private-test-results/
+/public-test-results/
+/.public-evidence-*/
+
 # MIANCAK release signing material stays outside Git history.
 *.p12
 *.pfx
