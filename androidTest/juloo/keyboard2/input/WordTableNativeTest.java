@@ -113,6 +113,24 @@ public class WordTableNativeTest
     assertEquals(0, new File(app.getFilesDir(), "rime/word-tables/tables").listFiles().length);
     assertTrue(candidates("nihao").contains("你好"));
   }
+  @Test public void headerMetadataIsExactAndMalformedBatchKeepsTheCatalog() throws Exception
+  {
+    store.importTables(Arrays.asList(text("metadata", "---\nname: metadata\nversion: 2026#stable # source\n...\n测试\tce shi\t1\n")));
+    WordTableStore.Entry existing = store.view().entries.get(0);
+    assertEquals("2026#stable", existing.version);
+    File user = store.currentPaths().user;
+    String slot = store.view().selection.slot;
+    expectFailure(() -> store.importTables(Arrays.asList(
+        text("valid", "---\nname: valid\n...\n有效\tyou xiao\t1\n"),
+        text("broken", "---\nname: broken\nversion: 'first' 'second'\n...\n错误\tcuo wu\t1\n"))), "quote");
+    assertEquals(1, store.view().entries.size());
+    assertEquals(existing.id, store.view().entries.get(0).id);
+    assertEquals("2026#stable", store.view().entries.get(0).version);
+    assertEquals(slot, store.view().selection.slot);
+    assertEquals(1, new File(app.getFilesDir(), "rime/word-tables/tables").listFiles().length);
+    assertEquals(user, store.currentPaths().user);
+    assertTrue(candidates("nihao").contains("你好"));
+  }
   @Test public void dependenciesAreRequiredCyclesRejectedAndActiveDependenciesProtected() throws Exception
   {
     store.importTables(Arrays.asList(text("root", "---\nname: root\nimport_tables: [cn_dicts/leaf]\n...\n")));

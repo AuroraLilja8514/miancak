@@ -173,15 +173,49 @@ public final class WordTable
   }
   private static String comment(String value)
   {
-    boolean single = false, doubled = false, escape = false;
+    int begin = 0;
+    while (begin < value.length() && (value.charAt(begin) == ' ' || value.charAt(begin) == '\t')) begin++;
+    if (value.startsWith("- ", begin)) begin += 2;
+    else
+    {
+      int colon = value.indexOf(':', begin);
+      begin = colon < 0 ? value.length() : colon + 1;
+    }
+    boolean single = false, doubled = false, escape = false, scalarStart = true, flow = false;
     for (int i = 0; i < value.length(); i++)
     {
       char c = value.charAt(i);
-      if (escape) { escape = false; continue; }
-      if (c == '\\' && doubled) { escape = true; continue; }
-      if (c == '\'' && !doubled) single = !single;
-      if (c == '"' && !single) doubled = !doubled;
-      if (c == '#' && !single && !doubled) return value.substring(0, i);
+      if (single)
+      {
+        if (c == '\'')
+        {
+          if (i + 1 < value.length() && value.charAt(i + 1) == '\'') i++;
+          else single = false;
+        }
+        continue;
+      }
+      if (doubled)
+      {
+        if (escape) escape = false;
+        else if (c == '\\') escape = true;
+        else if (c == '"') doubled = false;
+        continue;
+      }
+      if (c == '#' && (i == 0 || value.charAt(i - 1) == ' ' || value.charAt(i - 1) == '\t'))
+        return value.substring(0, i);
+      if (i < begin) continue;
+      // Quotes choose a style only at the start of a scalar/list item.
+      // An apostrophe or quote inside a plain value is ordinary content.
+      if (scalarStart)
+      {
+        if (c == ' ' || c == '\t') continue;
+        scalarStart = false;
+        if (c == '[' && !flow) { flow = true; scalarStart = true; }
+        else if (c == '\'') single = true;
+        else if (c == '"') doubled = true;
+      }
+      if (flow && c == ',') scalarStart = true;
+      if (c == ']') flow = false;
     }
     return value;
   }
@@ -206,7 +240,15 @@ public final class WordTable
     if (value.startsWith("'"))
     {
       if (value.length() < 2 || !value.endsWith("'")) throw error(line, "Unclosed quote / 引号未闭合");
-      return value.substring(1, value.length() - 1).replace("''", "'");
+      StringBuilder out = new StringBuilder();
+      for (int i = 1; i < value.length() - 1; i++)
+      {
+        char c = value.charAt(i);
+        if (c == '\'' && (++i >= value.length() - 1 || value.charAt(i) != '\''))
+          throw error(line, "Unexpected quote / 多余引号");
+        out.append(c);
+      }
+      return out.toString();
     }
     if (value.startsWith("\""))
     {

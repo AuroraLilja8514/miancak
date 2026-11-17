@@ -12,6 +12,56 @@ public class WordTableTest
   { return WordTable.parse(new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8)), out); }
   private void rejects(String source) throws Exception
   { try { parse(source, new StringWriter()); fail("Accepted invalid input: " + source.substring(0, Math.min(source.length(), 80))); } catch (IOException expected) { assertFalse(expected.getMessage().isEmpty()); } }
+  private String version(String value) throws Exception
+  { return parse("---\nname: metadata\nversion: " + value + "\n...\n测试\tce shi\t1\n", new StringWriter()).version; }
+
+  @Test public void hashesInsidePlainVersionsAreExactContent() throws Exception
+  {
+    for (String value : Arrays.asList("2026#stable", "https://example.invalid/pack#v1", "v1#owner's"))
+      assertEquals(value, version(value));
+  }
+  @Test public void plainQuotesDoNotHideAWhitespaceSeparatedComment() throws Exception
+  {
+    for (String value : Arrays.asList("owner's build", "release \"candidate\"", "release 'candidate", "v1:owner's"))
+      assertEquals(value, version(value + " # source comment"));
+    // This data-only profile still rejects tabs anywhere on a header line.
+    rejects("---\nname: metadata\nversion: 2026#stable\t# source comment\n...\n测试\tce shi\t1\n");
+  }
+  @Test public void quotedVersionsRetainHashesDoubledQuotesAndEscapes() throws Exception
+  {
+    assertEquals("owner's # release", version("'owner''s # release' # source comment"));
+    assertEquals("'", version("''''"));
+    assertEquals("v\"#1\\build", version("\"v\\\"#1\\\\build\" # source comment"));
+    assertEquals(" 版本 # 一 ", version("' 版本 # 一 ' # source comment"));
+  }
+  @Test public void singleQuotedValuesRejectUnescapedInnerQuotesAndTrailingText() throws Exception
+  {
+    for (String value : Arrays.asList("'first' 'second'", "'broken'quote'", "'a'b'", "'a''", "'"))
+      rejects("---\nname: metadata\nversion: " + value + "\n...\n测试\tce shi\t1\n");
+  }
+  @Test public void commentsAfterQuotedValuesRequireSeparation() throws Exception
+  {
+    for (String value : Arrays.asList("'v1'#comment", "\"v1\"#comment"))
+      rejects("---\nname: metadata\nversion: " + value + "\n...\n测试\tce shi\t1\n");
+  }
+  @Test public void hashesCannotSilentlyRewriteRestrictedHeaderValues() throws Exception
+  {
+    for (String header : Arrays.asList("name: base#different", "name: metadata\nsort: by_weight#different",
+        "name: metadata\nuse_preset_vocabulary: false#different"))
+      rejects("---\n" + header + "\n...\n测试\tce shi\t1\n");
+  }
+  @Test public void commentsAndQuotesRemainSupportedInBothListStyles() throws Exception
+  {
+    StringWriter out = new StringWriter();
+    WordTable table = parse("# owner's provenance \"quote\n--- # start\nname: metadata # name\n"
+        + "version: 2026#stable # version\ncolumns: ['text', \"code\", weight] # columns\n"
+        + "import_tables:\n  - 'cn_dicts/base' # base\n  - \"extra\" # extra\n... # end\n测试\tce shi\t1\n", out);
+    assertEquals("2026#stable", table.version);
+    assertEquals(Arrays.asList("cn_dicts/base", "extra"), table.imports);
+    assertEquals("测试\tce shi\t1\n", out.toString());
+    assertEquals(Arrays.asList("cn_dicts/base", "extra"), parse("---\nname: metadata\n"
+        + "import_tables: ['cn_dicts/base', \"extra\"] # dependencies\n...\n", new StringWriter()).imports);
+  }
   @Test public void streamsUtf8AndDefaultColumnsWithoutRewritingExactText() throws Exception
   {
     StringWriter out = new StringWriter();
