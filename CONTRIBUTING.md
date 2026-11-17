@@ -73,7 +73,9 @@ Both debug and minified release packaging checks require all declared ABIs; a lo
 
 ## Installing for local testing
 
-With Android debugging enabled and a device connected:
+Current application and instrumentation builds require Android 13 / API 33. Runtime acceptance targets Android 15 / API 35; do not start API 23 or API 33 guests. Compile/target SDK remains 36. See [support policy](docs/ANDROID_SUPPORT.md).
+
+With Android debugging enabled and a compatible device connected:
 
 ```sh
 ./gradlew installDebug
@@ -97,7 +99,7 @@ build-debug
 
 Do not merge while a required check is failing. Do not bypass a failure by weakening the workflow or deleting a test unless the underlying project contract is deliberately being changed.
 
-Native debug/release packaging, API 23/35 interaction, fresh-install, word-table/quality, upgrade and reboot checks are current gates, not future work. See [docs/CI.md](docs/CI.md) for the complete applicable matrix and evidence policy.
+Native debug/release packaging, API 35 interaction, fresh-install, word-table/quality, upgrade and reboot checks are current gates, not future work. See [docs/CI.md](docs/CI.md) for the complete applicable matrix and evidence policy.
 
 ## Interaction changes
 

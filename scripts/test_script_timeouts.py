@@ -147,7 +147,7 @@ class ScriptTimeoutTest(unittest.TestCase):
                            "  'get-serialno') echo emulator-5554 ;;\n"
                            "  '-s emulator-5554 emu avd name') echo miancak-interactions ;;\n"
                            "  '-s emulator-5554 shell getprop ro.kernel.qemu') echo 1 ;;\n"
-                           "  '-s emulator-5554 shell getprop ro.build.version.sdk') echo 23 ;;\n"
+                           "  '-s emulator-5554 shell getprop ro.build.version.sdk') echo 35 ;;\n"
                            "  '-s emulator-5554 exec-out '*) printf '\\nMIANCAK_EMPTY_INSTALL_EXIT=0\\n' ;;\n"
                            "  'install '*) exit 7 ;;\n"
                            "  'logcat -v brief '*) sleep 90 ;;\n"
@@ -155,7 +155,7 @@ class ScriptTimeoutTest(unittest.TestCase):
                            "  'exec-out '*) exit 1 ;;\nesac\n")
             adb.chmod(0o755)
             env = dict(os.environ, MIANCAK_TEST_DISPOSABLE_GUEST="true", PATH=str(fake)+os.pathsep+os.environ["PATH"],
-                       MIANCAK_TEST_API="23")
+                       MIANCAK_TEST_API="35")
             env.pop("MIANCAK_TIMEOUT_DEADLINE", None)
             result = subprocess.run(["/bin/bash", str(ROOT / "scripts/emulator_tests.sh"),
                                      "--timeout-seconds", "5"], cwd=fake, env=env,

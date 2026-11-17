@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [23, 35]
+        api: [35]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -89,7 +89,7 @@ jobs:
         with:
           api-level: 35
           system-image-api-level: ${{ matrix.api }}
-          emulator-build: ${{ matrix.api == 23 && '13823996' || '16428233' }}
+          emulator-build: '16428233'
           arch: x86_64
           target: google_apis
           avd-name: miancak-release-rehearsal-${{ matrix.api }}

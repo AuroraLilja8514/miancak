@@ -175,12 +175,27 @@ class Privacy(unittest.TestCase):
         def fake(cmd,**kwargs):
             suffix=cmd[3:] if cmd[1:3]==['-s','emulator-5554'] else cmd[1:]
             values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-interactions\nOK',
-                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
+                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'35',
                     ('exec-out',evidence.empty_install_command('org.miancak.keyboard')):'\n'+evidence.EMPTY_INSTALL_STATUS+'0\n'}
             return subprocess.CompletedProcess(cmd,0,values[tuple(suffix)].encode(),b'')
         with mock.patch.object(evidence.subprocess,'run',fake), contextlib.redirect_stdout(io.StringIO()) as output:
             evidence.target('interaction')
         self.assertEqual('emulator-5554\n',output.getvalue())
+
+    def test_retired_or_mismatched_api_is_refused_before_empty_install_query(self):
+        for api, expected in [('23','23'), ('33','33'), ('35','33')]:
+            calls=[]
+            def fake(cmd,**kwargs):
+                calls.append(cmd)
+                suffix=cmd[3:] if cmd[1:3]==['-s','emulator-5554'] else cmd[1:]
+                values={('get-serialno',):'emulator-5554',
+                        ('shell','getprop','ro.build.version.sdk'):api}
+                return subprocess.CompletedProcess(cmd,0,values[tuple(suffix)].encode(),b'')
+            with self.subTest(api=api,expected=expected), \
+                 mock.patch.dict(os.environ,{'MIANCAK_TEST_API':expected}), \
+                 mock.patch.object(evidence.subprocess,'run',fake), self.assertRaises(ValueError):
+                evidence.target('interaction')
+            self.assertEqual(2,len(calls))
 
     def test_empty_install_requires_host_success_and_complete_canonical_remote_zero(self):
         marker=b'\n'+evidence.EMPTY_INSTALL_STATUS.encode()+b'0\n'
@@ -229,7 +244,7 @@ args=sys.argv[1:]
 with Path('commands.jsonl').open('a') as out:out.write(json.dumps(args)+'\n')
 if args[:2]==['-s','emulator-5554']:args=args[2:]
 values={('get-serialno',):'emulator-5554',('emu','avd','name'):os.environ['FAKE_AVD'],
-('shell','getprop','ro.build.version.sdk'):'23',('shell','getprop','ro.kernel.qemu'):'1'}
+('shell','getprop','ro.build.version.sdk'):'35',('shell','getprop','ro.kernel.qemu'):'1'}
 if tuple(args) in values:print(values[tuple(args)])
 elif args[:1]==['exec-out']:pass  # host zero, remote EOF, no completion marker
 else:raise SystemExit(98)
@@ -240,7 +255,7 @@ else:raise SystemExit(98)
             with self.subTest(script=script):
                 directory=self.root/script;directory.mkdir()
                 env=dict(os.environ,PATH=str(fake.parent)+os.pathsep+os.environ['PATH'],FAKE_AVD=name,
-                         MIANCAK_TEST_API='23',MIANCAK_TEST_DISPOSABLE_GUEST='true')
+                         MIANCAK_TEST_API='35',MIANCAK_TEST_DISPOSABLE_GUEST='true')
                 result=subprocess.run(['bash',str(ROOT/'scripts'/script),'--timeout-seconds','5'],
                                       cwd=directory,env=env,capture_output=True,text=True,timeout=10)
                 self.assertNotEqual(0,result.returncode)
@@ -288,7 +303,7 @@ else:raise SystemExit(98)
         self.assertEqual(set(re.findall(r'\b[A-Z][A-Z_]+\b',stages)),evidence.STAGES)
 
     def test_n3_typed_profile_outcomes_keep_no_screenshot_geometry_or_reasons(self):
-        prefix='20261116T120000Z-23-en-US'
+        prefix='20261116T120000Z-35-en-US'
         cases=[{'captureId':prefix+'-font'+font+'-rotation'+rotation,'status':'failed',
                 'alignmentVerdict':'not-evaluated','reason':SECRET,'viewports':4}
                for font in ('1_0','1_3') for rotation in ('0','1')]
@@ -305,7 +320,7 @@ else:raise SystemExit(98)
             calls.append(cmd)
             suffix=cmd[3:] if cmd[1:3]==['-s','emulator-5554'] else cmd[1:]
             values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-interactions\nOK',
-                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
+                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'35',
                     ('exec-out',evidence.empty_install_command('org.miancak.keyboard')):'package:org.miancak.keyboard.debug\n'+evidence.EMPTY_INSTALL_STATUS+'0\n'}
             return subprocess.CompletedProcess(cmd,0,values[tuple(suffix)].encode(),b'')
         with mock.patch.object(evidence.subprocess,'run',fake), self.assertRaises(ValueError): evidence.target('interaction')

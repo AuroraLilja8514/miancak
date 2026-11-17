@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import time
+from public_test_evidence import require_empty_install
 
 
 class RebootEvidence:
@@ -114,6 +115,8 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.cycles <= 5 or not 1 <= args.boot_timeout_seconds <= 3600:
         parser.error("cycles must be 1–5 and boot timeout 1–3600 seconds")
+    if os.environ.get("MIANCAK_TEST_DISPOSABLE_GUEST") != "true":
+        raise RuntimeError("Fresh disposable guest attestation required")
     serial = subprocess.check_output(["adb", "get-serialno"], text=True, timeout=15).strip()
     if not re.fullmatch(r"emulator-[0-9]+", serial):
         raise RuntimeError("This check only runs on its test emulator")
@@ -121,8 +124,11 @@ def main():
     if name != "miancak-reboot-smoke":
         raise RuntimeError("Refuse to reboot a guest other than miancak-reboot-smoke")
     api = adb(serial, "shell", "getprop", "ro.build.version.sdk")
-    if api != "23":
-        raise RuntimeError("Expected the independent API 23 environment check")
+    if api != "35":
+        raise RuntimeError("Expected the independent API 35 environment check")
+    if adb(serial, "shell", "getprop", "ro.kernel.qemu") != "1":
+        raise RuntimeError("Expected an actual emulator guest")
+    require_empty_install(serial, "org.miancak.keyboard")
     directory = Path("test-results"); directory.mkdir(exist_ok=True)
     emulator = Path(os.environ["ANDROID_HOME"]) / "emulator/emulator"
     version_result = subprocess.run([str(emulator), "-no-window", "-version"], text=True,
@@ -132,10 +138,10 @@ def main():
     print(version, flush=True)
     if version_result.returncode != 0:
         raise RuntimeError(f"Headless emulator version query exited {version_result.returncode}; see emulator-version.txt")
-    if "36.1.9" not in version or "13823996" not in version:
-        raise RuntimeError("Unexpected emulator binary; the reboot gate requires 36.1.9 / 13823996")
+    if "37.2.12" not in version or "16428233" not in version:
+        raise RuntimeError("Unexpected emulator binary; the reboot gate requires 37.2.12 / 16428233")
     report = dict(api=int(api), serial=serial, avd=name, emulatorVersion=version,
-                  configuredRenderer=os.environ.get("MIANCAK_EMULATOR_GPU_API23", "unspecified"),
+                  configuredRenderer=os.environ.get("MIANCAK_EMULATOR_GPU_API35", "unspecified"),
                   method="adb reboot; no snapshot or app-data restore", cycles=[], passed=False)
 
     observation = RebootEvidence(time.monotonic)

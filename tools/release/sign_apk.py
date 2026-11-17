@@ -54,7 +54,7 @@ def sign(prepared, output, probe_classes, expected=ops.CERTIFICATE):
             ops.command([root / "apksigner", "sign", "--ks", key_file, "--ks-type", "PKCS12",
                          "--ks-pass", "env:MIANCAK_RELEASE_STORE_PASSWORD",
                          "--key-pass", "env:MIANCAK_RELEASE_STORE_PASSWORD",
-                         "--min-sdk-version", "21", "--v1-signing-enabled", "true",
+                         "--min-sdk-version", str(actual["min_sdk"]), "--v1-signing-enabled", "true",
                          "--v2-signing-enabled", "true", "--v3-signing-enabled", "true",
                          "--v4-signing-enabled", "false", "--out", destination, unsigned], env=env)
         ops.require(private_dir is not None and not private_dir.exists(), "SIGNING_CLEANUP")

@@ -4,6 +4,8 @@ MIANCAK builds librime directly and exposes a worker-confined JNI session. Locke
 
 ## Build
 
+The application and instrumentation installation floor is Android 13 / API 33; compile/target SDK stays 36. Gradle supplies this minimum as CMake `ANDROID_PLATFORM` for all three ABIs. The dormant upstream `vendor/Android.mk` SDK declaration is not the active build floor.
+
 Use Java 17, Python 3.12+, Android platform 36, NDK `28.0.13004108` and CMake `3.22.1`:
 
 ```sh
@@ -15,7 +17,7 @@ python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 
 Preparation downloads pinned sources into ignored `.native/`, verifies the Boost archive SHA-256 and generates APK assets in `build/generated-rime-assets/`. Run it again after `clean`. Downloads happen at build time, never in the typing path. Existing source caches can be reused; no signing secret is needed.
 
-Declared APK ABIs: `arm64-v8a`, `armeabi-v7a`, `x86_64`. A local subset can be selected with `-PmiancakAbis=x86_64`; the standard packaging check intentionally requires all declared ABIs. Shared libraries use 16 KiB maximum ELF page alignment. The inherited cdict C bridge is built by the same CMake entry point; `vendor/Android.mk` is retained for upstream provenance.
+Declared APK ABIs: `arm64-v8a`, `armeabi-v7a`, `x86_64`. A local subset can be selected with `-PmiancakAbis=x86_64`; the standard packaging check intentionally requires all declared ABIs. Shared libraries use 16 KiB maximum ELF page alignment; APKs also require ZIP 16 KiB alignment. These static checks do not establish runtime on a verified 16 KiB-page guest. The inherited cdict C bridge is built by the same CMake entry point; `vendor/Android.mk` is retained for upstream provenance.
 
 The application ID is `org.miancak.keyboard` (`org.miancak.keyboard.debug` in debug), distinct from Unexpected Keyboard. The inherited Java/resource namespace remains `juloo.keyboard2`.
 
@@ -31,7 +33,7 @@ The APK includes the unmodified simplified-pinyin dictionary, MIANCAK schema/def
 
 The stable generated/unit/build jobs remain in place. Debug and minified release APKs are checked for all declared ABIs, ELF alignment, hashed offline data and provenance. Release verification also checks JNI entry-point names and excludes the debug editor fixture.
 
-`interaction-tests` installs the debug and instrumentation APKs on independent API 23 and API 35 x86_64 emulators. It exercises real native composition/selection/editing, partial commits, empty engine input, repeat initialization, no-learning behavior and asset/user-data preservation. Separate phases validate the actual gesture IME and process restart with guest networking disabled. See [TESTING.md](TESTING.md) for the complete integration results and scoped measurements. Emulator results do not imply physical-device coverage.
+`interaction-tests` installs the debug and instrumentation APKs on independent fresh API 35 x86_64 emulators. It exercises real native composition/selection/editing, partial commits, empty engine input, repeat initialization, no-learning behavior and asset/user-data preservation. Separate phases validate the actual gesture IME and process restart with guest networking disabled. See [TESTING.md](TESTING.md) for historical results and scoped measurements, and [ANDROID_SUPPORT.md](ANDROID_SUPPORT.md) for the current floor and unrun runtime scope. Emulator results do not imply physical-device coverage.
 
 ## Provenance
 

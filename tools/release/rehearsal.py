@@ -106,7 +106,7 @@ def device(folder,api):
     ops.require(manifest["disposable_key"] is True and fingerprint!=ops.CERTIFICATE
                 and re.fullmatch(r"[0-9a-f]{64}",fingerprint),"REHEARSAL_CERTIFICATE")
     actual_verify=ops.verify_signed
-    ops.verify_signed=lambda path:actual_verify(path,expected=fingerprint)
+    ops.verify_signed=lambda path, **kwargs:actual_verify(path,expected=fingerprint, **kwargs)
     ops.CERTIFICATE=fingerprint
     import device_smoke
     sys.argv=["device_smoke.py","--prepared",str(folder),"--signed",str(folder),"--api",str(api)]

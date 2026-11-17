@@ -25,6 +25,30 @@ AFTER = "22222222-2222-2222-2222-222222222222"
 
 
 class RebootReportTest(unittest.TestCase):
+    def test_fresh_guest_guards_precede_reboot_and_evidence_collection(self):
+        for override, environment, rejected in [
+                ({}, {'MIANCAK_TEST_DISPOSABLE_GUEST':'false'}, None),
+                ({('emu','avd','name'):'unrelated'}, {}, None),
+                ({('shell','getprop','ro.build.version.sdk'):'23'}, {}, None),
+                ({('shell','getprop','ro.kernel.qemu'):'0'}, {}, None),
+                ({}, {}, ValueError('nonempty or unavailable package query'))]:
+            values={('emu','avd','name'):'miancak-reboot-smoke',
+                    ('shell','getprop','ro.build.version.sdk'):'35',
+                    ('shell','getprop','ro.kernel.qemu'):'1', **override}
+            with self.subTest(override=override,environment=environment,rejected=rejected), \
+                 patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true',**environment}), \
+                 patch.object(sys,'argv',['emulator_reboot_smoke.py']), \
+                 patch.object(smoke.subprocess,'check_output',return_value='emulator-5554'), \
+                 patch.object(smoke,'adb',side_effect=lambda serial,*args:values[args]) as adb, \
+                 patch.object(smoke,'require_empty_install',side_effect=rejected) as empty, \
+                 patch.object(smoke.subprocess,'run') as run, \
+                 self.assertRaises((RuntimeError,ValueError)):
+                smoke.main()
+            run.assert_not_called()
+            self.assertFalse(any(c.args[1:]==('reboot',) for c in adb.call_args_list))
+            if rejected:empty.assert_called_once_with('emulator-5554','org.miancak.keyboard')
+            else:empty.assert_not_called()
+
     def exercise(self, observed_id, completed, offline_first=False):
         clock = [0.0]
         boot_reads = [0]
@@ -33,7 +57,8 @@ class RebootReportTest(unittest.TestCase):
             if args == ("emu", "avd", "name"):
                 return "miancak-reboot-smoke"
             if args == ("shell", "getprop", "ro.build.version.sdk"):
-                return "23"
+                return "35"
+            if args == ("shell", "getprop", "ro.kernel.qemu"): return "1"
             if args == ("reboot",):
                 return ""
             if args == ("shell", "cat", "/proc/sys/kernel/random/boot_id"):
@@ -50,17 +75,18 @@ class RebootReportTest(unittest.TestCase):
         def run(command, **kwargs):
             if command[0] == "adb":
                 return SimpleNamespace(returncode=0, stdout="emulator-5554 device\n")
-            return SimpleNamespace(returncode=0, stdout="Android emulator 36.1.9 build_id 13823996")
+            return SimpleNamespace(returncode=0, stdout="Android emulator 37.2.12 build_id 16428233")
 
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 os.chdir(tmp)
-                with patch.dict(os.environ, {"ANDROID_HOME": "/fake"}), \
+                with patch.dict(os.environ, {"ANDROID_HOME": "/fake", "MIANCAK_TEST_DISPOSABLE_GUEST": "true"}), \
                      patch.object(sys, "argv",
                                   ["emulator_reboot_smoke.py", "--cycles", "1", "--boot-timeout-seconds", "3"]), \
                      patch.object(smoke.subprocess, "check_output", return_value="emulator-5554"), \
                      patch.object(smoke.subprocess, "run", side_effect=run), \
+                     patch.object(smoke, "require_empty_install"), \
                      patch.object(smoke, "adb", side_effect=adb), \
                      patch.object(smoke.time, "monotonic", side_effect=lambda: clock[0]), \
                      patch.object(smoke.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
@@ -126,7 +152,8 @@ class TypedRebootEvidenceTest(unittest.TestCase):
         def adb(_serial, *args, timeout=10):
             calls.append((args, timeout))
             if args == ('emu', 'avd', 'name'): return 'miancak-reboot-smoke'
-            if args == ('shell', 'getprop', 'ro.build.version.sdk'): return '23'
+            if args == ('shell', 'getprop', 'ro.build.version.sdk'): return '35'
+            if args == ('shell', 'getprop', 'ro.kernel.qemu'): return '1'
             if args == ('reboot',):
                 if stage == 'REBOOT_REQUEST' and state['cycle'] == cycle: raise injected
                 return ''
@@ -160,17 +187,18 @@ class TypedRebootEvidenceTest(unittest.TestCase):
             if command[0] == 'adb':
                 calls.append((tuple(command), kwargs['timeout']))
                 return SimpleNamespace(returncode=0, stdout=self.SECRET)
-            return SimpleNamespace(returncode=0, stdout='Android emulator 36.1.9 build_id 13823996')
+            return SimpleNamespace(returncode=0, stdout='Android emulator 37.2.12 build_id 16428233')
 
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 os.chdir(tmp)
-                with patch.dict(os.environ, {'ANDROID_HOME': '/fake'}), \
+                with patch.dict(os.environ, {'ANDROID_HOME': '/fake', 'MIANCAK_TEST_DISPOSABLE_GUEST': 'true'}), \
                         patch.object(sys, 'argv', ['smoke', '--cycles', '3', '--boot-timeout-seconds', '3']), \
                         patch.object(smoke.subprocess, 'check_output', return_value='emulator-5554'), \
                         patch.object(smoke.subprocess, 'run', side_effect=run), \
-                        patch.object(smoke, 'adb', side_effect=adb), \
+                        patch.object(smoke, 'require_empty_install'), \
+                     patch.object(smoke, 'adb', side_effect=adb), \
                         patch.object(smoke.RebootEvidence, '__init__', init), \
                         patch.object(smoke.time, 'monotonic', side_effect=lambda: clock[0]), \
                         patch.object(smoke.time, 'sleep', side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
@@ -261,7 +289,7 @@ class TypedRebootEvidenceTest(unittest.TestCase):
         self.assertEqual(('INITIAL_CHECKPOINT', 0), tuple(summary['reboot_evidence']['failure'][k]
                                                        for k in ('stage', 'cycle')))
         # Preflight is unchanged, and initial report I/O failure adds no collector or mutation.
-        self.assertEqual([('emu', 'avd', 'name'), ('shell', 'getprop', 'ro.build.version.sdk')], [c[0] for c in calls])
+        self.assertEqual([('emu', 'avd', 'name'), ('shell', 'getprop', 'ro.build.version.sdk'), ('shell', 'getprop', 'ro.kernel.qemu')], [c[0] for c in calls])
         error, _, summary, _, owners, injected = self.exercise(broken_checkpoint='all-final')
         self.assertIs(error, injected)
         failure = owners[0].snapshot()['failure']

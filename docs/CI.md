@@ -14,16 +14,15 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | `unit` | Java 17/Gradle debug and release unit suites and Android test-driver compilation, then a clean diff; publishes XML and per-suite counts |
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
-| `interaction-tests (23)` | Real API 23 x86_64 native, Android policy, touch/editor and process-restart tests |
-| `interaction-tests (35)` | The same scenarios on real API 35 x86_64 |
-| `first-install (<api>, <entry>)` | Four fresh-image APK jobs: API 23/35 and settings-first/IME-first, Android UI enablement/selection and process reopen |
+| `interaction-tests (35)` | Real API 35 x86_64 native, Android policy, touch/editor and process-restart tests |
+| `first-install (<api>, <entry>)` | Two fresh-image API 35 APK jobs: settings-first/IME-first, Android UI enablement/selection and process reopen |
 | `build-upgrade-baseline` | Builds the pinned actual 0.3.0 source for replacement tests |
-| `upgrade-tests (23/35)` | Real old APK input/learning, overwrite installation, configuration migration and guest reboot |
-| `word-table-tests (23/35)` | Native recovery plus actual Files import, base/addon selection, offline fallback, learning, APK replacement and reboot |
-| `word-pack-quality (23/35)` | Same schema, isolated users and fixed corpus for old/full/core data; candidate/commit and resource thresholds |
-| `emulator-reboot (23)` | Independent empty guest, three actual adb reboots with changed boot IDs; runs independently of APK jobs on other hosts |
+| `upgrade-tests (35)` | Real old APK input/learning, overwrite installation, configuration migration and guest reboot |
+| `word-table-tests (35)` | Native recovery plus actual Files import, base/addon selection, offline fallback, learning, APK replacement and reboot |
+| `word-pack-quality (35)` | Same schema, isolated users and fixed corpus for old/full/core data; candidate/commit and resource thresholds |
+| `emulator-reboot (35)` | Independent empty guest, three actual adb reboots with changed boot IDs; runs independently of APK jobs on other hosts |
 
-There are 18 expanded checks. Emulator versions and GPU settings are pinned separately for API 23/35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
+The public-base matrix has 12 expanded checks, derived and compared against the required release gate names by `tools/release/test_release.py`. Application/test minSdk is 33; runtime jobs target API 35 only. Additional jobs integrated later must also enter the exact gate set; a stale count is not a waiver. Emulator version and GPU settings are pinned for API 35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
 
 The emulator action uses a supported SDK platform for provisioning and selects the guest system image separately. The script asserts the guest API before testing, so platform provisioning cannot silently change the tested Android version.
 
@@ -72,7 +71,7 @@ The [registered certificate](signing/README.md) signs formal releases through th
 
 ## Repository rules
 
-Recommended `master` rules require a PR, all applicable checks above and conversation resolution, and block force pushes/deletion. Input changes must pass both builds, both interaction jobs and all four first-install routes. A mandatory approving review is not required for this single-maintainer workflow. Rules/settings are managed in GitHub; this documentation does not claim to configure them.
+Recommended `master` rules require a PR, all applicable checks above and conversation resolution, and block force pushes/deletion. Input changes must pass both builds, the API 35 interaction job and both fresh-install routes. A mandatory approving review is not required for this single-maintainer workflow. Rules/settings are managed in GitHub; this documentation does not claim to configure them.
 
 Build/test workflows must use `contents: read`, avoid `pull_request_target`, and keep protected deployment/signing credentials out of PR execution. New native/data dependencies must have pinned sources and provenance.
 
@@ -82,19 +81,19 @@ Ordinary CI produces debug and unsigned release artifacts. The separate [formal 
 
 ## Word-table acceptance
 
-`word-table-tests (23/35)` are mandatory; their initial addition brought the historical matrix to 15 checks, before quality and independent reboot checks were added. `build-debug` also builds a feature-enabled older-version fixture before the ordinary application (fixture overrides and artifact selection are defined in `.github/workflows/ci.yml`; the ordinary version comes from `build.gradle.kts`), using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
+`word-table-tests (35)` are mandatory; their initial addition brought the historical matrix to 15 checks, before quality and independent reboot checks were added. `build-debug` also builds a feature-enabled older-version fixture before the ordinary application (fixture overrides and artifact selection are defined in `.github/workflows/ci.yml`; the ordinary version comes from `build.gradle.kts`), using the same temporary debug identity. The current-source fixture inherits minSdk 33 and retains its version-code override. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
 
 The word jobs run real native catalog/selection/recovery tests, import complete existing dictionaries through DocumentsUI, use the shipped keyboard in real editors, overwrite-install the ordinary application selected by the workflow and reboot. The host fingerprints actual learning-database files while the app is stopped, before instrumentation can write them, and compares them across replacement and reboot. Historical upgrade gates independently verify migration/default-IME retention. Fixture source hashes and licenses are verified by `scripts/check_word_table_fixtures.py`.
 
 ## Final APK acceptance jobs
 
-`build-upgrade-baseline` builds the pinned old application at `ca6c0b309306767e434ce922e4a3409c7093e8b9` for x86_64. `upgrade-tests (23/35)` install that actual APK, exercise Chinese input, seed a retiring layout selection, replace it with the new APK without clearing data, and reboot the guest. Test copies of the old/new/test APKs are re-signed with one ephemeral local test identity; original delivery APKs and signing workflows are unchanged. Logs record both original and test-copy hashes. The test verifies configuration/data-directory preservation and Chinese input; it does not claim a production signing upgrade path.
+`build-upgrade-baseline` builds the pinned old application at `ca6c0b309306767e434ce922e4a3409c7093e8b9` for x86_64, retaining its original manifest floor. Raising the new floor must not alter or reject this old input. `upgrade-tests (35)` install that actual APK, exercise Chinese input, seed a retiring layout selection, replace it with the new APK without clearing data, and reboot the guest. Test copies of the old/new/test APKs are re-signed with one ephemeral local test identity; original delivery APKs and signing workflows are unchanged. Logs record both original and test-copy hashes. The test verifies configuration/data-directory preservation and Chinese input; it does not claim a production signing upgrade path.
 
 API 35 interaction tests use system font scale 1.3. The API 35 settings-first fresh-install case also uses Android application locale `zh-CN`, without preselecting a layout. Android DocumentsUI is exercised for layout export/import, including cancelled edits, saved resets and paired Fn-variant and phonetic-entry recovery. All applicable jobs remain acceptance gates.
 
 ## Layout repair and formal word-pack checks
 
-The repair branch adds `word-pack-quality (23/35)` and the independent reboot check, making 18 applicable jobs. The quality jobs install the same APK/test artifacts into separate unused offline guests and compare the pinned old vocabulary, full Ice data and chosen Ice core with fresh isolated users. Reports retain actual candidates/commits locally; public summaries project only numeric cold deployment, JNI latency, observed process PSS and footprint. The core is now the explicit production default; the full pack remains a comparison asset and the old pack an offline fallback. A failed quality threshold remains a failed gate independently of UI results; passing a comparison cannot silently change the default.
+The earlier repair branch added quality and independent reboot checks to the historical 18-job API 23/35 matrix. Current `word-pack-quality (35)` and `emulator-reboot (35)` gates retain those assertions. The quality jobs install the same APK/test artifacts into separate unused offline guests and compare the pinned old vocabulary, full Ice data and chosen Ice core with fresh isolated users. Reports retain actual candidates/commits locally; public summaries project only numeric cold deployment, JNI latency, observed process PSS and footprint. The core is now the explicit production default; the full pack remains a comparison asset and the old pack an offline fallback. A failed quality threshold remains a failed gate independently of UI results; passing a comparison cannot silently change the default.
 
 Interaction evidence now includes real F1–F12 and navigation events, Fn literal Tab/NBSP and editing actions, categorized symbols, center plus eight directions, explicit Shift and paired edits, existing gesture compatibility, Files round trips and process restart. Runtime slot inventories cover normal/Shift outputs and Fn reachability under six number-row/numpad/order configurations; they complement actual touches and do not claim every slot was physically touched. Shared controls are read-only, Compose is unchanged, and advanced gesture editing H1 is deferred.
 

@@ -95,7 +95,7 @@ jobs:
           PREPARED_DIGEST: ${{ needs.prepare.outputs.artifact_digest }}
         run: |
           python "$RUNNER_TEMP/miancak-release-runtime/release_ops.py" fetch-prepared --artifact-id "$PREPARED_ID" --run-id "$GITHUB_RUN_ID" --digest "$PREPARED_DIGEST" --ci-run-id "$MIANCAK_CI_RUN_ID" --output "$RUNNER_TEMP/miancak-release-input"
-      - name: Sign with the registered certificate, verify API 21 signatures and clean private staging
+      - name: Sign with the registered certificate, audit v1/v2/v3 and verify the declared SDK range and clean private staging
         env:
           MIANCAK_RELEASE_KEYSTORE_B64: ${{ secrets.MIANCAK_RELEASE_KEYSTORE_B64 }}
           MIANCAK_RELEASE_STORE_PASSWORD: ${{ secrets.MIANCAK_RELEASE_STORE_PASSWORD }}
@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [23, 35]
+        api: [35]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -160,7 +160,7 @@ jobs:
         with:
           api-level: 35
           system-image-api-level: ${{ matrix.api }}
-          emulator-build: ${{ matrix.api == 23 && '13823996' || '16428233' }}
+          emulator-build: '16428233'
           arch: x86_64
           target: google_apis
           avd-name: miancak-release-${{ matrix.api }}

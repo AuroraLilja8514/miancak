@@ -1,5 +1,7 @@
 # Development Workflow
 
+Current application/test minSdk is 33 (Android 13); active runtime acceptance targets API 35 (Android 15). Historical API 23 results remain scoped to their original inputs. Current required gate names are checked against the expanded workflow, including any later integrated jobs. See [ANDROID_SUPPORT.md](ANDROID_SUPPORT.md).
+
 MIANCAK is developed as a public fork with a small, reviewable history. The workflow is optimized for one maintainer plus AI-assisted contributors without turning the repository into an unstructured scratchpad.
 
 The normal path is:
@@ -192,4 +194,4 @@ CI delivers short-lived installable debug APKs and minified unsigned release APK
 
 Formal delivery now follows [RELEASING.md](RELEASING.md); v0.3.2 was formally released on 2026-11-16. Ordinary CI remains separate from signing and publication. Do not expose the production key to Gradle/project code or PR workflows; keep trusted refs, exact artifact provenance and isolated signing. Independent backup recovery, ARM-device execution and genuine two-version formal upgrade acceptance remain open. Historical P0 planning is retained in [SIGNING_PLAN.md](SIGNING_PLAN.md); store publishing and F-Droid automation are separate follow-ups.
 
-C6 adds `build-upgrade-baseline` and `upgrade-tests (23/35)` as applicable APK acceptance gates. These tests use local ephemeral signing only; they receive no release credentials.
+C6 adds `build-upgrade-baseline` and `upgrade-tests (35)` as applicable APK acceptance gates. These tests use local ephemeral signing only; they receive no release credentials.

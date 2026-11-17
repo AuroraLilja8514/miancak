@@ -23,7 +23,7 @@ android {
 
   defaultConfig {
     applicationId = "org.miancak.keyboard"
-    minSdk = 21
+    minSdk = 33
     targetSdk { version = release(36) }
     versionCode = providers.gradleProperty("miancakVersionCode").orNull?.toInt() ?: 6
     versionName = "0.3.3"

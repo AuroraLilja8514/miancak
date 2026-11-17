@@ -1,15 +1,19 @@
 # 模拟器环境与失败判定
 
-测试运行在独立 GitHub runner。每个首装任务使用新建、无快照恢复且带 wipe-data 的 API 23／35 x86_64 guest；升级、学习与重启使用各自独立任务。ARM ABI 构建检查与 ARM 真机运行分开报告。
+测试运行在独立 GitHub runner。每个首装任务使用新建、无快照恢复且带 wipe-data 的 API 35 x86_64 guest；升级、学习与重启使用各自独立任务。ARM ABI 构建检查与 ARM 真机运行分开报告。
 
-## 固定的配置
+## 当前配置
+
+2026-11-17 起，开发版最低 Android 13（API 33），运行验收只安排 Android 15／API 35 及以上。当前 CI 固定 Google APIs x86_64、Emulator `37.2.12.0 / 16428233`、`swangle`，禁用 Vulkan／音频／启动动画／快照，使用全新命名且空安装的 disposable guest。独立 `emulator-reboot (35)` 保留三次真实重启、boot ID 改变、完成标记及原始时限。APK 任务仍各用独立客体，不由环境门禁替代。主机测试只验证驱动契约，不是实际重启结果。见 [支持范围](ANDROID_SUPPORT.md)。
+
+## 历史固定配置与结果
 
 | Guest | Emulator 构建 | GPU | 状态 |
 | --- | --- | --- | --- |
 | Android 6 / API 23 | 36.1.9 / 13823996 | swiftshader_indirect | CI 40229771805 三次环境 reboot、词表及旧版升级的实际 reboot 均通过 |
 | Android 15 / API 35 | 37.2.12.0 / 16428233 | swangle | 同轮交互及旧版升级通过；首装初始化与词表 UI 修正后须重跑 |
 
-两种配置都禁用 Vulkan、音频、启动动画和快照。版本由 CI 顶层 `MIANCAK_EMULATOR_BUILD_API23/API35` 指定，五种 APK 测试任务共用。新增独立 API 23 三次重启环境门禁；与原有 17 项合计 18 项检查。门禁不安装应用、不能代替 APK 断言，应用任务各自仍使用全新 guest。构建号固定后不会随 SDK 默认版本悄悄改变；以后升级同样须跑首次安装与重启。
+以下为此前 API 23／35 矩阵的历史说明，不代表当前安排。两种配置都禁用 Vulkan、音频、启动动画和快照。版本由 CI 顶层 `MIANCAK_EMULATOR_BUILD_API23/API35` 指定，五种 APK 测试任务共用。新增独立 API 23 三次重启环境门禁；与原有 17 项合计 18 项检查。门禁不安装应用、不能代替 APK 断言，应用任务各自仍使用全新 guest。构建号固定后不会随 SDK 默认版本悄悄改变；以后升级同样须跑首次安装与重启。
 
 依据：[官方版本说明](https://developer.android.com/studio/releases/emulator)、[官方归档](https://developer.android.com/studio/emulator_archive)、[Debian 官方安装包的 36.1.9／13823996 映射](https://packages.debian.org/sid/google-android-emulator-installer)、[runner 的 emulator-build 参数](https://github.com/ReactiveCircus/android-emulator-runner#configurations)。没有找到可直接确认本项目崩溃的厂商修复声明；上述结果仅是本项目具体运行的实测，不将更换版本本身或一次成功推广为所有环境的保证。
 

@@ -1,4 +1,4 @@
-MIANCAK is an experimental, offline Chinese Pinyin keyboard for Android, built on Unexpected Keyboard with the Rime engine.
+MIANCAK is an experimental, offline Chinese Pinyin keyboard for Android 13 and newer, built on Unexpected Keyboard with the Rime engine.
 
 Type Chinese with touch candidates or switch explicitly to direct English on the same QWERTY geometry. Swipe keys for exact punctuation and symbols. Scroll compact candidates horizontally, or expand within the keyboard area and scroll vertically; more candidates load as needed.
 

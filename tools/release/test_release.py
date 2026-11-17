@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline guards plus an official-tools, disposable-key APK signing fixture."""
 import argparse
+import itertools
 import base64
 import contextlib
 import hashlib
@@ -29,9 +30,27 @@ class Guards(unittest.TestCase):
     def jobs(self):
         return [{"name": name, "conclusion": "success"} for name in ops.GATES]
 
-    def test_exact_master_source_and_all_18_gates(self):
+    def test_exact_master_source_and_all_active_workflow_gates(self):
         ops.validate_run(self.run_record(), "a"*40, self.jobs())
-        self.assertEqual(len(ops.GATES), 18)
+        # Derive every expanded job name. New matrix dimensions/jobs must be
+        # accounted for; a stale count must never waive a missing release gate.
+        text=(ROOT/".github/workflows/ci.yml").read_text().split("\njobs:\n",1)[1]
+        names=set()
+        for block in re.split(r"(?=^  [a-z][a-z0-9-]*:\n)",text,flags=re.M)[1:]:
+            if not block.strip():continue
+            name=re.search(r"^    name: (.+)$",block,re.M)
+            self.assertIsNotNone(name,"Every CI job needs an explicit stable name")
+            dimensions={key:[v.strip().strip("\"'\"") for v in values.split(",")]
+                for key,values in re.findall(r"^        (\w+): \[([^]]+)\]$",block,re.M)}
+            if "      matrix:" in block:self.assertTrue(dimensions,"Unsupported matrix shape")
+            for values in itertools.product(*dimensions.values()):
+                expanded=name[1]
+                for key,value in zip(dimensions,values):
+                    expanded=expanded.replace("${{ matrix."+key+" }}",value)
+                self.assertNotIn("${{",expanded,"Unexpanded gate name")
+                self.assertNotIn(expanded,names,"Duplicate CI gate")
+                names.add(expanded)
+        self.assertEqual(ops.GATES,names)
 
     def test_ref_source_and_result_rejections(self):
         for key, value in [("event", "pull_request"), ("head_branch", "development"),
@@ -113,17 +132,51 @@ class Guards(unittest.TestCase):
             with self.assertRaises(ops.ReleaseError):ops.checked_archive(path)
 
     def test_release_identity_scope(self):
-        good={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":21,
+        good={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":33,
               "abis":ops.ABIS,"version":"0.3.2","version_code":5}
         ops.validate_apk(good)
         for key,value in [("application_id",ops.PACKAGE+".debug"),("debuggable",True),
-                          ("min_sdk",23),("abis",["x86_64"]),("version","../../other"),("version_code",0)]:
+                          ("min_sdk",21),("abis",["x86_64"]),("version","../../other"),("version_code",0)]:
             with self.subTest(key=key),self.assertRaises(ops.ReleaseError):
                 ops.validate_apk({**good,key:value})
 
+    def test_historical_manifest_is_accepted_only_in_previous_release_role(self):
+        old={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":21,
+             "abis":ops.ABIS,"version":"0.3.2","version_code":5}
+        ops.validate_apk(old,previous=True)
+        with self.assertRaises(ops.ReleaseError):ops.validate_apk(old)
+        for key,value in [("application_id",ops.PACKAGE+".debug"),("debuggable",True),
+                          ("min_sdk",20),("min_sdk",34),("abis",["x86_64"]),
+                          ("version","../../other"),("version_code",0)]:
+            with self.subTest(key=key),self.assertRaises(ops.ReleaseError):
+                ops.validate_apk({**old,key:value},previous=True)
+
+    def test_signature_audit_requires_all_schemes_before_supported_range(self):
+        import subprocess
+        info={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":33,
+              "abis":ops.ABIS,"version":"0.3.3","version_code":6}
+        cert="Signer #1 certificate SHA-256 digest: "+ops.CERTIFICATE+"\n"
+        audit=cert+"\n".join("Verified using v"+str(v)+" scheme (fixture): true" for v in (1,2,3))
+        modern=cert+"Verified using v3 scheme (fixture): true\n"
+        def result(text):return subprocess.CompletedProcess([],0,text.encode(),b"")
+        with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
+             mock.patch.object(ops,"inspect_apk",return_value=info), \
+             mock.patch.object(ops,"java_environment",return_value={}), \
+             mock.patch.object(ops,"command",side_effect=[result(audit),result(modern)]) as calls:
+            value=ops.verify_signed("current.apk")
+            self.assertEqual(["21","33"],[c.args[0][-2] for c in calls.call_args_list])
+            self.assertEqual((21,33),(value["signature_audit_min_sdk"],value["signature_supported_min_sdk"]))
+        with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
+             mock.patch.object(ops,"inspect_apk",return_value=info), \
+             mock.patch.object(ops,"java_environment",return_value={}), \
+             mock.patch.object(ops,"command",return_value=result(modern)) as calls:
+            with self.assertRaisesRegex(ops.ReleaseError,"^SIGNATURE_SCHEMES$"):
+                ops.verify_signed("missing-old-schemes.apk")
+            self.assertEqual(1,calls.call_count)
+
     def test_badging_fields_are_named_not_order_dependent(self):
         text=("package: name='org.miancak.keyboard' versionCode='5' versionCodeMajor='0' "
-              "versionName='0.3.2' compileSdkVersion='36'\nsdkVersion:'21'\n"
+              "versionName='0.3.2' compileSdkVersion='36'\nsdkVersion:'33'\n"
               "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'\n")
         import subprocess
         with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
@@ -132,7 +185,7 @@ class Guards(unittest.TestCase):
 
     def test_versionless_test_executor_is_readable_but_not_releasable(self):
         text=("package: name='org.miancak.keyboard.debug.test' versionCode='' versionName=''\n"
-              "sdkVersion:'21'\napplication-debuggable\n")
+              "sdkVersion:'33'\napplication-debuggable\n")
         import subprocess
         with mock.patch.object(ops,"sdk_tools",return_value=(Path("/sdk"),{})), \
              mock.patch.object(ops,"command",return_value=subprocess.CompletedProcess([],0,text.encode(),b"")):
@@ -155,6 +208,19 @@ class Guards(unittest.TestCase):
         self.assertNotIn("contents: write",formal)
         self.assertIn("needs: [prepare, sign, acceptance]",expected)
         self.assertNotIn("pull_request_target",expected)
+
+    def test_current_install_floor_and_runtime_matrices_agree(self):
+        gradle=(ROOT/"build.gradle.kts").read_text()
+        self.assertEqual([str(ops.MIN_SDK)],re.findall(r"^\s*minSdk = (\d+)$",gradle,re.M))
+        self.assertIn('targetSdk { version = release(36) }',gradle)
+        for path in ['.github/workflows/ci.yml','.github/workflows/release-checks.yml',
+                     'tools/release/release-workflow.yml.in']:
+            text=(ROOT/path).read_text()
+            apis=re.findall(r"^        api: \[([^]]+)\]$",text,re.M)
+            self.assertTrue(apis,path)
+            self.assertEqual({'35'},set(apis),path)
+            self.assertNotIn('13823996',text,path)
+            self.assertIn('16428233',text,path)
 
     def test_registered_certificate_and_release_notes(self):
         pem=(ROOT/"docs/signing/miancak-release-cert.pem").read_text()
@@ -190,7 +256,7 @@ class Guards(unittest.TestCase):
             def upload(release,path):
                 uploaded.append(path.name)
                 return {"digest":"sha256:"+ops.file_sha(path)}
-            info={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":21,
+            info={"application_id":ops.PACKAGE,"debuggable":False,"min_sdk":33,
                   "abis":ops.ABIS,"version":"0.3.2","version_code":5}
             with mock.patch.object(ops,"api",side_effect=api), \
                  mock.patch.object(ops,"trusted_run",return_value={"head_sha":"a"*40}), \
@@ -217,8 +283,8 @@ def integration():
         temp=Path(temporary)
         manifest=temp/"AndroidManifest.xml"
         manifest.write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
-            'package="org.miancak.keyboard" android:versionCode="5" android:versionName="0.3.2">'
-            '<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35"/>'
+            'package="org.miancak.keyboard" android:versionCode="6" android:versionName="0.3.3">'
+            '<uses-sdk android:minSdkVersion="33" android:targetSdkVersion="36"/>'
             '<application android:debuggable="false" android:label="MIANCAK fixture"/></manifest>')
         unaligned=temp/"unaligned.apk"
         ops.command([root/"aapt2","link","-o",unaligned,"--manifest",manifest,
@@ -271,6 +337,39 @@ def integration():
             assert password not in capture.getvalue() and encoded not in capture.getvalue()
             assert record["certificate_sha256"]==fingerprint and all(record["v"+str(x)] for x in [1,2,3])
             assert len(list((temp/"signed").iterdir()))==3
+            assert record["min_sdk"]==33 and record["signature_audit_min_sdk"]==21
+            assert record["signature_supported_min_sdk"]==33
+            current=temp/"signed"/"miancak-0.3.3.apk"
+            # A modern-only verification can report old schemes false because
+            # they were skipped. The audit above must still verify all three.
+            modern=ops.command([root/"apksigner","verify","--verbose",
+                                "--min-sdk-version","33",current],env=env).stdout.decode()
+            assert "Verified using v3 scheme (APK Signature Scheme v3): true" in modern
+            # Historical APK is a separate immutable-format input, not rebuilt
+            # into the new manifest policy. This is a disposable host fixture.
+            legacy_manifest=temp/"LegacyManifest.xml"
+            legacy_manifest.write_text(manifest.read_text().replace('minSdkVersion="33"','minSdkVersion="21"')
+                .replace('versionCode="6"','versionCode="5"').replace('versionName="0.3.3"','versionName="0.3.2"'))
+            legacy_raw=temp/"legacy-raw.apk"
+            ops.command([root/"aapt2","link","-o",legacy_raw,"--manifest",legacy_manifest,
+                         "-I",Path(os.environ["ANDROID_HOME"])/"platforms/android-35/android.jar"])
+            with zipfile.ZipFile(legacy_raw,"a") as archive:
+                for abi in ops.ABIS:archive.writestr("lib/"+abi+"/libmiancak_rime.so",b"fixture-only-not-an-ELF")
+            legacy_aligned=temp/"legacy-aligned.apk";legacy=temp/"legacy-signed.apk"
+            ops.command([root/"zipalign","-P","16","-f","4",legacy_raw,legacy_aligned])
+            ops.command([root/"apksigner","sign","--ks",key,"--ks-type","PKCS12",
+                         "--ks-pass","env:MIANCAK_FIXTURE_PASSWORD","--key-pass","env:MIANCAK_FIXTURE_PASSWORD",
+                         "--min-sdk-version","21","--v1-signing-enabled","true","--v2-signing-enabled","true",
+                         "--v3-signing-enabled","true","--v4-signing-enabled","false",
+                         "--out",legacy,legacy_aligned],env=env)
+            legacy_info=ops.inspect_apk(legacy)
+            assert legacy_info["min_sdk"]==21 and legacy_info["version_code"]<record["version_code"]
+            legacy_schemes=ops.verify_signed(legacy,expected=fingerprint,previous=True)
+            assert legacy_schemes["signature_supported_min_sdk"]==21
+            try:ops.verify_signed(legacy,expected=fingerprint)
+            except ops.ReleaseError as failure:assert str(failure)=="APK_IDENTITY"
+            else:raise AssertionError("Old manifest was accepted as a new output")
+            print("PASS: new minSdk 33 and old minSdk 21 role-specific manifest/signature checks; host fixtures only")
             print("PASS: official apksigner v1/v2/v3, one-key auto-selection, SHA pin and cleaned private staging")
             with mock.patch.dict(os.environ,{"MIANCAK_RELEASE_STORE_PASSWORD":"wrong-fixture-password"}):
                 try:sign_apk.sign(prepared,temp/"wrong-password",temp,expected=fingerprint)

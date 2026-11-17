@@ -37,6 +37,8 @@ v0.3.2 已于 2026-11-16 正式发布。当前源码版本 0.3.3 尚未发布；
 
 ## 安装与使用
 
+当前未发布的 0.3.3 源码最低要求 Android 13（API 33），实际设备验收聚焦 Android 15（API 35）及以上；不再安排 Android 6 测试。已发布 v0.3.2 的原始最低版本声明和历史结果保持不变。安装下限不是 API 33 已实测的声明，见[Android 支持范围](docs/ANDROID_SUPPORT.md)。
+
 请从 [GitHub 正式发布页](https://github.com/AuroraLilja8514/miancak/releases/latest)下载已签名的 APK，安装后在 Android 输入法设置中启用并选择 MIANCAK。正式版包名为 `org.miancak.keyboard`。
 
 开发测试仍可从成功的 [MIANCAK 持续集成运行](https://github.com/AuroraLilja8514/miancak/actions/workflows/ci.yml)中下载调试版 APK；未签名的发布构建产物不能代替正式版，须另行签名。调试版包名为 `org.miancak.keyboard.debug`，可与正式版及 Unexpected Keyboard 共存。**正式版不会自动迁移调试版的私有数据，请保留旧应用及其数据。**

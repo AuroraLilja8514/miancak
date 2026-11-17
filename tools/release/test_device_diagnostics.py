@@ -372,7 +372,7 @@ class Diagnostics(unittest.TestCase):
             if args == ("settings", "get", "secure", "default_input_method"):
                 return "synthetic.other/.Ime"
             if args == ("getprop", "ro.build.version.sdk"):
-                return "23"
+                return "35"
             if args == ("getprop", "sys.boot_completed"):
                 return "1"
             if args == ("cat", "/proc/sys/kernel/random/boot_id"):
@@ -393,7 +393,7 @@ class Diagnostics(unittest.TestCase):
                     raise transfer_error
             return b""
         with contextlib.ExitStack() as stack:
-            stack.enter_context(mock.patch.object(sys, "argv", ["device_smoke.py", "--api", "23"]))
+            stack.enter_context(mock.patch.object(sys, "argv", ["device_smoke.py", "--api", "35"]))
             stack.enter_context(mock.patch.object(smoke, "shell", side_effect=shell))
             stack.enter_context(mock.patch.object(smoke, "adb", side_effect=adb))
             stack.enter_context(mock.patch.object(smoke, "root"))
@@ -444,7 +444,7 @@ class EarlyReleaseGuard(unittest.TestCase):
     def test_refusal_precedes_ime_root_install_snapshot_and_failure_collection(self):
         with tempfile.TemporaryDirectory() as temporary, contextlib.ExitStack() as stack:
             previous = Path.cwd(); os.chdir(temporary); stack.callback(os.chdir, previous)
-            stack.enter_context(mock.patch.object(sys, 'argv', ['device_smoke.py', '--api', '23']))
+            stack.enter_context(mock.patch.object(sys, 'argv', ['device_smoke.py', '--api', '35']))
             stack.enter_context(mock.patch.object(smoke.signal, 'signal'))
             stack.enter_context(mock.patch.object(smoke.signal, 'alarm'))
             stack.enter_context(mock.patch.object(smoke, 'verify_release_target', side_effect=smoke.ops.ReleaseError('RELEASE_TARGET_SERIAL')))
@@ -458,13 +458,13 @@ class EarlyReleaseGuard(unittest.TestCase):
         def capture(command, timeout, limit):
             calls.append(command)
             suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
-            values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
-                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23',
+            values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-35\nOK',
+                    ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'35',
                     ('exec-out',smoke.diagnostic_remote_command('pm list packages '+smoke.PACKAGE)):
                         remote_output('package:'+smoke.PACKAGE)}
             return values[tuple(suffix)], {'status':'captured','returncode':0,'truncated':False}
         with mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}), mock.patch.object(smoke,'diagnostic_capture',capture), contextlib.redirect_stdout(io.StringIO()) as output:
-            with self.assertRaises(smoke.ops.ReleaseError): smoke.verify_release_target(23)
+            with self.assertRaises(smoke.ops.ReleaseError): smoke.verify_release_target(35)
         self.assertEqual('',output.getvalue())
         self.assertFalse(any('root' in c or 'install' in c or 'cat' in c for c in calls))
 
@@ -478,7 +478,7 @@ class EarlyReleaseGuard(unittest.TestCase):
             with self.subTest(text=text,host=host,truncated=truncated), tempfile.TemporaryDirectory() as temporary, contextlib.ExitStack() as stack:
                 previous=Path.cwd();os.chdir(temporary);stack.callback(os.chdir,previous)
                 stack.enter_context(mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}))
-                stack.enter_context(mock.patch.object(sys,'argv',['device_smoke.py','--api','23']))
+                stack.enter_context(mock.patch.object(sys,'argv',['device_smoke.py','--api','35']))
                 stack.enter_context(mock.patch.object(smoke.signal,'signal'))
                 stack.enter_context(mock.patch.object(smoke.signal,'alarm'))
                 calls=[]
@@ -489,8 +489,8 @@ class EarlyReleaseGuard(unittest.TestCase):
                         self.assertEqual((10,4096),(timeout,limit))
                         return text,dict(status='captured' if host==0 else 'command-error',returncode=host,truncated=truncated)
                     suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
-                    values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
-                            ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23'}
+                    values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-35\nOK',
+                            ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'35'}
                     return values[tuple(suffix)],dict(status='captured',returncode=0,truncated=False)
                 stack.enter_context(mock.patch.object(smoke,'diagnostic_capture',capture))
                 operations=[stack.enter_context(mock.patch.object(smoke,name)) for name in
@@ -508,11 +508,11 @@ class EarlyReleaseGuard(unittest.TestCase):
                 calls.append(command)
                 if command[3:4]==['exec-out']:return remote_output('',newline=newline),dict(status='captured',returncode=0,truncated=False)
                 suffix=command[3:] if command[1:3]==['-s','emulator-5554'] else command[1:]
-                values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-23\nOK',
-                        ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'23'}
+                values={('get-serialno',):'emulator-5554',('emu','avd','name'):'miancak-release-35\nOK',
+                        ('shell','getprop','ro.kernel.qemu'):'1',('shell','getprop','ro.build.version.sdk'):'35'}
                 return values[tuple(suffix)],dict(status='captured',returncode=0,truncated=False)
             with mock.patch.dict(os.environ,{'MIANCAK_TEST_DISPOSABLE_GUEST':'true'}),mock.patch.object(smoke,'diagnostic_capture',capture):
-                smoke.verify_release_target(23)
+                smoke.verify_release_target(35)
             self.assertEqual(1,sum(c[3:4]==['exec-out'] for c in calls))
 
 

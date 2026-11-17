@@ -229,7 +229,7 @@ def n3_summary(root):
         with os.scandir(fd) as entries:
             for i, entry in enumerate(entries):
                 if i >= 1000: return None
-                if re.fullmatch(r'settings-alignment-[0-9]{8}T[0-9]{6}Z-(23|35)-(en-US|zh-CN)', entry.name):
+                if re.fullmatch(r'settings-alignment-[0-9]{8}T[0-9]{6}Z-35-(en-US|zh-CN)', entry.name):
                     names.append(entry.name)
     finally: os.close(fd)
     if len(names) != 1: return None
@@ -262,7 +262,7 @@ def stage(root, scenario, outcome, source, api=None, locale=None, entry_order=No
               'heartbeat': {}, 'provenance': {}, 'failure_evidence': {},
               'reboot_evidence': {'schema': 1, 'status': 'unavailable'}}
     if re.fullmatch('[0-9a-f]{40}', source): report['provenance']['harness_source_sha'] = source
-    if api in (23, 35): report['api'] = api
+    if api == 35: report['api'] = api
     if locale in ('en-US','zh-CN'): report['locale'] = locale
     if entry_order in ('settings-first','ime-first'): report['entry_order'] = entry_order
     run = optional(root, 'private-test-results/run.json', 4096)
@@ -430,7 +430,7 @@ def target(scenario):
     def guest(*args): return adb('-s', serial, *args)
     api = guest('shell', 'getprop', 'ro.build.version.sdk')
     expected = os.environ.get('MIANCAK_TEST_API', api)
-    if api not in ('23', '35') or api != expected or guest('shell', 'getprop', 'ro.kernel.qemu') != '1':
+    if api != '35' or api != expected or guest('shell', 'getprop', 'ro.kernel.qemu') != '1':
         raise ValueError('not test guest')
     name = guest('emu', 'avd', 'name').splitlines()[0]
     if scenario not in names or name != names[scenario]:
@@ -457,7 +457,7 @@ def main():
     export = sub.add_parser('stage'); export.add_argument('--scenario', choices=sorted(SCENARIOS), required=True)
     export.add_argument('--outcome', choices=['success','failure','cancelled','skipped'], required=True)
     export.add_argument('--source', default='')
-    export.add_argument('--api', type=int, choices=[23,35])
+    export.add_argument('--api', type=int, choices=[35])
     export.add_argument('--locale', choices=['en-US','zh-CN'])
     export.add_argument('--entry-order', choices=['settings-first','ime-first'])
     args = parser.parse_args()

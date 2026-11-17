@@ -24,14 +24,16 @@ PACKAGE = "org.miancak.keyboard"
 CERTIFICATE = "3883a84d506b029db9d7cb6ddb7953c96ad3aa81a38e3e19290b3d50c4f9a26b"
 BUILD_TOOLS = "35.0.0"
 ABIS = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+MIN_SDK = 33
+# Explicit signature audit range, not the installation floor. A modern-only
+# apksigner range can skip v1/v2 after verifying v3; require all three schemes.
+SIGNATURE_AUDIT_MIN_SDK = 21
 LIMIT = 512 * 1024 * 1024
 GATES = {
     "generated", "unit", "build-debug", "build-release", "build-upgrade-baseline",
-    "emulator-reboot (23)", "interaction-tests (23)", "interaction-tests (35)",
-    "first-install (23, settings-first)", "first-install (23, ime-first)",
+    "emulator-reboot (35)", "interaction-tests (35)",
     "first-install (35, settings-first)", "first-install (35, ime-first)",
-    "upgrade-tests (23)", "upgrade-tests (35)", "word-table-tests (23)",
-    "word-table-tests (35)", "word-pack-quality (23)", "word-pack-quality (35)",
+    "upgrade-tests (35)", "word-table-tests (35)", "word-pack-quality (35)",
 }
 
 class ReleaseError(Exception):
@@ -219,22 +221,35 @@ def inspect_apk(path):
             "debuggable": "application-debuggable" in badging,
             "abis": sorted(re.findall(r"'([^']+)'", native[1])) if native else []}
 
-def validate_apk(info):
+def validate_apk(info, *, previous=False):
+    # Released inputs keep their real manifests. Accept the old 21 floor and
+    # subsequent supported releases; never require rebuilding the old APK.
+    floor = (SIGNATURE_AUDIT_MIN_SDK <= info["min_sdk"] <= MIN_SDK
+             if previous else info["min_sdk"] == MIN_SDK)
     require(info["application_id"] == PACKAGE and not info["debuggable"]
-            and info["min_sdk"] == 21 and info["abis"] == ABIS
+            and floor and info["abis"] == ABIS
             and re.fullmatch(r"\d+\.\d+\.\d+", info["version"])
             and 0 < info["version_code"] <= 2100000000, "APK_IDENTITY")
 
-def verify_signed(path, expected=CERTIFICATE):
+def verify_signed(path, expected=CERTIFICATE, *, previous=False):
+    info = inspect_apk(path)
+    validate_apk(info, previous=previous)
     root, _ = sdk_tools()
-    result = command([root / "apksigner", "verify", "--verbose", "--print-certs",
-                      "--min-sdk-version", "21", path], env=java_environment())
-    text = result.stdout.decode("utf-8")
-    certificates = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)", text)
-    require(len(certificates) == 1 and certificates[0].lower() == expected, "SIGNED_CERTIFICATE")
+    def verify(floor):
+        result = command([root / "apksigner", "verify", "--verbose", "--print-certs",
+                          "--min-sdk-version", str(floor), path], env=java_environment())
+        text = result.stdout.decode("utf-8")
+        certificates = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)", text)
+        require(len(certificates) == 1 and certificates[0].lower() == expected, "SIGNED_CERTIFICATE")
+        return text
+    text = verify(SIGNATURE_AUDIT_MIN_SDK)
     require(all(re.search(r"Verified using v" + scheme + r" scheme .*: true", text)
                 for scheme in ("1", "2", "3")), "SIGNATURE_SCHEMES")
-    return {"v1": True, "v2": True, "v3": True, "certificate_sha256": expected}
+    if info["min_sdk"] != SIGNATURE_AUDIT_MIN_SDK:
+        verify(info["min_sdk"])
+    return {"v1": True, "v2": True, "v3": True, "certificate_sha256": expected,
+            "signature_audit_min_sdk": SIGNATURE_AUDIT_MIN_SDK,
+            "signature_supported_min_sdk": info["min_sdk"]}
 
 def validate_run(value, current_sha, jobs):
     require(value.get("status") == "completed" and value.get("conclusion") == "success"
@@ -353,9 +368,10 @@ def prepare(run_id, output):
                     and record["version_code"] < info["version_code"], "PREVIOUS_RELEASE_IDENTITY")
             release_asset(previous, "miancak-" + record["version"] + ".apk", output / "previous.apk")
             require(file_sha(output / "previous.apk") == record["apk_sha256"], "PREVIOUS_APK_DIGEST")
-            verify_signed(output / "previous.apk")
+            verify_signed(output / "previous.apk", previous=True)
             old = inspect_apk(output / "previous.apk")
-            require(old["version_code"] == record["version_code"] and old["application_id"] == PACKAGE,
+            require(old["version_code"] == record["version_code"] and old["application_id"] == PACKAGE
+                    and old["version"] == record["version"],
                     "PREVIOUS_APK_IDENTITY")
             manifest["previous_release"] = {"tag": previous["tag_name"], "version": old["version"],
                                             "version_code": old["version_code"],

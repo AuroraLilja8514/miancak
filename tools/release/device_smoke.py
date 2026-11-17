@@ -332,7 +332,7 @@ def verify_release_target(api):
     ops.require(re.fullmatch(r'emulator-[0-9]+', serial), 'RELEASE_TARGET_SERIAL')
     def guest(*args): return read('-s', serial, *args)
     name = guest('emu', 'avd', 'name').splitlines()[0]
-    ops.require(api in (23, 35) and name in ('miancak-release-'+str(api), 'miancak-release-rehearsal-'+str(api)),
+    ops.require(api == 35 and name in ('miancak-release-'+str(api), 'miancak-release-rehearsal-'+str(api)),
                 'RELEASE_TARGET_AVD')
     ops.require(guest('shell', 'getprop', 'ro.kernel.qemu') == '1' and
                 guest('shell', 'getprop', 'ro.build.version.sdk') == str(api), 'RELEASE_TARGET_API')
@@ -373,7 +373,7 @@ def main():
         ops.require(ops.file_sha(apk) == record["apk_sha256"], "RELEASE_TEST_APK_DIGEST")
         previous = prepared / "previous.apk"
         baseline = previous if previous.is_file() else apk
-        ops.verify_signed(baseline)
+        ops.verify_signed(baseline, previous=previous.is_file())
         old = ops.inspect_apk(baseline)
         new = ops.inspect_apk(apk)
         if previous.is_file():
