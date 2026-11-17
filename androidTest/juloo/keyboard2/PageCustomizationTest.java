@@ -220,6 +220,49 @@ public final class PageCustomizationTest
     catch (IllegalArgumentException expected) {}
     assertEquals(before, PageKeyOverrides.export(preferences));
   }
+
+  @Test public void actionSuffixErrorsRejectEverySupportedImportVersionAtomically() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    preferences.edit().putString("unrelated", "preserve").putBoolean("other_flag", true).commit();
+    PageKeyOverrides edits = new PageKeyOverrides();
+    edits.set("zh", 0, 0, 1, false, PageKeyOverrides.literal("原样")); edits.save(preferences);
+    String exported = PageKeyOverrides.export(preferences);
+    java.util.Map<String, ?> before = new java.util.HashMap<>(preferences.getAll());
+    for (int version = 1; version <= 4; version++)
+      for (String action : new String[] {":literal:'你好'junk", ":engine:'ni' hao",
+          ":str:'hello'world", ":char:a,enter", ":keyevent:66,space"})
+      {
+        JSONObject invalid = new JSONObject(exported).put("version", version);
+        invalid.getJSONObject("pages").put("zh", new JSONObject().put("0:0:0", action));
+        try
+        {
+          PageKeyOverrides.importJson(preferences, context().getResources(), invalid.toString());
+          fail("Imported an action with unconsumed text");
+        }
+        catch (KeyValueParser.ParseError expected) {}
+        assertEquals(before, preferences.getAll());
+        assertEquals(exported, PageKeyOverrides.export(preferences));
+      }
+  }
+
+  @Test public void savedPrefixCompatibilitySurvivesWhileNewEditsRejectTheSuffix() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    String stored = new JSONObject().put("zh", new JSONObject()
+        .put("0:0:0", ":literal:'保留'old-suffix")).toString();
+    preferences.edit().putString(PageKeyOverrides.KEY, stored).commit();
+    java.util.Map<String, ?> before = new java.util.HashMap<>(preferences.getAll());
+    PageKeyOverrides edits = PageKeyOverrides.load(preferences);
+    KeyboardData layout = edits.apply("zh", PageLayouts.base(context().getResources(), "zh"));
+    assertEquals("保留", layout.rows.get(0).keys.get(0).keys[0].getSemanticText());
+    String draft = edits.snapshot();
+    try { edits.set("zh", 0, 0, 0, false, ":literal:'新'ignored"); fail(); }
+    catch (KeyValueParser.ParseError expected) {}
+    assertEquals(draft, edits.snapshot());
+    assertEquals(stored, PageKeyOverrides.raw(preferences));
+    assertEquals(before, preferences.getAll());
+  }
   @Test public void savedEditsCannotOutgrowTheirOwnPortableFileLimit() throws Exception
   {
     SharedPreferences preferences = prefs(); String before = PageKeyOverrides.export(preferences);

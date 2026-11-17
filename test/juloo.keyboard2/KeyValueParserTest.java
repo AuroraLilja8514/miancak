@@ -10,6 +10,68 @@ public class KeyValueParserTest
 {
   public KeyValueParserTest() {}
 
+  private void rejectsNewAction(String definition) throws Exception
+  {
+    try { PageKeyOverrides.validateAction(definition); fail("Silently accepted trailing action text: " + definition); }
+    catch (KeyValueParser.ParseError expected) { assertFalse(expected.getMessage().isEmpty()); }
+  }
+
+  @Test public void newSemanticActionsRejectTextOutsideTheQuotedPayload() throws Exception
+  {
+    for (String definition : new String[] {":literal:'你好'junk", ":engine:'ni' hao",
+        ":literal:'a','b'", ":engine:'ni' :literal:'hao'"}) rejectsNewAction(definition);
+  }
+
+  @Test public void newTypedActionsRejectIgnoredPunctuationAndSecondDefinitions() throws Exception
+  {
+    for (String definition : new String[] {":str:'hello'world", ":char:a,enter",
+        ":keyevent:66,space", ":keyevent:66.5"}) rejectsNewAction(definition);
+  }
+
+  @Test public void trailingFormattingWhitespaceRemainsAccepted() throws Exception
+  {
+    for (String definition : new String[] {":literal:'你好'", ":engine:'ni hao'", ":str:'hello'",
+        ":char:a", ":keyevent:66"})
+    {
+      PageKeyOverrides.validateAction(definition + " \t\r\n");
+      assertEquals(KeyValueParser.parse(definition), KeyValueParser.parseComplete(definition + " \t\r\n"));
+    }
+  }
+
+  @Test public void quotedPayloadWhitespaceEscapesAndUnicodeStayExact() throws Exception
+  {
+    String text = " 你好🙂\n'\\:尾 ";
+    for (String kind : new String[] {"literal", "engine"})
+    {
+      String definition = ":" + kind + ":'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'";
+      PageKeyOverrides.validateAction(definition);
+      assertEquals(text, KeyValueParser.parse(definition).getSemanticText());
+      assertEquals(text, KeyValueParser.parseComplete(definition).getSemanticText());
+    }
+  }
+
+  @Test public void namedActionsPlainTextAndSupportedMacrosKeepTheirSyntax() throws Exception
+  {
+    for (String definition : new String[] {"shift", "fn_page", "language_switch", "普通文字🙂",
+        "copy:ctrl,a,ctrl,c", "Return:keyevent:66", "Text:'https://example.invalid/a:b'"})
+      PageKeyOverrides.validateAction(definition);
+  }
+
+  @Test public void compatibilityParserKeepsPreviouslyStoredPrefixMeaning() throws Exception
+  {
+    assertEquals("保留", KeyValueParser.parse(":literal:'保留'old-suffix").getSemanticText());
+    assertEquals('a', KeyValueParser.parse(":char:a,enter").getChar());
+    assertEquals(66, KeyValueParser.parse(":keyevent:66,space").getKeyevent());
+  }
+
+  @Test public void newActionLengthLimitIsUnchanged() throws Exception
+  {
+    char[] limit = new char[2048]; java.util.Arrays.fill(limit, 'a');
+    PageKeyOverrides.validateAction(new String(limit));
+    try { PageKeyOverrides.validateAction(new String(limit) + "a"); fail(); }
+    catch (IllegalArgumentException expected) { assertEquals("Action is too long", expected.getMessage()); }
+  }
+
   @Test public void semanticTextEscapesQuotesAndBackslashesExactly() throws Exception
   {
     String text = "a'\\‘中文’";

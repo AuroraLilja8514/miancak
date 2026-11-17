@@ -73,7 +73,7 @@ public final class PageKeyOverrides
   public static void validateAction(String text) throws Exception
   {
     if (text.length() > 2048) throw new IllegalArgumentException("Action is too long");
-    parse(text);
+    if (KeyValue.getSpecialKeyByName(text) == null) KeyValueParser.parseComplete(text);
   }
   private static KeyValue parse(String text) throws Exception
   { KeyValue special = KeyValue.getSpecialKeyByName(text); return special != null ? special : KeyValueParser.parse(text); }

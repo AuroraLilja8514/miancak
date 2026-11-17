@@ -55,6 +55,13 @@ public final class KeyValueParser
     return KeyValue.makeMacro(symbol, keydefs.toArray(new KeyValue[]{}), 0);
   }
 
+  /** New layout actions must consume the whole definition. Runtime loading
+      keeps parse()'s inherited compatibility with already saved values. */
+  static public KeyValue parseComplete(String input) throws ParseError
+  {
+    return input.startsWith(":") ? Starting_with_colon.parse(input, true) : parse(input);
+  }
+
   static void init()
   {
     if (KEYDEF_TOKEN != null)
@@ -144,8 +151,14 @@ public final class KeyValueParser
     static Pattern QUOTED_PAT;
     static Pattern PAYLOAD_START_PAT;
     static Pattern WORD_PAT;
+    static Pattern END_PAT;
 
     static public KeyValue parse(String str) throws ParseError
+    {
+      return parse(str, false);
+    }
+
+    static KeyValue parse(String str, boolean complete) throws ParseError
     {
       String symbol = null;
       int flags = 0;
@@ -184,18 +197,18 @@ public final class KeyValueParser
         case "engine":
         case "literal":
           payload = parseSingleQuotedString(m);
-          return KeyValue.makeSemanticText(payload, kind.equals("engine"), symbol, flags);
+          return finish(KeyValue.makeSemanticText(payload, kind.equals("engine"), symbol, flags), m, complete);
         case "str":
           payload = parseSingleQuotedString(m);
           if (symbol == null)
-            return KeyValue.makeStringKey(payload, flags);
-          return KeyValue.makeStringKey(payload, flags).withSymbol(symbol);
+            return finish(KeyValue.makeStringKey(payload, flags), m, complete);
+          return finish(KeyValue.makeStringKey(payload, flags).withSymbol(symbol), m, complete);
 
         case "char":
           payload = parsePayloadWord(m);
           if (payload.length() != 1)
             parseError("Expected a single character payload", m);
-          return KeyValue.makeCharKey(payload.charAt(0), symbol, flags);
+          return finish(KeyValue.makeCharKey(payload.charAt(0), symbol, flags), m, complete);
 
         case "keyevent":
           payload = parsePayloadWord(m);
@@ -205,12 +218,23 @@ public final class KeyValueParser
           { parseError("Expected an integer payload", m); }
           if (symbol == null)
             symbol = String.valueOf(eventcode);
-          return KeyValue.keyeventKey(symbol, eventcode, flags);
+          return finish(KeyValue.keyeventKey(symbol, eventcode, flags), m, complete);
 
         default: break;
       }
       parseError("Unknown kind '"+kind+"'", m, 1);
       return null; // Unreachable
+    }
+
+    static KeyValue finish(KeyValue value, Matcher matcher, boolean complete) throws ParseError
+    {
+      if (complete)
+      {
+        matcher.region(matcher.end(), matcher.regionEnd());
+        matcher.usePattern(END_PAT);
+        if (!matcher.matches()) parseError("Unexpected trailing text after key definition", matcher);
+      }
+      return value;
     }
 
     static String parseSingleQuotedString(Matcher m) throws ParseError
@@ -258,6 +282,7 @@ public final class KeyValueParser
       QUOTED_PAT = Pattern.compile("'((?:[^'\\\\]+|\\\\.)*)'");
       PAYLOAD_START_PAT = Pattern.compile("\\s*:");
       WORD_PAT = Pattern.compile("[a-zA-Z0-9_]*");
+      END_PAT = Pattern.compile("\\s*");
     }
   }
 
