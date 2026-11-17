@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNNER = ROOT / "scripts/run_with_timeout.py"
@@ -79,6 +80,58 @@ class ScriptTimeoutTest(unittest.TestCase):
                                       extra_env={"MIANCAK_TIMEOUT_GRACE_SECONDS": ".2"})
         self.assertEqual(124, result.returncode)
         self.assertLess(elapsed, 3)
+
+    def test_parent_stat_fallback_tracks_only_descendants(self):
+        import run_with_timeout as watchdog
+        # No task/children files. A command name containing ')' must not shift
+        # the PPid/start-time fields.
+        records = {101: (1, '10'), 102: (101, '20'), 103: (102, '30'), 104: (1, '40')}
+
+        def read(path):
+            if str(path).endswith('/children'):
+                raise FileNotFoundError(path)
+            pid = int(path.parts[2])
+            parent, started = records[pid]
+            return f"{pid} (test ) name) S {parent} " + '0 ' * 17 + started
+
+        owned = {}
+        with mock.patch.object(watchdog.Path, 'read_text', autospec=True, side_effect=read), \
+             mock.patch.object(watchdog.Path, 'iterdir', return_value=iter(
+                 [Path('/proc') / str(pid) for pid in records] + [Path('/proc/self')])):
+            watchdog.remember_tree(101, owned)
+        self.assertEqual({101: '10', 102: '20', 103: '30'}, owned)
+
+    def test_remember_tree_never_reowns_a_reused_pid(self):
+        import run_with_timeout as watchdog
+        owned = {101: 'original-start'}
+        with mock.patch.object(watchdog, 'identity', return_value=('replacement-start', 'S')), \
+             mock.patch.object(watchdog.Path, 'read_text') as read:
+            watchdog.remember_tree(101, owned)
+        self.assertEqual({101: 'original-start'}, owned)
+        read.assert_not_called()
+
+    def test_parent_snapshot_rechecks_child_start_before_owning_it(self):
+        import run_with_timeout as watchdog
+        owned = {}
+        with mock.patch.object(watchdog, 'identity', side_effect=lambda pid:
+                               ('root-start', 'S') if pid == 101 else ('replacement-start', 'S')), \
+             mock.patch.object(watchdog.Path, 'read_text', side_effect=FileNotFoundError), \
+             mock.patch.object(watchdog, 'parent_snapshot', return_value={101: [(102, 'old-start')]}):
+            watchdog.remember_tree(101, owned)
+        self.assertEqual({101: 'root-start'}, owned)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX process identity')
+    def test_reused_pid_is_never_signalled(self):
+        import run_with_timeout as watchdog
+        child = mock.Mock(pid=101)
+        with mock.patch.object(watchdog, 'identity', return_value=('replacement-start', 'S')), \
+             mock.patch.object(watchdog.os, 'getpgid') as getpgid, \
+             mock.patch.object(watchdog.os, 'kill') as kill, \
+             mock.patch.object(watchdog.os, 'killpg') as killpg:
+            watchdog.signal_tree(child, {101: 'original-start'}, signal.SIGTERM)
+        getpgid.assert_not_called()
+        kill.assert_not_called()
+        killpg.assert_not_called()
 
     @unittest.skipIf(os.name == "nt", "POSIX cancellation")
     def test_cancellation_is_forwarded_and_returns_signal_status(self):

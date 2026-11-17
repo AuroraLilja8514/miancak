@@ -47,25 +47,60 @@ def options(args):
     return seconds, remaining
 
 
-def identity(pid):
-    """Linux start time prevents signaling an unrelated process after PID reuse."""
+def process_stat(pid):
     try:
-        fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
-        return fields[19], fields[0]
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
     except (OSError, IndexError):
         return None
 
 
-def remember_tree(pid, owned):
-    value = identity(pid)
-    if value is not None:
-        owned[pid] = value[0]
+def identity(pid):
+    """Linux start time prevents signaling an unrelated process after PID reuse."""
+    fields = process_stat(pid)
+    return (fields[19], fields[0]) if fields and len(fields) > 19 else None
+
+
+def parent_snapshot():
+    """Some procfs implementations omit task/*/children but expose stat PPids."""
+    parents = {}
     try:
-        children = Path(f"/proc/{pid}/task/{pid}/children").read_text().split()
+        entries = list(Path("/proc").iterdir())
     except OSError:
-        return
-    for child in children:
-        remember_tree(int(child), owned)
+        return parents
+    for entry in entries:
+        if not entry.name.isdecimal():
+            continue
+        fields = process_stat(entry.name)
+        if fields and len(fields) > 19:
+            try:
+                parents.setdefault(int(fields[1]), []).append((int(entry.name), fields[19]))
+            except ValueError:
+                continue
+    return parents
+
+
+def remember_tree(pid, owned):
+    pending = [(pid, None)]
+    visited = set()
+    parents = None
+    while pending:
+        current, expected_start = pending.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        value = identity(current)
+        if value is None or (expected_start is not None and value[0] != expected_start) or (
+                current in owned and owned[current] != value[0]):
+            continue
+        owned[current] = value[0]
+        try:
+            children = [(int(child), None) for child in
+                        Path(f"/proc/{current}/task/{current}/children").read_text().split()]
+        except OSError:
+            if parents is None:
+                parents = parent_snapshot()
+            children = parents.get(current, [])
+        pending.extend(children)
 
 
 def signal_tree(child, owned, sig):
@@ -75,7 +110,8 @@ def signal_tree(child, owned, sig):
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
         return
     remember_tree(child.pid, owned)
-    groups = {child.pid}
+    leader = identity(child.pid)
+    groups = set() if leader is not None and child.pid in owned and leader[0] != owned[child.pid] else {child.pid}
     for pid, started in list(owned.items()):
         current = identity(pid)
         if current is None or current[0] != started or current[1] == "Z":
