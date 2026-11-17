@@ -85,7 +85,7 @@ public class PageSettingsActivity extends Activity
     restore.setEnabled(preferences.contains(PageKeyOverrides.KEY + "_previous_bundle"));
     restore.setOnClickListener(view -> new AlertDialog.Builder(this).setMessage(R.string.page_restore_confirm)
         .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok, (dialog, which) -> {
-          try { PageKeyOverrides.importJson(preferences, this, preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "")); render(); }
+          try { PageKeyOverrides.restorePrevious(preferences, this); render(); }
           catch (Exception error) { error(error.getMessage()); }
         }).show()); content.addView(restore);
     android.widget.TextView note = new android.widget.TextView(this);

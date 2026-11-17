@@ -263,6 +263,28 @@ public final class PageCustomizationTest
     assertEquals(stored, PageKeyOverrides.raw(preferences));
     assertEquals(before, preferences.getAll());
   }
+
+  @Test public void previousWorkingBundleKeepsCompatibilityWithoutRelaxingFileImports() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    String legacyAction = ":literal:'保留'old-suffix";
+    String stored = new JSONObject().put("zh", new JSONObject().put("0:0:0", legacyAction)).toString();
+    preferences.edit().putString(PageKeyOverrides.KEY, stored).putString("unrelated", "keep").commit();
+    PageKeyOverrides next = PageKeyOverrides.load(preferences);
+    next.set("zh", 0, 0, 0, false, PageKeyOverrides.literal("新值")); next.save(preferences);
+    String previous = preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", "");
+    java.util.Map<String, ?> beforeImport = new java.util.HashMap<>(preferences.getAll());
+    try { PageKeyOverrides.importJson(preferences, context(), previous); fail(); }
+    catch (KeyValueParser.ParseError expected) {}
+    assertEquals(beforeImport, preferences.getAll());
+    PageKeyOverrides.restorePrevious(preferences, context());
+    assertEquals(legacyAction, PageKeyOverrides.load(preferences).action("zh", 0, 0, 0, false));
+    KeyboardData restored = PageKeyOverrides.load(preferences).apply("zh", PageLayouts.base(context().getResources(), "zh"));
+    assertEquals("保留", restored.rows.get(0).keys.get(0).keys[0].getSemanticText());
+    assertEquals("keep", preferences.getString("unrelated", ""));
+    JSONObject undo = new JSONObject(preferences.getString(PageKeyOverrides.KEY + "_previous_bundle", ""));
+    assertEquals(PageKeyOverrides.literal("新值"), undo.getJSONObject("pages").getJSONObject("zh").getString("0:0:0"));
+  }
   @Test public void savedEditsCannotOutgrowTheirOwnPortableFileLimit() throws Exception
   {
     SharedPreferences preferences = prefs(); String before = PageKeyOverrides.export(preferences);

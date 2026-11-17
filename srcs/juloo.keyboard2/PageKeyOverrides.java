@@ -71,9 +71,12 @@ public final class PageKeyOverrides
   public static String literal(String text)
   { return ":literal:'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"; }
   public static void validateAction(String text) throws Exception
+  { validateAction(text, true); }
+  private static void validateAction(String text, boolean complete) throws Exception
   {
     if (text.length() > 2048) throw new IllegalArgumentException("Action is too long");
-    if (KeyValue.getSpecialKeyByName(text) == null) KeyValueParser.parseComplete(text);
+    if (!complete) parse(text);
+    else if (KeyValue.getSpecialKeyByName(text) == null) KeyValueParser.parseComplete(text);
   }
   private static KeyValue parse(String text) throws Exception
   { KeyValue special = KeyValue.getSpecialKeyByName(text); return special != null ? special : KeyValueParser.parse(text); }
@@ -135,10 +138,14 @@ public final class PageKeyOverrides
       .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
   public static void importJson(SharedPreferences preferences, Resources resources, String text) throws Exception
-  { importJson(preferences, resources, null, text); }
+  { importJson(preferences, resources, null, text, true); }
   public static void importJson(SharedPreferences preferences, android.content.Context context, String text) throws Exception
-  { importJson(preferences, context.getResources(), context, text); }
-  private static void importJson(SharedPreferences preferences, Resources resources, android.content.Context context, String text) throws Exception
+  { importJson(preferences, context.getResources(), context, text, true); }
+  /** A previously saved working bundle keeps the same action interpretation
+   * as runtime loading; file imports must still validate complete new actions. */
+  static void restorePrevious(SharedPreferences preferences, android.content.Context context) throws Exception
+  { importJson(preferences, context.getResources(), context, preferences.getString(KEY + "_previous_bundle", ""), false); }
+  private static void importJson(SharedPreferences preferences, Resources resources, android.content.Context context, String text, boolean complete) throws Exception
   {
     if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES) throw new IllegalArgumentException("File is too large");
     JSONObject root = new JSONObject(text);
@@ -160,7 +167,7 @@ public final class PageKeyOverrides
         if (row < 0 || row >= layout.rows.size() || col < 0 || col >= layout.rows.get(row).keys.size() || direction < 0 || direction > 9)
           throw new IllegalArgumentException("Key position is outside page");
         if (!(keys.get(position) instanceof String)) throw new IllegalArgumentException("Key action must be text");
-        String action = keys.getString(position); if (!action.isEmpty()) validateAction(action);
+        String action = keys.getString(position); if (!action.isEmpty()) validateAction(action, complete);
       }
     }
     String phonetic = root.optString("phonetic_entry", "pinyin");

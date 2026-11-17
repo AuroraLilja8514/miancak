@@ -4,7 +4,7 @@ This inherited XML/key reference keeps Unexpected Keyboard compatibility names. 
 
 A key value defines what a key on the keyboard does when pressed or swiped.
 
-New actions entered or imported through MIANCAK's versioned layout editor must consume their whole definition. For example, `:literal:'你好'junk` and `:keyevent:66,space` are rejected instead of silently using only their prefix. Formatting whitespace after a complete colon-style definition is allowed; text inside quotes stays exact. Existing stored actions and inherited XML loading keep their compatibility parser and are not rewritten by this validation change.
+New actions entered or imported from files through MIANCAK's versioned layout editor must consume their whole definition. For example, `:literal:'你好'junk` and `:keyevent:66,space` are rejected instead of silently using only their prefix. Formatting whitespace after a complete colon-style definition is allowed; text inside quotes stays exact. Existing stored actions, internal restoration of the previous working bundle and inherited XML loading keep their compatibility parser and are not rewritten by this validation change. Internal restoration retains its size, version, page, position and action-length checks; external files always use complete-definition validation.
 
 Key values appear in the following places:
 
