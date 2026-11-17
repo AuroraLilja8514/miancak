@@ -10,7 +10,7 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 
 | Job | What it verifies |
 | --- | --- |
-| `generated` | Regenerates layout/Compose/method outputs, checks identity/source keys and generated store metadata, and requires a clean diff |
+| `generated` | Regenerates layout/Compose/method outputs, checks identity/source keys, store metadata and release contracts/embedded helper generation, and requires a clean diff |
 | `unit` | Java 17/Gradle debug and release unit suites and Android test-driver compilation, then a clean diff; publishes XML and per-suite counts |
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
@@ -23,6 +23,8 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | `emulator-reboot (35)` | Independent empty guest, three actual adb reboots with changed boot IDs; runs independently of APK jobs on other hosts |
 
 The public-base matrix has 12 expanded checks, derived and compared against the required release gate names by `tools/release/test_release.py`. Application/test minSdk is 33; runtime jobs target API 35 only. Additional jobs integrated later must also enter the exact gate set; a stale count is not a waiver. Emulator version and GPU settings are pinned for API 35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
+
+The `generated` job runs the release host contracts without signing inputs or SDK fixtures. They check the expanded workflow names against the reviewed gate set and verify generated inline helpers. During actual release preparation and provenance rechecks, the helper independently requires exactly that job-name set from the selected CI run and a successful latest result for every gate. Unknown jobs are rejected even when successful, so adding a matrix entry requires updating the reviewed gate set in the same change.
 
 The emulator action uses a supported SDK platform for provisioning and selects the guest system image separately. The script asserts the guest API before testing, so platform provisioning cannot silently change the tested Android version.
 

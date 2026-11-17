@@ -66,6 +66,36 @@ class Guards(unittest.TestCase):
             with self.assertRaises(ops.ReleaseError):
                 ops.validate_run(self.run_record(),"a"*40,jobs)
 
+    def test_unregistered_job_cannot_be_ignored_by_release(self):
+        # A newly added or obsolete matrix job must be reviewed into the gate
+        # set; its name cannot be ignored even when every known gate succeeds.
+        for conclusion in ("success", "failure", "skipped", "cancelled", None):
+            with self.subTest(conclusion=conclusion), self.assertRaisesRegex(ops.ReleaseError, "^CI_GATES$"):
+                ops.validate_run(self.run_record(), "a"*40,
+                    self.jobs()+[{"id": 99, "name": "unregistered-extra-job", "conclusion": conclusion}])
+
+    def test_release_contracts_are_required_by_generated_job(self):
+        text=(ROOT/".github/workflows/ci.yml").read_text()
+        generated=text.split("\n  generated:\n",1)[1].split("\n  unit:\n",1)[0]
+        self.assertRegex(generated,
+            r"(?m)^          python3 tools/release/test_release\.py --timeout-seconds 120$")
+
+    def test_paginated_history_cannot_hide_an_unregistered_job(self):
+        names=sorted(ops.GATES)
+        history=[{"id": index+1, "name": names[index % len(names)], "conclusion": "success"}
+                 for index in range(100)]
+        pages={"actions/runs/7": self.run_record(),
+               "git/ref/heads/master": {"object": {"sha": "a"*40}},
+               "actions/runs/7/jobs?filter=all&per_page=100&page=1":
+                   {"total_count": 101, "jobs": history},
+               "actions/runs/7/jobs?filter=all&per_page=100&page=2":
+                   {"total_count": 101, "jobs": [
+                       {"id": 101, "name": "unregistered-extra-job", "conclusion": "skipped"}]}}
+        with mock.patch.object(ops, "api", side_effect=pages.__getitem__) as api:
+            with self.assertRaisesRegex(ops.ReleaseError, "^CI_GATES$"):
+                ops.trusted_run(7)
+        self.assertEqual(list(pages), [call.args[0] for call in api.call_args_list])
+
     def test_only_latest_result_per_job_can_satisfy_a_gate(self):
         history=self.jobs()+[{"id":1,"name":"generated","conclusion":"success"},
                              {"id":2,"name":"generated","conclusion":"failure"}]

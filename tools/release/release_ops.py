@@ -259,7 +259,9 @@ def validate_run(value, current_sha, jobs):
             and value.get("head_sha") == current_sha
             and re.fullmatch(r"[0-9a-f]{40}", current_sha), "CI_SOURCE")
     by_name = {job["name"]: job for job in sorted(jobs, key=lambda value:value.get("id",0))}
-    require(GATES <= by_name.keys()
+    # Every job in this exact run must have a reviewed gate. Otherwise a new
+    # matrix entry could be silently ignored by a stale release helper.
+    require(GATES == by_name.keys()
             and all(by_name[name].get("conclusion") == "success" for name in GATES), "CI_GATES")
 
 def trusted_run(run_id):
