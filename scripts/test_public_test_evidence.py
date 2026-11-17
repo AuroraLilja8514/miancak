@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -358,6 +359,155 @@ else:raise SystemExit(98)
         report=self.stage()
         self.assertEqual('unavailable',report['heartbeat']['progress-interactions-main.jsonl'])
         self.assertEqual(0,report['raw_marker_sources_read'])
+
+    @staticmethod
+    def typed_failure():
+        return dict(status='observed', phase='FLOW', kind='ASSERTION', observed_ms=14,
+                    scope='FIRST_INSTALL', stage='BACK_RETURN', seq=4, stage_ms=13,
+                    call=13, category=0, page=-1, attempt=-1)
+
+    @staticmethod
+    def typed_rows():
+        header = dict(schema=2, scenario='first-install', phase='reboot', clock='elapsedRealtime_ms',
+                      started_ms=1, interval_ms=10000, window_ms=840000,
+                      meaning='ack_only_proves_ordinary_main_callback_ran;missing_is_ambiguous')
+        row = dict(event='exit_stop', at_ms=12, elapsed_ms=11, scope='FIRST_INSTALL', stage='FINALLY_RETURN',
+                   seq=8, stage_ms=15, call=13, category=0, page=-1, attempt=-1, request=1, ack=1, ack_ms=13,
+                   previous_post='accepted', post_token=1, post_call_ms=2, post_return_ms=3,
+                   failure={'status': 'unavailable'})
+        return header, row
+
+    def project_rows(self, header, rows):
+        name = 'progress-first-install-reboot.jsonl'
+        self.put('test-results/device/' + name, '\n'.join(map(json.dumps, [header] + rows)) + '\n')
+        report = self.stage(scenario='first-install')
+        body = (self.root/'public-test-results/heartbeat.jsonl').read_text()
+        shutil.rmtree(self.root/'public-test-results')
+        return report, body, name
+
+    def test_first_failure_survives_later_finally_breadcrumb_and_sampling_order(self):
+        header, row = self.typed_rows()
+        row['failure'] = self.typed_failure()
+        report, body, name = self.project_rows(header, [row, dict(row, seq=9, stage='TEARDOWN_RETURN')])
+        self.assertEqual(2, report['schema'])
+        self.assertEqual('available', report['heartbeat'][name])
+        self.assertEqual(self.typed_failure(), report['failure_evidence'][name])
+        self.assertEqual('BACK_RETURN', report['failure_evidence'][name]['stage'])
+        # Concurrent publication may be later than the row's supplied timestamp.
+        self.assertGreater(row['failure']['observed_ms'], row['at_ms'])
+        self.assertEqual(row, json.loads(body.splitlines()[1])['record'])
+
+    def test_lost_or_changed_failure_latch_refuses_the_entire_heartbeat(self):
+        header, row = self.typed_rows(); row['failure'] = self.typed_failure()
+        for later in ({'status': 'unavailable'}, dict(row['failure'], phase='CLEANUP'),
+                      dict(row['failure'], kind='IO'), dict(row['failure'], observed_ms=15)):
+            with self.subTest(later=later):
+                report, body, name = self.project_rows(header, [row, dict(row, failure=later)])
+                self.assertEqual('unavailable', report['heartbeat'][name])
+                self.assertEqual({'status': 'unavailable'}, report['failure_evidence'][name])
+                self.assertEqual('', body)
+                self.assertEqual('failed', report['result'])
+
+    def test_missing_legacy_and_unobserved_failure_are_explicitly_unavailable(self):
+        header, row = self.typed_rows()
+        for schema, omit, available in ((1, True, True), (2, False, True), (2, True, False)):
+            h = dict(header, schema=schema); r = dict(row)
+            if omit: del r['failure']
+            report, _, name = self.project_rows(h, [r])
+            self.assertEqual('available' if available else 'unavailable', report['heartbeat'][name])
+            self.assertEqual({'status': 'unavailable'}, report['failure_evidence'][name])
+            self.assertEqual('failed', report['result'])
+
+    def test_failure_unknown_keys_enums_and_hostile_text_are_never_forwarded(self):
+        header, row = self.typed_rows(); good = self.typed_failure()
+        variants = [None, [], dict(good, message=SECRET), dict(good, filename=SECRET),
+                    dict(good, thread=SECRET), dict(good, intent=SECRET),
+                    {'status': 'unavailable', 'message': SECRET}]
+        for key in ('status', 'phase', 'kind', 'scope', 'stage'):
+            variants += [dict(good, **{key: SECRET}), dict(good, **{key: []})]
+        for value in variants:
+            with self.subTest(value=value):
+                report, body, name = self.project_rows(header, [dict(row, failure=value)])
+                self.assertEqual('unavailable', report['heartbeat'][name])
+                self.assertEqual({'status': 'unavailable'}, report['failure_evidence'][name])
+                self.assertEqual('', body)
+
+    def test_failure_numeric_bounds_and_all_fixed_kind_phase_values(self):
+        header, row = self.typed_rows(); good = self.typed_failure()
+        for key, low, high in [('observed_ms', 0, 2**63-1), ('seq', 0, 2**63-1),
+                ('stage_ms', 0, 2**63-1), ('call', 0, 256), ('category', 0, 7),
+                ('page', -1, 31), ('attempt', -1, 31)]:
+            for value in (True, 1.0, None, SECRET, low-1, high+1, float('nan'), float('inf')):
+                with self.subTest(key=key, value=value):
+                    report, body, name = self.project_rows(header, [dict(row, failure=dict(good, **{key: value}))])
+                    self.assertEqual('unavailable', report['heartbeat'][name]); self.assertEqual('', body)
+            for value in (low, high):
+                report, _, name = self.project_rows(header, [dict(row, failure=dict(good, **{key: value}))])
+                self.assertEqual('available', report['heartbeat'][name])
+        for phase in evidence.FAILURE_PHASES:
+            for kind in evidence.FAILURE_KINDS:
+                failure = dict(good, phase=phase, kind=kind)
+                report, _, name = self.project_rows(header, [dict(row, failure=failure)])
+                self.assertEqual(failure, report['failure_evidence'][name])
+
+    @staticmethod
+    def typed_reboot():
+        row = dict(stage='WAIT_BOOT', cycle=2, elapsed_ms=3100, cycle_elapsed_ms=3000,
+                   poll_attempt=3, poll_status='TIMEOUT', boot_id_changed=None, completion='UNAVAILABLE')
+        return dict(schema=1, status='available', **row,
+                    failure=dict(status='observed', code='BOOT_DEADLINE', **row))
+
+    def project_reboot(self, diagnostic):
+        self.put('test-results/emulator-reboots.json', json.dumps(dict(diagnostic=diagnostic,
+            passed=False, error=SECRET, failedCycle={SECRET: SECRET}, cycles=[dict(seconds=1, beforeBootId=SECRET)])))
+        report = self.stage(scenario='reboot')
+        shutil.rmtree(self.root/'public-test-results')
+        return report
+
+    def test_reboot_missing_legacy_or_unavailable_retains_original_failed_outcome(self):
+        for diagnostic in (None, {'schema': 1, 'status': 'unavailable'}):
+            report = self.project_reboot(diagnostic)
+            self.assertEqual({'schema': 1, 'status': 'unavailable'}, report['reboot_evidence'])
+            self.assertEqual(1, report['metrics']['reboot.cycles_completed'])
+            self.assertEqual('failed', report['result'])
+
+    def test_reboot_projection_retains_only_exact_bounded_fields(self):
+        good = self.typed_reboot()
+        self.assertEqual(good, self.project_reboot(good)['reboot_evidence'])
+        for key, cap in [('cycle', 5), ('poll_attempt', 3601), ('elapsed_ms', 86400000),
+                         ('cycle_elapsed_ms', 86400000)]:
+            for value in (True, 1.0, SECRET, -1, cap+1, float('nan'), float('inf')):
+                for nested in (False, True):
+                    bad = json.loads(json.dumps(good)); target = bad['failure'] if nested else bad
+                    target[key] = value
+                    with self.subTest(key=key, value=value, nested=nested):
+                        self.assertEqual({'schema': 1, 'status': 'unavailable'},
+                                         self.project_reboot(bad)['reboot_evidence'])
+            for value in (0, cap):
+                self.assertEqual(dict(good, **{key: value}), self.project_reboot(dict(good, **{key: value}))['reboot_evidence'])
+        for key, value in [('schema', True), ('schema', 1.0), ('schema', 2), ('stage', SECRET),
+                ('stage', []), ('poll_status', SECRET), ('completion', SECRET), ('boot_id_changed', 1),
+                ('boot_id_changed', SECRET), ('path', SECRET), ('error', SECRET), ('status', SECRET),
+                ('failure', dict(good['failure'], code=SECRET)), ('failure', dict(good['failure'], message=SECRET)),
+                ('failure', {'status': 'unavailable', 'error': SECRET}), ('failure', [])]:
+            with self.subTest(key=key, value=value):
+                self.assertEqual({'schema': 1, 'status': 'unavailable'},
+                                 self.project_reboot(dict(good, **{key: value}))['reboot_evidence'])
+        for bad in ({'schema': True, 'status': 'unavailable'}, {'schema': 1.0, 'status': 'unavailable'},
+                    {'schema': 1, 'status': 'unavailable', 'error': SECRET}):
+            with self.assertRaises(ValueError): evidence.reboot_record(bad)
+
+    def test_reboot_enum_values_and_unavailable_partial_poll_fields(self):
+        good = self.typed_reboot()
+        for key, values in [('stage', evidence.REBOOT_STAGES), ('poll_status', evidence.REBOOT_POLLS),
+                ('completion', evidence.REBOOT_COMPLETIONS), ('boot_id_changed', (None, False, True)),
+                ('cycle_elapsed_ms', (None,))]:
+            for value in values:
+                expected = dict(good, **{key: value})
+                self.assertEqual(expected, self.project_reboot(expected)['reboot_evidence'])
+        for code in evidence.REBOOT_CODES:
+            expected = dict(good, failure=dict(good['failure'], code=code))
+            self.assertEqual(expected, self.project_reboot(expected)['reboot_evidence'])
 
 
 if __name__=='__main__':unittest.main()

@@ -18,6 +18,19 @@ final class AndroidProgressEvidence
     catch (Throwable ignored) { return ProgressEvidence.NONE; }
   }
 
+  /** No message, cause, stack, class-name string, thread or UI inspection. */
+  static void failed(ProgressEvidence evidence, ProgressEvidence.FailurePhase phase, Throwable original)
+  {
+    try
+    {
+      ProgressEvidence.FailureKind kind = original instanceof androidx.test.uiautomator.UiObjectNotFoundException
+          || original instanceof androidx.test.uiautomator.StaleObjectException
+          ? ProgressEvidence.FailureKind.AUTOMATION : ProgressEvidence.kind(original);
+      evidence.failed(phase, kind);
+    }
+    catch (Throwable ignored) { /* Keep the original exception, including recorder failures. */ }
+  }
+
   private static ProgressEvidence startWorker(Context context, ProgressEvidence.Run run)
   {
     ProgressEvidence evidence = new ProgressEvidence(run, new ProgressEvidence.Clock() {

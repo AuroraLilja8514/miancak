@@ -33,10 +33,13 @@ diagnostics are never a public-data sanitization boundary; only the typed public
 exporter output is eligible for upload.
 
 Only the sampler's marker/startup/worker failures are best-effort and do not
-replace acceptance exceptions. Its `close()` only sets a stop flag. Existing
-screenshot and evidence finally blocks retain their original semantics: they
-can block, throw, or mask an earlier failure. The sampler does not make those
-other evidence paths nonblocking or exception-safe.
+replace acceptance exceptions. Its `close()` only sets a stop flag.
+FirstInstallTest also preserves an in-flight flow exception through its existing
+final screenshot/rotation cleanup; a first cleanup exception still fails the
+test. Those calls can still block, and their sequential short-circuit behavior
+is unchanged. Other tests' existing screenshot/evidence finally blocks retain
+their original semantics and can mask an earlier failure. The sampler does not
+make those paths nonblocking or generally exception-safe.
 
 On Android 6, even one external-directory resolution on the worker can acquire
 a Context lock or call the mount service. Worker placement does not eliminate
@@ -56,7 +59,9 @@ process.
 
 The test thread publishes one immutable latest snapshot: fixed scope/stage,
 sequence, elapsedRealtime timestamp, and bounded integer details. The marker
-path does not query UI, inspect threads, serialize, or do I/O. Sampler `close()`
+path does not query UI, inspect threads, serialize, or do I/O. A first-failure
+latch uses that same in-memory path and publishes a bounded immutable copy of
+the latest breadcrumb with fixed phase/kind enums. Sampler `close()`
 never joins, interrupts, removes callbacks, writes, closes a sink, or waits.
 It is not a quiescence barrier: an attempt racing between the final stop check
 and `poster.post` can post after close, and queued callbacks can run later. They
@@ -106,12 +111,13 @@ A write can itself stall, so even this record is not guaranteed.
 | `post_token`, `post_call_ms`, `post_return_ms` | Most recent actual post attempt's token, call time and return time, visible in a later sample or exit. |
 | `previous_post` | Latest posting disposition; cancellation before invocation can leave the preceding attempt's token/times in the row. |
 | `call`, `category`, `page`, `attempt` | Bounded scenario details described below. |
+| `failure` | Schema-2 first-failure observation described below; unavailable is explicit. |
 
 Timestamps use elapsedRealtime milliseconds. Zero means not yet observed for
 post/ack fields. Compute actual sample spacing and callback age from recorded
 times rather than assuming the nominal cadence. A sample's row timestamp is
 captured before reading the latest snapshot and acknowledgement. Concurrent
-publication can make `stage_ms` or `ack_ms` slightly later than `at_ms`; a small
+publication can make `stage_ms`, `ack_ms` or `failure.observed_ms` slightly later than `at_ms`; a small
 negative computed age can reflect this ordering rather than a clock failure.
 Post dispositions are `none`, `accepted`, `rejected`, `threw_outcome_unknown`,
 or `cancelled_before_post`; event
@@ -130,9 +136,47 @@ rotation on `ROTATION_RETURN`: 0=natural, 1=90 degrees, 2=180 degrees, 3=270
 degrees. Other first-install stages use -1. General unspecified detail fields
 use zero or -1 as initialized by their marker call.
 
+### First-failure observation
+
+New sampler files use header `schema: 2`; schema 1 remains readable without
+failure metadata. Every schema-2 sample contains `failure` with either exactly
+`{"status":"unavailable"}` or the following fixed fields:
+
+| Field | Meaning and bounds |
+| --- | --- |
+| `status` | `observed`; an observation, not an assertion diagnosis. |
+| `phase` | `FLOW` or `CLEANUP`. |
+| `kind` | `ASSERTION`, `AUTOMATION`, `TIMEOUT`, `IO`, `INTERRUPTED` or `OTHER`. |
+| `observed_ms` | Monotonic time of the first recording attempt that published successfully. |
+| `scope`, `stage`, `seq`, `stage_ms` | Immutable latest breadcrumb captured at that boundary. |
+| `call`, `category`, `page`, `attempt` | That breadcrumb's existing detail values; bounds remain 0–256, 0–7, -1–31 and -1–31. |
+
+Times and sequence numbers are nonnegative signed-64-bit integers. Kinds use
+only `instanceof`: assertion, UIAutomator object-not-found/stale-object,
+TimeoutException, IOException, InterruptedException, then OTHER. Messages,
+causes, exception class names, thread state, stacks and intent/editor text are
+never inspected by the latch.
+
+FirstInstallTest records a caught flow failure before entering final evidence
+or teardown. A first cleanup failure is recorded only when no flow failure was
+latched. First attempt wins even if its clock/allocation fails; a later cleanup
+attempt cannot replace it. No new worker, callback, wait or file operation is
+started by the latch. The existing worker serializes the observation in a later
+sample if it gets that opportunity. An exit, stalled worker, interrupted pull,
+unsupported test path or failed recording attempt can leave it unavailable.
+Unavailable does not distinguish no failure from an unobserved failure. Fn and
+Symbol do not currently call this failure latch.
+
+The failure's stage is still the latest published breadcrumb: an assertion or
+partly unmarked operation may follow a return marker. It does not identify the
+failing assertion, prove a cause, or establish app/main-queue health. Later
+ordinary breadcrumbs may describe finally/teardown while `failure` retains the
+earlier boundary. Once observed, it must remain identical in subsequent samples;
+the public exporter rejects a run with a changed or lost latch.
+
 ## Host verification
 
-The CI unit step runs the 14 Android-free host experiments after Java 17 setup.
+The CI unit step runs the 19 Android-free host experiments after Java 17 setup.
 The driver explicitly compiles the exact core from androidTest with temporary
 fake clock/poster/sink fixtures; no app sources or Gradle source sets are added.
 The same checks can be run locally:
@@ -148,6 +192,11 @@ blocked posting, blocked open/write/close, nonblocking stop, guard reuse, old
 owner isolation, cadence/deadline, UTF-8/record caps and preservation of original
 exceptions by the sampler. A finite latch-controlled case also publishes an
 acknowledgement from another thread while its worker remains active. Host
+checks also cover pre-cleanup failure latching, later replacement attempts,
+recorder failure, cleanup exception identity, enum agreement and an actual Java
+producer-to-public-exporter roundtrip with failure metadata at full nominal
+cadence. Separate write-accounting experiments exercise the hard record/byte
+caps. Host
 passes do not establish Android runtime health or reproduction; device
 acceptance remains a separate check.
 

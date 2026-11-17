@@ -37,6 +37,13 @@ RUNS = {'progress-interactions-main.jsonl': ('interactions', 'main'),
         'progress-first-install-reboot.jsonl': ('first-install', 'reboot')}
 EVENTS = {'start', 'reserved_before_post', 'pending', 'exit_stop', 'exit_deadline'}
 POSTS = {'none', 'accepted', 'rejected', 'threw_outcome_unknown', 'cancelled_before_post'}
+FAILURE_PHASES = {'FLOW', 'CLEANUP'}
+FAILURE_KINDS = {'ASSERTION', 'AUTOMATION', 'TIMEOUT', 'IO', 'INTERRUPTED', 'OTHER'}
+REBOOT_STAGES = {'INITIAL_CHECKPOINT', 'READ_BOOT_ID', 'REBOOT_REQUEST', 'POLL_BOOT_ID',
+                 'POLL_COMPLETION', 'WAIT_BOOT', 'CYCLE_CHECKPOINT', 'COMPLETE'}
+REBOOT_CODES = {'INVALID_BOOT_ID', 'BOOT_DEADLINE', 'ADB_TIMEOUT', 'ADB_ERROR', 'HOST_IO', 'OTHER'}
+REBOOT_POLLS = {'UNAVAILABLE', 'OK', 'TIMEOUT', 'ADB_ERROR'}
+REBOOT_COMPLETIONS = {'UNAVAILABLE', 'COMPLETE', 'NOT_COMPLETE', 'INVALID'}
 EMPTY_INSTALL_STATUS = 'MIANCAK_EMPTY_INSTALL_EXIT='
 
 
@@ -98,6 +105,52 @@ def optional(root, relative, limit=262144):
     except (OSError, ValueError, TypeError, RecursionError): return None
 
 
+def failure_record(value):
+    if value == {'status': 'unavailable'}: return value
+    keys = {'status', 'phase', 'kind', 'observed_ms', 'scope', 'stage', 'seq', 'stage_ms',
+            'call', 'category', 'page', 'attempt'}
+    if not isinstance(value, dict) or set(value) != keys or value['status'] != 'observed' \
+            or value['phase'] not in FAILURE_PHASES or value['kind'] not in FAILURE_KINDS \
+            or value['scope'] not in SCOPES or value['stage'] not in STAGES:
+        raise ValueError('invalid fixed failure')
+    for key in ('observed_ms', 'seq', 'stage_ms', 'call', 'category'):
+        if type(value[key]) is not int or not number(value[key]): raise ValueError('invalid failure number')
+    for key in ('page', 'attempt'):
+        if type(value[key]) is not int or not -1 <= value[key] <= 31: raise ValueError('invalid failure detail')
+    if value['call'] > 256 or value['category'] > 7: raise ValueError('invalid failure bound')
+    return value
+
+
+def reboot_record(value):
+    """Strict projection of the existing reboot operations, never raw report fields."""
+    if isinstance(value, dict) and set(value) == {'schema', 'status'} and value['status'] == 'unavailable':
+        if type(value['schema']) is not int or value['schema'] != 1: raise ValueError('invalid reboot schema')
+        return {'schema': 1, 'status': 'unavailable'}
+    fields = {'stage', 'cycle', 'elapsed_ms', 'cycle_elapsed_ms', 'poll_attempt',
+              'poll_status', 'boot_id_changed', 'completion'}
+    def row(row):
+        if row['stage'] not in REBOOT_STAGES or row['poll_status'] not in REBOOT_POLLS \
+                or row['completion'] not in REBOOT_COMPLETIONS:
+            raise ValueError('invalid reboot enum')
+        for name, cap in (('cycle', 5), ('elapsed_ms', 86400000), ('poll_attempt', 3601)):
+            if type(row[name]) is not int or not number(row[name], cap): raise ValueError('invalid reboot number')
+        if row['cycle_elapsed_ms'] is not None and (type(row['cycle_elapsed_ms']) is not int
+                or not number(row['cycle_elapsed_ms'], 86400000)): raise ValueError('invalid cycle timing')
+        if row['boot_id_changed'] is not None and type(row['boot_id_changed']) is not bool:
+            raise ValueError('invalid boot comparison')
+    if not isinstance(value, dict) or set(value) != fields | {'schema', 'status', 'failure'} \
+            or type(value['schema']) is not int or value['schema'] != 1 or value['status'] != 'available':
+        raise ValueError('invalid reboot protocol')
+    row(value)
+    failure = value['failure']
+    if failure != {'status': 'unavailable'}:
+        if not isinstance(failure, dict) or set(failure) != fields | {'status', 'code'} or failure['status'] != 'observed' \
+                or failure['code'] not in REBOOT_CODES:
+            raise ValueError('invalid reboot failure')
+        row(failure)
+    return value
+
+
 def heartbeat(root, name, identity):
     candidates = []
     for prefix in ('test-results/device/', 'test-results/device/test-results/'):
@@ -109,7 +162,7 @@ def heartbeat(root, name, identity):
     rows = [json.loads(line) for line in lines]
     header = rows[0]
     if not isinstance(header, dict): raise ValueError('invalid header')
-    if header != {'schema': 1, 'scenario': identity[0], 'phase': identity[1],
+    if header.get('schema') not in (1, 2) or header != {'schema': header['schema'], 'scenario': identity[0], 'phase': identity[1],
                   'clock': 'elapsedRealtime_ms', 'started_ms': header.get('started_ms'),
                   'interval_ms': 10000, 'window_ms': 840000,
                   'meaning': 'ack_only_proves_ordinary_main_callback_ran;missing_is_ambiguous'}:
@@ -118,9 +171,10 @@ def heartbeat(root, name, identity):
     if type(header['started_ms']) is not int or not number(header['started_ms']): raise ValueError('invalid time')
     keys = {'event', 'at_ms', 'elapsed_ms', 'scope', 'stage', 'seq', 'stage_ms', 'call', 'category',
             'page', 'attempt', 'request', 'ack', 'ack_ms', 'previous_post', 'post_token', 'post_call_ms', 'post_return_ms'}
+    observed_failure = None
     for row in rows[1:]:
         if not isinstance(row,dict): raise ValueError('invalid row')
-        if set(row) != keys or row['event'] not in EVENTS or row['scope'] not in SCOPES \
+        if set(row) != (keys | {'failure'} if header['schema'] == 2 else keys) or row['event'] not in EVENTS or row['scope'] not in SCOPES \
                 or row['stage'] not in STAGES or row['previous_post'] not in POSTS:
             raise ValueError('invalid heartbeat')
         for key in keys - {'event', 'scope', 'stage', 'previous_post', 'page', 'attempt'}:
@@ -129,6 +183,12 @@ def heartbeat(root, name, identity):
             if type(row[key]) is not int or not -1 <= row[key] <= 31: raise ValueError('invalid detail')
         if row['call'] > 256 or row['category'] > 7 or row['request'] > 96 or row['ack'] > 96 or row['post_token'] > 96:
             raise ValueError('invalid bound')
+        if header['schema'] == 2:
+            failure = failure_record(row['failure'])
+            if failure['status'] == 'observed':
+                if observed_failure is not None and observed_failure != failure: raise ValueError('replaced primary failure')
+                observed_failure = failure
+            elif observed_failure is not None: raise ValueError('lost primary failure')
     return rows
 
 
@@ -197,9 +257,10 @@ def stage(root, scenario, outcome, source, api=None, locale=None, entry_order=No
     root = Path(root).absolute()
     destination = root / 'public-test-results'
     if destination.exists() or destination.is_symlink(): raise ValueError('public destination exists')
-    report = {'schema': 1, 'scenario': scenario, 'workflow_outcome': outcome,
+    report = {'schema': 2, 'scenario': scenario, 'workflow_outcome': outcome,
               'details': 'unavailable-public-policy', 'phase_results': {}, 'metrics': metrics(root),
-              'heartbeat': {}, 'provenance': {}}
+              'heartbeat': {}, 'provenance': {}, 'failure_evidence': {},
+              'reboot_evidence': {'schema': 1, 'status': 'unavailable'}}
     if re.fullmatch('[0-9a-f]{40}', source): report['provenance']['harness_source_sha'] = source
     if api in (23, 35): report['api'] = api
     if locale in ('en-US','zh-CN'): report['locale'] = locale
@@ -226,6 +287,9 @@ def stage(root, scenario, outcome, source, api=None, locale=None, entry_order=No
     report['result'] = ('failed' if outcome == 'failure' or report.get('driver_exit_code', 0) != 0
                         else 'passed' if outcome == 'success' and report.get('driver_exit_code') == 0 else 'unavailable')
     reboot = optional(root, 'test-results/emulator-reboots.json')
+    if isinstance(reboot, dict):
+        try: report['reboot_evidence'] = reboot_record(reboot.get('diagnostic'))
+        except (ValueError, TypeError, KeyError, RecursionError): pass
     if isinstance(reboot, dict) and isinstance(reboot.get('cycles'), list) and len(reboot['cycles']) <= 5:
         report['metrics']['reboot.cycles_completed'] = len(reboot['cycles'])
         for i, cycle in enumerate(reboot['cycles']):
@@ -285,9 +349,13 @@ def stage(root, scenario, outcome, source, api=None, locale=None, entry_order=No
         except (OSError,ValueError): pass
     rows = []
     for name, identity in RUNS.items():
+        report['failure_evidence'][name] = {'status': 'unavailable'}
         try:
             records = heartbeat(root, name, identity)
             report['heartbeat'][name] = 'available'
+            for record in records[1:]:
+                if record.get('failure', {}).get('status') == 'observed':
+                    report['failure_evidence'][name] = record['failure']
             rows.extend({'run': name, 'record': record} for record in records)
         except (OSError, ValueError, TypeError, RecursionError, KeyError): report['heartbeat'][name] = 'unavailable'
     if scenario == 'n3':

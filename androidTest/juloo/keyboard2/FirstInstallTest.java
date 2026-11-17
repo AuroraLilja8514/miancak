@@ -48,6 +48,11 @@ public final class FirstInstallTest
     progress = AndroidProgressEvidence.start(context, run);
     progress.scope(ProgressEvidence.Scope.FIRST_INSTALL);
     try { runWithProgress(); }
+    catch (Exception | Error failure)
+    {
+      AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.FLOW, failure);
+      throw failure;
+    }
     finally { progress.close(); }
   }
 
@@ -61,6 +66,7 @@ public final class FirstInstallTest
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
+    Throwable primary = null;
     try
     {
       if (!revisit)
@@ -164,12 +170,28 @@ public final class FirstInstallTest
       press("2", "zh"); expected += "2"; awaitEditor(expected);
       setOrientation(android.view.Surface.ROTATION_0); awaitOrientation(android.view.Surface.ROTATION_0); assertKeyboardDefaults("zh");
     }
+    catch (Exception | Error failure)
+    {
+      primary = failure;
+      AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.FLOW, failure);
+      throw failure;
+    }
     finally
     {
-      mark(FINALLY_ENTER);
-      mark(EVIDENCE_ENTER); screenshot("first-run-final"); mark(EVIDENCE_RETURN);
-      mark(TEARDOWN_ENTER); device.unfreezeRotation(); mark(TEARDOWN_RETURN);
-      mark(FINALLY_RETURN);
+      try
+      {
+        ProgressEvidence.cleanup(primary, () -> {
+          mark(FINALLY_ENTER);
+          mark(EVIDENCE_ENTER); screenshot("first-run-final"); mark(EVIDENCE_RETURN);
+          mark(TEARDOWN_ENTER); device.unfreezeRotation(); mark(TEARDOWN_RETURN);
+          mark(FINALLY_RETURN);
+        });
+      }
+      catch (Exception | Error cleanup)
+      {
+        AndroidProgressEvidence.failed(progress, ProgressEvidence.FailurePhase.CLEANUP, cleanup);
+        if (primary == null) throw cleanup;
+      }
     }
   }
 

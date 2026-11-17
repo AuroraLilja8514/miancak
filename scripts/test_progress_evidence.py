@@ -5,12 +5,16 @@ if __name__ == "__main__":
     guard_script(__file__)
 
 import json
+import contextlib
+import io
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+import public_test_evidence as public
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = r'''
@@ -228,6 +232,90 @@ public final class ProgressEvidenceHostTest {
         valid.close(); valid.work();
         check(s.text().contains("CATEGORY_ENTER")&&!s.text().contains("TOUCH_ENTER"), "bounded marker values"); emit(s); break;
       }
+      case "failure_latched_before_cleanup": {
+        ProgressEvidence e = new ProgressEvidence(ProgressEvidence.Run.REBOOT, c, r -> true, s);
+        e.scope(ProgressEvidence.Scope.FIRST_INSTALL);
+        e.mark(ProgressEvidence.Stage.BACK_RETURN, 1, 0, -1, -1);
+        AssertionError original = new AssertionError("PRIVATE filename /prefs/user.db Thread[secret] Intent{secret}");
+        Throwable primary = null;
+        try {
+          try { throw original; }
+          catch (AssertionError observed) {
+            primary = observed; e.failed(ProgressEvidence.FailurePhase.FLOW, ProgressEvidence.kind(observed)); throw observed;
+          } finally {
+            ProgressEvidence.cleanup(primary, () -> {
+              e.mark(ProgressEvidence.Stage.FINALLY_ENTER);
+              e.failed(ProgressEvidence.FailurePhase.CLEANUP, ProgressEvidence.FailureKind.IO);
+              throw new java.io.IOException("PRIVATE cleanup filename");
+            });
+          }
+        } catch (AssertionError observed) { check(observed == original, "same primary object after cleanup"); }
+        e.close(); e.work();
+        check(s.text().contains("\"phase\":\"FLOW\",\"kind\":\"ASSERTION\""), "first failure kind");
+        check(s.text().contains("\"stage\":\"BACK_RETURN\",\"seq\":1"), "pre-teardown boundary retained");
+        check(!s.text().contains("PRIVATE") && !s.text().contains("Intent{"), "no exception text"); emit(s); break;
+      }
+      case "failure_recorder_unavailable": {
+        class BrokenClock extends Clock {
+          boolean broken;
+          public long now() { if (broken) throw new AssertionError("PRIVATE clock"); return super.now(); }
+        }
+        BrokenClock broken = new BrokenClock();
+        ProgressEvidence e = make(broken, r -> true, s);
+        e.mark(ProgressEvidence.Stage.BACK_RETURN);
+        AssertionError original = new AssertionError("PRIVATE original");
+        try {
+          try { throw original; }
+          catch (AssertionError observed) {
+            broken.broken = true;
+            e.failed(ProgressEvidence.FailurePhase.FLOW, ProgressEvidence.kind(observed));
+            broken.broken = false;
+            throw observed;
+          } finally {
+            ProgressEvidence.cleanup(original, () -> { throw new AssertionError("PRIVATE cleanup"); });
+          }
+        } catch (AssertionError observed) { check(observed == original, "recorder failure preserves original"); }
+        e.failed(ProgressEvidence.FailurePhase.CLEANUP, ProgressEvidence.FailureKind.IO);
+        e.close(); e.work();
+        check(!s.text().contains("\"status\":\"observed\""), "later cleanup cannot replace failed recorder attempt");
+        check(s.text().contains("\"failure\":{\"status\":\"unavailable\"}"), "explicit unavailable"); emit(s); break;
+      }
+      case "cleanup_first_failure": {
+        ProgressEvidence e = make(c, r -> true, s);
+        e.mark(ProgressEvidence.Stage.EVIDENCE_ENTER);
+        java.io.IOException original = new java.io.IOException("PRIVATE filename");
+        try {
+          ProgressEvidence.cleanup(null, () -> { throw original; });
+          throw new AssertionError("cleanup failure disappeared");
+        } catch (java.io.IOException observed) {
+          check(observed == original, "first cleanup failure remains same object");
+          e.failed(ProgressEvidence.FailurePhase.CLEANUP, ProgressEvidence.kind(observed));
+        }
+        e.failed(ProgressEvidence.FailurePhase.FLOW, ProgressEvidence.FailureKind.OTHER);
+        e.close(); e.work();
+        check(s.text().contains("\"phase\":\"CLEANUP\",\"kind\":\"IO\""), "cleanup kind retained"); emit(s); break;
+      }
+      case "failure_kinds_and_unobserved": {
+        check(ProgressEvidence.kind(new AssertionError()) == ProgressEvidence.FailureKind.ASSERTION, "assertion kind");
+        check(ProgressEvidence.kind(new TimeoutException()) == ProgressEvidence.FailureKind.TIMEOUT, "timeout kind");
+        check(ProgressEvidence.kind(new InterruptedException()) == ProgressEvidence.FailureKind.INTERRUPTED, "interrupt kind");
+        check(ProgressEvidence.kind(new java.io.IOException()) == ProgressEvidence.FailureKind.IO, "io kind");
+        Throwable hostile = new RuntimeException() {
+          @Override public String getMessage() { throw new AssertionError("message inspected"); }
+          @Override public String toString() { throw new AssertionError("text inspected"); }
+        };
+        check(ProgressEvidence.kind(hostile) == ProgressEvidence.FailureKind.OTHER, "unknown class, no text inspection");
+        ProgressEvidence e = make(c, r -> true, s);
+        e.failed(ProgressEvidence.FailurePhase.FLOW, null);
+        e.failed(ProgressEvidence.FailurePhase.CLEANUP, ProgressEvidence.FailureKind.OTHER);
+        e.close(); e.work(); check(!s.text().contains("\"status\":\"observed\""), "unobserved stays unavailable"); emit(s); break;
+      }
+      case "failure_record_caps": {
+        ProgressEvidence e = make(c, r -> { r.run(); return true; }, s);
+        e.mark(ProgressEvidence.Stage.CATEGORY_SCROLL_LOOKUP_RETURN, 256, 7, 31, 31);
+        e.failed(ProgressEvidence.FailurePhase.FLOW, ProgressEvidence.FailureKind.AUTOMATION);
+        e.work(); check(s.lines.size() == 86, "failure metadata retains normal record bound"); emit(s); break;
+      }
       default: throw new AssertionError(name);
     }
     System.out.println("PASS " + name);
@@ -247,10 +335,18 @@ class ProgressEvidenceTests(unittest.TestCase):
         cls.java = str(Path(java_home) / "bin/java") if java_home else shutil.which("java")
         if not cls.javac or not cls.java:
             raise RuntimeError("A JDK with javac and java is required; no test was skipped")
+        core = ROOT / "androidTest/juloo/keyboard2/ProgressEvidence.java"
+        # Protocol enums must remain synchronized with the strict public reader.
+        for enum, expected in [('Scope', public.SCOPES), ('Stage', public.STAGES),
+                               ('FailurePhase', public.FAILURE_PHASES), ('FailureKind', public.FAILURE_KINDS)]:
+            body = re.search(r'enum ' + enum + r'\s*\{([^}]+)\}', core.read_text()).group(1)
+            actual = set(re.findall(r'\b[A-Z][A-Z_]*\b', body))
+            if actual != expected:
+                raise AssertionError('Producer/exporter enum mismatch: ' + enum)
         fixture = cls.directory / "ProgressEvidenceHostTest.java"
         fixture.write_text(FIXTURE)
         result = subprocess.run([cls.javac, "--release", "8", "-d", str(cls.directory),
-                                 str(ROOT / "androidTest/juloo/keyboard2/ProgressEvidence.java"), str(fixture)],
+                                 str(core), str(fixture)],
                                 capture_output=True, text=True, timeout=30)
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
@@ -266,6 +362,33 @@ class ProgressEvidenceTests(unittest.TestCase):
         self.assertLessEqual(sum(len((line + "\n").encode("utf-8")) for line in records), 65536)
         for line in records:
             self.assertIsInstance(json.loads(line), dict)
+        if records:
+            # Roundtrip actual Java bytes through the public exporter, including
+            # schema-2 headers and first-failure snapshots, not handwritten rows.
+            parsed = [json.loads(line) for line in records]
+            identity = (parsed[0]['scenario'], parsed[0]['phase'])
+            filename = next(n for n, pair in public.RUNS.items() if pair == identity)
+            with tempfile.TemporaryDirectory(prefix='progress-export-') as directory:
+                root = Path(directory); target = root/'test-results/device'/filename
+                target.parent.mkdir(parents=True); target.write_text('\n'.join(records)+'\n')
+                with contextlib.redirect_stdout(io.StringIO()):
+                    public.stage(root, identity[0] if identity[0] == 'first-install' else 'interaction',
+                                 'failure', 'a'*40)
+                summary = json.loads((root/'public-test-results/summary.json').read_text())
+                self.assertEqual(2, summary['schema'])
+                self.assertEqual('available', summary['heartbeat'][filename])
+                failure = summary['failure_evidence'][filename]
+                if name in ('failure_latched_before_cleanup','cleanup_first_failure','failure_record_caps'):
+                    self.assertEqual('observed', failure['status'])
+                else:
+                    self.assertEqual({'status':'unavailable'}, failure)
+                if name == 'failure_latched_before_cleanup':
+                    self.assertEqual(('FLOW','ASSERTION','BACK_RETURN'),
+                                     (failure['phase'],failure['kind'],failure['stage']))
+                text = (root/'public-test-results/heartbeat.jsonl').read_text()
+                self.assertEqual(parsed, [json.loads(line)['record'] for line in text.splitlines()])
+                self.assertNotIn('PRIVATE', text)
+                self.assertNotIn('Intent{', text)
 
 
 def install_scenario(name):
@@ -274,7 +397,9 @@ def install_scenario(name):
 
 for _name in ("early_ack", "pending_and_late_owner", "concurrent_ack", "rejection", "throwing_post", "ack_then_throw",
               "blocked_post", "blocked_open", "blocked_write", "blocked_close", "sink_failures",
-              "stop_deadline_and_skip", "limits", "original_exception_and_markers"):
+              "stop_deadline_and_skip", "limits", "original_exception_and_markers",
+              "failure_latched_before_cleanup", "failure_recorder_unavailable", "cleanup_first_failure",
+              "failure_kinds_and_unobserved", "failure_record_caps"):
     install_scenario(_name)
 
 if __name__ == "__main__":

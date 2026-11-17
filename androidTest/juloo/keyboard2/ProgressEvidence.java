@@ -9,6 +9,8 @@ final class ProgressEvidence implements AutoCloseable
   static final int MAX_RECORDS = 96, MAX_BYTES = 64 * 1024;
   static final ProgressEvidence NONE = new ProgressEvidence(null, null, null, null);
   enum Scope { DRIVER, FN, SYMBOL, PAGE_EDITOR, LIFECYCLE, FIRST_INSTALL }
+  enum FailurePhase { FLOW, CLEANUP }
+  enum FailureKind { ASSERTION, AUTOMATION, TIMEOUT, IO, INTERRUPTED, OTHER }
 
   enum Run
   {
@@ -47,6 +49,7 @@ final class ProgressEvidence implements AutoCloseable
   }
 
   interface Clock { long now(); void sleep(long ms) throws Exception; }
+  interface Cleanup { void run() throws Exception; }
   interface Poster { boolean post(Runnable callback) throws Exception; }
   interface Sink
   {
@@ -86,6 +89,16 @@ final class ProgressEvidence implements AutoCloseable
     Ack(long token, long at) { this.token = token; this.at = at; }
   }
 
+  private static final class Failure
+  {
+    final FailurePhase phase;
+    final FailureKind kind;
+    final Snapshot boundary;
+    final long at;
+    Failure(FailurePhase phase, FailureKind kind, Snapshot boundary, long at)
+    { this.phase = phase; this.kind = kind; this.boundary = boundary; this.at = at; }
+  }
+
   private final Run run;
   private final Clock clock;
   private final Poster poster;
@@ -93,6 +106,8 @@ final class ProgressEvidence implements AutoCloseable
   private volatile Snapshot snapshot = new Snapshot(Stage.START, Scope.DRIVER, 0, 0, 0, 0, -1, -1);
   private Scope scope = Scope.DRIVER;
   private volatile Ack ack = new Ack(0, 0);
+  private volatile Failure failure;
+  private boolean failureAttempted;
   private volatile boolean stop, posting, exitRecorded;
   private volatile long pending;
   private long sequence, token, started, postedToken, callAt, returnedAt;
@@ -116,6 +131,36 @@ final class ProgressEvidence implements AutoCloseable
     catch (Throwable ignored) { /* Evidence must not replace the test's exception. */ }
   }
 
+  /** First attempt wins even if its clock/allocation fails: cleanup is not the primary failure. */
+  void failed(FailurePhase phase, FailureKind kind)
+  {
+    if (failureAttempted) return;
+    failureAttempted = true;
+    try
+    {
+      if (phase == null || kind == null) return;
+      Snapshot boundary = snapshot;
+      failure = new Failure(phase, kind, boundary, clock.now());
+    }
+    catch (Throwable ignored) { /* Unavailable metadata must not replace the original exception. */ }
+  }
+
+  static FailureKind kind(Throwable failure)
+  {
+    if (failure instanceof AssertionError) return FailureKind.ASSERTION;
+    if (failure instanceof java.util.concurrent.TimeoutException) return FailureKind.TIMEOUT;
+    if (failure instanceof java.io.IOException) return FailureKind.IO;
+    if (failure instanceof InterruptedException) return FailureKind.INTERRUPTED;
+    return FailureKind.OTHER;
+  }
+
+  /** Preserve the in-flight primary object; a first cleanup failure still fails acceptance. */
+  static void cleanup(Throwable primary, Cleanup action) throws Exception
+  {
+    try { action.run(); }
+    catch (Exception | Error later) { if (primary == null) throw later; }
+  }
+
   @Override public void close() { stop = true; }
 
   private boolean unresolved() { return pending != 0 && ack.token != pending; }
@@ -128,7 +173,7 @@ final class ProgressEvidence implements AutoCloseable
     {
       started = clock.now();
       sink.open(run);
-      write("{\"schema\":1,\"scenario\":\"" + run.scenario + "\",\"phase\":\"" + run.phase
+      write("{\"schema\":2,\"scenario\":\"" + run.scenario + "\",\"phase\":\"" + run.phase
           + "\",\"clock\":\"elapsedRealtime_ms\",\"started_ms\":" + started + ",\"interval_ms\":10000,\"window_ms\":840000,"
           + "\"meaning\":\"ack_only_proves_ordinary_main_callback_ran;missing_is_ambiguous\"}");
       sample("start", clock.now());
@@ -187,12 +232,23 @@ final class ProgressEvidence implements AutoCloseable
   {
     Snapshot s = snapshot;
     Ack a = ack;
+    Failure f = failure;
     return write("{\"event\":\"" + event + "\",\"at_ms\":" + now + ",\"elapsed_ms\":" + (now - started)
         + ",\"scope\":\"" + s.scope.name() + "\",\"stage\":\"" + s.stage.name() + "\",\"seq\":" + s.seq + ",\"stage_ms\":" + s.at
         + ",\"call\":" + s.call + ",\"category\":" + s.category + ",\"page\":" + s.page
         + ",\"attempt\":" + s.attempt + ",\"request\":" + pending + ",\"ack\":" + a.token
         + ",\"ack_ms\":" + a.at + ",\"previous_post\":\"" + result + "\",\"post_token\":" + postedToken + ",\"post_call_ms\":" + callAt
-        + ",\"post_return_ms\":" + returnedAt + "}");
+        + ",\"post_return_ms\":" + returnedAt + ",\"failure\":" + failureJson(f) + "}");
+  }
+
+  private String failureJson(Failure f)
+  {
+    if (f == null) return "{\"status\":\"unavailable\"}";
+    Snapshot s = f.boundary;
+    return "{\"status\":\"observed\",\"phase\":\"" + f.phase.name() + "\",\"kind\":\"" + f.kind.name()
+        + "\",\"observed_ms\":" + f.at + ",\"scope\":\"" + s.scope.name() + "\",\"stage\":\"" + s.stage.name()
+        + "\",\"seq\":" + s.seq + ",\"stage_ms\":" + s.at + ",\"call\":" + s.call + ",\"category\":" + s.category
+        + ",\"page\":" + s.page + ",\"attempt\":" + s.attempt + "}";
   }
 
   /** Includes header/newlines. All serialization, writes and flushes are worker-only. */
