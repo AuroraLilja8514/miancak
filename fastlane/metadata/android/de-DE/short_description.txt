@@ -1,1 +1,1 @@
-Eine schlanke, datenschutzfreundliche Bildschirmtastatur für Android.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

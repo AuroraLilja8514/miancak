@@ -1,1 +1,1 @@
-為Android打造的輕量、注重隱私的虛擬鍵盤。
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

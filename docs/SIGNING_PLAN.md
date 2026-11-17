@@ -1,5 +1,7 @@
 # 稳定签名方案与提前实施顺序
 
+> 2026-11-17 状态更正：PR #32／#35 已合并，v0.3.2 已于 2026-11-16 [正式发布](https://github.com/AuroraLilja8514/miancak/releases/tag/v0.3.2)。当前签名／发布流程以 [RELEASING.md](RELEASING.md) 和 [v0.3.2 说明](releases/0.3.2.md) 为准；下文 2026-10 的未签署／未发布描述保留为历史方案，不再代表当前交付状态。首次正式版只验证同版本重装；独立备份恢复、ARM 真机及真正的两版本正式升级仍分别待验证。
+
 更新：2026-10-31。用户确认稳定签名可以提前；从 P4 拆出为 **P0**。正式公开证书已核验并[登记](signing/README.md)，GitHub 上的实际密钥库读取、证书匹配和私钥签名证明已[验证成功](SIGNING_CREDENTIAL_VALIDATION.md)。备份恢复、实际 APK 签署、升级验收及发布尚未完成。
 
 2026-10-29 接入说明：GitHub 环境 Secrets 的存放位置、审批与分支限制、Windows 上传准备及当前未完成状态见 [GitHub 签名配置](GITHUB_SIGNING_SETUP.md)。Windows 免 Java 生成包使用单私钥条目自动选择；其显示名称不保证等于 Java 内部 alias，签名身份以真实证书指纹核验。公开证书及凭据可用性均已验证。2026-10-31 维护者明确关闭审批，独立检查已合入 master 并自动运行成功；这不等于 APK 签名工作流已完成。

@@ -10,7 +10,7 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 
 | Job | What it verifies |
 | --- | --- |
-| `generated` | Regenerates layout/Compose/method outputs and requires a clean diff |
+| `generated` | Regenerates layout/Compose/method outputs, checks identity/source keys and generated store metadata, and requires a clean diff |
 | `unit` | Java 17/Gradle debug and release unit suites and Android test-driver compilation, then a clean diff; publishes XML and per-suite counts |
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
@@ -21,7 +21,7 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | `upgrade-tests (23/35)` | Real old APK input/learning, overwrite installation, configuration migration and guest reboot |
 | `word-table-tests (23/35)` | Native recovery plus actual Files import, base/addon selection, offline fallback, learning, APK replacement and reboot |
 | `word-pack-quality (23/35)` | Same schema, isolated users and fixed corpus for old/full/core data; candidate/commit and resource thresholds |
-| `emulator-reboot (23)` | Independent empty guest, three actual adb reboots with changed boot IDs; completes before APK jobs |
+| `emulator-reboot (23)` | Independent empty guest, three actual adb reboots with changed boot IDs; runs independently of APK jobs on other hosts |
 
 There are 18 expanded checks. Emulator versions and GPU settings are pinned separately for API 23/35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
 
@@ -68,7 +68,7 @@ PR CI consumes no signing secrets. If no debug keystore is supplied, the inherit
 
 Without `RELEASE_KEYSTORE`, release builds produce an unsigned APK. Supplying the existing release keystore/password/alias environment variables enables signing through the explicit release configuration. No private signing key is stored in the repository or exposed to PR code.
 
-Stable signing is now planned as P0 in [SIGNING_PLAN.md](SIGNING_PLAN.md): begin with a maintainer-held key and local signing of a verified unsigned release artifact, while ordinary CI stays secret-free. The existing Gradle signing variables are not a recommendation to run project build code with the production key accessible. The maintainer-provided public certificate has been verified and [registered](signing/README.md). The independent [credential proof](SIGNING_CREDENTIAL_VALIDATION.md) passed on master on 2026-10-31 using the actual key; the maintainer explicitly disabled approval, and trusted master signing-configuration pushes now start that limited check. Backup recovery, actual APK signing and signed-APK/upgrade acceptance remain pending. The proof does not build or sign an APK.
+The [registered certificate](signing/README.md) signs formal releases through the separate [release workflow](RELEASING.md); v0.3.2 was released on 2026-11-16. The independent [credential proof](SIGNING_CREDENTIAL_VALIDATION.md) is a separate key-availability check. Ordinary CI remains secret-free, and Gradle signing variables are not a recommendation to execute application build code with the production key accessible. The first formal release validated same-version reinstallation; independent backup recovery, ARM-device execution and a genuine two-version formal upgrade remain separate pending work.
 
 ## Repository rules
 
@@ -78,13 +78,13 @@ Build/test workflows must use `contents: read`, avoid `pull_request_target`, and
 
 ## Delivery boundary
 
-CI produces debug and unsigned release artifacts. Stable identity and local signing move to P0; protected signing automation, GitHub Releases, store publication and F-Droid automation remain separately scoped work. A passing emulator matrix does not imply physical-device or store-release validation.
+Ordinary CI produces debug and unsigned release artifacts. The separate [formal release workflow](RELEASING.md) checks exact inputs, signs and validates the release APK before GitHub Releases publication. Store publication and F-Droid automation remain separately scoped work. A passing emulator matrix does not imply physical-device or store-release validation.
 
 ## Word-table acceptance
 
-`word-table-tests (23/35)` are mandatory; their initial addition brought the historical matrix to 15 checks, before quality and independent reboot checks were added. `build-debug` also builds a feature-enabled version-code-2 fixture before the ordinary version-code-4 application, using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
+`word-table-tests (23/35)` are mandatory; their initial addition brought the historical matrix to 15 checks, before quality and independent reboot checks were added. `build-debug` also builds a feature-enabled older-version fixture before the ordinary application (fixture overrides and artifact selection are defined in `.github/workflows/ci.yml`; the ordinary version comes from `build.gradle.kts`), using the same temporary debug identity. The fixture is uploaded separately so existing jobs and delivery cannot accidentally choose it as the production artifact. It is not the historical released 0.2.0 source.
 
-The word jobs run real native catalog/selection/recovery tests, import complete existing dictionaries through DocumentsUI, use the shipped keyboard in real editors, overwrite-install version code 4 and reboot. The host fingerprints actual learning-database files while the app is stopped, before instrumentation can write them, and compares them across replacement and reboot. Historical upgrade gates independently verify migration/default-IME retention. Fixture source hashes and licenses are verified by `scripts/check_word_table_fixtures.py`.
+The word jobs run real native catalog/selection/recovery tests, import complete existing dictionaries through DocumentsUI, use the shipped keyboard in real editors, overwrite-install the ordinary application selected by the workflow and reboot. The host fingerprints actual learning-database files while the app is stopped, before instrumentation can write them, and compares them across replacement and reboot. Historical upgrade gates independently verify migration/default-IME retention. Fixture source hashes and licenses are verified by `scripts/check_word_table_fixtures.py`.
 
 ## Final APK acceptance jobs
 

@@ -1,5 +1,7 @@
 # GitHub 签名凭据保管与接入
 
+> 2026-11-17 状态更正：PR #32／#35 已合并，v0.3.2 已于 2026-11-16 [正式发布](https://github.com/AuroraLilja8514/miancak/releases/tag/v0.3.2)。当前签名／发布流程以 [RELEASING.md](RELEASING.md) 和 [v0.3.2 说明](releases/0.3.2.md) 为准；下文 2026-10 的未签署／未发布描述保留为历史方案，不再代表当前交付状态。首次正式版只验证同版本重装；独立备份恢复、ARM 真机及真正的两版本正式升级仍分别待验证。
+
 更新：2026-10-31。公开证书已核验并[登记](signing/README.md)，master 上的实际凭据读取、证书匹配和私钥签名证明已[通过](SIGNING_CREDENTIAL_VALIDATION.md)。维护者明确取消人工审批；备份恢复、实际 APK 签名及升级仍未完成，当前连接不能独立读取全部环境设置。
 
 ## 1. 存放位置

@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Unexpected Keyboard</string>
-    <string name="app_name_debug">Unexpected Keyboard (ดีบัก)</string>
-    <string name="short_description">คีย์บอร์ดสำหรับแอนดรอยด์ที่กินทรัพยากรน้อยและโฟกัสที่ความเป็นส่วนตัว</string>
-    <string name="store_description">คีย์บอร์ดนี้สามารถเขียนตัวอักษรได้หลายตัวมากขึ้นโดยใช้การปัดคีย์ไปที่มุมต่างๆ\n\nคีย์บอร์ดนี้ถูกออกแบบมาเพื่อนักเขียนโปรแกรมที่ใช้เทอร์มักซ์ (Termux) \nแต่ตอนนี้เพอร์เฟ็กต์สำหรับคนทั่วไป</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">ในแนวตั้ง</string>
     <string name="pref_landscape">ในแนวนอน</string>
     <string name="pref_category_layout">เลย์เอาต์</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">ส่ง</string>
     <string name="launcher_button_imesettings">เปิดใช้งานคีย์บอร์ด</string>
     <string name="launcher_button_imepicker">เลือกคีย์บอร์ด</string>
-    <string name="launcher_description">แอพนี้เป็นแอพคีย์บอร์ดบนหน้าจอ ไปที่การตั้งค่าด้วยการกดปุ่มข้างล่างแล้วเปิดใช้งาน Unexpected Keyboard</string>
     <string name="launcher_sourcecode">แอพนี้เป็นแอพฟรีและโอเพ่นซอร์ส</string>
     <string name="launcher_tryhere">หลังจากเปิดใช้งานแล้ว สามารถลองได้ตรงนี้</string>
     <string name="launcher_tryhere_hint">ลองดู!!</string>

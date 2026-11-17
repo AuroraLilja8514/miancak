@@ -1,1 +1,1 @@
-Android için hafif ve güvenlik odaklı bir sanal klavye uygulaması.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

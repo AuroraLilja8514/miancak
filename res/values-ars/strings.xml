@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Unexpected Keyboard</string>
-    <string name="app_name_debug">Unexpected Keyboard (تصحيح الأخطاء)</string>
-    <string name="short_description">كيبورد افتراضي خفيف الوزن ويراعي الخصوصية لآندرويد.</string>
-    <string name="store_description">الميزة الرئيسية إنّه تقدر تكتب حروف أكثر عن طريق تمرير المفاتيح باتّجاه الزوايا\n\nهذا التطبيق أصلاً تسوّى علشان المبرمجين إلّي يستخدمون طرفية Termux.\nالآن صار تمام للاستخدام اليومي.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">وضع لوحي</string>
     <string name="pref_landscape">وضع أفقي</string>
     <string name="pref_category_layout">التخطيط</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">إرسال</string>
     <string name="launcher_button_imesettings">شغّل الكيبورد</string>
     <string name="launcher_button_imepicker">اختار الكيبورد</string>
-    <string name="launcher_description">هذا التطبيق كيبورد افتراضي. روح لإعدادات النظام عن طريق الضغط على الزر إلّي تحت وشغّل Unexpected Keyboard.</string>
     <string name="launcher_sourcecode">هذا تطبيق مجاني ومفتوح المصدر. تقدر تلاقي كود المصدر أو الإبلاغ عن أخطاء على GitHub.</string>
     <string name="launcher_tryhere">بعد التشغيل، تقدر تجرّب الكيبورد هنا:</string>
     <string name="launcher_tryhere_hint">جرّب هنا</string>

@@ -1,14 +1,12 @@
 # Custom layouts
-You select a key layout for Unexpected Keyboard by calling up the Settings page (swipe the gear icon) and, at the top of the page, either tapping an existing layout or tapping _Add an alternate layout_. This displays a menu of available layouts. You can define your own layout by choosing _Custom layout_ at the bottom of this menu. Unexpected Keyboard now displays code in the XML format. You make changes by replacing this with different code and tapping OK.
 
-We recommend you keep your work in a file outside Unexpected Keyboard (named something like `MyChanges.xml`). If you installed a new version of Unexpected from a different website (with a different signature), then the work you did solely by editing the XML inside Unexpected would be lost.
+This is an inherited Unexpected Keyboard XML compatibility reference, retained for advanced layouts. For current MIANCAK onboarding, use the [README](../README.md), [normal-size visual editor](../docs/VISUAL_LAYOUT_EDITOR.md) and [paired Fn rules](../docs/FN_LAYOUTS.md).
 
-Put initial contents into your file in one of these ways:
-* Copypaste the code Unexpected displays for _Custom layout_.
-* Make a copy of one of the built-in layouts found in [`/srcs/layouts`](https://github.com/Julow/Unexpected-Keyboard/tree/master/srcs/layouts).
-* Use the [web-based editor](https://domportera.github.io/app-unexpected-keyboard-layout-editor/). Interact with this web page to define keys and swipes and move keys to desired positions, and it will write the XML code for you. You can make the web page put the XML in a text file or copy it to the clipboard.
+In MIANCAK, open **Settings → Layouts and pages → Edit keys**. Tap the normal-size preview or swipe to choose a center/direction; the key/direction list remains an accessible alternative. Use the Android file picker to export/import MIANCAK layout configuration. That format is distinct from a standalone keyboard XML definition.
 
-When you have prepared suitable XML code in one of these ways, copy it to the clipboard and paste it into Unexpected Keyboard.
+Valid independent custom XML layouts remain supported by the inherited custom-layout preference. Keep an external copy of XML you edit and consult the [key values](Possible-key-values.md) for Engine/Literal actions. Changing an APK signing identity does not create a lossless update or transfer; retain the existing installation and data. Layout export is not a backup of all preferences or Rime learning.
+
+For XML examples, use this fork's [layout definitions](../srcs/layouts). External upstream editors may not implement MIANCAK's semantic actions, paired layouts or configuration format; they are not the primary MIANCAK editor.
 
 ## XML language overview
 A layout XML file comprises tags that start with `<` and end with `>`.
@@ -44,8 +42,8 @@ The `<keyboard>`...`</keyboard>` pair follows the declaration tag and encloses t
 * `numpad_script`: The script to use for the numpad. This is useful for scripts where a different, non-ASCII set of numerals is used, like Devanagari and Arabic. It defaults to the same as `script`.
 
 * `bottom_row`: Whether or not to show the built-in bottom row. It accepts `true` or `false`, and defaults to `true`. If your custom layout defines the bottom row, then specify `bottom_row="false"` to disable the built-in bottom row.
-  + We recommend your layout use the built-in bottom row, because it is still evolving and your layout will incorporate innovations in future versions. However, to define your own, the current definition of the bottom row is in [bottom_row.xml](https://github.com/Julow/Unexpected-Keyboard/blob/master/res/xml/bottom_row.xml). You can copypaste this XML into your custom layout as a starting point.
-  + Likewise, the current definition of the top (number) row is in [number_row.xml](https://github.com/Julow/Unexpected-Keyboard/blob/master/res/xml/number_row.xml).
+  + We recommend your layout use the built-in bottom row, because it is still evolving and your layout will incorporate innovations in future versions. However, to define your own, the current definition of the bottom row is in [bottom_row.xml](../res/xml/bottom_row.xml). You can copypaste this XML into your custom layout as a starting point.
+  + Likewise, the current definition of the top (number) row is in [number_row.xml](../res/xml/number_row.xml).
 
 * `embedded_number_row`: Whether the layout has an embedded number row, and thus the "Show number row" setting shouldn't add another one. It accepts `true` or `false`, and defaults to `false`.
 
@@ -152,12 +150,11 @@ The clockwise circle and round-trip gestures first try the Shift mapping (includ
 This maps Ctrl+в to Ctrl+V—not to v.
 
 ### Default mappings
-Unexpected Keyboard's built-in mappings are not expressed as a modmap but by a series of .json files in `https://github.com/Julow/Unexpected-Keyboard/tree/master/srcs/compose`. For example, the mappings for `fn` are in [`fn.json`](https://github.com/Julow/Unexpected-Keyboard/blob/master/srcs/compose/fn.json). These built-in mappings are common to every language.
+The inherited built-in mappings are not expressed as a modmap but by a series of .json files in [srcs/compose](../srcs/compose). For example, the mappings for `fn` are in [`fn.json`](../srcs/compose/fn.json). These built-in mappings are common to every language.
 
 ## Portrait vs. landscape
 Unexpected Keyboard remembers *separately* which layout has last been used in portrait and landscape orientation. So you may have one custom layout for portrait orientation, but another custom layout for landscape orientation, and Unexpected Keyboard will switch between them without your intervention.
 
 ## Contributing your layout
-The Unexpected Keyboard project enthusiastically accepts user contributions, including custom layouts. (See the guidance for layouts at [CONTRIBUTING.md](https://github.com/Julow/Unexpected-Keyboard/blob/master/CONTRIBUTING.md#Adding-a-layout)).
-* Submit a layout that has innovations of possible interest to other users at [Unexpected-Keyboard-layouts](https://github.com/Julow/Unexpected-Keyboard-layouts).
-* Propose that your layout be included in the set of built-in layouts by making a Pull Request for an addition to [srcs/layouts](https://github.com/Julow/Unexpected-Keyboard/tree/master/srcs/layouts). Please show that such a layout is standard in your locale or has a substantial number of users.
+
+Discuss MIANCAK layout changes in [this fork's Issues](https://github.com/AuroraLilja8514/miancak/issues), follow [CONTRIBUTING.md](../CONTRIBUTING.md), and use this fork's [srcs/layouts](../srcs/layouts) as the source reference. Built-in layout scope and shared controls follow MIANCAK's current contract; inherited XML compatibility does not mean every upstream layout is an enabled MIANCAK main layout. Attribution and any generic upstream contribution remain governed by [UPSTREAM.md](../docs/UPSTREAM.md).

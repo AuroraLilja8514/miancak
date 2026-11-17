@@ -1,1 +1,1 @@
-Легкая клавиатура для пользователей, заботящихся о конфиденциальности.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

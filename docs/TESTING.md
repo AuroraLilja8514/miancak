@@ -1,5 +1,7 @@
 > 当前 R0–R5 的实际布局／Fn／符号／编辑器结果见 [FN_REPAIR_PROGRESS.md](FN_REPAIR_PROGRESS.md)。R6／R7 应用检查点的 18 项验收与原始证据见 [R7_APK_ACCEPTANCE.md](R7_APK_ACCEPTANCE.md)；新增原始轨迹组件及最终诊断驱动由 PR 最新 CI 复核。下文保留旧版本证据；任意 Fn 目标和辅助面板重复整行入口已废弃。模拟器固定构建与连续重启门禁见 [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md)。
 
+N4 当前源码的 `LauncherIdentityTest` 在已准备的 interaction 客体检查实际 URLSpan 外发目标及中英／回退布局，不打开浏览器、不提交问题、不参与首装设置。源码／回退清单、执行边界和仍待完成的 API 23／35 页面走查见 [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md)。
+
 All maintained execution scripts accept `--timeout-seconds N` or `MIANCAK_SCRIPT_TIMEOUT_SECONDS` (default one hour). Nested calls share the remaining budget, ADB stages have shorter limits, and timeout returns 124. See [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md) for cancellation and subprocess-cleanup checks.
 
 # APK Testing

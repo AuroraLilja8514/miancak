@@ -85,6 +85,9 @@ jobs:
         shell: bash
         run: |
           python3 gen_layouts.py
+          python3 sync_translations.py metadata --check
+          python3 scripts/check_project_identity.py
+          python3 scripts/test_project_identity.py
           python3 scripts/gen_phonetic_pages.py
           python3 scripts/test_phonetic_pages.py
           python3 scripts/check_word_table_fixtures.py

@@ -5,5 +5,6 @@
   <string name="launcher_anim_7">7</string>
   <string name="launcher_anim_g">G</string>
   <string name="launcher_anim_dash">-</string>
-  <string name="launcher_repo_url">https://github.com/Julow/Unexpected-Keyboard</string>
+  <string name="launcher_repo_url">https://github.com/AuroraLilja8514/miancak</string>
+  <string name="launcher_issues_url">https://github.com/AuroraLilja8514/miancak/issues</string>
 </resources>

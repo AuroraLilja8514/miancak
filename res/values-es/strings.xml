@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Teclado inesperado</string>
-    <string name="app_name_debug">Unexpected Keyboard (Depuración)</string>
-    <string name="short_description">Un teclado virtual ligero para Android consciente de su privacidad.</string>
-    <string name="store_description">La característica principal es que hay acceso a más caractéres deslizando hacia las esquinas de las teclas.\n\nEsta aplicación fue originalmente diseñada para programadores que usaran Termux.\nAhora es perfecta para uso cotidiano.\n\nLa misma no contiene ningún anuncio/publicidad y es de Fuente Abierta.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">En modo vertical</string>
     <string name="pref_portrait_unfolded">En modo vertical desplegado</string>
     <string name="pref_landscape">En modo horizontal</string>
@@ -111,7 +109,6 @@
     <string name="launcher_button_imesettings">Habilitar teclado</string>
     <string name="launcher_button_imepicker">Seleccionar método de entrada</string>
     <string name="launcher_button_dictionaries">Instalar diccionarios</string>
-    <string name="launcher_description">Esta aplicación es un teclado virtual. Presiona el botón de abajo para ir a Ajustes y habilitar Unexpected Keyboard.</string>
     <string name="launcher_sourcecode">Esta es una aplicación gratuita, libre y de código abierto. Puedes encontrar el código fuente o reportar errores en GitHub.</string>
     <string name="launcher_tryhere">Tras habilitarlo, puedes probar el teclado en este campo:</string>
     <string name="launcher_tryhere_hint">Probar aquí</string>

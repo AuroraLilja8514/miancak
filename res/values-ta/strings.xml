@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">எதிர்பாராத விசைப்பலகை</string>
-    <string name="short_description">இலகுரக மற்றும் தனியுரிமை விழிப்புணர்வுள்ள மெய்நிகர் ஆண்ட்ராய்டு விசைப்பலகை.</string>
-    <string name="store_description">இதன் முதன்மை அம்சமானது விசைகளை மூலைகளுக்கு வழித்தல் மூலம் கூடுதல் எழுத்துக்களை தட்டச்சு செய்யலாம்.\n\nஇந்த செயலி ஆதியில் டேர்மக்ஸ் (Termux) பயன்படுத்தும் நிரல் அமைப்பாளர்களுக்காக வடிவமைக்கப்பட்டது.\nஇப்போது அன்றாட பயன்பாட்டிற்கும் இது கச்சிதமானது.\n\nஇந்த செயலியில் விளம்பரங்கள் இல்லை மற்றும் இது திறந்த மூலமென்பொருள் (Open Source).</string>
+    <string name="app_name_release">MIANCAK</string>
     <string name="pref_portrait">முகப்பட அமைப்பில்</string>
     <string name="pref_landscape_unfolded">கிடைமட்ட அமைப்பில் விரித்தது</string>
     <string name="pref_category_layout">தளஅமைப்பு</string>
@@ -10,7 +8,7 @@
     <string name="pref_keyboard_opacity">விசைப்பலகை பின்னணியின் ஒளி ஊடுருவாமையை சீராக்கு</string>
     <string name="pref_key_opacity">விசைகளின் ஒளிஊடுருவாமையை சீராக்கவும்</string>
     <string name="pref_layout_e_system">கணினி அமைப்புக்கள்</string>
-    <string name="app_name_debug">எதிர்பார்க்காத விசைப்பலகை (பிழை நீக்கு)</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait_unfolded">முகப்பட அமைப்பில் விரித்தது</string>
     <string name="pref_landscape">படுக்கைவச அமைப்பில்</string>
     <string name="pref_key_activated_opacity">அழுத்தப்பட்ட விசையின் ஒளி ஊடுருவாமையை சீராக்கு</string>
@@ -112,7 +110,6 @@
     <string name="launcher_button_imesettings">விசைப்பலகை செயல்படுத்து</string>
     <string name="launcher_button_imepicker">விசைபலகை தேர்வுசெய்</string>
     <string name="launcher_button_dictionaries">அகராதிகள் நிறுவு</string>
-    <string name="launcher_description">இந்தச் செயலி ஒரு மெய்நிகர் விசைப்பலகை. கீழ்க்காணும் பொத்தானை சொடுக்கி கணினி அமைப்புக்குள் சென்று எதிர்பார-விசைப்பலகையை இயக்கவும்.</string>
     <string name="launcher_sourcecode">இது ஒரு இலவசம் மற்றும் திறந்த மூலம் செயலி.மூலக்குறியீடு ஐ காணலாம் அல்லது கிட் கப்பில் பிழை அறிக்கை தாக்கல் செய்யலாம்.</string>
     <string name="launcher_tryhere">செயலாக்கியபின்னர்,நீங்கள் விசைப்பலகையை முயற்சிக்கலாம்:</string>
     <string name="launcher_tryhere_hint">இங்கு முயற்சிக்கவும்</string>

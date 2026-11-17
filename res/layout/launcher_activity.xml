@@ -19,6 +19,9 @@
       <TextView style="@style/anim_text" android:text="@string/launcher_anim_dash"/>
     </LinearLayout>
     <TextView style="@style/paragraph" android:text="@string/launcher_sourcecode"/>
-    <TextView style="@style/paragraph" android:text="@string/launcher_repo_url" android:autoLink="web" android:linksClickable="true"/>
+    <TextView style="@style/paragraph" android:text="@string/launcher_project"/>
+    <TextView android:id="@+id/launcher_repo_url" style="@style/paragraph" android:text="@string/launcher_repo_url" android:autoLink="web" android:linksClickable="true" android:textDirection="ltr"/>
+    <TextView style="@style/paragraph" android:text="@string/launcher_feedback"/>
+    <TextView android:id="@+id/launcher_issues_url" style="@style/paragraph" android:text="@string/launcher_issues_url" android:autoLink="web" android:linksClickable="true" android:textDirection="ltr"/>
   </LinearLayout>
 </ScrollView>

@@ -1,1 +1,1 @@
-Un teclado virtual ligero para Android consciente de su privacidad.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

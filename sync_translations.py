@@ -9,13 +9,11 @@ if __name__ == "__main__":
 
 import xml.etree.ElementTree as ET
 import glob, os, sys
+from pathlib import Path
 
-# Edit every strings.xml files:
-# - Add missing translation as comments
-# - Remove obsolete strings
-# - Sort in the same order as the baseline
-# The baseline is 'values/strings.xml', which is english.
-# Sync store title and descriptions to the metadata directory.
+# Generate store title/descriptions from Android source keys, using the English
+# baseline for missing keys. Translation XML is read-only; legacy 'sync' mode
+# additionally reports missing translations without importing upstream changes.
 
 # Map language codes to the codes that Google Play understands. Languages
 # mapped to [None] are not supported by Google Play.
@@ -46,6 +44,7 @@ VALUE_DIR_TO_METADATA = {
         "ru": "ru-RU",
         "ta": "ta-IN",
         "th": "th",
+        "tlh": None,
         "tok": None,
         "tr": "tr-TR",
         "uk": "uk",
@@ -84,48 +83,61 @@ def sync(baseline, strings):
             (key, base_string, True)
             for key, base_string in baseline.items() ]
 
-def sync_metadata(value_dir, strings):
-    if ("short_description", None) not in strings:
-        return # Short description is mandatory, do nothing without it.
+METADATA_FIELDS = {
+        "title.txt": ("app_name_release", 30),
+        "short_description.txt": ("short_description", 80),
+        "full_description.txt": ("store_description", 4000),
+        }
+
+def metadata_texts(value_dir, strings, baseline):
     locale = os.path.basename(value_dir).removeprefix("values-")
     if not locale in VALUE_DIR_TO_METADATA:
+        if not any((key, None) in strings for key, _ in METADATA_FIELDS.values()):
+            return {} # A locale without store text has not opted into metadata.
         raise Exception("Locale '%s' not known, please add it into sync_translations.py" % locale)
     metadata_name = VALUE_DIR_TO_METADATA[locale]
     if metadata_name == None:
-        return # Not supported by the play store
-    meta_dir = "fastlane/metadata/android/" + metadata_name
-    def sync_meta_file(fname, string_name):
-        if string_name in strings:
-            string = strings[string_name]
-            if not os.path.isdir(meta_dir):
-                os.makedirs(meta_dir)
-            txt_file = os.path.join(meta_dir, fname)
-            with open(txt_file, "w", encoding="utf-8") as out:
-                out.write(string.text
-                          .replace("\\n", "\n")
-                          .replace("\\'", "'")
-                          .removeprefix('"')
-                          .removesuffix('"'))
-                out.write("\n")
-    sync_meta_file("title.txt", ("app_name_release", None))
-    sync_meta_file("short_description.txt", ("short_description", None))
-    sync_meta_file("full_description.txt", ("store_description", None))
+        return {} # Not supported by the play store
+    # Match Android's per-key English fallback. Never reuse stale store files
+    # just because an unverified translation was deliberately removed.
+    strings = {**baseline, **strings}
+    result = {}
+    for filename, (key, limit) in METADATA_FIELDS.items():
+        string = strings[(key, None)]
+        if len(string):
+            raise ValueError("Store text must be plain text: " + key)
+        text = (string.text or "").replace("\\n", "\n").replace("\\'", "'").removeprefix('"').removesuffix('"')
+        if not text.strip() or len(text) > limit:
+            raise ValueError("Store field length invalid: %s/%s (%d/%d)" % (metadata_name, filename, len(text), limit))
+        result[Path("fastlane/metadata/android") / metadata_name / filename] = text + "\n"
+    return result
 
-if len(sys.argv) < 2 or sys.argv[1] != "sync":
-    print("Syncing of translation files is no longer needed. Run with 'sync_translation.py sync' to do it anyway.")
-    exit(1)
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate store text from Android source keys and English fallback; no translation-service access.")
+    parser.add_argument("mode", choices=["sync", "metadata"], help="sync also reports missing translations; neither mode rewrites translations")
+    parser.add_argument("--check", action="store_true", help="compare generated metadata without writing")
+    args = parser.parse_args()
+    baseline = parse_strings_file("res/values/strings.xml")
+    outputs = metadata_texts("en", baseline, baseline)
+    for value_dir in sorted(glob.glob("res/values-*")):
+        strings_file = os.path.join(value_dir, "strings.xml")
+        if os.path.isfile(strings_file):
+            local_strings = parse_strings_file(strings_file)
+            outputs.update(metadata_texts(value_dir, local_strings, baseline))
+            if args.mode == "sync":
+                print_status(strings_file, sync(baseline, local_strings))
+    stale = []
+    for path, text in outputs.items():
+        if args.check:
+            if not path.is_file() or path.read_text(encoding="utf-8") != text:
+                stale.append(str(path))
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+    if stale:
+        parser.exit(1, "Stale metadata:\n" + "\n".join(stale) + "\n")
+    print("%s %d store text files; field limits 30/80/4000 characters." % ("Checked" if args.check else "Generated", len(outputs)))
 
-baseline = parse_strings_file("res/values/strings.xml")
-
-for value_dir in glob.glob("res/values-*"):
-    strings_file = os.path.join(value_dir, "strings.xml")
-    if os.path.isfile(strings_file):
-        local_strings = dict(parse_strings_file(strings_file))
-        synced_strings = sync(baseline, local_strings)
-        # Syncing translation files is no longer needed since we use Weblate.
-        # with open(strings_file, "w", encoding="utf-8") as out:
-        #     write_updated_strings(out, synced_strings)
-        sync_metadata(value_dir, local_strings)
-        print_status(strings_file, synced_strings)
-
-sync_metadata("en", baseline)
+if __name__ == "__main__":
+    main()

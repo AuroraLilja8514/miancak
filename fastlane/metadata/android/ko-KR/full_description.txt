@@ -1,4 +1,10 @@
-주요 기능은 모서리 방향으로 키를 스와이프하여 더 많은 문자를 입력할 수 있다는 것입니다.
+MIANCAK is an experimental, offline Chinese Pinyin keyboard for Android, built on Unexpected Keyboard with the Rime engine.
 
-이 앱은 처음에는 Termux를 사용하는 프로그래머들을 위한 것으로 개발되었습니다.
-지금은 일상적인 용도로도 완벽합니다.
+Type Chinese with touch candidates or switch explicitly to direct English on the same QWERTY geometry. Swipe keys for exact punctuation and symbols. Scroll compact candidates horizontally, or expand within the keyboard area and scroll vertically; more candidates load as needed.
+
+Choose categorized symbols with circular paging across categories. Edit key centers and eight directions in a normal-size preview, including separate Shift actions and paired Fn layouts. Layout files use the Android file picker for import and export. Compatible explicit-Pinyin Rime word tables can be imported and deployed offline; this does not install arbitrary Rime schemes or executable plugins.
+
+Normal typing needs no network. The first Chinese session prepares bundled word data offline and may take tens of seconds. The app is free and open source under GPL-3.0. Based on Unexpected Keyboard by Julow and contributors; dependency and dictionary credits are preserved in the project.
+
+Project and source: https://github.com/AuroraLilja8514/miancak
+Feedback: https://github.com/AuroraLilja8514/miancak/issues

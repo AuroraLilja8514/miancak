@@ -1,1 +1,1 @@
-Bàn phím ảo gọn nhẹ và tôn trọng quyền riêng tư cho Android.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

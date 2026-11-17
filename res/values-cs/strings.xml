@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Klávesnice Unexpected</string>
-    <string name="app_name_debug">Klávesnice Unexpected (pro ladění)</string>
-    <string name="short_description">Nenáročná virtuální klávesnice pro vývojáře.</string>
-    <string name="store_description">Hlavní funkcí je možnost psát více znaků posunutím kláves směrem k rohům.\n\nTato aplikace byla původně navržena pro programátory používající Termux.\nNyní je ideální pro každodenní použití.\n\nTato aplikace neobsahuje žádné reklamy a je Open Source.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">V režimu na výšku</string>
     <string name="pref_landscape">V režimu na šířku</string>
     <string name="pref_category_layout">Rozvržení</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">Odeslat</string>
     <string name="launcher_button_imesettings">Aktivovat klávesnici</string>
     <string name="launcher_button_imepicker">Vybrat klávesnici</string>
-    <string name="launcher_description">Tato aplikace je pouhou virtuální klávesnicí. Přejděte do systémového nastavení, kliknutím na tlačítko níže a aktivujte ji.</string>
     <string name="launcher_sourcecode">Toto je volná, open-source aplikace. Její zdrojový kód, či hlášení chyb, naleznete na Githubu.</string>
     <string name="launcher_tryhere">Po aktivaci můžete klávesnici rovnou vyzkoušet zde:</string>
     <string name="launcher_tryhere_hint">Zkoušejte zde</string>

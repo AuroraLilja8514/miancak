@@ -1,1 +1,1 @@
-لوحة مفاتيح افتراضية خفيفة الوزن ومراعية للخصوصية لنظام أندرويد.
+Offline Chinese Pinyin with Rime, direct English and swipe keys.

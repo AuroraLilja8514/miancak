@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Unexpected Keyboard</string>
-    <string name="app_name_debug">Unexpected Keyboard (gỡ lỗi)</string>
-    <string name="short_description">Bàn phím ảo gọn nhẹ và tôn trọng quyền riêng tư cho Android.</string>
-    <string name="store_description">Chức năng chính là dễ dàng gõ nhiều ký tự bằng cách kéo phím về góc của nó.\n\nỨng dụng này ban đầu được thiết kế cho các lập trình viên dùng Termux.\nBây giờ đã hoàn hảo cho việc sử dụng hàng ngày.\n\nỨng dụng này không chứa quảng cáo, có mã nguồn mở.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">Trong chế độ chân dung</string>
     <string name="pref_landscape">Trong chế độ phong cảnh</string>
     <string name="pref_category_layout">Bố cục</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">Gửi</string>
     <string name="launcher_button_imesettings">Cấp phép bật bàn phím</string>
     <string name="launcher_button_imepicker">Chọn app bàn phím</string>
-    <string name="launcher_description">Ứng dụng này là một bàn phím ảo. Hãy mở cài đặt hệ thống bằng cách nhấn phím bên dưới và bật Unexpected-Keyboard.</string>
     <string name="launcher_sourcecode">Đây là một ứng dụng mã nguồn mở và miễn phí. Bạn có thể tìm đọc mã nguồn hoặc báo cáo lỗi tại Github.</string>
     <string name="launcher_tryhere">Sau khi đã cấp phép, bạn có thể thử bàn phím ở đây:</string>
     <string name="launcher_tryhere_hint">Nhấn vào để thử</string>

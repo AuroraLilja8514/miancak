@@ -42,13 +42,14 @@ ci(android): build native debug APK
 docs(interaction): define language switching invariants
 ```
 
-## Building the inherited Android project
+## Building MIANCAK
 
-Until MIANCAK's Rime-native toolchain is introduced, the project inherits Unexpected Keyboard's existing Android build requirements:
+The inherited frontend and Rime-native runtime are built together. Use:
 
-- OpenJDK 17
-- Android SDK / platform 36
-- Python 3 for generated-file maintenance tasks
+- OpenJDK 17;
+- Android SDK / platform 36;
+- NDK `28.0.13004108` and CMake `3.22.1`, pinned in `build.gradle.kts`;
+- Python 3.12+ for source/data preparation and generated-file maintenance.
 
 Initialize submodules:
 
@@ -60,13 +61,15 @@ python3 scripts/prepare_rime.py
 Use the repository Gradle wrapper rather than installing/selecting another Gradle version:
 
 ```sh
-./gradlew test
-./gradlew assembleDebug
+./gradlew --no-daemon test compileDebugAndroidTestJavaWithJavac
+./gradlew --no-daemon assembleDebug assembleDebugAndroidTest assembleRelease
+python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
+python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 ```
 
 The wrapper currently pins the project Gradle version in `gradle/wrapper/gradle-wrapper.properties`.
 
-Rime builds additionally require the pinned NDK/CMake and Python 3.12+. See [docs/NATIVE_RUNTIME.md](docs/NATIVE_RUNTIME.md) for source preparation, ABI selection and emulator tests. Source downloads occur at build time; normal input is offline.
+Both debug and minified release packaging checks require all declared ABIs; a local `-PmiancakAbis=x86_64` build is only a subset check. Ordinary CI and these commands use no formal signing inputs. See [docs/NATIVE_RUNTIME.md](docs/NATIVE_RUNTIME.md) for source preparation, ABI selection and emulator tests. Source downloads occur at build time; normal input is offline.
 
 ## Installing for local testing
 
@@ -76,9 +79,9 @@ With Android debugging enabled and a device connected:
 ./gradlew installDebug
 ```
 
-If Android reports a signature mismatch for an existing debug installation, uninstall the old debug package and install again. Enabling an input method is an explicit Android user action and may need to be repeated after uninstalling.
+If Android reports a signature mismatch, keep the existing installation and its data while checking the package and certificate identities. Update a debug installation using its original debug keystore when available; APKs from different CI runs may use different temporary certificates and cannot necessarily overwrite one another. Uninstalling or clearing data deletes private settings and learning and is not a routine upgrade remedy.
 
-CI debug APKs intentionally do not rely on a stable signing secret yet, so APKs from different CI runs may also require reinstalling rather than upgrading in place.
+The formal package `org.miancak.keyboard` can coexist with `org.miancak.keyboard.debug`; they do not share private data. The documented layout export/import does not establish complete learning-data migration or recovery. Preserve the old app and data until the required transfer has actually been validated. See [release guidance](docs/RELEASING.md) and [the v0.3.2 limits](docs/releases/0.3.2.md).
 
 ## CI before merge
 
@@ -94,7 +97,7 @@ build-debug
 
 Do not merge while a required check is failing. Do not bypass a failure by weakening the workflow or deleting a test unless the underlying project contract is deliberately being changed.
 
-See [docs/CI.md](docs/CI.md) for the security policy and future Rime/native checks.
+Native debug/release packaging, API 23/35 interaction, fresh-install, word-table/quality, upgrade and reboot checks are current gates, not future work. See [docs/CI.md](docs/CI.md) for the complete applicable matrix and evidence policy.
 
 ## Interaction changes
 
@@ -119,6 +122,12 @@ When touching inherited layout infrastructure, preserve upstream conventions unl
 Do not hand-edit generated outputs when a generator is the source of truth.
 
 If a task changes source data used by an inherited generator, run the corresponding generator/check and include the resulting generated changes in the same PR. CI will fail if the checked-in generated outputs are stale.
+
+## Identity, translations and store text
+
+Current product/source links belong to [MIANCAK](https://github.com/AuroraLilja8514/miancak); report fork problems in [MIANCAK Issues](https://github.com/AuroraLilja8514/miancak/issues). Keep upstream credits, copyright and historical records intact.
+
+Edit Android source keys before generating store text. Run `python3 sync_translations.py metadata` (or the compatible `sync` mode), then `python3 sync_translations.py metadata --check` and `python3 scripts/check_project_identity.py`. These commands need no translation-service credentials and do not rewrite other translations. Reviewed English/Chinese content, deliberate fallback and pending store imagery are recorded in [docs/PROJECT_IDENTITY.md](docs/PROJECT_IDENTITY.md).
 
 ## Dependencies and licenses
 

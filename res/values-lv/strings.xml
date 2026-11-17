@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Neparedzēta tastatūra</string>
-    <string name="app_name_debug">Neparedzēta tastatūra (atkļūdošana)</string>
-    <string name="short_description">Mazizmēra un privātumu ievērojoša virtuāla Android tastatūra.</string>
-    <string name="store_description">Tastatūras galvenā iespēja — viegli ievadīt jebkuru ASCII rakstzīmi ar pavilkšanu uz taustiņu stūriem.\n\nSākotnēji šī lietotne tika izstrādāta programmētājiem, kas izmanto Termux.\nTagad tā lieliski piemērota arī ikdienas lietošanai.\n\nLietotne nesatur reklāmas, un tās pirmkods ir pieejams visiem.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">Vertikālajā orientācijā</string>
     <string name="pref_landscape">Horizontālajā orientācijā</string>
     <string name="pref_category_layout">Izkārtojums</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">Sūtīt</string>
     <string name="launcher_button_imesettings">Iespējot tastatūru</string>
     <string name="launcher_button_imepicker">Izvēlēties tastatūru</string>
-    <string name="launcher_description">Šī lietotne ir virtuāla tastatūra. Zemāk esošās pogas nospiešana atvērs sistēmas iestatījumus, lai varētu iespējot Neparedzēto tastatūru.</string>
     <string name="launcher_sourcecode">Šī ir brīva un atvērtā pirmkoda lietotne. GitHub variet atrast pirmkodu un ziņot par problēmām.</string>
     <string name="launcher_tryhere">Pēc iespējošanas šeit var izmēģināt tastatūru:</string>
     <string name="launcher_tryhere_hint">Izmēģināt šeit</string>

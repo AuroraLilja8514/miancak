@@ -1,5 +1,7 @@
 # Key values
 
+This inherited XML/key reference keeps Unexpected Keyboard compatibility names. For current MIANCAK setup and editing, see the [README](../README.md), [visual editor](../docs/VISUAL_LAYOUT_EDITOR.md) and [Fn layout rules](../docs/FN_LAYOUTS.md). Engine/Literal and page actions below describe MIANCAK additions; the inherited `fn` modifier is distinct from `fn_page`.
+
 A key value defines what a key on the keyboard does when pressed or swiped.
 
 Key values appear in the following places:
@@ -45,7 +47,7 @@ A literal tab character, which is different from `tab` in certain apps. | `\t`
 `>` | `&gt;`
 `"` | `&quot;`
 
-The characters `\` (unless followed by n or t), `?`, `#`, and `@` do not need to be escaped when writing custom layouts. When writing a layout to be included in the app (in [srcs/layouts](https://github.com/Julow/Unexpected-Keyboard/tree/master/srcs/layouts)), they are represented by typing `\\`, `\?`, `\#`, and `\@`.
+The characters `\` (unless followed by n or t), `?`, `#`, and `@` do not need to be escaped when writing custom layouts. When writing a layout to be included in the app (in [srcs/layouts](../srcs/layouts)), they are represented by typing `\\`, `\?`, `\#`, and `\@`.
 
 The characters `,` and `:` can be escaped in a key value, using single quotes. For example, this macro defines a key with legend `http` that sends a string containing `:`: `<key c="http:home,'https://'" />` For simplicity, `,` and `:` cannot be escaped in the key legend.
 
@@ -175,12 +177,12 @@ Keys ending in `_placeholder` are normally hidden unless the Fn key is pressed.
 ## Keyboard behavior keys
 Value                  | Meaning
 :--------------------- | :------
-`config`               | Gear icon; opens Unexpected Keyboard settings.
+`config`               | Gear icon; opens MIANCAK settings.
 `switch_text`          | Switch to the text layer (main layer).
 `switch_numeric`       | Switch to the numeric layer.
 `switch_emoji`         | Switch to the emoji layer.
 `switch_back_emoji`    | Switch to the text layer from the emoji layer.
-`switch_forward`       | Change the keyboard layout, as long as Unexpected Keyboard has multiple keyboard layouts enabled in the settings.
+`switch_forward`       | Change the keyboard layout, when MIANCAK has multiple layouts enabled in the settings.
 `switch_backward`      | Change the keyboard layout to the previous one in the list.
 `switch_greekmath`     | Switch to the Greek & Math Symbols layer.
 `switch_clipboard`     | Switch to the clipboard pane.
@@ -232,4 +234,4 @@ MIANCAK adds explicit fixed text actions for custom layouts:
 
 ## MIANCAK page actions
 
-`fn_page` toggles the configured page target; the inherited `fn` modifier remains available for custom XML. `layout_picker` opens the unified chooser. `switch_pinyin`, `switch_pinyin_finals` and `switch_zhuyin` select literal phonetic pages; these do not introduce an additional Hanzi conversion scheme. All page-only navigation preserves active composition. Selecting a Chinese/English profile confirms once before applying that mode. The header chooser remains available after key edits.
+`fn_page` toggles only the active layout and its own explicitly paired Fn variant; it cannot target an arbitrary configured page. Unpaired layouts, including the symbol browser, do not acquire a Fn destination. The inherited `fn` modifier remains available for XML action transformations. `layout_picker` opens the unified chooser. `switch_pinyin`, `switch_pinyin_finals` and `switch_zhuyin` select literal phonetic pages; these do not introduce an additional Hanzi conversion scheme. Opening or cancelling the chooser preserves composition. A layout transition to a different input policy confirms active composition before changing the layout; entering the Chinese Fn variant keeps the Chinese policy. The header chooser remains available after key edits.

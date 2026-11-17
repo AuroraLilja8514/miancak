@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">صفحه کلید غیرمنتظره</string>
-    <string name="app_name_debug">صفحه کلید غیرمنتظره (دیباگ)</string>
-    <string name="short_description">صفحه‌کلید مجازی سبک و با حفظ حریم خصوصی برای اندروید.</string>
-    <string name="store_description">ویژگی اصلی این است که می‌توانید با کشیدن کلید ها به سمت گوشه‌ها، کاراکتر های بیشتری تایپ کنید.\n\nاین برنامه در ابتدا برای برنامه‌نویسانی که از ترموکس (Termux) استفاده می‌کنند طراحی شده بود.\nاکنون برای استفاده روزمره عالی است.\n\nاین برنامه دارای هیچگونه تبلیغاتی نمیباشد و منبع باز محسوب میشود.</string>
+    <string name="app_name_release">MIANCAK</string>
+    <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="pref_portrait">در حالت عمودی</string>
     <string name="pref_landscape">در حالت افقی</string>
     <string name="pref_category_layout">طرح</string>
@@ -84,7 +82,6 @@
     <string name="key_action_send">ارسال</string>
     <string name="launcher_button_imesettings">فعال کردن صفحه کلید</string>
     <string name="launcher_button_imepicker">برگزیدن صفحه‌کلید</string>
-    <string name="launcher_description">این برنامه یک صفحه کلید مجازی است. با کلیک روی گزینه زیر به تنظیمات سامانه بروید و صفحه کلید غیرمنتظره را فعال کنید.</string>
     <string name="launcher_sourcecode">این یک برنامه متن باز و آزاد است. شما می‌توانید کد منبع را در گیتهاب پیدا کرده و نیز باگ‌ها را گزارش کنید.</string>
     <string name="launcher_tryhere">بعد از فعالسازی، صفحه کلید را اینجا امتحان کنید:</string>
     <string name="launcher_tryhere_hint">آزمودن اینجا</string>
