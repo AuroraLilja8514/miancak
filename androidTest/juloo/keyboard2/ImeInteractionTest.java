@@ -233,6 +233,7 @@ public class ImeInteractionTest
       assertNotNull(paste); paste.click();
       output += clipboardCandidate + clipboardText; awaitText(activity.first, output); awaitIdlePreedit();
       screenshot("clipboard-composition-paste");
+      pinOlderClipboardKeepsCurrent(clipboardText);
       UiObject2 clips = find("miancak_clipboard_scroll"); clips.setGestureMargin(4);
       clips.scroll(androidx.test.uiautomator.Direction.UP, 1f);
       history = find("miancak_clipboard_history"); if (history.isChecked()) history.click();
@@ -578,6 +579,80 @@ public class ImeInteractionTest
     String[] result = { "" };
     instrumentation.runOnMainSync(() -> result[0] = edit.getText().toString());
     return result[0];
+  }
+
+  /** Actual pin button and system clipboard; runs only in the prepared full
+   * interaction guest, after the existing composition-paste assertions. */
+  private void pinOlderClipboardKeepsCurrent(String older) throws Exception
+  {
+    String newer = "MIANCAK newer clipboard β🙂";
+    android.content.ClipboardManager clipboard =
+      (android.content.ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE);
+    SharedPreferences pins = context.getSharedPreferences("pinned_clipboards", Context.MODE_PRIVATE);
+    String savedPins = pins.getString("pinned", null);
+    Throwable primaryFailure = null;
+    try
+    {
+      instrumentation.runOnMainSync(() -> clipboard.setPrimaryClip(
+          android.content.ClipData.newPlainText("Synthetic pin regression", newer)));
+      assertNotNull(device.wait(Until.findObject(By.res(pkg, "clipboard_entry_text").text(newer)), 15000));
+      assertPrimaryClipboard(clipboard, newer);
+      UiObject2 entry = clipboardEntry("clipboard_entry_text", older);
+      UiObject2 pin = entry.getParent().findObject(By.res(pkg, "clipboard_entry_addpin"));
+      assertNotNull(pin); pin.click();
+      UiObject2 pinned = clipboardEntry("clipboard_pin_text", older);
+      assertPrimaryClipboard(clipboard, newer);
+      org.json.JSONArray saved = new org.json.JSONArray(pins.getString("pinned", "[]"));
+      boolean contains = false;
+      for (int i = 0; i < saved.length(); i++) contains |= older.equals(saved.getString(i));
+      assertTrue("Pin button must persist the selected older text", contains);
+      UiObject2 remove = pinned.getParent().findObject(By.res(pkg, "clipboard_pin_remove"));
+      assertNotNull(remove); remove.click();
+      UiObject2 confirm = device.wait(Until.findObject(By.res("android", "button1")), 15000);
+      assertNotNull(confirm); confirm.click();
+      assertTrue(device.wait(Until.gone(By.res(pkg, "clipboard_pin_text").text(older)), 15000));
+      assertPrimaryClipboard(clipboard, newer);
+    }
+    catch (Exception | Error failure)
+    {
+      primaryFailure = failure;
+      throw failure;
+    }
+    finally
+    {
+      try
+      {
+        SharedPreferences.Editor restore = pins.edit();
+        if (savedPins == null) restore.remove("pinned"); else restore.putString("pinned", savedPins);
+        assertTrue("Restore synthetic pinned-clipboard fixture", restore.commit());
+        instrumentation.runOnMainSync(() -> clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText("APK test", older)));
+      }
+      catch (Exception | Error cleanup)
+      {
+        if (primaryFailure != null) primaryFailure.addSuppressed(cleanup); else throw cleanup;
+      }
+    }
+  }
+
+  private UiObject2 clipboardEntry(String resource, String text) throws Exception
+  {
+    new androidx.test.uiautomator.UiScrollable(new androidx.test.uiautomator.UiSelector()
+        .resourceId(pkg + ":id/miancak_clipboard_scroll")).scrollIntoView(
+          new androidx.test.uiautomator.UiSelector().resourceId(pkg + ":id/" + resource).text(text));
+    UiObject2 entry = device.wait(Until.findObject(By.res(pkg, resource).text(text)), 15000);
+    assertNotNull(entry); assertTrue("Clipboard entry must be visible", entry.getVisibleBounds().height() > 16);
+    return entry;
+  }
+
+  private void assertPrimaryClipboard(android.content.ClipboardManager clipboard, String expected)
+  {
+    instrumentation.runOnMainSync(() -> {
+      android.content.ClipData current = clipboard.getPrimaryClip();
+      assertNotNull("Focused test app must read the actual primary clipboard", current);
+      assertEquals(1, current.getItemCount());
+      assertEquals(expected, String.valueOf(current.getItemAt(0).getText()));
+    });
   }
   private void awaitText(EditText edit, String expected)
   {

@@ -56,6 +56,7 @@ public final class ClipboardHistoryService
   static ClipboardPasteCallback _paste_callback = null;
 
   ClipboardManager _cm;
+  private final Runnable _clear_primary_clip;
   List<HistoryEntry> _history;
   OnClipboardHistoryChange _listener = null;
 
@@ -63,7 +64,20 @@ public final class ClipboardHistoryService
   {
     _history = new ArrayList<HistoryEntry>();
     _cm = (ClipboardManager)ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+    _clear_primary_clip = () -> {
+      if (VERSION.SDK_INT >= 28)
+        _cm.clearPrimaryClip();
+      else
+        _cm.setText("");
+    };
     _cm.addPrimaryClipChangedListener(this.new SystemListener());
+  }
+
+  /** Keep clipboard writes separate from the in-memory ordering logic. */
+  ClipboardHistoryService(Runnable clear_primary_clip)
+  {
+    _history = new ArrayList<HistoryEntry>();
+    _clear_primary_clip = clear_primary_clip;
   }
 
   public synchronized List<String> clear_expired_and_get_history()
@@ -86,23 +100,19 @@ public final class ClipboardHistoryService
   public synchronized void remove_history_entry(String clip)
   {
     int last_pos = _history.size() - 1;
-    boolean last_pos_changed = false;
+    boolean newest_removed = false;
     for (int pos = last_pos; pos >= 0; pos--)
     {
       if (!_history.get(pos).content.equals(clip))
         continue;
-      // Removing the current clipboard, clear the system clipboard.
-      if (pos == last_pos)
-        last_pos_changed = true;
+      // Entries are newest-first. Pinning an older entry must preserve the
+      // newer system clipboard; pinning the newest keeps the clearing policy.
+      if (pos == 0)
+        newest_removed = true;
       _history.remove(pos);
     }
-    if (last_pos_changed)
-    {
-      if (VERSION.SDK_INT >= 28)
-        _cm.clearPrimaryClip();
-      else
-        _cm.setText("");
-    }
+    if (newest_removed)
+      _clear_primary_clip.run();
     if (_listener != null)
       _listener.on_clipboard_history_change();
   }
@@ -175,6 +185,12 @@ public final class ClipboardHistoryService
 
     /** Time at which the entry expires. */
     public final long expiry_timestamp;
+
+    HistoryEntry(String content, long expiry_timestamp)
+    {
+      this.content = content;
+      this.expiry_timestamp = expiry_timestamp;
+    }
 
     public HistoryEntry(String c)
     {
