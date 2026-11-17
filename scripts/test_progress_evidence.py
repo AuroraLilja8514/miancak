@@ -316,6 +316,22 @@ public final class ProgressEvidenceHostTest {
         e.failed(ProgressEvidence.FailurePhase.FLOW, ProgressEvidence.FailureKind.AUTOMATION);
         e.work(); check(s.lines.size() == 86, "failure metadata retains normal record bound"); emit(s); break;
       }
+      case "picker_stage_roundtrip": {
+        ProgressEvidence.Stage[] stages = {ProgressEvidence.Stage.PICKER_DISMISS_ENTER,
+          ProgressEvidence.Stage.PICKER_DISMISS_RETURN, ProgressEvidence.Stage.PICKER_CURRENT_IME_ENTER,
+          ProgressEvidence.Stage.PICKER_CURRENT_IME_RETURN};
+        ProgressEvidence[] owner = new ProgressEvidence[1]; int[] next = {0};
+        ProgressEvidence e = new ProgressEvidence(ProgressEvidence.Run.REBOOT, c, r -> {
+          r.run();
+          if (++next[0] < stages.length) owner[0].mark(stages[next[0]]);
+          else owner[0].close();
+          return true;
+        }, s);
+        owner[0] = e; e.scope(ProgressEvidence.Scope.FIRST_INSTALL); e.mark(stages[0]); e.work();
+        check(next[0] == 4, "finite four-stage fixture");
+        for (ProgressEvidence.Stage stage : stages) check(s.text().contains("\"stage\":\"" + stage.name() + "\""), "picker stage emitted");
+        emit(s); break;
+      }
       default: throw new AssertionError(name);
     }
     System.out.println("PASS " + name);
@@ -387,6 +403,10 @@ class ProgressEvidenceTests(unittest.TestCase):
                                      (failure['phase'],failure['kind'],failure['stage']))
                 text = (root/'public-test-results/heartbeat.jsonl').read_text()
                 self.assertEqual(parsed, [json.loads(line)['record'] for line in text.splitlines()])
+                if name == 'picker_stage_roundtrip':
+                    self.assertEqual({'PICKER_DISMISS_ENTER','PICKER_DISMISS_RETURN',
+                                      'PICKER_CURRENT_IME_ENTER','PICKER_CURRENT_IME_RETURN'},
+                                     {row['stage'] for row in parsed[1:]})
                 self.assertNotIn('PRIVATE', text)
                 self.assertNotIn('Intent{', text)
 
@@ -399,7 +419,7 @@ for _name in ("early_ack", "pending_and_late_owner", "concurrent_ack", "rejectio
               "blocked_post", "blocked_open", "blocked_write", "blocked_close", "sink_failures",
               "stop_deadline_and_skip", "limits", "original_exception_and_markers",
               "failure_latched_before_cleanup", "failure_recorder_unavailable", "cleanup_first_failure",
-              "failure_kinds_and_unobserved", "failure_record_caps"):
+              "failure_kinds_and_unobserved", "failure_record_caps", "picker_stage_roundtrip"):
     install_scenario(_name)
 
 if __name__ == "__main__":

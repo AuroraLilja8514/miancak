@@ -223,8 +223,10 @@ public final class FirstInstallTest
       assertTrue("Retained MIANCAK default is not checked in Android's picker",
           row.findObject(By.res("android", "radio")).isChecked());
       pressBack();
+      mark(PICKER_DISMISS_ENTER);
       assertTrue("Cancelling the unchanged system picker must dismiss it",
           device.wait(Until.gone(By.pkg("android").text(appName)), 10000));
+      mark(PICKER_DISMISS_RETURN);
     }
     else
     {
@@ -243,11 +245,13 @@ public final class FirstInstallTest
       }
       assertTrue("Android did not select MIANCAK through its visible picker", selected);
     }
+    mark(PICKER_CURRENT_IME_ENTER);
     long end = SystemClock.uptimeMillis() + 10000;
     while (!component.equals(Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD))
         && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
     assertEquals("The visible picker must leave MIANCAK as the actual selected IME", component,
         Settings.Secure.getString(context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD));
+    mark(PICKER_CURRENT_IME_RETURN);
     mark(PICKER_RETURN);
   }
 

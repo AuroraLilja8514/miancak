@@ -509,5 +509,16 @@ else:raise SystemExit(98)
             expected = dict(good, failure=dict(good['failure'], code=code))
             self.assertEqual(expected, self.project_reboot(expected)['reboot_evidence'])
 
+    def test_picker_failure_boundaries_remain_distinct_after_finally(self):
+        header, row = self.typed_rows()
+        for stage in ('PICKER_DISMISS_ENTER', 'PICKER_DISMISS_RETURN',
+                      'PICKER_CURRENT_IME_ENTER', 'PICKER_CURRENT_IME_RETURN'):
+            with self.subTest(stage=stage):
+                failure = dict(self.typed_failure(), stage=stage)
+                report, body, name = self.project_rows(header, [dict(row, failure=failure)])
+                self.assertEqual('available', report['heartbeat'][name])
+                self.assertEqual(failure, report['failure_evidence'][name])
+                self.assertEqual('FINALLY_RETURN', json.loads(body.splitlines()[1])['record']['stage'])
+
 
 if __name__=='__main__':unittest.main()

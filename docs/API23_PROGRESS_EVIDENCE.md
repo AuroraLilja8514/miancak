@@ -136,6 +136,15 @@ rotation on `ROTATION_RETURN`: 0=natural, 1=90 degrees, 2=180 degrees, 3=270
 degrees. Other first-install stages use -1. General unspecified detail fields
 use zero or -1 as initialized by their marker call.
 
+Within first-install's retained-IME picker path, `PICKER_DISMISS_ENTER` precedes
+the existing dismissal wait/assertion, and `PICKER_DISMISS_RETURN` follows only
+its success. `PICKER_CURRENT_IME_ENTER` precedes the existing deadline calculation,
+Secure-settings polling loop and final equality assertion;
+`PICKER_CURRENT_IME_RETURN` follows only assertion success. Neither return is
+emitted from finally. These markers add no settings read, wait or captured value.
+An observed failure latch at either enter distinguishes these boundaries from
+the preceding Back return, while retaining the latest-breadcrumb caveat.
+
 ### First-failure observation
 
 New sampler files use header `schema: 2`; schema 1 remains readable without
@@ -176,7 +185,7 @@ the public exporter rejects a run with a changed or lost latch.
 
 ## Host verification
 
-The CI unit step runs the 19 Android-free host experiments after Java 17 setup.
+The CI unit step runs the 20 Android-free host experiments after Java 17 setup.
 The driver explicitly compiles the exact core from androidTest with temporary
 fake clock/poster/sink fixtures; no app sources or Gradle source sets are added.
 The same checks can be run locally:
