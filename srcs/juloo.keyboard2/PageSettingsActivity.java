@@ -127,7 +127,7 @@ public class PageSettingsActivity extends Activity
             bytes.write(buffer, 0, count);
           }
         }
-        String json = new String(bytes.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        String json = PageKeyOverrides.decodeImportFile(bytes.toByteArray());
         new AlertDialog.Builder(this).setMessage(R.string.page_import_confirm).setNegativeButton(android.R.string.cancel, null)
           .setPositiveButton(android.R.string.ok, (dialog, which) -> {
             try { PageKeyOverrides.importJson(preferences, this, json); render(); }
@@ -135,6 +135,7 @@ public class PageSettingsActivity extends Activity
           }).show();
       }
     }
+    catch (java.nio.charset.CharacterCodingException invalid) { error(getString(R.string.page_import_invalid_utf8)); }
     catch (Exception error) { error(error.getMessage()); }
   }
   private void error(String message)

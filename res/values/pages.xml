@@ -42,6 +42,7 @@
   <string name="page_restore_confirm">Restore the configuration before the last key edit or import?</string>
   <string name="page_exported">Layout file exported</string>
   <string name="page_import_too_large">Layout file exceeds 256 KiB</string>
+  <string name="page_import_invalid_utf8">This layout file is not valid UTF-8. Save the file as UTF-8 and try again.</string>
   <string name="page_import_confirm">Import this file and replace page settings and key edits? The current configuration will be backed up.</string>
   <string name="page_import_error">Could not read layout settings</string>
   <string-array name="page_action_labels">

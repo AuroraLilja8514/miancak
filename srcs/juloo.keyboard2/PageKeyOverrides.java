@@ -137,6 +137,14 @@ public final class PageKeyOverrides
       .put("phonetic_entry", config.phoneticEntry)
       .put("order", PageConfig.csv(config.order)).put("enabled", PageConfig.csv(config.enabled)).toString(2);
   }
+  /** Decode the size-bounded external file before import confirmation. */
+  static String decodeImportFile(byte[] bytes) throws java.nio.charset.CharacterCodingException
+  {
+    return java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+      .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+      .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+      .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+  }
   public static void importJson(SharedPreferences preferences, Resources resources, String text) throws Exception
   { importJson(preferences, resources, null, text, true); }
   public static void importJson(SharedPreferences preferences, android.content.Context context, String text) throws Exception

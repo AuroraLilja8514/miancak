@@ -245,6 +245,32 @@ public final class PageCustomizationTest
         assertEquals(exported, PageKeyOverrides.export(preferences));
       }
   }
+  @Test public void fileEncodingRejectsMalformedBytesAndKeepsExactValidActions() throws Exception
+  {
+    SharedPreferences preferences = prefs();
+    PageKeyOverrides edits = new PageKeyOverrides();
+    edits.set("en", 0, 0, 0, false, PageKeyOverrides.literal("旧")); edits.save(preferences);
+    String before = PageKeyOverrides.export(preferences);
+    java.util.Map<String, ?> values = new java.util.HashMap<>(preferences.getAll());
+    JSONObject next = new JSONObject(before);
+    String text = "你好🙂�";
+    next.getJSONObject("pages").getJSONObject("en").put("0:0:0", PageKeyOverrides.literal(text + "?"));
+    byte[] malformed = next.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    for (int i = 0; i < malformed.length; i++) if (malformed[i] == '?') malformed[i] = (byte)0x80;
+    try
+    {
+      PageKeyOverrides.importJson(preferences, context(), PageKeyOverrides.decodeImportFile(malformed));
+      fail("Malformed file changed a key action");
+    }
+    catch (java.nio.charset.CharacterCodingException expected) {}
+    assertEquals(values, preferences.getAll());
+    assertEquals(before, PageKeyOverrides.export(preferences));
+    next.getJSONObject("pages").getJSONObject("en").put("0:0:0", PageKeyOverrides.literal(text));
+    PageKeyOverrides.importJson(preferences, context(), PageKeyOverrides.decodeImportFile(
+        next.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    assertEquals(text, PageKeyOverrides.load(preferences).apply("en", PageLayouts.base(context().getResources(), "en"))
+        .rows.get(0).keys.get(0).keys[0].getSemanticText());
+  }
 
   @Test public void savedPrefixCompatibilitySurvivesWhileNewEditsRejectTheSuffix() throws Exception
   {
