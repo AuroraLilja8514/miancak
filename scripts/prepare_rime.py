@@ -68,6 +68,8 @@ def main():
     git(rime, "submodule", "update", "--init", "--recursive", "--depth=1",
         "deps/leveldb", "deps/yaml-cpp", "deps/marisa-trie", "deps/opencc")
     pinyin = checkout("pinyin", LOCK["pinyin"])
+    plugins = {name: checkout(directory, LOCK[name]) for name, directory in
+               [("octagram", "octagram"), ("librime_lua", "librime-lua"), ("lua", "lua-thirdparty")]}
     boost = CACHE / "boost"
     marker = boost / ".miancak-source-sha256"
     if not marker.exists() or marker.read_text().strip() != LOCK["boost"]["sha256"]:
@@ -93,10 +95,14 @@ def main():
     from prepare_word_pack import prepare, install_default, SPEC
     report = prepare()
     profile = SPEC.get("default_profile", "legacy")
-    if profile not in ("legacy", "ice-core"):
+    if profile not in ("legacy", "ice-core", "wanxiang-base"):
         raise RuntimeError("Unsupported default word-pack profile: " + str(profile))
     word_pack = install_default(report, ASSETS) if profile == "ice-core" else None
-    manifest = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(data.iterdir())}
+    if profile == "wanxiang-base":
+        from prepare_wanxiang import prepare as prepare_wanxiang
+        word_pack = prepare_wanxiang(ASSETS, plugins)
+    from prepare_wanxiang import sha256
+    manifest = {p.relative_to(data).as_posix(): sha256(p) for p in sorted(data.rglob("*")) if p.is_file()}
     (data / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
     metadata = dict(LOCK)
     if word_pack is not None:
@@ -106,6 +112,8 @@ def main():
     (ASSETS / "native-sources.json").write_text(json.dumps(metadata, indent=2) + "\n")
     copy_notices(pinyin, "pinyin-simp")
     copy_notices(boost, "boost")
+    copy_notices(plugins["octagram"], "librime-octagram")
+    copy_notices(plugins["librime_lua"], "librime-lua")
     for name in ["leveldb", "yaml-cpp", "marisa-trie", "opencc"]:
         copy_notices(rime / "deps" / name, name)
     for name in ["LICENSE", "NOTICE"]:

@@ -197,7 +197,7 @@ def metrics(root):
     for file in ('native-metrics.json', 'word-pack-quality.json'):
         data = optional(root, 'test-results/device/' + file)
         if not isinstance(data, dict): continue
-        for group in ('native', 'baseline', 'candidate', 'core'):
+        for group in ('native', 'baseline', 'candidate', 'core', 'wanxiang-base'):
             values = data if group == 'native' else data.get(group)
             if not isinstance(values, dict): continue
             for key in sorted(METRICS):

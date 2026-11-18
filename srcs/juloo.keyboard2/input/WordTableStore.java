@@ -159,16 +159,19 @@ public final class WordTableStore
     boolean committed = false;
     try
     {
-      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
-        try (InputStream in = new FileInputStream(new File(bundled.shared, name)); FileOutputStream out = new FileOutputStream(new File(shared, name)))
+      boolean wanxiang = base.equals(BUNDLED) && new File(bundled.shared, "miancak-profile.json").isFile();
+      if (wanxiang) RimeData.copyBundled(bundled.shared, shared);
+      else for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
+        try (InputStream in = context.getAssets().open("word-pack/custom-schema/" + name); FileOutputStream out = new FileOutputStream(new File(shared, name)))
         { copy(in, out, 1024 * 1024); out.getFD().sync(); }
-      File dictionary = new File(shared, "pinyin_simp.dict.yaml");
+      File dictionary = new File(shared, wanxiang ? "miancak_custom.dict.yaml" : "pinyin_simp.dict.yaml");
       long rows = 0;
       try (FileOutputStream output = new FileOutputStream(dictionary);
            Writer writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8)))
       {
-        writer.write("# Generated from validated word tables; originals stay in the catalog.\n---\nname: pinyin_simp\nversion: '" + slot + "'\nsort: by_weight\nuse_preset_vocabulary: false\n...\n");
-        if (base.equals(BUNDLED))
+        writer.write("# Generated from validated word tables; originals stay in the catalog.\n---\nname: " +
+            (wanxiang ? "miancak_custom" : "pinyin_simp") + "\nversion: '" + slot + "'\nsort: by_weight\nuse_preset_vocabulary: false\n...\n");
+        if (base.equals(BUNDLED) && !wanxiang)
           try (InputStream input = new FileInputStream(new File(bundled.shared, "pinyin_simp.dict.yaml")))
           { rows += WordTable.parse(input, writer).rows; }
         for (Entry entry : ordered)
@@ -181,16 +184,25 @@ public final class WordTableStore
         }
         writer.flush(); output.getFD().sync();
       }
-      if (rows == 0) throw new IOException("Selection has no entries / 所选词表没有词条");
+      if (rows == 0 && !wanxiang) throw new IOException("Selection has no entries / 所选词表没有词条");
+      if (wanxiang && rows > 0)
+      {
+        try (InputStream input = context.getAssets().open("word-pack/wanxiang-custom.dict.yaml");
+             FileOutputStream output = new FileOutputStream(new File(shared, "miancak_wanxiang.dict.yaml")))
+        { copy(input, output, 65536); output.getFD().sync(); }
+        try (FileOutputStream out = new FileOutputStream(new File(shared, "miancak_pinyin.schema.yaml"), true))
+        { out.write("  translator/dictionary: miancak_wanxiang\n  translator/prism: miancak_wanxiang\n".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
+      }
       JSONObject manifest = new JSONObject();
-      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", "pinyin_simp.dict.yaml"))
-        manifest.put(name, hash(new File(shared, name)));
+      if (wanxiang) manifest = RimeData.manifest(bundled.shared);
+      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", dictionary.getName(), "miancak_wanxiang.dict.yaml"))
+        if (new File(shared, name).isFile()) manifest.put(name, hash(new File(shared, name)));
       atomic(new File(shared, "manifest.json"), manifest);
       RimeData.Paths paths = new RimeData.Paths(shared, bundled.user);
       try (RimeEngine engine = new RimeEngine(paths, true))
       {
         engine.setLearning(false);
-        String probe = probe(dictionary);
+        String probe = wanxiang ? "nihao" : probe(dictionary);
         EngineResult result = engine.processText(probe);
         if (!result.composing || result.candidates.isEmpty()) throw new IOException("Compiled table produced no candidates / 编译后未产生候选，请检查拼音数据");
       }
@@ -225,6 +237,12 @@ public final class WordTableStore
     try
     {
       RimeData.Paths packaged = RimeData.bundled(context); JSONObject saved = state();
+      String recoveryShared = saved.optString("recoveryShared");
+      if (recoveryShared.matches("shared-[a-f0-9]{64}"))
+      {
+        File previous = new File(packaged.shared.getParentFile(), recoveryShared);
+        if (RimeData.validDeployment(previous)) return new RimeData.Paths(previous, packaged.user);
+      }
       Selection active = selection(saved.getJSONObject("current"));
       if (active.slot.isEmpty()) return packaged;
       if (!saved.optString("packaged").equals(packaged.shared.getName()))
@@ -246,8 +264,16 @@ public final class WordTableStore
     JSONObject saved = state(); Selection fallback;
     try { fallback = selection(saved.getJSONObject("previous")); } catch (Exception invalid) { fallback = bundledSelection(); }
     if (!valid(fallback)) fallback = bundledSelection();
-    atomic(state, new JSONObject().put("format", 1).put("current", fallback.json()).put("previous", bundledSelection().json())
-      .put("packaged", RimeData.bundled(context).shared.getName()).put("recovery", "Deployment recovered / 已恢复上一可用词表或内置词表"));
+    RimeData.Paths packaged = RimeData.bundled(context);
+    JSONObject recovered = new JSONObject().put("format", 1).put("current", fallback.json()).put("previous", bundledSelection().json())
+      .put("packaged", packaged.shared.getName()).put("recovery", "Deployment recovered / 已恢复上一可用词表或内置词表");
+    if (fallback.slot.isEmpty())
+    {
+      File previous = RimeData.previousBundle(context, packaged.shared);
+      if (previous != null) recovered.put("recoveryShared", previous.getName())
+        .put("recovery", "New runtime failed; using intact earlier packaged data. Imports and learning retained / 新运行时未能启动，已使用保留的旧版数据；导入与学习文件仍保留");
+    }
+    atomic(state, recovered);
   }
   private JSONObject state() throws Exception
   {
@@ -278,10 +304,7 @@ public final class WordTableStore
     if (!selection.slot.matches("[a-f0-9-]{36}")) return false;
     try
     {
-      File dir = new File(versions, selection.slot); JSONObject manifest = json(new File(dir, "manifest.json"));
-      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", "pinyin_simp.dict.yaml"))
-        if (!manifest.getString(name).equals(hash(new File(dir, name)))) return false;
-      return true;
+      return RimeData.validDeployment(new File(versions, selection.slot));
     }
     catch (Exception invalid) { return false; }
   }

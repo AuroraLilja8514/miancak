@@ -26,6 +26,18 @@ SECRET = 'PRIVATE_LEARNING_PROCESS_LOG_SENTINEL_abcXYZ'
 
 
 class Privacy(unittest.TestCase):
+    def test_wanxiang_quality_exports_only_existing_fixed_numeric_fields(self):
+        self.put('test-results/device/word-pack-quality.json', json.dumps({
+            'wanxiang-base': {'coreCount': 70, 'coreTop1': 69, 'coreTop5': 70,
+                             'samples': SECRET, 'model_path': SECRET, 'source': SECRET,
+                             'processPssKiB': float('inf')}, SECRET: {'coreCount': 1}}))
+        report = self.stage()
+        self.assertEqual(70, report['metrics']['wanxiang-base.coreCount'])
+        self.assertEqual(69, report['metrics']['wanxiang-base.coreTop1'])
+        self.assertNotIn('wanxiang-base.samples', report['metrics'])
+        self.assertNotIn('wanxiang-base.processPssKiB', report['metrics'])
+        self.assertNotIn(SECRET, json.dumps(report))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

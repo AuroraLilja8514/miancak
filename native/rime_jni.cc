@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <string>
+#include "wanxiang_runtime.h"
 
 namespace {
 std::mutex mutex;
@@ -149,13 +150,24 @@ Java_juloo_keyboard2_input_RimeEngine_open(JNIEnv* env, jclass, jstring shared, 
     traits.app_name = "rime.miancak";
     traits.staging_dir = build_path.c_str();
     traits.prebuilt_data_dir = prebuilt_path.c_str();
+    traits.modules = miancak::runtime_modules;
     api->setup(&traits);
     api->initialize(&traits);
+    if (!miancak::wanxiang_ready(api, shared_path)) {
+      api->finalize(); api = nullptr;
+      fail(env, "Wanxiang Base grammar/module initialization failed");
+      return 0;
+    }
     if (api->start_maintenance(true)) api->join_maintenance_thread();
     if (verify && (!api->deploy_schema((shared_path + "/miancak_pinyin.schema.yaml").c_str()) ||
                    !api->deploy_schema((shared_path + "/miancak_pinyin_private.schema.yaml").c_str()))) {
       api->finalize(); api = nullptr;
       fail(env, "Word table compilation failed / 词表编译失败");
+      return 0;
+    }
+    if (!miancak::schemas_ready(api)) {
+      api->finalize(); api = nullptr;
+      fail(env, "Chinese schema is incomplete; retained deployment recovery required");
       return 0;
     }
   } else if (shared_path != shared_value || user_path != user_value || build_path != build_value) {

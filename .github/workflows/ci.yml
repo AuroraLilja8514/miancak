@@ -85,6 +85,7 @@ jobs:
           python3 sync_translations.py metadata --check
           python3 scripts/check_project_identity.py
           python3 scripts/test_project_identity.py
+          python3 scripts/test_prepare_wanxiang.py --timeout-seconds 120
           python3 scripts/gen_phonetic_pages.py
           python3 scripts/test_phonetic_pages.py
           python3 scripts/check_word_table_fixtures.py
@@ -124,7 +125,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .native
-          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+          key: native-sources-${{ hashFiles('native/sources.lock.json', 'native/wanxiang.lock.json') }}
 
       - name: Prepare pinned Rime sources and data
         run: python3 scripts/prepare_rime.py
@@ -183,7 +184,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .native
-          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+          key: native-sources-${{ hashFiles('native/sources.lock.json', 'native/wanxiang.lock.json') }}
 
       - name: Prepare pinned Rime sources and data
         run: python3 scripts/prepare_rime.py
@@ -194,7 +195,7 @@ jobs:
           path: |
             .cxx
             build/intermediates/cxx
-          key: native-debug-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
+          key: native-debug-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**', 'native/*.h', 'scripts/prepare_wanxiang.py') }}
           restore-keys: |
             native-debug-objects-${{ runner.os }}-
             native-objects-${{ runner.os }}-
@@ -249,7 +250,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .native
-          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+          key: native-sources-${{ hashFiles('native/sources.lock.json', 'native/wanxiang.lock.json') }}
       - name: Prepare pinned Rime sources and data
         run: python3 scripts/prepare_rime.py
       - name: Cache release native build objects
@@ -258,7 +259,7 @@ jobs:
           path: |
             .cxx
             build/intermediates/cxx
-          key: native-release-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**') }}
+          key: native-release-objects-${{ runner.os }}-${{ hashFiles('native/CMakeLists.txt', 'native/rime_jni.cc', 'native/sources.lock.json', 'native/cmake/**', 'native/*.h', 'scripts/prepare_wanxiang.py') }}
           restore-keys: |
             native-release-objects-${{ runner.os }}-
             native-objects-${{ runner.os }}-
@@ -525,7 +526,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .native
-          key: native-sources-${{ hashFiles('native/sources.lock.json') }}
+          key: native-sources-${{ hashFiles('native/sources.lock.json', 'native/wanxiang.lock.json') }}
       - run: timeout --foreground --kill-after=10s "${MIANCAK_SCRIPT_TIMEOUT_SECONDS}s" python3 scripts/prepare_rime.py
       - uses: actions/cache@v4
         with:

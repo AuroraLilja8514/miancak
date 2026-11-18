@@ -84,6 +84,28 @@ public class WordTableNativeTest
     assertEquals(learning, store.currentPaths().user); store.remove(addon);
     store.apply(WordTableStore.BUNDLED, Collections.emptyList()); assertTrue(candidates("nihao").contains("你好"));
   }
+  @Test public void bundledWanxiangSupplementRetainsBaseCandidatesAndOriginalYaml() throws Exception
+  {
+    store.importTables(Collections.singletonList(asset("miancak_addon.dict.yaml")));
+    String addon = id("miancak_addon");
+    File original = new File(app.getFilesDir(), "rime/word-tables/tables/" + addon + "/source.dict.yaml");
+    byte[] before;
+    try (InputStream input = new FileInputStream(original)) { before = readAll(input); }
+    store.apply(WordTableStore.BUNDLED, Collections.singletonList(addon));
+    assertTrue("A supplement must retain the seven actual Base tables", candidates("nihao").contains("你好"));
+    assertTrue("Existing untoned custom YAML must remain usable", candidates("ceshi").contains("MIANCAK·附加词表"));
+    assertEquals(407160876L, new File(store.currentPaths().shared, "wanxiang-lts-zh-hans.gram").length());
+    try (InputStream input = new FileInputStream(original)) { assertArrayEquals(before, readAll(input)); }
+    store.apply(WordTableStore.BUNDLED, Collections.emptyList());
+    assertTrue(original.isFile());
+    assertFalse(candidates("ceshi").contains("MIANCAK·附加词表"));
+  }
+  private static byte[] readAll(InputStream input) throws IOException
+  {
+    ByteArrayOutputStream output = new ByteArrayOutputStream(); byte[] buffer = new byte[8192]; int n;
+    while ((n = input.read(buffer)) != -1) output.write(buffer, 0, n);
+    return output.toByteArray();
+  }
   @Test public void offlineLegacyFallbackRetainsSupplementAndRealLearning() throws Exception
   {
     String learned; File user = store.currentPaths().user;

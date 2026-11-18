@@ -1,0 +1,13 @@
+# Preserve Base's punctuation/key-binding presets, referenced by its schemas.
+config_version: '2.0'
+__include: wanxiang_defaults:/
+__patch:
+  schema_list:
+    - schema: miancak_pinyin_private
+    - schema: miancak_pinyin
+  menu/page_size: 10
+  menu/alternative_select_keys: ''
+  switcher/hotkeys: []
+  # A remembered normal schema must not instantiate Lua writers before the
+  # frontend has chosen this editor's learning policy.
+  switcher/fix_schema_list_order: true

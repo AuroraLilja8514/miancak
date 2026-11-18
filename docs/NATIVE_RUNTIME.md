@@ -1,6 +1,6 @@
 # Native Runtime
 
-MIANCAK builds librime directly and exposes a worker-confined JNI session. Locked inputs are in `native/sources.lock.json`; dependency commits come from that exact librime tree. No Fcitx5 runtime or executable Rime plugins are included.
+MIANCAK builds librime directly and exposes a worker-confined JNI session. Locked inputs are in `native/sources.lock.json`; dependency commits come from that exact librime tree. Unreleased 0.3.3 statically embeds Octagram, librime-lua and Lua for the pinned Wanxiang Base distribution/model in `native/wanxiang.lock.json`. No Fcitx5 runtime or external dynamic Rime-plugin loader is included. See [WANXIANG_BASE.md](WANXIANG_BASE.md) for exact sources, adaptations and pending runtime gates.
 
 ## Build
 
@@ -23,11 +23,11 @@ The application ID is `org.miancak.keyboard` (`org.miancak.keyboard.debug` in de
 
 ## Data and sessions
 
-The APK includes the unmodified simplified-pinyin dictionary, MIANCAK schema/default configuration and a hash manifest. The schema imports neither hidden punctuation heuristics nor desktop candidate shortcuts; frontend semantic actions control literal symbols and digits.
+The development APK includes the pinned Wanxiang Base resources, full Simplified Chinese grammar, MIANCAK schema wrappers and a recursive hash manifest. Frontend semantic actions continue to control literal symbols and digits. Base schema features are bounded by that mobile frontend. The earlier simplified-pinyin source/schema remains available for explicit fallback and existing custom bases; earlier Rime Ice results remain historical.
 
 `RimeData.deploy` verifies/copies assets into a content-versioned credential-protected directory. Matching files retain their timestamps. User/learning data lives in a separate stable `files/rime/user` directory and is never replaced by deployment. Asset work, initialization and Rime maintenance belong to worker startup, outside the UI thread and ordinary key path.
 
-`RimeEngine` owns a persistent session and rejects calls from another thread. A native mutex protects global initialization and multiple sessions; finalization occurs after the final session closes. Immutable results contain commit text, preedit, page-local candidates, selection and composition/page state. Text uses standard UTF-8, including supplementary Unicode characters. Logging and external executable-plugin loading are disabled. Sessions start with a private schema whose translator disables the user dictionary. Learning is enabled only by deliberately selecting the normal schema; no-learning fields retain the private schema. Sensitive-field routing belongs to the controller.
+`RimeEngine` owns a persistent session and rejects calls from another thread. A native mutex protects global initialization and multiple sessions; finalization occurs after the final session closes. Immutable results contain commit text, preedit, page-local candidates, selection and composition/page state. Text uses standard UTF-8, including supplementary Unicode characters. Logging and external dynamic-plugin discovery are disabled. Sessions start private before applying editor policy; the Base private pipeline excludes Lua writers as well as disabling its user dictionary. The normal schema is selected only through the learning-policy call. Sensitive-field routing belongs to the controller. A real model load and compiled dictionary/alphabet/private-policy check precede input; failures use the retained-deployment recovery path.
 
 ## Verification
 

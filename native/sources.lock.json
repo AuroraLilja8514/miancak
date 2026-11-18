@@ -1,6 +1,13 @@
 {
-  "librime": {"url": "https://github.com/rime/librime.git", "commit": "33e78140250125871856cdc5b42ddc6a5fcd3cd4", "version": "1.17.0"},
-  "pinyin": {"url": "https://github.com/rime/rime-pinyin-simp.git", "commit": "0c6861ef7420ee780270ca6d993d18d4101049d0"},
+  "librime": {
+    "url": "https://github.com/rime/librime.git",
+    "commit": "33e78140250125871856cdc5b42ddc6a5fcd3cd4",
+    "version": "1.17.0"
+  },
+  "pinyin": {
+    "url": "https://github.com/rime/rime-pinyin-simp.git",
+    "commit": "0c6861ef7420ee780270ca6d993d18d4101049d0"
+  },
   "boost": {
     "version": "1.92.0",
     "url": "https://github.com/boostorg/boost/releases/download/boost-1.92.0/boost-1.92.0-cmake.tar.xz",
@@ -8,5 +15,25 @@
   },
   "ndk": "28.0.13004108",
   "cmake": "3.22.1",
-  "abis": ["arm64-v8a", "armeabi-v7a", "x86_64"]
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "octagram": {
+    "url": "https://github.com/lotem/librime-octagram.git",
+    "commit": "57d18b9f58e5284bd891d559f6bdd16cf60341e9",
+    "license": "BSD-3-Clause"
+  },
+  "librime_lua": {
+    "url": "https://github.com/hchunhui/librime-lua.git",
+    "commit": "6da5d6cedb853380ed1b5b9b6979cb1a9c028353",
+    "license": "BSD-3-Clause"
+  },
+  "lua": {
+    "url": "https://github.com/hchunhui/librime-lua.git",
+    "commit": "9e5bb71db1544913f8005dadc3df8439c00d08b7",
+    "version": "5.4.9",
+    "license": "MIT"
+  }
 }

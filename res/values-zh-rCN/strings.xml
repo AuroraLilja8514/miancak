@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="miancak_settings">MIANCAK 设置</string>
-    <string name="launcher_description">MIANCAK 使用中文特化的 QWERTY 键盘。启用并选择输入法后，可在下方试输入。点按键心或向相应方向滑动；Shift 右上切换中英，Enter 右下打开布局选择器。Fn 只进入当前布局的配对变体。中文空格左上进入拼音文字，也可在设置中改为注音。双击或长按 Shift 可锁定大写。首次使用中文时需准备离线词库，请等待候选出现，可能需要数十秒。</string>
+    <string name="launcher_description">MIANCAK 使用中文特化的 QWERTY 键盘。启用并选择输入法后，可在下方试输入。点按键心或向相应方向滑动；Shift 右上切换中英，Enter 右下打开布局选择器。Fn 只进入当前布局的配对变体。中文空格左上进入拼音文字，也可在设置中改为注音。双击或长按 Shift 可锁定大写。首次使用中文时需部署离线词库与语法模型，请等待候选出现。</string>
     <string name="app_name_release">MIANCAK</string>
     <string name="app_name_debug">MIANCAK (Debug)</string>
     <string name="short_description">离线 Rime 中文拼音、英文直输与滑动键盘。</string>
-    <string name="store_description">MIANCAK 是基于 Unexpected Keyboard 与 Rime 引擎的实验性离线中文 Android 输入法，要求 Android 13 或更高版本。\n\n中英文使用相同的 QWERTY 几何位置，明确切换中文拼音与英文直输。滑动按键输入精确标点和符号。候选栏可横向滚动；展开后在原键盘区域换行显示并纵向滚动，按需加载更多候选。\n\n符号按类别分页，可跨类别循环。正常尺寸预览支持点击中心、向八个方向滑动选择编辑位置，以及独立 Shift 动作和配对 Fn 布局。布局文件通过 Android 文件选择器导入／导出。可离线导入和部署兼容的显式拼音 Rime 词表；不等于安装任意 Rime 方案或可执行插件。\n\n正常输入无需网络。首次使用中文时会准备内置离线词库，可能需要数十秒。应用免费开源，采用 GPL-3.0 许可。基于 Julow 及贡献者的 Unexpected Keyboard，保留依赖与词库来源说明。\n\n项目／源码：https://github.com/AuroraLilja8514/miancak\n问题反馈：https://github.com/AuroraLilja8514/miancak/issues</string>
+    <string name="store_description">MIANCAK 是基于 Unexpected Keyboard 与 Rime 引擎的实验性离线中文 Android 输入法，要求 Android 13 或更高版本。\n\n中英文使用相同的 QWERTY 几何位置，明确切换中文拼音与英文直输。滑动按键输入精确标点和符号。候选栏可横向滚动；展开后在原键盘区域换行显示并纵向滚动，按需加载更多候选。\n\n符号按类别分页，可跨类别循环。正常尺寸预览支持点击中心、向八个方向滑动选择编辑位置，以及独立 Shift 动作和配对 Fn 布局。布局文件通过 Android 文件选择器导入／导出。可离线导入和部署兼容的显式拼音 Rime 词表；不等于安装任意 Rime 方案或可执行插件。\n\n内置采用万象 Base 与离线简体语法模型，模型本体约 388 MiB，另需词表及编译产物空间。继续支持兼容的自定义词表 YAML。正常输入无需网络，首次离线部署时请等待候选出现。应用免费开源，采用 GPL-3.0 许可。基于 Julow 及贡献者的 Unexpected Keyboard，保留依赖与词库来源说明。\n\n项目／源码：https://github.com/AuroraLilja8514/miancak\n问题反馈：https://github.com/AuroraLilja8514/miancak/issues</string>
     <string name="pref_portrait">在竖屏模式下</string>
     <string name="pref_landscape">在横屏模式下</string>
     <string name="pref_category_layout">布局</string>

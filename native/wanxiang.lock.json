@@ -1,0 +1,454 @@
+{
+  "base": {
+    "repository": "https://github.com/amzxyz/rime-wanxiang",
+    "version": "v18.1.13",
+    "commit": "9704d41ee6e52bac3f66618a267826d360aa64ee",
+    "asset_id": 746092731,
+    "url": "https://github.com/amzxyz/rime-wanxiang/releases/download/v18.1.13/rime-wanxiang-base.zip",
+    "bytes": 26197573,
+    "sha256": "2a94c48aa51eab2de20b4fdc89e065c05c828875b2bb3336a680f7c140ef088d",
+    "license": "CC-BY-4.0"
+  },
+  "model": {
+    "repository": "https://github.com/amzxyz/rime-wanxiang-data",
+    "release": "LTS",
+    "release_id": 268075342,
+    "asset_id": 747939897,
+    "url": "https://github.com/amzxyz/rime-wanxiang-data/releases/download/LTS/wanxiang-lts-zh-hans.gram",
+    "filename": "wanxiang-lts-zh-hans.gram",
+    "bytes": 407160876,
+    "sha256": "d4f64356231764ff27b79c9b0db79cd9d665013464cf5544e2fbd9a71e0f1c5a",
+    "license": "CC-BY-4.0",
+    "license_commit": "e6033a6042390e798e2a2cbf9a6c8ea707f7d8c7",
+    "tag_commit_at_review": "c78463a521aee2681db6cd6424a75a9b413237a3"
+  },
+  "notices": [
+    {
+      "filename": "base-LICENSE",
+      "url": "https://raw.githubusercontent.com/amzxyz/rime-wanxiang/9704d41ee6e52bac3f66618a267826d360aa64ee/LICENSE",
+      "bytes": 18656,
+      "sha256": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94"
+    },
+    {
+      "filename": "model-LICENSE",
+      "url": "https://raw.githubusercontent.com/amzxyz/rime-wanxiang-data/e6033a6042390e798e2a2cbf9a6c8ea707f7d8c7/LICENSE",
+      "bytes": 18656,
+      "sha256": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94"
+    },
+    {
+      "filename": "model-LICENSE-SCOPE.md",
+      "url": "https://raw.githubusercontent.com/amzxyz/rime-wanxiang-data/e6033a6042390e798e2a2cbf9a6c8ea707f7d8c7/LICENSE-SCOPE.md",
+      "bytes": 1196,
+      "sha256": "41ba4ac41b6a28a117c172dd22fc8cf31ff3902f79737cc22e22b9412af624f4"
+    },
+    {
+      "filename": "model-NOTICE.md",
+      "url": "https://raw.githubusercontent.com/amzxyz/rime-wanxiang-data/e6033a6042390e798e2a2cbf9a6c8ea707f7d8c7/NOTICE.md",
+      "bytes": 2328,
+      "sha256": "6c624b06a54d95ad2a33a3200481107f9f8d029dd3e7a224988653daa04bca13"
+    }
+  ],
+  "files": [
+    {
+      "path": "custom_phrase.dict.yaml",
+      "bytes": 1492,
+      "sha256": "c78303912bf8798b5abeb0cd5e6e80fb0a4c42d4cd53e9f1645c1fba7cd01393"
+    },
+    {
+      "path": "default.yaml",
+      "bytes": 6390,
+      "sha256": "15b8b58741e6e325ccab201990fb48ba56879ceabd634789a39e0ae56a2e70bc"
+    },
+    {
+      "path": "dicts/abbrev.dict.yaml",
+      "bytes": 558072,
+      "sha256": "947b7c487f0e8ca9bbdd47af6b27b2a6b21b994d0ac97b62c658db05946aa318"
+    },
+    {
+      "path": "dicts/cuoyin.dict.yaml",
+      "bytes": 8148,
+      "sha256": "fdb1bfdf72abcc9f506964582915ee48608de7be60d1d05ac3732161f04d58ac"
+    },
+    {
+      "path": "dicts/diming.dict.yaml",
+      "bytes": 3306888,
+      "sha256": "0f4a7ec6e9fd715431b0ecd8531d4ffb527e35aaf6c897fceaaeae6daf34997c"
+    },
+    {
+      "path": "dicts/duoyin.dict.yaml",
+      "bytes": 137513,
+      "sha256": "dd41608239d3260655bc0326aefadd131dc1301a7d5231679cf301d9c6f92ffb"
+    },
+    {
+      "path": "dicts/en.dict.yaml",
+      "bytes": 1569071,
+      "sha256": "3272e6dec9c1950afb4cf6cdca18c63b63b07384214430e8c77f5d726b666adf"
+    },
+    {
+      "path": "dicts/jichu.dict.yaml",
+      "bytes": 51714491,
+      "sha256": "d4e1d31057bd997c4b8cabe00762168a341786c5210f038c22b8c68bb8759ed2"
+    },
+    {
+      "path": "dicts/mingren.dict.yaml",
+      "bytes": 667364,
+      "sha256": "2c8b1828e699a2a5975e1b75d6d0ed658076679c608c8a47e8946f206dddf82b"
+    },
+    {
+      "path": "dicts/mixed.dict.yaml",
+      "bytes": 35975,
+      "sha256": "03d19ddc9ac1a04b2db67a92dd857bf4b7e5004fc9bb243915ddb8d9cbc81088"
+    },
+    {
+      "path": "dicts/t9_abbrev.dict.yaml",
+      "bytes": 514659,
+      "sha256": "2b72e3c0dee6ce6207a29a5cfa30ff310751bb977070086fc52868696bbc368f"
+    },
+    {
+      "path": "dicts/yiren.dict.yaml",
+      "bytes": 423899,
+      "sha256": "8f6932183c1dda7905f7670d490e802dc9424b09c92d19a54428b82235630572"
+    },
+    {
+      "path": "dicts/zi.dict.yaml",
+      "bytes": 616568,
+      "sha256": "009c9b11bac7cd6de651029b83dd999a299da8b255497beb6bccf6c9e78fdd2d"
+    },
+    {
+      "path": "lua/data/chaifen.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "lua/data/charset.reverse.bin",
+      "bytes": 565032,
+      "sha256": "dbf8049c1f2f616a0a2ebd7b439cc94ea188805fd2c4b8dba2c4cabdf55de9e8"
+    },
+    {
+      "path": "lua/data/codex_emoji.txt",
+      "bytes": 21773,
+      "sha256": "2229432a9f74e32ab5a08255cb3dd311f7749c7414c4d7c9f70e63c07a414681"
+    },
+    {
+      "path": "lua/data/codex_sym.txt",
+      "bytes": 19431,
+      "sha256": "859ea5a9f63f24d336d4fd7cd73d621584aa549ea724ce65dbbc494e0d331f4c"
+    },
+    {
+      "path": "lua/data/en_abbrev.txt",
+      "bytes": 2476,
+      "sha256": "418f3e6faa65928e5f0684269492d839c2ca4116e98ecd16cf1ac390f58be689"
+    },
+    {
+      "path": "lua/data/english_chinese.txt",
+      "bytes": 1308578,
+      "sha256": "7690f55fb0af2a21cda456ac3f0524d7a399135f3b48caf79077d3dbadabc0e1"
+    },
+    {
+      "path": "lua/data/others.txt",
+      "bytes": 30663,
+      "sha256": "166e4bd6201542cd12812d8f7712d8e4b2ee4111e3e95e42293d2a0a1fc586e6"
+    },
+    {
+      "path": "lua/data/sentence.txt",
+      "bytes": 313,
+      "sha256": "a77ae7bc6249ef8efb32d90e8268f60e9bffc595f04997b36794459179d20c60"
+    },
+    {
+      "path": "lua/data/tips_show.txt",
+      "bytes": 192533,
+      "sha256": "1b17991519a21019e9520a48d19382b01898dc15312fb7ca79e2828b573d1023"
+    },
+    {
+      "path": "lua/wanxiang/auto_phrase.lua",
+      "bytes": 10104,
+      "sha256": "28babacc7b005ca15c33d9e951f3209d97cfa9394b752cd34e5096d50a245d0f"
+    },
+    {
+      "path": "lua/wanxiang/bit.lua",
+      "bytes": 3505,
+      "sha256": "7dedb1ed31a31c2c254fcf26a23e77fc428ebeaa091336f2545cb5d5fc4f03ca"
+    },
+    {
+      "path": "lua/wanxiang/charset_filter.lua",
+      "bytes": 16405,
+      "sha256": "b9a9287f911ef8f5ae73f6e3f6a5a7f0b0e64aea8ad2df6341e7caf9ba931bee"
+    },
+    {
+      "path": "lua/wanxiang/context_reorder.lua",
+      "bytes": 28881,
+      "sha256": "d11b37eba4260d6531a14390a688ac4a89390fae5fc6263f684f95139b252003"
+    },
+    {
+      "path": "lua/wanxiang/custom_phrase.lua",
+      "bytes": 6953,
+      "sha256": "b204192be9839f4fcf54b22f76dde987295f74efe54cc2b3fe884c38f9beeecf"
+    },
+    {
+      "path": "lua/wanxiang/force_upper_aux.lua",
+      "bytes": 8319,
+      "sha256": "489ed027c7b2fe7f6176d7c87c854adc19228609352f44a4693d8348fd5ab8f4"
+    },
+    {
+      "path": "lua/wanxiang/input_statistics.lua",
+      "bytes": 32042,
+      "sha256": "2d4388cae70a94733b652b164acd948585bbfceb0a87e978dbe8deb7d19547ef"
+    },
+    {
+      "path": "lua/wanxiang/key_binder.lua",
+      "bytes": 8124,
+      "sha256": "ade50151277e3a13e33bdddd10e9f62cba7cfda4f6490ff8309fcb8aeb710c46"
+    },
+    {
+      "path": "lua/wanxiang/librime.lua",
+      "bytes": 28216,
+      "sha256": "53415e56d69cbe86928199a0b7d7fef7742b90a854b22337bef209ab7b990b3c"
+    },
+    {
+      "path": "lua/wanxiang/number_conversion.lua",
+      "bytes": 15624,
+      "sha256": "4cc3f75f4ec1b3d6860259db7b868003a707dff8a4e2462511d26b35d8b1d02e"
+    },
+    {
+      "path": "lua/wanxiang/partial_commit.lua",
+      "bytes": 7596,
+      "sha256": "509fe9f2bb4da74c63ed64143264c643810ab4afe42838079b1fbe02c4ba06df"
+    },
+    {
+      "path": "lua/wanxiang/random_tools.lua",
+      "bytes": 14354,
+      "sha256": "ef41449f8a9634718892752b8e4bf4da8a8a08e48f16f2183f0678c761241ab4"
+    },
+    {
+      "path": "lua/wanxiang/set_schema.lua",
+      "bytes": 6151,
+      "sha256": "ab0b9629ffa5ecfa158a64eca7d3069bc376504ccea6534272480c07b1340450"
+    },
+    {
+      "path": "lua/wanxiang/shijian.lua",
+      "bytes": 129716,
+      "sha256": "e3a1b1ee926ef8e52cfcb409ee5c6626453006cc6f452d339fc5b414e52482bb"
+    },
+    {
+      "path": "lua/wanxiang/super_calculator.lua",
+      "bytes": 128038,
+      "sha256": "9b1a0e5625dff95b9d208087e9e0d2f2452ab87081fa08515c318542f291b693"
+    },
+    {
+      "path": "lua/wanxiang/super_comment_preedit.lua",
+      "bytes": 21575,
+      "sha256": "9a64782e100cd2285e271de5831e52d769b88eb94eee1e1a38bfb72fda518064"
+    },
+    {
+      "path": "lua/wanxiang/super_english.lua",
+      "bytes": 26892,
+      "sha256": "c48a6686be64e39e173215392b74aaed9f6c21b389ab03440ebf38484414d397"
+    },
+    {
+      "path": "lua/wanxiang/super_filter.lua",
+      "bytes": 29797,
+      "sha256": "89c00bec56dbf29014892893f2d1dc14797d96ef2fdb49a729543bde952dd50f"
+    },
+    {
+      "path": "lua/wanxiang/super_lookup.lua",
+      "bytes": 57521,
+      "sha256": "4ab6fce0922b03b30ba57f0205483801924f977f556a64f97e99fd2432ca8807"
+    },
+    {
+      "path": "lua/wanxiang/super_processor.lua",
+      "bytes": 27058,
+      "sha256": "a0e886bf82285f9a030eaee7f0fdeb7978661f4cb95e45b6608044ac896c1a19"
+    },
+    {
+      "path": "lua/wanxiang/super_replacer.lua",
+      "bytes": 59165,
+      "sha256": "5e65afeca29a4926ffe6a45fce7258c448c773e4dece4c1d28b7eba846cac629"
+    },
+    {
+      "path": "lua/wanxiang/super_sequence.lua",
+      "bytes": 25577,
+      "sha256": "f80258879a2fbd7673992f5762c42f8a8defd06232baab12312e7ab1018f7b4a"
+    },
+    {
+      "path": "lua/wanxiang/super_symbols.lua",
+      "bytes": 23675,
+      "sha256": "88d1fd97c13b0c36004c3cc24fee665d92f16decc52ff6e6c49bbf9f5950918e"
+    },
+    {
+      "path": "lua/wanxiang/super_tips.lua",
+      "bytes": 9177,
+      "sha256": "f7c1f3d283f1c66d4ea428c885e329ca434f0d0a3d4076d7b51a3519d3a3be4b"
+    },
+    {
+      "path": "lua/wanxiang/unicode_conversion.lua",
+      "bytes": 17636,
+      "sha256": "e797cba245602606daf1d1dfe22766c058297c3b0aa73824a53c8ca6fc07febb"
+    },
+    {
+      "path": "lua/wanxiang/userdb.lua",
+      "bytes": 2853,
+      "sha256": "81e3cc8d4030301da6a37febf023cf11c334412251d9311c4ea933f12e973160"
+    },
+    {
+      "path": "lua/wanxiang/version_display.lua",
+      "bytes": 952,
+      "sha256": "8d0c83f7f4e361f3b9b1eb8c2c6181fdba1a8d8de1f472801092f29348c47e18"
+    },
+    {
+      "path": "lua/wanxiang/wanxiang.lua",
+      "bytes": 13588,
+      "sha256": "2bf6c98284fa526890d5acb163401d771d1692f5c328fc4cc1493f2d7366af81"
+    },
+    {
+      "path": "opencc/wanxiang/Custom_Emoji.txt",
+      "bytes": 22,
+      "sha256": "20303c3efed9a4e293471880f29e98b152545f385f440b4e8a58481683e592d2"
+    },
+    {
+      "path": "opencc/wanxiang/Custom_STPhrases.txt",
+      "bytes": 19,
+      "sha256": "4150010248e76c4eb6e3a0ad7fe4d3aa70fb5f39f04ee32d27f22dfbc0651116"
+    },
+    {
+      "path": "opencc/wanxiang/HKVariants.ocd2",
+      "bytes": 4893,
+      "sha256": "62750cb79eef18a407030b05bd4abe0e102bec2254d04b2d2310792f44519321"
+    },
+    {
+      "path": "opencc/wanxiang/STCharacters.ocd2",
+      "bytes": 45302,
+      "sha256": "bf3207251f5d233cc23f3eaedd11510eba5b81bfdc0b44708ffaf260b05ad903"
+    },
+    {
+      "path": "opencc/wanxiang/STPhrases.ocd2",
+      "bytes": 925883,
+      "sha256": "04125a9fb1983292e36cfe1e558d0ecea9b106a8d2948bbf1509472268e6290c"
+    },
+    {
+      "path": "opencc/wanxiang/TWVariants.ocd2",
+      "bytes": 4595,
+      "sha256": "390f07a1867ad56aa60a7af23b6e4b3acc96ea48d893c06ede3dffb1c576c2bc"
+    },
+    {
+      "path": "opencc/wanxiang/emoji.ocd2",
+      "bytes": 147511,
+      "sha256": "c0a1f97912e963f71badff320de632beb48043a8582c9c3d4db6ebd474d107a3"
+    },
+    {
+      "path": "opencc/wanxiang_emoji.json",
+      "bytes": 630,
+      "sha256": "bdf1c63ce13d047530eee88fbd5d86631868ef70438ae23e1c9813133a9adba9"
+    },
+    {
+      "path": "opencc/wanxiang_s2hk.json",
+      "bytes": 905,
+      "sha256": "c5680fcf528f43d90c6e71dc91e0aa6454e04e73a131c40403c75a3c92a62847"
+    },
+    {
+      "path": "opencc/wanxiang_s2t.json",
+      "bytes": 784,
+      "sha256": "5a731d0bb71a0da6536b5e9b940add183bd9233f9a0b926274e1375ad6cd409b"
+    },
+    {
+      "path": "opencc/wanxiang_s2tw.json",
+      "bytes": 906,
+      "sha256": "516cc76f28daa2f65a00c9f0f3f08b00eaa2e60056db9faed5d9aab07a94c48f"
+    },
+    {
+      "path": "version.txt",
+      "bytes": 8,
+      "sha256": "101c04b7515780e349f6876b215539a62df0fbd96173d3146798fdbc78ab18d6"
+    },
+    {
+      "path": "wanxiang.dict.yaml",
+      "bytes": 1311,
+      "sha256": "8c61a89f522a911eecfbe7807c44d06f17845c5859358992d80023b69402a092"
+    },
+    {
+      "path": "wanxiang.schema.yaml",
+      "bytes": 37262,
+      "sha256": "846cf7391c12ac24fa08a435e8d02a5dbd877ea9ee20e5ba3f44057dd397f21c"
+    },
+    {
+      "path": "wanxiang_abbrev.dict.yaml",
+      "bytes": 233,
+      "sha256": "b22ddbaba46468f4011ab7ccc93d909155b9d7495ca267bf6c254c97eecd47e2"
+    },
+    {
+      "path": "wanxiang_abbrev.schema.yaml",
+      "bytes": 699,
+      "sha256": "5a3ee7fee063b50c7d304502223de72e837737b8dfdf786b16cdef5b69ce391a"
+    },
+    {
+      "path": "wanxiang_abbrev_t9.dict.yaml",
+      "bytes": 239,
+      "sha256": "7b0335e92e836f519bdb57e76b9c223ee84599ae808ae2601da9329153ed8fd0"
+    },
+    {
+      "path": "wanxiang_abbrev_t9.schema.yaml",
+      "bytes": 711,
+      "sha256": "d54a04d1cfb8cf6170f2767a1cea1cc6b660729669682fdbaf10f207ce4321b0"
+    },
+    {
+      "path": "wanxiang_algebra.yaml",
+      "bytes": 136961,
+      "sha256": "3553b5a0df5712e7f609250892777f68be9747fa5cd521dbb610dd120c7b3c19"
+    },
+    {
+      "path": "wanxiang_english.dict.yaml",
+      "bytes": 179,
+      "sha256": "d6ef2c2041d67c3a5f8f571a7317891bf92117a7e46df41ecf3174fff0378f0c"
+    },
+    {
+      "path": "wanxiang_english.schema.yaml",
+      "bytes": 5608,
+      "sha256": "370008be3601b0fc82473820c22a43f5301b4ccf7b4a28e484f0f15396278323"
+    },
+    {
+      "path": "wanxiang_mixedcode.dict.yaml",
+      "bytes": 309,
+      "sha256": "d212d0dbe08bc204f1bf8776f198f218be84e2730fb3f0bcad11b9c99c2c441d"
+    },
+    {
+      "path": "wanxiang_mixedcode.schema.yaml",
+      "bytes": 1008,
+      "sha256": "a81c536dcd449f6bad12b51f6e756067cd12593c3591625a07d4786f015d126b"
+    },
+    {
+      "path": "wanxiang_phrase.schema.yaml",
+      "bytes": 780,
+      "sha256": "2f7ec78b562bd32decfdf016349a50311da26e24d91fad128593567086e90b17"
+    },
+    {
+      "path": "wanxiang_phrase_t9.schema.yaml",
+      "bytes": 785,
+      "sha256": "cf22e457aedd4a3de1b65d84f559bbe20a414d881da456d947d0d8a18f4f8848"
+    },
+    {
+      "path": "wanxiang_reverse.dict.yaml",
+      "bytes": 6576733,
+      "sha256": "2af5542f0459c25304858976c90b8a8aee4ba2512ea42e32d20fbe0b8831e618"
+    },
+    {
+      "path": "wanxiang_reverse.schema.yaml",
+      "bytes": 829,
+      "sha256": "8740fe447c34f04ecfa2b21b8c00165b667011e9afcce1edf4479f3a5e867521"
+    },
+    {
+      "path": "wanxiang_symbols.yaml",
+      "bytes": 98894,
+      "sha256": "8cd64dd226ccdddc0771085ad4d072c19713529ec02c9f4c00d97e6fd6e4c8df"
+    },
+    {
+      "path": "wanxiang_t9.schema.yaml",
+      "bytes": 20497,
+      "sha256": "61f81f5e6c1f540576f7e13d3023f1a80e8ec6375a9fb55008de373645bbe597"
+    },
+    {
+      "path": "wanxiang_t9i.schema.yaml",
+      "bytes": 20626,
+      "sha256": "34fe76af15e3b3d225a86f1ea61208c5de8bd894bacc707356435dc94f688dd4"
+    }
+  ],
+  "profile": "wanxiang-base"
+}

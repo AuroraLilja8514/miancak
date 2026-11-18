@@ -1,0 +1,14 @@
+# A separate no-learning pipeline: disabling user_dict alone does not disable
+# the upstream Lua statistics, context-reorder and other commit-notifier writers.
+schema:
+  schema_id: miancak_pinyin_private
+  version: 'wanxiang-base-v18.1.13'
+__include: miancak_pinyin.schema:/
+__patch:
+  schema/schema_id: miancak_pinyin_private
+  schema/name: MIANCAK 万象基础版（不学习）
+  translator/enable_user_dict: false
+  engine/processors: [speller, selector, navigator, express_editor]
+  engine/segmentors: [abc_segmentor, fallback_segmentor]
+  engine/translators: [script_translator]
+  engine/filters: [uniquifier]

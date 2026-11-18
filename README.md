@@ -8,7 +8,7 @@ MIANCAK 是基于 [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyb
 
 [项目／源码](https://github.com/AuroraLilja8514/miancak) · [问题反馈](https://github.com/AuroraLilja8514/miancak/issues)。本分支的问题请反馈到 MIANCAK 仓库。
 
-中文词库采用固定版本的雾凇拼音（Rime Ice）8105 与基础纯词表，共 551,875 条，沿用 MIANCAK 现有输入方案。首次离线编译可能需要数十秒。通过**设置 → 中文词表**，可以添加或切换受支持的显式拼音 Rime 词表，也可以选择内置的 0.3.0 离线回退词库，同时保留学习数据。详情见[词库来源与实测限制](docs/WORD_PACK_EVALUATION.md)；导入词表不等于安装完整的外部输入方案。
+未发布的 0.3.3 开发源码改用固定版本的[万象 Base](docs/WANXIANG_BASE.md)，包含原始带调词库与离线简体语法模型，不使用 Pro、Lite 或 Pure。MIANCAK 保留自己的键盘、字面输出与不学习策略。模型本体约 388 MiB，另有词表和编译产物；新源码的 Android 15 输入、质量与资源验收仍待完成。通过**设置 → 中文词表**继续导入受支持的 `.dict.yaml`，原始导入文件、已选配置和旧学习数据库不会被清空。万象使用单独的学习标识，旧学习的排名与编码不自动转换。正式 v0.3.2 的雾凇词包与实测记录仍见[历史词库评估](docs/WORD_PACK_EVALUATION.md)。
 
 ## 项目现状
 
@@ -20,7 +20,7 @@ MIANCAK 已实现**实验性的离线简体拼音输入**，包括固定版本�
 
 当前里程碑、验收要求和后续工作见[开发计划](docs/DEVELOPMENT_PLAN.md)。
 
-当前开发情况记录在[修复进度日志](docs/FN_REPAIR_PROGRESS.md)中；[R7 验收报告](docs/R7_APK_ACCEPTANCE.md)记录了确切的测试 APK 和原始接收端证据。[可视化编辑器指南](docs/VISUAL_LAYOUT_EDITOR.md)介绍现有控件。[词库评估](docs/WORD_PACK_EVALUATION.md)记录了选定的雾凇拼音核心词表、实测限制和离线旧版回退方案；[词表导入](docs/RIME_WORD_TABLES.md)是独立功能。
+当前开发情况记录在[修复进度日志](docs/FN_REPAIR_PROGRESS.md)中；[R7 验收报告](docs/R7_APK_ACCEPTANCE.md)记录了确切的测试 APK 和原始接收端证据。[可视化编辑器指南](docs/VISUAL_LAYOUT_EDITOR.md)介绍现有控件。[历史词库评估](docs/WORD_PACK_EVALUATION.md)记录雾凇核心词表与原实测限制；[万象 Base 集成](docs/WANXIANG_BASE.md)说明新开发源码、来源与待验收范围。[词表导入](docs/RIME_WORD_TABLES.md)继续是独立的数据功能。
 
 v0.3.2 已于 2026-11-16 正式发布。当前源码版本 0.3.3 尚未发布；分体默认关闭和 Sup/Sub 默认显示属于后续开发变更，已保存的值仍保留，见[默认偏好说明](docs/DEFAULT_PREFERENCES.md)。项目入口与翻译回退清单见 [N4 核对记录](docs/PROJECT_IDENTITY.md)。
 
@@ -83,7 +83,7 @@ v0.3.2 已于 2026-11-16 正式发布。当前源码版本 0.3.3 尚未发布；
 
 运行时通过语义适配层衔接继承的手势机制。没有组词时，控制器将字面输入和英文直接发送给编辑框；中文操作则通过持久的 Rime 工作线程／JNI 会话串行处理。不可变的处理结果用于更新候选栏，并按顺序执行编辑框操作。
 
-MIANCAK **不计划**将 Fcitx5 核心嵌入为运行时依赖，也不计划提供通用的可执行插件系统。词表和 Rime 配置均作为数据处理。
+MIANCAK **不计划**将 Fcitx5 核心嵌入为运行时依赖。万象使用锁定源码静态编译的 Octagram、librime-lua 与 Lua；外部动态插件加载继续关闭。用户词表导入仍只接受经校验的数据，不安装任意 Lua 或完整外部方案。
 
 详见[架构说明](docs/ARCHITECTURE.md)。
 

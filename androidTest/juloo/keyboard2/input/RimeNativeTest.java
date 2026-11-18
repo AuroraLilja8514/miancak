@@ -65,7 +65,8 @@ public class RimeNativeTest
   {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
     RimeData.Paths first = RimeData.deploy(context);
-    File dictionary = new File(first.shared, "pinyin_simp.dict.yaml");
+    assertTrue("Packaged deployment retains its verified manifest for selections/recovery", RimeData.validDeployment(first.shared));
+    File dictionary = new File(first.shared, "dicts/jichu.dict.yaml");
     long modified = dictionary.lastModified();
     File marker = new File(first.user, "miancak-test-preserve");
     try (FileOutputStream out = new FileOutputStream(marker))
@@ -99,6 +100,36 @@ public class RimeNativeTest
     }
     for (File file : privateUser.listFiles())
       assertFalse("Private input must not create a user dictionary", file.getName().contains("userdb"));
+  }
+
+  @Test public void rememberedNormalBaseDoesNotInitializeWritersInPrivateSession() throws Exception
+  {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    RimeData.Paths packaged = RimeData.deploy(context);
+    File user = new File(context.getCacheDir(), "rime-base-private-" + java.util.UUID.randomUUID());
+    assertTrue(user.mkdir());
+    try (RimeEngine engine = new RimeEngine(new RimeData.Paths(packaged.shared, user)))
+    { engine.setLearning(true); assertTrue(engine.processText("nihao").composing); assertFalse(engine.confirm().committed.isEmpty()); }
+    java.util.Map<String, String> before = learningHashes(user, user);
+    assertFalse("Normal Base must exercise real learning", before.isEmpty());
+    try (RimeEngine engine = new RimeEngine(new RimeData.Paths(packaged.shared, user)))
+    { engine.setLearning(false); assertTrue(engine.processText("zhongguo").composing); assertFalse(engine.confirm().committed.isEmpty()); }
+    assertEquals("No private-session Lua/user-dictionary initialization writes", before, learningHashes(user, user));
+  }
+
+  private static java.util.Map<String, String> learningHashes(File root, File file) throws Exception
+  {
+    java.util.Map<String, String> result = new java.util.TreeMap<>();
+    if (file.isDirectory())
+    { for (File child : file.listFiles()) result.putAll(learningHashes(root, child)); }
+    else if (file.getPath().contains(".userdb" + File.separator))
+    {
+      java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+      try (java.io.InputStream input = new java.io.FileInputStream(file))
+      { byte[] buffer = new byte[16384]; int n; while ((n = input.read(buffer)) != -1) digest.update(buffer, 0, n); }
+      result.put(root.toURI().relativize(file.toURI()).toString(), java.util.Arrays.toString(digest.digest()));
+    }
+    return result;
   }
 
   @Test public void emptyTextAndSpacePreserveEngineStateAndPartialCommits() throws Exception

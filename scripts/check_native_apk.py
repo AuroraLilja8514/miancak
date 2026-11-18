@@ -43,7 +43,10 @@ with zipfile.ZipFile(apk) as archive:
     print(f"APK bytes: {apk.stat().st_size}; packaged dictionary bytes: {dictionary_bytes}")
     manifest = json.loads(archive.read("assets/rime/manifest.json"))
     for name, digest in manifest.items():
-        assert hashlib.sha256(archive.read("assets/rime/" + name)).hexdigest() == digest, name
+        hashed = hashlib.sha256()
+        with archive.open("assets/rime/" + name) as source:
+            for block in iter(lambda: source.read(1024 * 1024), b""): hashed.update(block)
+        assert hashed.hexdigest() == digest, name
     if "--release" in sys.argv[2:]:
         dex = b"".join(archive.read(name) for name in archive.namelist() if name.endswith(".dex"))
         assert b"Ljuloo/keyboard2/ImeTestActivity;" not in dex, "Debug fixture shipped in release"
@@ -71,4 +74,26 @@ with zipfile.ZipFile(apk) as archive:
         restored = legacy.replace(b"name: miancak_legacy_0_3\n", b"name: pinyin_simp\n", 1)
         assert hashlib.sha256(restored).hexdigest() == "e341598343a0f0f2035bb1aafc34a7f3bb7887deeecb3f60796262aaa2983e6b"
         print("Verified ice-core: 551875 unchanged source rows, attribution and offline 0.3.0 fallback")
+    elif pack_lock.get("default_profile") == "wanxiang-base":
+        wanxiang = json.loads((root / "native/wanxiang.lock.json").read_text())
+        pack = json.loads(archive.read("assets/word-pack/current.json"))
+        assert pack["profile"] == "wanxiang-base" and pack["base"] == wanxiang["base"] and pack["model"] == wanxiang["model"]
+        assert json.loads(archive.read("assets/native-sources.json"))["word_pack"] == pack
+        for source in wanxiang["files"]:
+            name = "wanxiang_defaults.yaml" if source["path"] == "default.yaml" else source["path"]
+            assert manifest[name] == source["sha256"], name
+            assert archive.getinfo("assets/rime/" + name).file_size == source["bytes"], name
+        model = wanxiang["model"]
+        assert manifest[model["filename"]] == model["sha256"]
+        assert archive.getinfo("assets/rime/" + model["filename"]).file_size == model["bytes"]
+        for variant in ("pro", "lite", "pure"):
+            assert "assets/rime/wanxiang_" + variant + ".schema.yaml" not in archive.namelist()
+        for name in ("base-LICENSE", "model-LICENSE", "model-LICENSE-SCOPE.md", "model-NOTICE.md"):
+            assert archive.getinfo("assets/third-party/wanxiang/" + name).file_size > 100
+        for dependency in ("octagram", "librime_lua", "lua"):
+            assert json.loads(archive.read("assets/native-sources.json"))[dependency] == lock[dependency]
+        for abi in lock["abis"]:
+            binary = archive.read("lib/" + abi + "/libmiancak_rime.so")
+            assert b"octagram" in binary and b"lua" in binary, (abi, "missing static module registration")
+        print("Verified locked Wanxiang Base, full grammar, immutable source bytes and static module markers; runtime still requires device acceptance")
 print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

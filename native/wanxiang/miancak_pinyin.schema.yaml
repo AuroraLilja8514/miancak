@@ -1,0 +1,14 @@
+# MIANCAK adaptation of the pinned Wanxiang Base schema, not Lite/Pure/Pro.
+# The frontend retains explicit literal/engine routing and its paired layouts.
+schema:
+  schema_id: miancak_pinyin
+  version: 'wanxiang-base-v18.1.13'
+__include: wanxiang.schema:/
+__patch:
+  schema/schema_id: miancak_pinyin
+  schema/name: MIANCAK 万象基础版
+  schema/version: 'wanxiang-base-v18.1.13'
+  schema/dependencies: [wanxiang_mixedcode, wanxiang_reverse, wanxiang_english, wanxiang_abbrev, wanxiang_phrase]
+  translator/user_dict: wanxiang
+  menu/page_size: 10
+  miancak/profile: wanxiang-base

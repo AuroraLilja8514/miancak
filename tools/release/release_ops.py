@@ -283,6 +283,7 @@ def application_fingerprint():
     paths = ["AndroidManifest.xml", ".gitmodules", "build.gradle.kts", "settings.gradle.kts", "gradle.properties",
              "proguard-rules.pro", "gradle", "gradlew", "srcs", "res", "assets", "native", "vendor",
              "gen_layouts.py", "gen_method_xml.py", "gen_emoji.py", "scripts/prepare_rime.py",
+             "scripts/prepare_word_pack.py", "scripts/prepare_wanxiang.py",
              "scripts/gen_phonetic_pages.py"]
     tree = command(["git", "ls-tree", "-r", "-z", "HEAD", "--", *paths]).stdout
     require(tree, "APPLICATION_INPUTS_EMPTY")

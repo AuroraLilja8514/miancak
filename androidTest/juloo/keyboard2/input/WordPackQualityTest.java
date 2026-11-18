@@ -51,6 +51,18 @@ public final class WordPackQualityTest
       assertTrue("PSS exceeds budget", candidate.getLong("processPssKiB") <= 512 * 1024);
       assertTrue("Cold deployment exceeds budget", candidate.getLong("coldDeployMicros") <= 180000000);
       assertTrue("Core JNI P95 exceeds budget", candidate.getLong("coreInputP95Micros") <= 200000);
+      // The old comparison remains unchanged. The new actual bundled engine
+      // must independently meet the same accuracy and resource gates.
+      JSONObject wanxiang = measure("wanxiang-base", root, bundled);
+      report.put("wanxiang-base", wanxiang); save(report);
+      assertEquals(70, wanxiang.getInt("coreCount"));
+      assertTrue("Wanxiang top1 below gate", wanxiang.getInt("coreTop1") * 100 >= 70 * 80);
+      assertTrue("Wanxiang top5 below gate", wanxiang.getInt("coreTop5") * 100 >= 70 * 95);
+      assertTrue("Wanxiang top1 regressed", wanxiang.getInt("coreTop1") >= baseline.getInt("coreTop1"));
+      assertTrue("Wanxiang top5 regressed", wanxiang.getInt("coreTop5") >= baseline.getInt("coreTop5"));
+      assertTrue("Wanxiang PSS exceeds budget", wanxiang.getLong("processPssKiB") <= 512 * 1024);
+      assertTrue("Wanxiang cold deployment exceeds budget", wanxiang.getLong("coldDeployMicros") <= 180000000);
+      assertTrue("Wanxiang JNI P95 exceeds budget", wanxiang.getLong("coreInputP95Micros") <= 200000);
     }
     finally { save(report); remove(root); }
   }
@@ -59,10 +71,13 @@ public final class WordPackQualityTest
   {
     File shared = new File(root, name), user = new File(root, name + "-user");
     assertTrue(shared.mkdir()); assertTrue(user.mkdir());
-    for (String schema : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
-      try (InputStream in = new FileInputStream(new File(bundled.shared, schema))) { copy(in, new File(shared, schema)); }
-    try (InputStream in = tests.getAssets().open("quality/" + name + ".dict.yaml"))
-    { copy(in, new File(shared, "pinyin_simp.dict.yaml")); }
+    if (name.equals("wanxiang-base")) RimeData.copyBundled(bundled.shared, shared);
+    else {
+      for (String schema : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
+      try (InputStream in = app.getAssets().open("word-pack/custom-schema/" + schema)) { copy(in, new File(shared, schema)); }
+      try (InputStream in = tests.getAssets().open("quality/" + name + ".dict.yaml"))
+      { copy(in, new File(shared, "pinyin_simp.dict.yaml")); }
+    }
     JSONArray samples = new JSONArray(); ArrayList<Long> latencies = new ArrayList<>();
     int core = 0, top1 = 0, top5 = 0, sentences = 0, sentenceTop1 = 0;
     long started = SystemClock.elapsedRealtimeNanos(), deploy, observedPss = 0;
