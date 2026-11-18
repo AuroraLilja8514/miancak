@@ -10,16 +10,23 @@ if __name__ == "__main__":
     _guard_script(__file__)
 
 import hashlib
+import argparse
 import json
 from pathlib import Path
-import sys
 import struct
 import zipfile
+from apk_asset_inventory import read_manifest, size_report, verify_archive_names, verify_wanxiang_inventory
 
 root = Path(__file__).resolve().parent.parent
 lock = json.loads((root / "native/sources.lock.json").read_text())
-apk = Path(sys.argv[1])
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("apk", type=Path)
+parser.add_argument("--release", action="store_true")
+parser.add_argument("--size-report", type=Path, help="Write a bounded static ZIP size report after all checks pass")
+args = parser.parse_args()
+apk = args.apk
 with zipfile.ZipFile(apk) as archive:
+    verify_archive_names(archive.namelist())
     for abi in lock["abis"]:
         for library in ["libmiancak_rime.so", "libcdict_java.so"]:
             assert archive.getinfo(f"lib/{abi}/{library}").file_size > 1000, (abi, library)
@@ -41,13 +48,13 @@ with zipfile.ZipFile(apk) as archive:
     dictionary_bytes = archive.getinfo("assets/rime/pinyin_simp.dict.yaml").file_size
     assert dictionary_bytes > 100000
     print(f"APK bytes: {apk.stat().st_size}; packaged dictionary bytes: {dictionary_bytes}")
-    manifest = json.loads(archive.read("assets/rime/manifest.json"))
+    manifest = read_manifest(archive)
     for name, digest in manifest.items():
         hashed = hashlib.sha256()
         with archive.open("assets/rime/" + name) as source:
             for block in iter(lambda: source.read(1024 * 1024), b""): hashed.update(block)
         assert hashed.hexdigest() == digest, name
-    if "--release" in sys.argv[2:]:
+    if args.release:
         dex = b"".join(archive.read(name) for name in archive.namelist() if name.endswith(".dex"))
         assert b"Ljuloo/keyboard2/ImeTestActivity;" not in dex, "Debug fixture shipped in release"
         for descriptor in [b"Ljuloo/keyboard2/input/RimeEngine;", b"Ljuloo/keyboard2/input/EngineResult;"]:
@@ -78,6 +85,7 @@ with zipfile.ZipFile(apk) as archive:
         print("Verified ice-core: 551875 unchanged source rows, attribution and offline 0.3.0 fallback")
     elif pack_lock.get("default_profile") == "wanxiang-base":
         wanxiang = json.loads((root / "native/wanxiang.lock.json").read_text())
+        verify_wanxiang_inventory(archive.namelist(), manifest, wanxiang)
         pack = json.loads(archive.read("assets/word-pack/current.json"))
         assert pack["profile"] == "wanxiang-base" and pack["base"] == wanxiang["base"] and pack["model"] == wanxiang["model"]
         assert json.loads(archive.read("assets/native-sources.json"))["word_pack"] == pack
@@ -100,4 +108,12 @@ with zipfile.ZipFile(apk) as archive:
             for method in (b"customConfig", b"requireClosedForRecovery", b"recoverLegacyCopy"):
                 assert b"Java_juloo_keyboard2_input_RimeEngine_" + method in binary, (abi, method, "missing configuration/recovery JNI entry")
         print("Verified locked Wanxiang Base, full grammar, immutable source bytes and static module markers; runtime still requires device acceptance")
+    if args.size_report:
+        report = size_report(archive, apk.stat().st_size)
+        with apk.open("rb") as source:
+            apk_hash = hashlib.file_digest(source, "sha256").hexdigest()
+        report.update(apk_sha256=apk_hash,
+                      asset_content_hashes_verified=True, native_abis=lock["abis"],
+                      default_profile=pack_lock.get("default_profile"), release_checks=args.release)
+        args.size_report.write_text(json.dumps(report, indent=2) + "\n")
 print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

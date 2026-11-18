@@ -134,6 +134,11 @@ and any filesystem copy fallback need additional space. Hash/deployment work sta
 on the initialization worker. Android cold-start time, memory and device storage
 cost must be measured; model presence is not a performance result.
 
+The [APK size review](APK_SIZE.md) measures the universal release at 401.76 MB:
+the one complete grammar contributes 89.66% of its APK bytes. It records exact
+Base/compatibility membership, lossless compression experiments and why no
+unvalidated deployment codec or feature removal is adopted.
+
 ## Verification and remaining acceptance
 
 `scripts/test_prepare_wanxiang.py` covers pinned release identity, source-byte
