@@ -65,6 +65,14 @@ recovers phrase data, not equivalent learning behavior:
 - Tone-marked/unknown codes and other storage formats are not silently converted.
   They require a separately validated conversion before activation is possible.
 
+The explicit supplement is ordinary selected vocabulary, available to both normal
+and no-learning text editors. It can therefore suggest recovered personal phrases
+in a no-learning field even though the old user DB is never opened there. The
+confirmation explains this distinction: no-learning prevents new learning writes,
+not access to explicitly installed dictionaries. Password/numeric fields still
+use direct input. Do not activate the supplement if this vocabulary visibility is
+unwanted; retaining only the original/snapshot does not install its phrases.
+
 Confirmation rechecks the source, pristine snapshot, output hash and the exact
 applied selection. Any intervening old learning or applied-selection change
 requires a new preview. Unsaved controls on the settings screen are not applied.
