@@ -74,6 +74,24 @@ by the mobile frontend. JNI requires a real readable Octagram database and check
 compiled dictionary/alphabet/private-policy fields; a successful schema-update
 return alone does not establish a usable compiled pipeline.
 
+The host audit compares every compiled normal processor, segmentor, translator
+and filter with the pinned Base source and opens the real Octagram model. All
+80 locked runtime source files and the separate model retain their exact bundled
+digests. This is Base data plus its full normal pipeline, with explicit mobile
+adaptations; the private core-only pipeline and selected legacy/custom data-only
+bases are not advertised as full Base feature parity.
+
+There are additional bounded frontend deviations. Upstream
+`lua/wanxiang/set_schema.lua` recognizes its own `wanxiang` / Pro / Lite schema
+IDs, not the retained `miancak_pinyin` IDs. Its slash-based scheme-switch commands
+therefore do not perform mobile selection changes. Supported spelling selectors
+instead go through the validated, transactional `.custom.yaml` interface. The
+upstream replacer's cross-schema union list also names upstream IDs; arbitrary
+cross-schema replacement patches are not supported or claimed as tested here.
+Those upstream Lua bytes are preserved rather than rewritten or allowed to
+bypass catalog deployment. The frontend does not expose a desktop Rime menu,
+all shortcuts, T9 or arbitrary scheme/script installation.
+
 ## Custom YAML and existing data
 
 The existing `.dict.yaml` importer remains data-only, with its original header,
@@ -95,6 +113,9 @@ retain their paths. Wanxiang uses `wanxiang.userdb`; previous
 converted or promised to work as Wanxiang learning. Existing selected custom bases
 retain their previous learning identity. No uninstall, clear-data, bulk rewrite,
 destructive database conversion or unvalidated complete export is performed.
+An explicit [recovered-phrases preview](LEARNING_RECOVERY.md) can add compatible
+active old phrases as a separate supplement, preserving the original DB and a
+verified snapshot; it does not transfer equivalent rankings or deletion semantics.
 
 Selections compile and probe in a separate managed version before their pointer
 changes. The immutable grammar can use an internal hard link, with a copy fallback;
@@ -137,3 +158,8 @@ all quality/resource checks and the earlier unresolved diagnostic failures.
 Physical ARM and genuine formal two-version upgrades remain separate checks.
 No API 23 or API 33 guest run is part of the current scope. Version 0.3.2 history,
 upstream attribution and the dated acceptance records remain preserved.
+
+The [Android acceptance plan](WANXIANG_ACCEPTANCE.md) explicitly includes complete
+first-deployment timing, visible/accessibility waiting feedback and interruption
+and recovery. It keeps total user wait separate from the engine-only quality
+timer and does not infer MIANCAK phone timings from another Android frontend.

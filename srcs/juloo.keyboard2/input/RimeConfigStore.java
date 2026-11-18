@@ -104,7 +104,8 @@ public final class RimeConfigStore
       if (!wanxiang && entry.filename.equals("wanxiang.custom.yaml")) throw new IOException("Wanxiang custom settings require bundled Base; disable that patch before choosing another base");
       byte[] original = readOriginal(entry);
       String canonical = RimeConfigPatch.validate(entry.filename, original);
-      if (!wanxiang && canonical.contains("switches/")) throw new IOException("Switch reset patches require bundled Base");
+      if (!wanxiang && (canonical.contains("switches/") || canonical.contains("speller/algebra/") || canonical.contains("super_processor/")))
+        throw new IOException("Spelling and Base component patches require bundled Base");
       if (!digest(canonical.getBytes(StandardCharsets.UTF_8)).equals(entry.canonicalHash))
         throw new IOException("Custom validation changed; retained original requires review");
       selected.add(entry);
@@ -119,9 +120,12 @@ public final class RimeConfigStore
       byte[] original = readOriginal(entry);
       // default's supported menu setting applies to the mobile schema too,
       // whose stock page-size override would otherwise hide the global value.
-      List<String> targets = entry.filename.equals("default.custom.yaml")
+      List<String> targets = new ArrayList<>(entry.filename.equals("default.custom.yaml")
           ? Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml")
-          : Arrays.asList("miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml");
+          : Arrays.asList("miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"));
+      if (!entry.filename.equals("default.custom.yaml"))
+        for (String name : Arrays.asList("wanxiang_mixedcode.schema.yaml", "wanxiang_english.schema.yaml", "wanxiang_reverse.schema.yaml"))
+          if (new File(shared, name).isFile()) targets.add(name);
       for (String name : targets)
       {
         File target = new File(shared, name);

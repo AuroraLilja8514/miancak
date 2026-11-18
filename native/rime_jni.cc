@@ -7,6 +7,7 @@
 #include <string>
 #include "wanxiang_runtime.h"
 #include "custom_config.h"
+#include "learning_recovery.h"
 
 namespace {
 std::mutex mutex;
@@ -147,6 +148,44 @@ Java_juloo_keyboard2_input_RimeEngine_customConfig(JNIEnv* env, jclass, jstring 
   } catch (const YAML::Exception&) { fail(env, "Invalid custom YAML syntax"); }
     catch (const std::exception& error) { fail(env, error.what()); }
   return nullptr;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_juloo_keyboard2_input_RimeEngine_requireClosedForRecovery(JNIEnv* env, jclass) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if (api || !sessions.empty()) fail(env, "Close the input engine before copying old learning");
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_juloo_keyboard2_input_RimeEngine_recoverLegacyCopy(JNIEnv* env, jclass, jstring shared, jstring user,
+    jstring output, jstring dictionary, jlong budget) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if (api || !sessions.empty()) { fail(env, "Close the input engine before recovery"); return nullptr; }
+  if (!shared || !user || !output || !dictionary) { fail(env, "Invalid recovery paths"); return nullptr; }
+  auto utf = [&](jstring value) {
+    const char* p = env->GetStringUTFChars(value, nullptr); std::string result(p);
+    env->ReleaseStringUTFChars(value, p); return result;
+  };
+  std::string shared_copy = utf(shared), user_copy = utf(user), target = utf(output), name = utf(dictionary);
+  std::string staging = user_copy + "/build";
+  auto* recovery_api = rime_get_api(); bool initialized = false;
+  try {
+    RIME_STRUCT(RimeTraits, traits);
+    traits.shared_data_dir = shared_copy.c_str(); traits.user_data_dir = user_copy.c_str();
+    traits.staging_dir = staging.c_str(); traits.app_name = "rime.miancak";
+    traits.distribution_name = "MIANCAK recovery"; traits.distribution_code_name = "miancak";
+    traits.modules = miancak::runtime_modules;
+    recovery_api->setup(&traits); recovery_api->initialize(&traits); initialized = true;
+    // No session, deployment or Lua processor is opened. The caller supplies an
+    // independent working copy; even OpenReadOnly can change its LevelDB files.
+    auto counts = miancak::recover_copied_legacy(target, name, budget);
+    recovery_api->finalize(); initialized = false;
+    jlong values[] = {counts.active, counts.deleted, counts.unsupported, counts.records};
+    auto result = env->NewLongArray(4); env->SetLongArrayRegion(result, 0, 4, values); return result;
+  } catch (const std::exception&) {
+    if (initialized) recovery_api->finalize();
+    fail(env, "Cannot read the copied legacy database; originals and selection retained"); return nullptr;
+  }
 }
 
 extern "C" JNIEXPORT jlong JNICALL

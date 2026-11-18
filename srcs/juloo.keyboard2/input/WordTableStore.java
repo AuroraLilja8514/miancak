@@ -56,13 +56,19 @@ public final class WordTableStore
     public final List<RimeConfigStore.Entry> patches;
     public final List<String> retainedPatches;
     public final String recovery;
-    View(List<Entry> entries, Selection selection, String recovery, List<RimeConfigStore.Entry> patches, List<String> retainedPatches)
+    public final LearningRecovery.Preview learning;
+    public final boolean retainedLearningSnapshot;
+    public final String learningIssue;
+    View(List<Entry> entries, Selection selection, String recovery, List<RimeConfigStore.Entry> patches, List<String> retainedPatches,
+        LearningRecovery.Preview learning, boolean retainedLearningSnapshot, String learningIssue)
     { this.entries = Collections.unmodifiableList(entries); this.selection = selection; this.recovery = recovery;
-      this.patches = Collections.unmodifiableList(patches); this.retainedPatches = Collections.unmodifiableList(retainedPatches); }
+      this.patches = Collections.unmodifiableList(patches); this.retainedPatches = Collections.unmodifiableList(retainedPatches);
+      this.learning = learning; this.retainedLearningSnapshot = retainedLearningSnapshot; this.learningIssue = learningIssue; }
   }
   private final Context context;
   private final File root, tables, versions, catalog, state;
   private final RimeConfigStore configs;
+  private final LearningRecovery learning;
   public WordTableStore(Context context) throws IOException
   {
     this.context = context.getApplicationContext();
@@ -73,14 +79,25 @@ public final class WordTableStore
     catalog = new File(root, "catalog.json"); state = new File(root, "selection.json");
     mkdir(tables); mkdir(versions);
     configs = new RimeConfigStore(root);
+    learning = new LearningRecovery(root, new File(this.context.getFilesDir(), "rime/user"));
   }
   public View view() throws Exception
   {
     JSONObject saved = state();
     List<String> retained = new ArrayList<>(selection(saved.getJSONObject("current")).patches);
     retained.addAll(selection(saved.getJSONObject("previous")).patches);
-    return new View(entries(), selection(saved.getJSONObject("current")), saved.optString("recovery"), configs.entries(), retained);
+    LearningRecovery.Preview preview = null; String issue = "";
+    try { preview = learning.preview(); }
+    catch (Exception invalid) { issue = "Retained learning snapshot needs review or explicit discard / 保留的学习快照需要检查或明确丢弃副本"; }
+    return new View(entries(), selection(saved.getJSONObject("current")), saved.optString("recovery"), configs.entries(), retained,
+        preview, learning.exists(), issue);
   }
+  public void previewLearningRecovery() throws Exception
+  { learning.prepare(RimeData.bundled(context), selection(state().getJSONObject("current"))); }
+  public void applyLearningRecovery() throws Exception
+  { learning.apply(this, selection(state().getJSONObject("current"))); }
+  public void discardLearningRecovery() throws IOException { learning.discard(); }
+  List<Entry> catalogEntries() throws Exception { return entries(); }
   public void importConfigs(List<Source> sources) throws Exception { configs.importFiles(sources); }
   public void disableConfigs() throws Exception
   {
@@ -221,14 +238,17 @@ public final class WordTableStore
       configs.apply(selectedPatches, shared);
       JSONObject manifest = new JSONObject();
       if (wanxiang) manifest = RimeData.manifest(bundled.shared);
-      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", dictionary.getName(), "miancak_wanxiang.dict.yaml"))
+      for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", dictionary.getName(), "miancak_wanxiang.dict.yaml",
+          "wanxiang_mixedcode.schema.yaml", "wanxiang_english.schema.yaml", "wanxiang_reverse.schema.yaml"))
         if (new File(shared, name).isFile()) manifest.put(name, hash(new File(shared, name)));
       atomic(new File(shared, "manifest.json"), manifest);
       RimeData.Paths paths = new RimeData.Paths(shared, bundled.user);
       try (RimeEngine engine = new RimeEngine(paths, true))
       {
         engine.setLearning(false);
-        String probe = wanxiang ? "nihao" : probe(dictionary);
+        // "ni" is valid full Pinyin and in all four approved double-Pinyin
+        // selectors. "nihao" would falsely reject a working double-Pinyin profile.
+        String probe = wanxiang ? "ni" : probe(dictionary);
         EngineResult result = engine.processText(probe);
         if (!result.composing || result.candidates.isEmpty()) throw new IOException("Compiled table produced no candidates / 编译后未产生候选，请检查拼音数据");
       }

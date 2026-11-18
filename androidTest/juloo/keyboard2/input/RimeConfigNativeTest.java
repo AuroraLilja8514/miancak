@@ -79,7 +79,7 @@ public class RimeConfigNativeTest
   {
     for (String text : new String[] {
         "patch: {engine/processors: [lua_processor@evil]}", "patch: {translator/user_dict: other}",
-        "patch: {translator/enable_user_dict: true}", "patch: {grammar/language: other}",
+        "patch: {translator/enable_user_dict: yes}", "patch: {grammar/language: other}",
         "patch: {schema/schema_id: other}", "patch: {speller/algebra/+: [evil]}",
         "patch: &a {menu/page_size: 3}", "patch: {menu/page_size: *a}",
         "patch: {menu/page_size: !!int 3}", "patch: {menu/page_size: 0}",
@@ -123,6 +123,68 @@ public class RimeConfigNativeTest
     assertTrue(new File(catalog.getParentFile(), id + "/source.custom.yaml").isFile());
     try (RimeEngine engine = new RimeEngine(store.currentPaths()))
     { engine.setLearning(false); assertEquals(10, engine.processText("shi").candidates.size()); }
+  }
+  @Test public void pinnedDoublePinyinAppliesToNormalPrivateAndCompanions() throws Exception
+  {
+    String id = importPatch("wanxiang.custom.yaml", "patch:\n  speller/algebra:\n    __patch: [wanxiang_algebra:/base/小鹤双拼]\n  translator/enable_user_dict: false\n");
+    store.apply(WordTableStore.BUNDLED, Collections.emptyList(), Collections.singletonList(id));
+    assertTrue(RimeData.validDeployment(store.currentPaths().shared));
+    try (RimeEngine engine = new RimeEngine(store.currentPaths()))
+    { engine.setLearning(false); assertTrue(engine.processText("nihc").candidates.contains("你好")); }
+    store.disableConfigs();
+    try (RimeEngine engine = new RimeEngine(store.currentPaths()))
+    { engine.setLearning(false); assertTrue(engine.processText("nihao").candidates.contains("你好")); }
+  }
+  @Test public void learningRecoveryMissingSourceAndLiveEnginePreserveSelection() throws Exception
+  {
+    String slot = store.view().selection.slot;
+    try (RimeEngine engine = new RimeEngine(store.currentPaths()))
+    {
+      try { store.previewLearningRecovery(); fail("Live engine accepted for snapshot"); }
+      catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("Close")); }
+    }
+    try { store.previewLearningRecovery(); fail("Missing legacy source accepted"); } catch (IOException expected) {}
+    assertFalse(store.view().retainedLearningSnapshot); assertEquals(slot, store.view().selection.slot);
+  }
+  private File learnOldPinyin() throws Exception
+  {
+    store.useLegacyBase();
+    try (RimeEngine engine = new RimeEngine(store.currentPaths()))
+    { engine.setLearning(true); engine.processText("nihaoshijie"); assertFalse(engine.confirm().committed.isEmpty()); }
+    File original = new File(root, "rime/user/pinyin_simp.userdb"); assertTrue(original.isDirectory());
+    store.apply(WordTableStore.BUNDLED, Collections.emptyList(), Collections.emptyList()); return original;
+  }
+  @Test public void explicitLearningRecoveryPreservesOriginalSnapshotAndAppliedConfiguration() throws Exception
+  {
+    File original = learnOldPinyin(); String originalHash = LearningSnapshot.digest(original, LearningSnapshot.deadline());
+    String patch = importPatch("default.custom.yaml", "patch: {menu/page_size: 3}");
+    store.apply(WordTableStore.BUNDLED, Collections.emptyList(), Collections.singletonList(patch));
+    store.previewLearningRecovery(); LearningRecovery.Preview preview = store.view().learning;
+    assertTrue(preview.canApply); assertTrue(preview.active > 0); assertEquals(0, preview.unsupported);
+    assertEquals(originalHash, preview.sourceHash);
+    File pristine = new File(root, "rime/word-tables/learning-recovery/snapshot/pinyin_simp.userdb");
+    assertEquals(originalHash, LearningSnapshot.digest(pristine, LearningSnapshot.deadline()));
+    store.applyLearningRecovery();
+    assertEquals(WordTableStore.BUNDLED, store.view().selection.base);
+    assertEquals(Collections.singletonList(patch), store.view().selection.patches);
+    assertEquals(1, store.view().selection.extras.size()); assertEquals("applied", store.view().learning.status);
+    assertEquals(originalHash, LearningSnapshot.digest(original, LearningSnapshot.deadline()));
+    assertEquals(originalHash, LearningSnapshot.digest(pristine, LearningSnapshot.deadline()));
+    int count = store.view().entries.size(); store.discardLearningRecovery();
+    assertFalse(store.view().retainedLearningSnapshot); assertEquals(count, store.view().entries.size());
+    assertEquals(originalHash, LearningSnapshot.digest(original, LearningSnapshot.deadline()));
+  }
+  @Test public void changedOldLearningAndDamagedRecoveredOutputRefuseConfirmation() throws Exception
+  {
+    File original = learnOldPinyin(); store.previewLearningRecovery(); String slot = store.view().selection.slot;
+    File output = new File(root, "rime/word-tables/learning-recovery/recovered.dict.yaml");
+    Files.write(output.toPath(), "damaged".getBytes(StandardCharsets.UTF_8));
+    try { store.applyLearningRecovery(); fail("Damaged recovered output accepted"); } catch (IOException expected) { assertTrue(expected.getMessage().contains("integrity")); }
+    assertEquals(slot, store.view().selection.slot); assertTrue(store.view().retainedLearningSnapshot);
+    store.discardLearningRecovery(); store.previewLearningRecovery();
+    File changed = new File(original, "synthetic-stale-marker"); Files.write(changed.toPath(), new byte[] {1});
+    try { store.applyLearningRecovery(); fail("Stale snapshot accepted"); } catch (IOException expected) { assertTrue(expected.getMessage().contains("changed")); }
+    assertEquals(slot, store.view().selection.slot); assertTrue(changed.isFile());
   }
   private static void remove(File file) throws Exception
   { if (file.isDirectory()) for (File child : file.listFiles()) remove(child); if (!file.delete()) throw new IOException("Cannot remove synthetic custom fixture"); }

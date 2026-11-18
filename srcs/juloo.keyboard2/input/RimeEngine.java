@@ -66,4 +66,6 @@ public final class RimeEngine implements CompositionEngine
   private static native void learning(long session, boolean enabled);
   private static native void destroy(long session);
   static native String customConfig(String filename, byte[] original, byte[] managedSchema);
+  static native void requireClosedForRecovery();
+  static native long[] recoverLegacyCopy(String shared, String copiedUser, String output, String dictionary, long budgetMillis);
 }

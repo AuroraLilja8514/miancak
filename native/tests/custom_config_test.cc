@@ -40,7 +40,7 @@ int main() {
       "patch: {schema/schema_id: other}", "patch: {schema/dependencies: [evil]}",
       "patch: {engine/processors: [lua_processor@evil]}",
       "patch: {translator/dictionary: ../../private}", "patch: {translator/user_dict: other}",
-      "patch: {translator/enable_user_dict: true}", "patch: {grammar/language: other}",
+      "patch: {translator/enable_user_dict: yes}", "patch: {grammar/language: other}",
       "patch: {__include: evil:/}", "patch: {speller/algebra/+: [evil]}",
       "patch: {switches/@0/reset: 1}", "patch: {switches/@7/reset: 4}",
       "patch: {translator/enable_completion: yes}", "patch: {translator/max_homophones: 33}",
@@ -51,6 +51,23 @@ int main() {
       "patch: {'menu/page_size/': 3}", "patch: {menu: {}}", "patch: {menu/page_size: 3"
     }) reject("wanxiang.custom.yaml", text);
     reject("default.custom.yaml", "patch: {translator/max_homophones: 3}");
+    for (const char* mode : {"全拼", "小鹤双拼", "自然码", "微软双拼"}) {
+      std::string patch = std::string("patch:\n  speller/algebra:\n    __patch:\n      - wanxiang_algebra:/base/") + mode + "\n      - wanxiang_algebra:/26jian\n";
+      auto values = miancak::parse_custom("wanxiang.custom.yaml", patch);
+      require(values.size() == 1); require(miancak::custom_algebra(values.at("speller/algebra/__patch")) == mode);
+      auto companion = YAML::Load(miancak::merge_custom("schema: {schema_id: wanxiang_mixedcode}\nspeller: {algebra: {__patch: [original]}}", "wanxiang.custom.yaml", patch));
+      require(companion["speller"]["algebra"]["__patch"].size() == 3);
+      require(companion["speller"]["algebra"]["__patch"][1].as<std::string>() == std::string("wanxiang_algebra:/mixed/") + mode);
+    }
+    for (const auto& refs : {"[]", "[xform/abc/def/]", "[wanxiang_algebra:/base/../../other]", "[wanxiang_algebra:/base/万象双拼]", "[wanxiang_algebra:/26jian]", "[wanxiang_algebra:/base/全拼, wanxiang_algebra:/base/小鹤双拼]", "[wanxiang_algebra:/base/全拼, wanxiang_algebra:/26jian, wanxiang_algebra:/26jian]"})
+      reject("wanxiang.custom.yaml", std::string("patch: {speller/algebra/__patch: ") + refs + "}");
+    auto private_normal = YAML::Load(miancak::merge_custom("schema: {schema_id: miancak_pinyin_private}\n__include: miancak_pinyin.schema:/\n__patch: {translator/enable_user_dict: false}", "wanxiang.custom.yaml",
+        "patch: {translator/enable_user_dict: true, translator/contextual_suggestions: true, translator/core_word_length: 0, translator/max_word_length: 32, super_processor/enable_seg_loop: false}"));
+    require(!private_normal["__patch"]["translator/enable_user_dict"].as<bool>());
+    require(!private_normal["__patch"]["translator/contextual_suggestions"].as<bool>());
+    require(!private_normal["__patch"]["super_processor/enable_seg_loop"]);
+    reject("wanxiang.custom.yaml", "patch: {translator/core_word_length: 17}");
+    reject("wanxiang.custom.yaml", "patch: {translator/max_word_length: 33}");
     std::string deep = "patch: "; for (int i=0;i<20;++i) deep+="{nested: "; deep+="1";for(int i=0;i<20;++i)deep+="}";reject("wanxiang.custom.yaml",deep);
     reject("wanxiang.custom.yaml", std::string(256*1024+1, '#'));
     std::string nodes = "patch: {"; for(int i=0;i<600;++i)nodes+="a: 1,";nodes+="}";reject("wanxiang.custom.yaml",nodes);

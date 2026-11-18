@@ -52,7 +52,8 @@ with zipfile.ZipFile(apk) as archive:
         assert b"Ljuloo/keyboard2/ImeTestActivity;" not in dex, "Debug fixture shipped in release"
         for descriptor in [b"Ljuloo/keyboard2/input/RimeEngine;", b"Ljuloo/keyboard2/input/EngineResult;"]:
             assert descriptor in dex, "JNI entry point was removed or renamed"
-        assert b"customConfig" in dex, "Custom-configuration JNI method was removed or renamed"
+        for method in (b"customConfig", b"requireClosedForRecovery", b"recoverLegacyCopy"):
+            assert method in dex, (method, "Configuration/recovery JNI method was removed or renamed")
     assert json.loads(archive.read("assets/native-sources.json"))["librime"] == lock["librime"]
     assert any(name.startswith("assets/third-party/pinyin-simp/LICENSE") for name in archive.namelist())
     pack_lock = json.loads((root / "native/word-pack.lock.json").read_text())
@@ -96,6 +97,7 @@ with zipfile.ZipFile(apk) as archive:
         for abi in lock["abis"]:
             binary = archive.read("lib/" + abi + "/libmiancak_rime.so")
             assert b"octagram" in binary and b"lua" in binary, (abi, "missing static module registration")
-            assert b"Java_juloo_keyboard2_input_RimeEngine_customConfig" in binary, (abi, "missing custom-configuration JNI entry")
+            for method in (b"customConfig", b"requireClosedForRecovery", b"recoverLegacyCopy"):
+                assert b"Java_juloo_keyboard2_input_RimeEngine_" + method in binary, (abi, method, "missing configuration/recovery JNI entry")
         print("Verified locked Wanxiang Base, full grammar, immutable source bytes and static module markers; runtime still requires device acceptance")
 print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

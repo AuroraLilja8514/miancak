@@ -14,6 +14,7 @@ import java.util.*;
 import juloo.keyboard2.input.WordTableRuntime;
 import juloo.keyboard2.input.WordTableStore;
 import juloo.keyboard2.input.RimeConfigStore;
+import juloo.keyboard2.input.LearningRecovery;
 
 /** Vocabulary data, intentionally separate from page/layout configuration. */
 public final class WordTableActivity extends Activity
@@ -158,6 +159,32 @@ public final class WordTableActivity extends Activity
       root.addView(button(R.string.words_legacy, () -> WordTableRuntime.run(this, true, WordTableStore::useLegacyBase)),
           new LinearLayout.LayoutParams(-1, -2));
     content.addView(button(R.string.words_configs_reset, () -> WordTableRuntime.run(this, true, WordTableStore::disableConfigs)), new LinearLayout.LayoutParams(-1, -2));
+    if (state != null)
+    {
+      TextView heading = new TextView(this); heading.setText(R.string.words_learning_title); content.addView(heading);
+      content.addView(button(R.string.words_learning_preview, () -> new AlertDialog.Builder(this)
+          .setTitle(R.string.words_learning_title).setMessage(R.string.words_learning_explanation)
+          .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok,
+              (dialog, which) -> WordTableRuntime.run(this, true, WordTableStore::previewLearningRecovery)).show()));
+      if (state.retainedLearningSnapshot)
+      {
+        LearningRecovery.Preview preview = state.learning;
+        String detail = state.learningIssue;
+        if (preview != null) detail = getString(R.string.words_learning_counts, preview.sourceHash, preview.active, preview.deleted,
+            preview.unsupported, preview.records, preview.status) + "\n\n" + getString(R.string.words_learning_explanation);
+        final String messageText = detail;
+        content.addView(button(R.string.words_learning_details, () -> new AlertDialog.Builder(this).setTitle(R.string.words_learning_title)
+            .setMessage(messageText).setPositiveButton(android.R.string.ok, null).show()));
+        Button confirm = button(R.string.words_learning_apply, () -> new AlertDialog.Builder(this).setTitle(R.string.words_learning_title)
+            .setMessage(messageText + "\n\n" + getString(R.string.words_learning_confirm))
+            .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok,
+                (dialog, which) -> WordTableRuntime.run(this, true, WordTableStore::applyLearningRecovery)).show());
+        if (preview == null || !preview.canApply) confirm.setEnabled(false); content.addView(confirm);
+        content.addView(button(R.string.words_learning_discard, () -> new AlertDialog.Builder(this).setMessage(R.string.words_learning_discard_confirm)
+            .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok,
+                (dialog, which) -> WordTableRuntime.run(this, false, WordTableStore::discardLearningRecovery)).show()));
+      }
+    }
   }
   private void radio(RadioGroup parent, String label, String id)
   {
@@ -178,6 +205,10 @@ public final class WordTableActivity extends Activity
     if (label == R.string.words_configs_import) button.setId(R.id.rime_config_import);
     if (label == R.string.words_configs_help) button.setId(R.id.rime_config_help);
     if (label == R.string.words_configs_reset) button.setId(R.id.rime_config_reset);
+    if (label == R.string.words_learning_preview) button.setId(R.id.learning_recovery_preview);
+    if (label == R.string.words_learning_details) button.setId(R.id.learning_recovery_details);
+    if (label == R.string.words_learning_apply) button.setId(R.id.learning_recovery_apply);
+    if (label == R.string.words_learning_discard) button.setId(R.id.learning_recovery_discard);
     button.setEnabled(!WordTableRuntime.busy); button.setOnClickListener(view -> action.run()); return button;
   }
   @Override protected void onActivityResult(int request, int result, Intent data)

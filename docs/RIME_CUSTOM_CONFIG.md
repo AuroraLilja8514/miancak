@@ -35,6 +35,12 @@ patch:
 | `translator/enable_completion` | `true` / `false` | Schema targets; both mobile schemas |
 | `translator/enable_word_completion` | `true` / `false` | Schema targets; both mobile schemas |
 | `translator/max_homophones` | Decimal integer 1–32 | Schema targets; both mobile schemas |
+| `translator/enable_user_dict` | `true` / `false` | Normal translator only; private always false |
+| `translator/contextual_suggestions` | `true` / `false` | Normal translator only; private explicitly false |
+| `translator/core_word_length` | Decimal integer 0–16 | Normal learning preference |
+| `translator/max_word_length` | Decimal integer 0–32 | Normal learning preference |
+| `super_processor/enable_backspace_limit`, `enable_seg_loop`, `enable_tone_fallback` | `true` / `false` | Bundled Base normal processor preferences |
+| `speller/algebra/__patch` | Approved reference list below | Bundled Base and both mobile spelling pipelines |
 | `switches/@3/reset` | 0 / 1 | Bundled Base normal pipeline: emoji |
 | `switches/@4/reset` | 0 / 1 | Bundled Base normal pipeline: English/Chinese translation |
 | `switches/@5/reset` | 0 / 1 | Bundled Base normal pipeline: context reorder |
@@ -48,8 +54,9 @@ no-learning pipeline.
 
 `default.custom.yaml` accepts only page size. At most one file per target may be
 active; precedence is default, Wanxiang, then MIANCAK. Later schema settings
-override earlier values. A Wanxiang target or Base switch reset cannot be applied
-to an explicitly selected data-only custom/legacy base. Other common settings can.
+override earlier values. A Wanxiang target, spelling selector or Base component
+setting cannot be applied to an explicitly selected data-only custom/legacy base.
+Other documented common settings can.
 
 Unknown keys fail instead of being ignored. In particular, schema IDs,
 dependencies, component lists, grammar/dictionary/user-dictionary names and paths,
@@ -60,6 +67,39 @@ are unsupported. Parser event limits bound nesting and nodes before constructing
 a YAML tree. `enable_sentence` and `max_homographs` belong to a different
 translator; they are not claimed for the shipped script translator. Candidate
 comment settings are also deferred because this frontend does not render them.
+
+### Pinned spelling selectors
+
+The ordinary Base spelling-selection patch is supported in its standard form:
+
+```yaml
+# wanxiang.custom.yaml
+patch:
+  speller/algebra:
+    __patch:
+      - wanxiang_algebra:/base/小鹤双拼
+      - wanxiang_algebra:/26jian
+```
+
+The first reference must select **全拼, 小鹤双拼, 自然码 or 微软双拼** from the
+pinned `wanxiang_algebra:/base/` paths. The second reference is optional and may
+only be `wanxiang_algebra:/26jian`. Both order and values are checked. A quoted
+flat `speller/algebra/__patch` path is equivalent. The staged mixed-code,
+English and reverse schemas receive the matching pinned spelling rules, retaining
+their mixed derivation or stroke rules. Their modified bytes are included in the
+managed deployment manifest. Abbreviation and phrase schemas keep their existing
+independent `26jian` rules. The transactional input probe uses `ni`, valid in all
+four selectors; `nihao` would falsely reject a working double-Pinyin profile.
+
+Other shipped selectors, fuzzy-algebra expressions, arbitrary cross-file
+references, regular expressions, T9, auxiliary-code/Pro configurations, arbitrary
+key bindings, and replacement component lists remain rejected. Support is bounded
+by tested engine/data behavior; it does not claim arbitrary Rime compatibility.
+The fixed private pipeline remains writer-free, regardless of a normal
+`enable_user_dict: true` patch. Conversely `enable_user_dict: false` affects the
+normal script translator's user dictionary, **not all Base Lua statistics**.
+Spelling and Base processor preferences require bundled Base; ordinary supported
+translator/page settings can still accompany an explicit data-only base.
 
 ## Import, apply, disable and recovery
 
