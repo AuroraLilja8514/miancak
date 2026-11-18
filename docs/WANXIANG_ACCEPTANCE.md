@@ -57,6 +57,56 @@ recovery, the four approved spelling selectors and their dependent schemas, and
 the optional recovered-phrases confirmation. Candidate actions must reach the
 receiving editor; source configuration and keycap text are insufficient.
 
+### Onboarding and Shift on API 35
+
+Run [the existing first-install driver](../scripts/first_install_tests.sh)
+twice with the same verified application and test APKs. Each entry order needs
+its own previously unused, named disposable guest and fresh evidence directory.
+The driver checks the actual guest API and unused installation, keeps Wi-Fi and
+mobile data setup, and runs clean-install, process reopen and guest reboot as
+separate phases. Use the existing finite budgets and changed boot-ID check.
+
+| Entry order | Actual actions and receiver assertions |
+| --- | --- |
+| `settings-first` | Open the shipped launcher and its Settings UI before enabling or typing. Check the default MIANCAK QWERTY selection, then enable through Android's switch and choose MIANCAK through its picker. Check the visible `zh` page and exact `你好。` in the shipped try-here editor. Revisit Settings and verify the same default and `，` output. The driver applies Android's `zh-CN` app locale and leaves app preferences to the ordinary UI. |
+| `ime-first` | Start in Android's keyboard settings on a different clean guest. Enable and select through the system UI, type on the initial default page, and visit the app's Settings after input. Apply the same layout, punctuation, reopen and reboot assertions. |
+
+Both paths check whole editor text when the language control releases unselected
+`nihao` as literal letters. The fresh Settings-first phase additionally types
+`nihaoshijie` on the visible keyboard, taps the candidate `你好`, checks that the
+prefix is still in composition and the editor has received no additional text,
+then taps center Shift. The exact new suffix must be `你好shijie`. Confirm the
+English page has cleared composition and the next `q` appends `Q` without any
+extra text. The existing native and prepared interaction suites also cover the
+engine boundary, the unselected Shift case and idle Shift latch/lock. Prepared
+fixtures seed configuration, so keep them separate from either unused install.
+
+On an authorized test host, use the same wrapper and scenario as CI. Provide the
+verified pair at `artifacts/app-debug.apk` and
+`artifacts/app-debug-androidTest.apk` in the run's isolated workspace.
+
+```sh
+MIANCAK_TEST_DISPOSABLE_GUEST=true MIANCAK_TEST_API=35 MIANCAK_ENTRY_ORDER=settings-first \
+  python3 scripts/public_test_evidence.py run --scenario first-install -- bash scripts/first_install_tests.sh
+```
+
+Use `MIANCAK_ENTRY_ORDER=ime-first` for the independent clean guest. Follow the
+existing staging step in [CI](../.github/workflows/ci.yml) with the actual driver
+outcome, test harness revision, API and entry order. Preserve the app APK digest
+and test APK digest in the private run record.
+
+For a failed setup or test, inspect the actual foreground before dismantling the
+guarded guest. The first-install driver captures `foreground-on-failure.png`
+locally on a failing exit while ADB is available. Read it with the window dump
+and, if produced, the instrumentation's phase-specific final image and hierarchy
+from before its teardown. Record the failed phase, whether MIANCAK was actually
+enabled/selected and which window is visible. A lost transport or unavailable
+capture leaves the foreground unknown. The existing one-time Pixel Launcher ANR
+recovery applies only when that exact dialog is observed. Keep the earlier
+reboot-phase failure separate from the earlier clean-install enablement failure;
+their causes remain unresolved. Raw screen and diagnostic files stay ephemeral
+and local. Only the existing typed summary and heartbeat are eligible for staging.
+
 Retain the earlier anticircle duplicate-output and settings-first reboot
 failures until an exact-source Android regression run resolves them. Independently
 prepared N3 work must be authorized, integrated and tested at the final head;

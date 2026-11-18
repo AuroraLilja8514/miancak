@@ -8,8 +8,19 @@ fi
 source "$(dirname -- "$MIANCAK_ENTRY")/adb_timeout.sh"
 set -euo pipefail
 verify_test_target first-install
+if adb shell pm list packages | tr -d '\r' | grep -qx 'package:org.miancak.keyboard.debug'; then
+  echo 'Fresh-install guest already contains MIANCAK; refuse a prepared-state test.'
+  exit 1
+fi
+actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+test "$actual_api" = "$MIANCAK_TEST_API"
 mkdir -p test-results
 collect() {
+  local driver_exit=$?
+  if [[ "$driver_exit" -ne 0 ]]; then
+    # Save the actual foreground before other diagnostics or guest teardown.
+    (umask 077; timeout --foreground 15s adb exec-out screencap -p > test-results/foreground-on-failure.png) || true
+  fi
   stop_progress
   timeout --foreground 15s adb logcat -d > test-results/logcat.txt || true
   timeout --foreground 15s adb shell dumpsys meminfo org.miancak.keyboard.debug > test-results/app-memory.txt || true
@@ -19,12 +30,6 @@ collect() {
 }
 trap collect EXIT
 start_progress
-if adb shell pm list packages | tr -d '\r' | grep -qx 'package:org.miancak.keyboard.debug'; then
-  echo 'Fresh-install guest already contains MIANCAK; refuse a prepared-state test.'
-  exit 1
-fi
-actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-test "$actual_api" = "$MIANCAK_TEST_API"
 sha256sum artifacts/app-debug.apk > test-results/apk-sha256.txt
 adb shell getprop > test-results/device-properties.txt
 adb install artifacts/app-debug.apk

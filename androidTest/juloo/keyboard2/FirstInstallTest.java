@@ -9,6 +9,7 @@ import android.provider.Settings;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.UiScrollable;
@@ -96,6 +97,8 @@ public final class FirstInstallTest
       focusEditor();
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
       assertEquals("中文", object("miancak_language").getText());
+      assertTrue("The visible keyboard must use the Chinese main page",
+          object("keyboard_view").getContentDescription().startsWith("Page: zh;"));
       assertKeyboardDefaults("zh");
       type("nihao");
       screenshot(revisit ? "reopened-input-pending" : "first-input-pending");
@@ -110,11 +113,11 @@ public final class FirstInstallTest
       type("qq"); expected += "QQ";
       awaitEditor(expected);
       tap(0.75f, 2);
-      type("nihao"); candidate = candidate();
+      type("nihao"); candidate();
       object("miancak_language").click();
-      expected += candidate;
+      expected += "nihao";
       awaitEditor(expected);
-      assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_language").text("EN")), 15000));
+      awaitLanguage("EN");
       type("hello"); expected += "hello";
       awaitEditor(expected);
       assertKeyboardDefaults("en");
@@ -141,6 +144,7 @@ public final class FirstInstallTest
       press("subscript", "zh"); press("2", "zh"); expected += "₂";
       awaitEditor(expected);
       screenshot("input-after-settings");
+      if (!revisit && order.equals("settings-first")) expected = verifyPartialShiftHandoff(expected);
       // Read the normal first-install state after real view recreation in
       // both landscape directions. Do not prewrite the preference under test.
       for (boolean left : new boolean[] {true, false})
@@ -507,6 +511,41 @@ public final class FirstInstallTest
     assertTrue("Actual editor text differs from: " + expected,
         device.wait(Until.hasObject(By.res(pkg, "launcher_tryhere_area").text(expected)), 20000));
     mark(RECEIVER_WAIT_RETURN);
+  }
+
+  private void awaitLanguage(String language)
+  {
+    assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_language").text(language)), 15000));
+  }
+
+  private String verifyPartialShiftHandoff(String expected)
+  {
+    type("nihaoshijie");
+    assertTrue("All letters must reach the initial composition before selection",
+        device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").desc("Pinyin: ni hao shi jie")), 20000));
+    BySelector partial = By.pkg(pkg).descStartsWith("Candidate ").text("你好");
+    UiObject2 phrase = device.findObject(partial);
+    if (phrase == null)
+    {
+      object("miancak_expand_candidates").click();
+      phrase = device.wait(Until.findObject(partial), 15000);
+    }
+    assertNotNull("The partial phrase 你好 must be visible", phrase);
+    phrase.click();
+    assertTrue("The selected prefix must remain in unfinished composition",
+        device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").descStartsWith("Pinyin: 你好")), 15000));
+    awaitEditor(expected);
+    tap(0.75f, 2); // Completed center Shift.
+    String mixed = expected + "你好shijie";
+    awaitEditor(mixed);
+    awaitLanguage("EN");
+    assertTrue(device.wait(Until.gone(By.descStartsWith("Pinyin: ")), 15000));
+    type("q");
+    mixed += "Q";
+    awaitEditor(mixed);
+    object("miancak_language").click();
+    awaitLanguage("中文");
+    return mixed;
   }
 
   private String launcherState()

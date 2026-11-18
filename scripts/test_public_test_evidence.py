@@ -277,6 +277,64 @@ else:raise SystemExit(98)
                 self.assertTrue(all(call==['get-serialno'] or call[:2]==['-s','emulator-5554'] and
                     (call[2:4] in (['shell','getprop'],['emu','avd']) or call[2:3]==['exec-out']) for call in calls))
 
+    def test_first_install_setup_failure_keeps_foreground_local_and_stays_failed(self):
+        fake = self.put('bin/adb', r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+
+args = sys.argv[1:]
+with Path('calls.jsonl').open('a') as out:
+    out.write(json.dumps(args) + '\n')
+if args[:2] == ['-s', 'emulator-5554']:
+    args = args[2:]
+elif args != ['get-serialno'] and os.environ.get('ANDROID_SERIAL') != 'emulator-5554':
+    raise SystemExit(98)
+if args == ['shell', 'svc', 'data', 'disable']:
+    raise SystemExit(42)
+if len(args) == 2 and args[0] == 'exec-out' and 'pm list packages org.miancak.keyboard' in args[1]:
+    print('\nMIANCAK_EMPTY_INSTALL_EXIT=0')
+    raise SystemExit(0)
+replies = {
+    ('get-serialno',): 'emulator-5554\n',
+    ('emu', 'avd', 'name'): 'miancak-clean\n',
+    ('shell', 'getprop', 'ro.build.version.sdk'): '35\n',
+    ('shell', 'getprop', 'ro.kernel.qemu'): '1\n',
+    ('shell', 'cmd', 'locale', 'get-app-locales', 'org.miancak.keyboard.debug'): 'zh-CN\n',
+    ('exec-out', 'screencap', '-p'): os.environ['FOREGROUND_FIXTURE'],
+}
+if tuple(args) in replies:
+    sys.stdout.write(replies[tuple(args)])
+elif args not in [
+    ['shell', 'pm', 'list', 'packages'], ['shell', 'getprop'],
+    ['install', 'artifacts/app-debug.apk'], ['install', 'artifacts/app-debug-androidTest.apk'],
+    ['shell', 'cmd', 'locale', 'set-app-locales', 'org.miancak.keyboard.debug', '--locales', 'zh-CN'],
+    ['shell', 'svc', 'wifi', 'disable'], ['logcat', '-d'],
+    ['shell', 'dumpsys', 'meminfo', 'org.miancak.keyboard.debug'],
+    ['shell', 'dumpsys', 'window', 'windows'], ['shell', 'dumpsys', 'input_method'],
+    ['pull', '/sdcard/Android/data/org.miancak.keyboard.debug/files/test-results', 'test-results/device']
+]:
+    raise SystemExit(99)
+''')
+        fake.chmod(0o755)
+        self.put('artifacts/app-debug.apk', 'synthetic app')
+        self.put('artifacts/app-debug-androidTest.apk', 'synthetic test')
+        env = dict(os.environ, PATH=str(fake.parent) + os.pathsep + os.environ['PATH'],
+                   MIANCAK_TEST_API='35', MIANCAK_ENTRY_ORDER='settings-first', MIANCAK_PROGRESS='0',
+                   FOREGROUND_FIXTURE=SECRET)
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/public_test_evidence.py'),
+            'run', '--scenario', 'first-install', '--', 'bash', str(ROOT / 'scripts/first_install_tests.sh'),
+            '--timeout-seconds', '10'], cwd=self.root, env=env, capture_output=True, text=True, timeout=15)
+        self.assertEqual(42, result.returncode)
+        self.assertEqual('DEVICE_TEST_FAILED\n', result.stdout)
+        self.assertEqual(SECRET, (self.root / 'test-results/foreground-on-failure.png').read_text())
+        calls = [json.loads(line) for line in (self.root / 'calls.jsonl').read_text().splitlines()]
+        failed = calls.index(['shell', 'svc', 'data', 'disable'])
+        self.assertEqual(['exec-out', 'screencap', '-p'], calls[failed + 1])
+        self.assertFalse(any(call[:3] == ['shell', 'am', 'instrument'] for call in calls))
+        summary = self.stage(scenario='first-install')
+        self.assertEqual(42, summary['driver_exit_code'])
+        self.assertEqual({}, summary['phase_results'])
+
     def test_workflows_gate_exact_file_uploads_and_capture_every_device_driver(self):
         paths=['.github/workflows/ci.yml','.github/workflows/release-checks.yml','tools/release/release-workflow.yml.in','.github/workflows/release.yml']
         count=0

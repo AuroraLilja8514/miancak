@@ -144,7 +144,7 @@ public class ImeInteractionTest
       assertEquals("西安", first);
       assertEquals(output, text(activity.first));
       gesture(0.75f, 2, 1, -1);
-      output += first; awaitText(activity.first, output); awaitMode("EN");
+      output += "xi'an"; awaitText(activity.first, output); awaitMode("EN");
       type("ok"); output += "ok"; awaitText(activity.first, output);
       gesture(0.75f, 2, 1, -1); awaitMode("中文");
       screenshot("chinese-punctuation-and-separator");
@@ -359,13 +359,13 @@ public class ImeInteractionTest
       tap(9.25f, 2); output = output.substring(0, output.length() - 1); awaitText(activity.first, output);
       screenshot("mixed-input");
       language().click(); awaitMode("中文");
-      // An existing composition survives keyboard-view recreation for a theme change.
       type("nihao"); candidate();
       tap(0.75f, 2); // Completed center Shift hands off raw letters, preserving its capital latch.
       output += "nihao"; awaitText(activity.first, output); awaitMode("EN");
       tap('q'); output += "Q"; awaitText(activity.first, output);
       assertEquals("EN", language().getText());
       language().click(); awaitMode("中文");
+      // An existing composition survives keyboard-view recreation for a theme change.
       type("nihao"); first = candidate();
       instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("theme", "light").commit());
       assertEquals(first, candidate());
