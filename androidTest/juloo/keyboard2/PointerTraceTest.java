@@ -72,6 +72,22 @@ public final class PointerTraceTest
     });
   }
 
+  @Test public void shiftActivationOccursAfterCompletedLatchNotTouchCancelOrFakePointer() throws Exception
+  {
+    main(() -> {
+      Trace shift = create(single(KeyValue.SHIFT)); shift.start();
+      assertTrue(shift.activations.isEmpty()); shift.finish();
+      assertEquals(Arrays.asList(KeyValue.SHIFT), shift.activations);
+      Trace cancelled = create(single(KeyValue.SHIFT)); cancelled.start(); cancelled.pointers.onTouchCancel();
+      assertTrue(cancelled.activations.isEmpty());
+      Trace fake = create(single(KeyValue.SHIFT));
+      fake.pointers.set_fake_pointer_state(fake.key, KeyValue.SHIFT, true, false);
+      assertTrue(fake.activations.isEmpty());
+      Trace swipe = create(key()); swipe.key.keys[0] = KeyValue.SHIFT; swipe.start(); swipe.move(100, 0); swipe.finish();
+      assertTrue(swipe.activations.isEmpty());
+    });
+  }
+
   @Test public void bothSidesOfEveryDirectionBoundary() throws Exception
   {
     main(() -> {
@@ -255,7 +271,7 @@ public final class PointerTraceTest
   {
     final KeyboardData.Key key;
     final Pointers pointers;
-    final List<KeyValue> ups = new ArrayList<>(), holds = new ArrayList<>();
+    final List<KeyValue> ups = new ArrayList<>(), holds = new ArrayList<>(), activations = new ArrayList<>();
     final List<Pointers.Modifiers> releasedModifiers = new ArrayList<>(), heldModifiers = new ArrayList<>();
     final JSONArray points = new JSONArray();
     boolean everSliding;
@@ -272,5 +288,6 @@ public final class PointerTraceTest
     @Override public void onPointerUp(KeyValue key, Pointers.Modifiers mods) { ups.add(key); releasedModifiers.add(mods); }
     @Override public void onPointerHold(KeyValue key, Pointers.Modifiers mods) { holds.add(key); heldModifiers.add(mods); }
     @Override public void onPointerFlagsChanged(boolean vibrate) {}
+    @Override public void onModifierActivated(KeyValue key, Pointers.Modifiers mods) { activations.add(key); }
   }
 }

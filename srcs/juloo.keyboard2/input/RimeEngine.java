@@ -49,6 +49,7 @@ public final class RimeEngine implements CompositionEngine
   @Override public EngineResult backspace() { check(); return key(session, 0xff08); }
   @Override public EngineResult space() { check(); return key(session, 0x20); }
   @Override public EngineResult confirm() { check(); return command(session, 0, 0); }
+  @Override public EngineResult releaseToEnglish() { check(); return command(session, 6, 0); }
   @Override public EngineResult clear() { check(); return command(session, 1, 0); }
   @Override public EngineResult select(int pageIndex) { check(); return command(session, 2, pageIndex); }
   @Override public EngineResult page(boolean backward) { check(); return command(session, 3, backward ? 1 : 0); }

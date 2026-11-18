@@ -7,6 +7,8 @@ public interface CompositionEngine extends AutoCloseable
   EngineResult backspace();
   EngineResult space();
   EngineResult confirm();
+  /** Preserve explicit selections and raw unselected input, never a candidate guess. */
+  default EngineResult releaseToEnglish() { throw new UnsupportedOperationException("English handoff"); }
   EngineResult clear();
   EngineResult select(int pageIndex);
   EngineResult page(boolean backward);

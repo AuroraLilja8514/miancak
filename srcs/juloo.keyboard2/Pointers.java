@@ -174,6 +174,7 @@ public final class Pointers implements Handler.Callback
       ptr.flags |= FLAG_P_LATCHED;
       ptr.pointerId = -1;
       _handler.onPointerFlagsChanged(false);
+      if (!ptr.hasFlagsAny(FLAG_P_LOCKED)) _handler.onModifierActivated(ptr_value, ptr.modifiers);
     }
     else
     {
@@ -442,7 +443,10 @@ public final class Pointers implements Handler.Callback
     if ((ptr.flags & FLAG_P_LATCHABLE) != 0)
     {
       if (!ptr.hasFlagsAny(FLAG_P_CANT_LOCK))
+      {
         lockPointer(ptr, true);
+        _handler.onModifierActivated(ptr.value, ptr.modifiers);
+      }
       return;
     }
     // Latched key, no key
@@ -811,6 +815,7 @@ public final class Pointers implements Handler.Callback
 
   public interface IPointerEventHandler
   {
+    default void onModifierActivated(KeyValue key, Modifiers mods) {}
     /** Key can be modified or removed by returning [null]. */
     public KeyValue modifyKey(KeyValue k, Modifiers mods);
 

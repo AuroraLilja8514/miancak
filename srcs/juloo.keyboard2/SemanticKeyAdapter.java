@@ -8,11 +8,22 @@ public final class SemanticKeyAdapter
 {
   private final InputController controller;
   private final Runnable editorActionCompleted;
+  private final Runnable englishRequested;
   private int legacyDepth;
   public SemanticKeyAdapter(InputController controller, Runnable editorActionCompleted)
+  { this(controller, editorActionCompleted, () -> controller.setLanguage(juloo.keyboard2.input.InputRouter.Mode.ENGLISH, null)); }
+  public SemanticKeyAdapter(InputController controller, Runnable editorActionCompleted, Runnable englishRequested)
   {
     this.controller = controller;
     this.editorActionCompleted = editorActionCompleted;
+    this.englishRequested = englishRequested;
+  }
+  /** Completed manual Shift only. Idle latch/lock and automatic caps stay orthogonal. */
+  public void shiftActivated()
+  {
+    juloo.keyboard2.input.InputSnapshot state = controller.snapshot();
+    if (state.engineAllowed && state.mode == juloo.keyboard2.input.InputRouter.Mode.CHINESE
+        && (state.engine.composing || controller.hasPendingRequests())) englishRequested.run();
   }
   public boolean inLegacy() { return legacyDepth != 0; }
 

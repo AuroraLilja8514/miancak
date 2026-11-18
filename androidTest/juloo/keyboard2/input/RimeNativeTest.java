@@ -15,6 +15,27 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class RimeNativeTest
 {
+  @Test public void englishHandoffKeepsRawInputAndExplicitPartialSelectionWithoutGuessing() throws Exception
+  {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    RimeData.Paths bundle = RimeData.bundled(context);
+    File user = new File(context.getCacheDir(), "rime-english-" + java.util.UUID.randomUUID()); assertTrue(user.mkdir());
+    try (RimeEngine engine = new RimeEngine(new RimeData.Paths(bundle.shared, user)))
+    {
+      engine.setLearning(false); engine.processText("nihao");
+      assertEquals("nihao", engine.releaseToEnglish().committed);
+      assertFalse(engine.processText("").composing); assertEquals("", engine.releaseToEnglish().committed);
+      engine.processText("nihaoshijie"); EngineResult choices = engine.candidates(100);
+      int selected = choices.candidates.indexOf("你好"); assertTrue("Explicit partial candidate must be available", selected >= 0);
+      EngineResult partial = engine.select(selected); assertTrue(partial.composing); assertEquals("", partial.committed);
+      assertEquals("你好shijie", engine.releaseToEnglish().committed);
+      assertFalse(engine.processText("").composing);
+      engine.processText("ni'hao"); assertEquals("ni'hao", engine.releaseToEnglish().committed);
+      engine.processText("nihao"); assertEquals("你好", engine.select(0).committed);
+      assertEquals("", engine.releaseToEnglish().committed);
+    }
+    assertTrue("No-learning English handoff cannot write a user dictionary", learningHashes(user, user).isEmpty());
+  }
   @Test public void realOfflinePinyinSessionAndReinitialization() throws Exception
   {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();

@@ -1,5 +1,7 @@
 #include <jni.h>
 #include <rime_api.h>
+#include <rime/context.h>
+#include <rime/service.h>
 #include <mutex>
 #include <map>
 #include <vector>
@@ -73,6 +75,18 @@ bool confirm_selection(RimeSessionId id) {
     selected = true;
   }
   return false;
+}
+
+// Match the pinned engine's commit_code boundary: retain explicitly selected
+// segments, drop only unselected candidate guesses, then commit their raw input.
+// Displayed preedit can contain formatting/tones and is never used as raw text.
+bool release_to_english(RimeSessionId id) {
+  auto session = rime::Service::instance().GetSession(id);
+  auto* context = session ? session->context() : nullptr;
+  if (!context) return false;
+  if (!context->IsComposing()) return true;
+  context->ClearNonConfirmedComposition();
+  return context->Commit();
 }
 
 jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0) {
@@ -271,6 +285,7 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
     case 5:
       if(arg<=0){fail(env,"Invalid candidate prefix length");return nullptr;}
       return snapshot(env,id,true,arg);
+    case 6: handled = release_to_english(id); break;
     default: fail(env, "Invalid Rime command"); return nullptr;
   }
   return snapshot(env, id, handled);

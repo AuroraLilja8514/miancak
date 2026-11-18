@@ -228,6 +228,9 @@ public class Keyboard2View extends View
       vibrate();
   }
 
+  @Override public void onModifierActivated(KeyValue key, Pointers.Modifiers mods)
+  { if (!_previewConfig) _config.handler.modifier_activated(key, mods); }
+
   private void updateFlags()
   {
     _mods = _pointers.getModifiers();

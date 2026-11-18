@@ -21,7 +21,7 @@ public final class InputRouter
   public enum OperationType
   {
     ENGINE_TEXT, ENGINE_BACKSPACE, ENGINE_SPACE,
-    CONFIRM_COMPOSITION, COMMIT_TEXT, EDITOR_BACKSPACE
+    CONFIRM_COMPOSITION, RELEASE_TO_ENGLISH, COMMIT_TEXT, EDITOR_BACKSPACE
   }
 
   public static final class Operation
@@ -88,14 +88,14 @@ public final class InputRouter
         break;
       case TOGGLE_LANGUAGE:
         if (hasComposition)
-          operations.add(new Operation(OperationType.CONFIRM_COMPOSITION, ""));
+          operations.add(new Operation(mode == Mode.CHINESE ? OperationType.RELEASE_TO_ENGLISH : OperationType.CONFIRM_COMPOSITION, ""));
         resultingMode = mode == Mode.CHINESE ? Mode.ENGLISH : Mode.CHINESE;
         break;
       case SET_CHINESE:
       case SET_ENGLISH:
         resultingMode = action.type == SemanticAction.Type.SET_CHINESE ? Mode.CHINESE : Mode.ENGLISH;
         if (mode != resultingMode && hasComposition)
-          operations.add(new Operation(OperationType.CONFIRM_COMPOSITION, ""));
+          operations.add(new Operation(resultingMode == Mode.ENGLISH ? OperationType.RELEASE_TO_ENGLISH : OperationType.CONFIRM_COMPOSITION, ""));
         break;
       default:
         throw new AssertionError(action.type);

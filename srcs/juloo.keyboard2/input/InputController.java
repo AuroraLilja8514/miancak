@@ -162,6 +162,7 @@ public final class InputController implements AutoCloseable
           case ENGINE_SPACE: accept(getEngine(handle).space(), edits, false); break;
           case ENGINE_BACKSPACE: accept(getEngine(handle).backspace(), edits, false); break;
           case CONFIRM_COMPOSITION: accept(getEngine(handle).confirm(), edits, true); break;
+          case RELEASE_TO_ENGLISH: accept(getEngine(handle).releaseToEnglish(), edits, true); break;
           default: throw new AssertionError(op.type);
         }
       mode = plan.resultingMode;

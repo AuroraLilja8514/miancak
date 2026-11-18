@@ -114,16 +114,16 @@ public class InputRouterTest
   }
 
   @Test
-  public void languageToggleConfirmsBeforeEnglishInput()
+  public void languageTogglePreservesRawLettersBeforeEnglishInput()
   {
     Harness h = new Harness(Mode.CHINESE);
     h.send(engineText("nihao"));
     h.send(TOGGLE_LANGUAGE);
     assertEquals(Mode.ENGLISH, h.mode);
-    assertEquals("你好", h.output());
+    assertEquals("nihao", h.output());
     h.send(engineText("Q"));
-    assertEquals("你好Q", h.output());
-    assertEquals(Arrays.asList("engine:nihao", "confirm", "commit:Q"), h.events);
+    assertEquals("nihaoQ", h.output());
+    assertEquals(Arrays.asList("engine:nihao", "english", "commit:Q"), h.events);
     h.send(TOGGLE_LANGUAGE);
     assertEquals(Mode.CHINESE, h.mode);
     h.send(engineText("di"));
@@ -216,6 +216,8 @@ public class InputRouterTest
             events.add("confirm");
             confirm();
             break;
+          case RELEASE_TO_ENGLISH:
+            events.add("english"); committed.append(preedit); preedit.setLength(0); break;
           case COMMIT_TEXT:
             events.add("commit:" + op.text);
             committed.append(op.text);

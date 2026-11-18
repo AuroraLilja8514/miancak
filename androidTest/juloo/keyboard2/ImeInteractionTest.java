@@ -350,8 +350,8 @@ public class ImeInteractionTest
       tap('q'); tap('q'); output += "QQ"; awaitText(activity.first, output);
       tap(0.75f, 2);
       type("nihao"); first = candidate();
-      language().click(); // Active composition confirms before changing mode.
-      output += first; awaitText(activity.first, output);
+      language().click(); // Unselected input becomes raw English, not the first candidate.
+      output += "nihao"; awaitText(activity.first, output);
       awaitMode("EN");
       Rect englishGeometry = keyboard().getVisibleBounds();
       assertEquals(chineseGeometry, englishGeometry);
@@ -360,6 +360,12 @@ public class ImeInteractionTest
       screenshot("mixed-input");
       language().click(); awaitMode("中文");
       // An existing composition survives keyboard-view recreation for a theme change.
+      type("nihao"); candidate();
+      tap(0.75f, 2); // Completed center Shift hands off raw letters, preserving its capital latch.
+      output += "nihao"; awaitText(activity.first, output); awaitMode("EN");
+      tap('q'); output += "Q"; awaitText(activity.first, output);
+      assertEquals("EN", language().getText());
+      language().click(); awaitMode("中文");
       type("nihao"); first = candidate();
       instrumentation.runOnMainSync(() -> DirectBootAwarePreferences.get_shared_preferences(context).edit().putString("theme", "light").commit());
       assertEquals(first, candidate());

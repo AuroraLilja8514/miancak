@@ -14,6 +14,8 @@ MIANCAK 是基于 [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyb
 
 ## 项目现状
 
+未发布的 0.3.3 同时修正 [Shift 英文交接](docs/SHIFT_ENGLISH_HANDOFF.md)：组词时完成 Shift 动作或明确切到英文，不再替用户选择首候选；保留已明确选择的文字，剩余按键原样作为英文交接。闲置 Shift 的临时大写／锁定行为保留，Android 15 接收端正文验收仍待执行。
+
 MIANCAK 已实现**实验性的离线简体拼音输入**，包括固定版本的 librime 运行库、语义输入控制器、按字面精确输出，以及独立的触控候选栏。R0–R7 应用阶段验收已通过包含 18 项检查的 APK 测试矩阵和固定词汇测试集；更广泛的日常使用与设备适配仍在[问题 #20](https://github.com/AuroraLilja8514/miancak/issues/20) 中跟踪。原有手势和单指 Shift 临时大写／锁定行为均予以保留。实际验证范围见[测试说明](docs/TESTING.md)。
 
 设置界面和输入法共用同一份偏好设置。全新安装默认选择 MIANCAK QWERTY，并启用双击 Shift 锁定。候选栏按排序横向滚动；展开后在原键盘区域换行显示并纵向滚动，接近末尾时按需加载更多候选。

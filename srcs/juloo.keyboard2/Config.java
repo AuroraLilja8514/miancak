@@ -350,6 +350,8 @@ public final class Config
 
   public static interface IKeyEventHandler
   {
+    /** A completed user latch/lock action, never a provisional touch or fake pointer. */
+    default void modifier_activated(KeyValue key, Pointers.Modifiers mods) {}
     public void key_down(KeyValue value, boolean is_swipe);
     public void key_up(KeyValue value, Pointers.Modifiers mods);
     public void mods_changed(Pointers.Modifiers mods);

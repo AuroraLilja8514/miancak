@@ -174,7 +174,7 @@ public class Keyboard2 extends InputMethodService
     _inputController = new InputController(_rimeWorker, runnable -> _handler.post(runnable),
         () -> WordTableRuntime.createEngine(Keyboard2.this), this::input_snapshot_changed);
     WordTableRuntime.register(_inputController);
-    _keyeventhandler.set_semantic_adapter(new SemanticKeyAdapter(_inputController, this::sync_editor_selection));
+    _keyeventhandler.set_semantic_adapter(new SemanticKeyAdapter(_inputController, this::sync_editor_selection, () -> select_page("en")));
     KeyValue.Stateful._handler = recvr;
     _config.handler = _keyeventhandler;
     prefs.registerOnSharedPreferenceChangeListener(this);

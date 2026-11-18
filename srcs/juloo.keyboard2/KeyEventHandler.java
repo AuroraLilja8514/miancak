@@ -158,6 +158,14 @@ public final class KeyEventHandler
     update_meta_state(mods);
   }
 
+  @Override public void modifier_activated(KeyValue key, Pointers.Modifiers mods)
+  {
+    if (_semantic != null && key != null && key.getKind() == KeyValue.Kind.Modifier
+        && key.getModifier() == KeyValue.Modifier.SHIFT
+        && !mods.has(KeyValue.Modifier.CTRL) && !mods.has(KeyValue.Modifier.ALT) && !mods.has(KeyValue.Modifier.META))
+      _semantic.shiftActivated();
+  }
+
   private boolean presentationEvent(KeyValue.Event event)
   {
     switch (event)

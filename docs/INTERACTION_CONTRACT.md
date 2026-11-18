@@ -124,7 +124,13 @@ It must:
 - not be inferred from text context;
 - not require restarting the Rime runtime/session.
 
-If composition is active, confirm the selected/highlighted candidate before changing language mode. The mode change takes effect only after confirmation succeeds; the next input must not overtake that confirmation.
+For unreleased 0.3.3, leaving Chinese preserves explicitly selected segments and
+commits the remaining exact typed input as English. A highlighted first candidate
+is not an explicit selection and must not be chosen by the language switch.
+Use the engine's selected-segment/raw-input boundary, never formatted preedit.
+Change mode/layout only after the handoff and receiving-editor transaction succeed;
+following input cannot overtake it. Space, Enter and explicit literal punctuation
+retain their separate confirmation semantics.
 
 The exact gesture may be configurable, but it must remain deterministic.
 
@@ -134,7 +140,12 @@ Shift latch/lock belongs to the keyboard frontend. Language mode belongs to inpu
 
 They must not be conflated into one hidden state machine.
 
-This permits efficient mixed input, for example using a one-shot Shift for a capital ASCII letter while otherwise remaining in Chinese mode.
+With no pending Chinese composition, one-shot capitals and latch/lock retain
+their existing behavior. A completed manual Shift latch/lock during Chinese
+composition requests the same lossless English handoff as the explicit language
+control. A provisional pointer-down, cancelled/swiped gesture, automatic caps or
+editor preview must not trigger it. Shift continues to own capitalization;
+language is an explicit layout transition, with editor-generation protection.
 
 ## 11. Backspace and space must respect composition state
 

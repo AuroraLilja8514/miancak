@@ -110,14 +110,14 @@ public class InputControllerTest
     h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
     h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
     h.flush();
-    assertEquals("你好", h.editor.text());
+    assertEquals("nihao", h.editor.text());
     assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
     assertEquals(2, callbacks[0]);
   }
-  @Test public void failedConfirmationDoesNotApplyTheSelectedProfile()
+  @Test public void failedEnglishHandoffDoesNotApplyTheSelectedProfile()
   {
     Harness h = new Harness(Mode.CHINESE);
-    h.engine.failConfirm = true;
+    h.engine.failEnglish = true;
     int[] callbacks = {0};
     h.controller.submit(engineText("nihao"));
     h.controller.setLanguage(Mode.ENGLISH, () -> callbacks[0]++);
@@ -258,17 +258,93 @@ public class InputControllerTest
     assertTrue(h.controller.snapshot().engine.composing);
   }
 
-  @Test public void failedConfirmationDoesNotAppendLiteralOrSwitchLanguage()
+  @Test public void failedLiteralConfirmationCanStillReleaseRawInputToEnglish()
   {
     Harness h = new Harness(Mode.CHINESE);
     h.controller.submit(engineText("nihao")); h.flush();
     h.engine.failConfirm = true;
     h.controller.submit(literalText("。"));
-    h.controller.submit(TOGGLE_LANGUAGE); h.flush();
+    h.flush();
     assertEquals("", h.editor.text());
     assertEquals(Mode.CHINESE, h.controller.snapshot().mode);
     assertTrue(h.controller.snapshot().engine.composing);
     assertFalse(h.controller.snapshot().error.isEmpty());
+    h.controller.submit(TOGGLE_LANGUAGE); h.flush();
+    assertEquals("nihao", h.editor.text());
+    assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
+    assertFalse(h.controller.snapshot().engine.composing);
+    assertEquals("", h.controller.snapshot().error);
+  }
+
+  @Test public void englishHandoffUsesQueuedRawInputAndDoesNotChooseFirstCandidate()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.engine.failConfirm = true;
+    h.controller.submit(engineText("nihao"));
+    h.controller.setLanguage(Mode.ENGLISH, null);
+    h.controller.submit(engineText("World"));
+    h.worker.all(); assertEquals("", h.editor.text()); h.ui.all();
+    assertEquals("nihaoWorld", h.editor.text()); assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
+    assertEquals(Arrays.asList("text:nihao", "english"), h.engine.calls);
+  }
+
+  @Test public void completedManualShiftReleasesQueuedChineseInputOnlyOnce()
+  {
+    Harness h = new Harness(Mode.CHINESE); int[] requests = {0};
+    juloo.keyboard2.SemanticKeyAdapter adapter = new juloo.keyboard2.SemanticKeyAdapter(h.controller, () -> {}, () -> {
+      requests[0]++; h.controller.setLanguage(Mode.ENGLISH, null);
+    });
+    h.controller.submit(engineText("nihao")); adapter.shiftActivated(); h.flush();
+    assertEquals("nihao", h.editor.text()); assertEquals(1, requests[0]);
+    adapter.shiftActivated(); h.flush(); assertEquals(1, requests[0]); assertEquals("nihao", h.editor.text());
+  }
+
+  @Test public void idleManualShiftDoesNotChangeChineseModeOrConfirmAnything()
+  {
+    Harness h = new Harness(Mode.CHINESE); int[] requests = {0};
+    juloo.keyboard2.SemanticKeyAdapter adapter = new juloo.keyboard2.SemanticKeyAdapter(h.controller, () -> {}, () -> requests[0]++);
+    adapter.shiftActivated(); h.flush(); assertEquals(0, requests[0]); assertEquals(Mode.CHINESE, h.controller.snapshot().mode);
+    assertEquals("", h.editor.text()); assertTrue(h.engine.calls.isEmpty());
+  }
+
+  @Test public void manualShiftInProtectedEditorDoesNotStartChineseOrChangeMode()
+  {
+    Harness h = new Harness(Mode.ENGLISH); h.controller.startEditor(h.editor, Mode.ENGLISH, false, false); h.flush();
+    int[] requests = {0}; juloo.keyboard2.SemanticKeyAdapter adapter = new juloo.keyboard2.SemanticKeyAdapter(h.controller, () -> {}, () -> requests[0]++);
+    adapter.shiftActivated(); h.flush(); assertEquals(0, requests[0]); assertEquals(0, h.creations);
+  }
+
+  @Test public void explicitPartialSelectionIsPreservedWithOnlyTheRemainingRawLetters()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.engine.partialSelection = true;
+    h.controller.submit(engineText("nihaoshijie")); h.flush();
+    h.controller.select(h.controller.snapshot(), 0); h.flush();
+    assertEquals("", h.editor.text()); assertTrue(h.controller.snapshot().engine.composing);
+    h.controller.setLanguage(Mode.ENGLISH, null); h.flush();
+    assertEquals("你好shijie", h.editor.text()); assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
+  }
+
+  @Test public void fullySelectedTextIsNotDuplicatedWhenSwitchingToEnglish()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush();
+    h.controller.select(h.controller.snapshot(), 0); h.flush(); assertEquals("你好", h.editor.text());
+    h.controller.setLanguage(Mode.ENGLISH, null); h.flush();
+    assertEquals("你好", h.editor.text()); assertFalse(h.engine.calls.contains("english"));
+  }
+
+  @Test public void rejectedEnglishHandoffCannotPublishTheLayoutCallback()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush();
+    int[] applied = {0}; h.editor.reject = true;
+    h.controller.setLanguage(Mode.ENGLISH, () -> applied[0]++); h.flush();
+    assertEquals(0, applied[0]); assertEquals("", h.editor.text()); assertFalse(h.controller.snapshot().engineAllowed);
+  }
+
+  @Test public void changedEditorCannotReceiveOldEnglishHandoffOrLayoutCallback()
+  {
+    Harness h = new Harness(Mode.CHINESE); h.controller.submit(engineText("nihao")); h.flush();
+    int[] applied = {0}; h.controller.setLanguage(Mode.ENGLISH, () -> applied[0]++); h.worker.all();
+    Editor next = new Editor(); h.controller.startEditor(next, Mode.CHINESE, true, false); h.flush();
+    assertEquals("", h.editor.text()); assertEquals("", next.text()); assertEquals(0, applied[0]);
   }
 
   @Test public void enterAndFollowingTextKeepTheirPlaceAfterConfirmation()
@@ -503,10 +579,10 @@ public class InputControllerTest
 
   private static final class FakeEngine implements CompositionEngine
   {
-    String raw = "";
+    String raw = "", chosenPrefix = "";
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
-    boolean failConfirm, partialFailure;
+    boolean failConfirm, failEnglish, partialFailure, partialSelection;
     boolean lastPage=true;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
@@ -526,12 +602,19 @@ public class InputControllerTest
       if (failConfirm) return result(false, "");
       String text = selected(); raw = ""; return result(true, text);
     }
+    @Override public EngineResult releaseToEnglish()
+    {
+      calls.add("english"); if (failEnglish) return result(false, "");
+      String text = chosenPrefix + raw; chosenPrefix = ""; raw = ""; return result(true, text);
+    }
     @Override public EngineResult backspace() { raw = raw.substring(0, raw.length() - 1); return result(true, ""); }
     @Override public EngineResult space() { return confirm(); }
-    @Override public EngineResult clear() { raw = ""; return result(true, ""); }
+    @Override public EngineResult clear() { raw = ""; chosenPrefix = ""; return result(true, ""); }
     @Override public EngineResult select(int index)
     {
       calls.add("select:" + index);
+      if (partialSelection && index == 0 && raw.equals("nihaoshijie"))
+      { chosenPrefix = "你好"; raw = "shijie"; return result(true, ""); }
       if (index == 0) return confirm();
       raw = ""; return result(true, "候选");
     }
