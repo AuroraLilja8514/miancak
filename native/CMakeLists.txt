@@ -70,6 +70,8 @@ if(NOT ANDROID)
   target_include_directories(wanxiang_host_test PRIVATE "${SOURCES}/octagram/src")
   target_sources(wanxiang_host_test PRIVATE $<TARGET_OBJECTS:rime-octagram-objs> $<TARGET_OBJECTS:rime-lua-objs>)
   target_link_libraries(wanxiang_host_test PRIVATE rime-static ${CMAKE_DL_LIBS})
+  add_executable(custom_config_test tests/custom_config_test.cc)
+  target_link_libraries(custom_config_test PRIVATE yaml-cpp)
 endif()
 add_library(cdict_java SHARED
   "${ROOT}/vendor/cdict/libcdict/libcdict.c"

@@ -42,21 +42,27 @@ public final class WordTableStore
   public static final class Selection
   {
     public final String base, slot;
-    public final List<String> extras;
+    public final List<String> extras, patches;
     Selection(String base, List<String> extras, String slot)
-    { this.base = base; this.extras = Collections.unmodifiableList(new ArrayList<>(extras)); this.slot = slot; }
-    JSONObject json() throws JSONException { return new JSONObject().put("base", base).put("extras", new JSONArray(extras)).put("slot", slot); }
+    { this(base, extras, slot, Collections.emptyList()); }
+    Selection(String base, List<String> extras, String slot, List<String> patches)
+    { this.base = base; this.extras = Collections.unmodifiableList(new ArrayList<>(extras)); this.slot = slot; this.patches = Collections.unmodifiableList(new ArrayList<>(patches)); }
+    JSONObject json() throws JSONException { return new JSONObject().put("base", base).put("extras", new JSONArray(extras)).put("slot", slot).put("patches", new JSONArray(patches)); }
   }
   public static final class View
   {
     public final List<Entry> entries;
     public final Selection selection;
+    public final List<RimeConfigStore.Entry> patches;
+    public final List<String> retainedPatches;
     public final String recovery;
-    View(List<Entry> entries, Selection selection, String recovery)
-    { this.entries = Collections.unmodifiableList(entries); this.selection = selection; this.recovery = recovery; }
+    View(List<Entry> entries, Selection selection, String recovery, List<RimeConfigStore.Entry> patches, List<String> retainedPatches)
+    { this.entries = Collections.unmodifiableList(entries); this.selection = selection; this.recovery = recovery;
+      this.patches = Collections.unmodifiableList(patches); this.retainedPatches = Collections.unmodifiableList(retainedPatches); }
   }
   private final Context context;
   private final File root, tables, versions, catalog, state;
+  private final RimeConfigStore configs;
   public WordTableStore(Context context) throws IOException
   {
     this.context = context.getApplicationContext();
@@ -66,11 +72,27 @@ public final class WordTableStore
     tables = new File(root, "tables"); versions = new File(root, "versions");
     catalog = new File(root, "catalog.json"); state = new File(root, "selection.json");
     mkdir(tables); mkdir(versions);
+    configs = new RimeConfigStore(root);
   }
   public View view() throws Exception
   {
     JSONObject saved = state();
-    return new View(entries(), selection(saved.getJSONObject("current")), saved.optString("recovery"));
+    List<String> retained = new ArrayList<>(selection(saved.getJSONObject("current")).patches);
+    retained.addAll(selection(saved.getJSONObject("previous")).patches);
+    return new View(entries(), selection(saved.getJSONObject("current")), saved.optString("recovery"), configs.entries(), retained);
+  }
+  public void importConfigs(List<Source> sources) throws Exception { configs.importFiles(sources); }
+  public void disableConfigs() throws Exception
+  {
+    Selection active = selection(state().getJSONObject("current"));
+    apply(active.base, active.extras, Collections.emptyList());
+  }
+  public void removeConfig(String id) throws Exception
+  {
+    JSONObject saved = state();
+    if (selection(saved.getJSONObject("current")).patches.contains(id) || selection(saved.getJSONObject("previous")).patches.contains(id))
+      throw new IOException("Custom file is retained by the active or previous recovery selection");
+    configs.remove(id);
   }
   private List<Entry> entries() throws Exception
   {
@@ -152,14 +174,17 @@ public final class WordTableStore
     saveCatalog(remaining); erase(new File(tables, id));
   }
   public void apply(String base, List<String> extras) throws Exception
+  { apply(base, extras, view().selection.patches); }
+  public void apply(String base, List<String> extras, List<String> patches) throws Exception
   {
     List<Entry> ordered = resolve(entries(), base, extras);
     RimeData.Paths bundled = RimeData.bundled(context);
+    boolean wanxiang = base.equals(BUNDLED) && new File(bundled.shared, "miancak-profile.json").isFile();
+    List<RimeConfigStore.Entry> selectedPatches = configs.resolve(patches, wanxiang);
     String slot = UUID.randomUUID().toString(); File shared = new File(versions, slot); mkdir(shared);
     boolean committed = false;
     try
     {
-      boolean wanxiang = base.equals(BUNDLED) && new File(bundled.shared, "miancak-profile.json").isFile();
       if (wanxiang) RimeData.copyBundled(bundled.shared, shared);
       else for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
         try (InputStream in = context.getAssets().open("word-pack/custom-schema/" + name); FileOutputStream out = new FileOutputStream(new File(shared, name)))
@@ -193,6 +218,7 @@ public final class WordTableStore
         try (FileOutputStream out = new FileOutputStream(new File(shared, "miancak_pinyin.schema.yaml"), true))
         { out.write("  translator/dictionary: miancak_wanxiang\n  translator/prism: miancak_wanxiang\n".getBytes(StandardCharsets.UTF_8)); out.getFD().sync(); }
       }
+      configs.apply(selectedPatches, shared);
       JSONObject manifest = new JSONObject();
       if (wanxiang) manifest = RimeData.manifest(bundled.shared);
       for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml", dictionary.getName(), "miancak_wanxiang.dict.yaml"))
@@ -207,7 +233,7 @@ public final class WordTableStore
         if (!result.composing || result.candidates.isEmpty()) throw new IOException("Compiled table produced no candidates / 编译后未产生候选，请检查拼音数据");
       }
       JSONObject before = state();
-      Selection next = new Selection(base, new ArrayList<>(new LinkedHashSet<>(extras)), slot);
+      Selection next = new Selection(base, new ArrayList<>(new LinkedHashSet<>(extras)), slot, patches);
       atomic(state, new JSONObject().put("format", 1).put("current", next.json()).put("previous", before.getJSONObject("current"))
           .put("packaged", bundled.shared.getName()).put("recovery", ""));
       committed = true;
@@ -247,7 +273,7 @@ public final class WordTableStore
       if (active.slot.isEmpty()) return packaged;
       if (!saved.optString("packaged").equals(packaged.shared.getName()))
       {
-        try { apply(active.base, active.extras); active = selection(state().getJSONObject("current")); }
+        try { apply(active.base, active.extras, active.patches); active = selection(state().getJSONObject("current")); }
         catch (Exception failure)
         {
           saved.put("recovery", "Update rebuild failed; retained working vocabulary / 更新后重编译失败，已保留可用词表");
@@ -300,7 +326,7 @@ public final class WordTableStore
   }
   private boolean valid(Selection selection)
   {
-    if (selection.slot.isEmpty()) return selection.base.equals(BUNDLED) && selection.extras.isEmpty();
+    if (selection.slot.isEmpty()) return selection.base.equals(BUNDLED) && selection.extras.isEmpty() && selection.patches.isEmpty();
     if (!selection.slot.matches("[a-f0-9-]{36}")) return false;
     try
     {
@@ -312,7 +338,9 @@ public final class WordTableStore
   { return new JSONObject().put("format", 1).put("current", bundledSelection().json()).put("previous", bundledSelection().json()).put("recovery", ""); }
   private static Selection bundledSelection() { return new Selection(BUNDLED, Collections.emptyList(), ""); }
   private static Selection selection(JSONObject value) throws JSONException
-  { return new Selection(value.getString("base"), strings(value.getJSONArray("extras")), value.getString("slot")); }
+  { JSONArray patches = value.optJSONArray("patches"); if (value.has("patches") && patches == null) throw new JSONException("Invalid custom selection");
+    return new Selection(value.getString("base"), strings(value.getJSONArray("extras")), value.getString("slot"),
+      patches == null ? Collections.emptyList() : strings(patches)); }
   private static List<String> strings(JSONArray array) throws JSONException
   { List<String> result = new ArrayList<>(); for (int i = 0; i < array.length(); i++) result.add(array.getString(i)); return result; }
   private List<Entry> resolve(List<Entry> entries, String base, List<String> extras) throws IOException

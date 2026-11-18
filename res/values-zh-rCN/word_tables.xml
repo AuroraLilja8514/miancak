@@ -1,4 +1,11 @@
 <resources>
+  <string name="words_configs_title">Rime 自定义配置</string>
+  <string name="words_configs_import">导入 .custom.yaml</string>
+  <string name="words_configs_help">补丁帮助</string>
+  <string name="words_configs_reset">停用自定义配置</string>
+  <string name="words_configs_metadata">字节数：%1$d\nSHA-256：%2$s\n\n原始文件独立保留。每个文件名最多启用一个版本，选择后应用；当前和上一次恢复选择所需的文件会保留。</string>
+  <string name="words_configs_remove_confirm">移除这份未启用的自定义配置副本？文件选择器中的原文档不变。</string>
+  <string name="words_configs_profile">支持 default.custom.yaml、wanxiang.custom.yaml 和 miancak_pinyin.custom.yaml；每份最多 256 KiB，共保留最多 32 份。使用 patch 映射，支持带引号的斜杠路径及嵌套映射。\n\n可设置：menu/page_size（1–10）；translator/enable_completion、enable_word_completion（true/false）；max_homophones（1–32）。default.custom.yaml 只支持候选页大小。依次应用 default、wanxiang、miancak_pinyin。\n\n内置 Base 已有开关的 reset：下标 3–5 为 0/1，7 为 0–3。这些开关仅作用于普通 Base 流程；不学习流程保持固定。wanxiang 文件需要选择内置 Base。\n\n不支持的键、脚本、方案、路径、标签、锚点、别名、null／删除及列表编辑操作均会报错。程序保留方案标识、显式中英／字面输出、语法模型与不学习策略，不安装任意完整外部方案。\n\n导入只保留原文，不会立即启用。勾选后应用，独立编译和输入探测通过才切换。停用补丁保留原文及词表选择；恢复内置词表时保留已应用的自定义配置。学习文件和布局独立保留。</string>
   <string name="words_legacy">离线切回 0.3.0 词库</string>
   <string name="words_base_choice">基础词表：%s</string>
   <string name="words_extra_choice">附加词表：%s</string>

@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include "wanxiang_runtime.h"
+#include "custom_config.h"
 
 namespace {
 std::mutex mutex;
@@ -123,6 +124,29 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0
   env->DeleteLocalRef(candidates);
   return result;
 }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_juloo_keyboard2_input_RimeEngine_customConfig(JNIEnv* env, jclass, jstring filename, jbyteArray content, jbyteArray schema) {
+  if (!filename || !content || env->GetArrayLength(content) > 256 * 1024) {
+    fail(env, "Invalid custom YAML input"); return nullptr;
+  }
+  const char* name = env->GetStringUTFChars(filename, nullptr);
+  std::string target(name); env->ReleaseStringUTFChars(filename, name);
+  std::string bytes(env->GetArrayLength(content), '\0');
+  env->GetByteArrayRegion(content, 0, bytes.size(), reinterpret_cast<jbyte*>(bytes.data()));
+  try {
+    std::string result;
+    if (schema) {
+      if (env->GetArrayLength(schema) > 1024 * 1024) throw std::runtime_error("Managed schema is too large");
+      std::string managed(env->GetArrayLength(schema), '\0');
+      env->GetByteArrayRegion(schema, 0, managed.size(), reinterpret_cast<jbyte*>(managed.data()));
+      result = miancak::merge_custom(managed, target, bytes);
+    } else result = miancak::canonical_custom(target, bytes);
+    return string(env, result.c_str());
+  } catch (const YAML::Exception&) { fail(env, "Invalid custom YAML syntax"); }
+    catch (const std::exception& error) { fail(env, error.what()); }
+  return nullptr;
 }
 
 extern "C" JNIEXPORT jlong JNICALL

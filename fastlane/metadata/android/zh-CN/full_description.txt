@@ -4,7 +4,7 @@ MIANCAK 是基于 Unexpected Keyboard 与 Rime 引擎的实验性离线中文 An
 
 符号按类别分页，可跨类别循环。正常尺寸预览支持点击中心、向八个方向滑动选择编辑位置，以及独立 Shift 动作和配对 Fn 布局。布局文件通过 Android 文件选择器导入／导出。可离线导入和部署兼容的显式拼音 Rime 词表；不等于安装任意 Rime 方案或可执行插件。
 
-内置采用万象 Base 与离线简体语法模型，模型本体约 388 MiB，另需词表及编译产物空间。继续支持兼容的自定义词表 YAML。正常输入无需网络，首次离线部署时请等待候选出现。应用免费开源，采用 GPL-3.0 许可。基于 Julow 及贡献者的 Unexpected Keyboard，保留依赖与词库来源说明。
+内置采用万象 Base 与离线简体语法模型，模型本体约 388 MiB，另需词表及编译产物空间。继续支持兼容的自定义词表 YAML，并通过独立校验入口支持限定范围的 Rime .custom.yaml 设置。正常输入无需网络，首次离线部署时请等待候选出现。应用免费开源，采用 GPL-3.0 许可。基于 Julow 及贡献者的 Unexpected Keyboard，保留依赖与词库来源说明。
 
 项目／源码：https://github.com/AuroraLilja8514/miancak
 问题反馈：https://github.com/AuroraLilja8514/miancak/issues

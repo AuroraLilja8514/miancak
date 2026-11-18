@@ -1,4 +1,15 @@
 <resources>
+  <item type="id" name="rime_config_import"/>
+  <item type="id" name="rime_config_help"/>
+  <item type="id" name="rime_config_list"/>
+  <item type="id" name="rime_config_reset"/>
+  <string name="words_configs_title">Rime custom configuration</string>
+  <string name="words_configs_import">Import .custom.yaml</string>
+  <string name="words_configs_help">Patch help</string>
+  <string name="words_configs_reset">Disable custom configuration</string>
+  <string name="words_configs_metadata">Bytes: %1$d\nSHA-256: %2$s\n\nThe original is retained separately. Select at most one version per filename and Apply. Active and previous recovery selections retain their files.</string>
+  <string name="words_configs_remove_confirm">Remove this inactive imported custom file? The document selected in Files is unchanged.</string>
+  <string name="words_configs_profile">Import default.custom.yaml, wanxiang.custom.yaml or miancak_pinyin.custom.yaml, up to 256 KiB each and 32 retained files. Use a patch mapping with quoted slash paths or nested mappings.\n\nSupported: menu/page_size (1–10); translator/enable_completion and enable_word_completion (true/false); max_homophones (1–32). default.custom.yaml supports only page size. Patches apply in default, wanxiang, then miancak_pinyin order.\n\nOn bundled Base, existing switch reset indices 3–5 accept 0/1 and 7 accepts 0–3. These switches affect the normal Base pipeline; the private pipeline remains fixed. Wanxiang-target files require bundled Base.\n\nUnsupported keys, scripts, schemas, paths, tags, anchors, aliases, null/deletion and list edit operators are rejected. The app retains schema IDs, explicit language/literal controls, grammar and its no-learning policy. It does not install a complete external scheme.\n\nImport retains the original without activating it. Select files and Apply; compilation and an input probe must succeed before switching. Disabling patches retains their originals and the word-table selection. Restoring bundled vocabulary changes word tables and retains applied custom settings. Learning files and layouts remain separate.</string>
   <item type="id" name="word_tables_status"/>
   <item type="id" name="word_tables_list"/>
   <item type="id" name="word_tables_apply"/>

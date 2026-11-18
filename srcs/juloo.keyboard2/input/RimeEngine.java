@@ -65,4 +65,5 @@ public final class RimeEngine implements CompositionEngine
   private static native EngineResult command(long session, int command, int argument);
   private static native void learning(long session, boolean enabled);
   private static native void destroy(long session);
+  static native String customConfig(String filename, byte[] original, byte[] managedSchema);
 }

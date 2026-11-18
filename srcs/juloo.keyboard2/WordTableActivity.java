@@ -13,12 +13,14 @@ import java.io.InputStream;
 import java.util.*;
 import juloo.keyboard2.input.WordTableRuntime;
 import juloo.keyboard2.input.WordTableStore;
+import juloo.keyboard2.input.RimeConfigStore;
 
 /** Vocabulary data, intentionally separate from page/layout configuration. */
 public final class WordTableActivity extends Activity
 {
   private String base = WordTableStore.BUNDLED, lastSlot = "";
   private final Set<String> extras = new LinkedHashSet<>();
+  private final Set<String> patches = new LinkedHashSet<>();
   private boolean initialized;
   private LinearLayout root;
   private final Runnable observer = this::render;
@@ -30,6 +32,7 @@ public final class WordTableActivity extends Activity
     {
       base = saved.getString("base", WordTableStore.BUNDLED); lastSlot = saved.getString("slot", "");
       ArrayList<String> values = saved.getStringArrayList("extras"); if (values != null) extras.addAll(values);
+      values = saved.getStringArrayList("patches"); if (values != null) patches.addAll(values);
       initialized = saved.getBoolean("initialized");
     }
     root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
@@ -49,6 +52,7 @@ public final class WordTableActivity extends Activity
   @Override public void onSaveInstanceState(Bundle out)
   {
     out.putString("base", base); out.putString("slot", lastSlot); out.putStringArrayList("extras", new ArrayList<>(extras));
+    out.putStringArrayList("patches", new ArrayList<>(patches));
     out.putBoolean("initialized", initialized); super.onSaveInstanceState(out);
   }
   @Override public boolean onOptionsItemSelected(android.view.MenuItem item)
@@ -66,6 +70,15 @@ public final class WordTableActivity extends Activity
     Button help = button(R.string.words_help, () -> new AlertDialog.Builder(this)
       .setTitle(R.string.words_title).setMessage(R.string.words_profile).setPositiveButton(android.R.string.ok, null).show());
     help.setEnabled(true); actions.addView(help); root.addView(actions);
+    LinearLayout configActions = row();
+    configActions.addView(button(R.string.words_configs_import, () -> {
+      Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
+          .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+      startActivityForResult(picker, 71);
+    }), new LinearLayout.LayoutParams(0, -2, 1));
+    Button configHelp = button(R.string.words_configs_help, () -> new AlertDialog.Builder(this)
+        .setTitle(R.string.words_configs_title).setMessage(R.string.words_configs_profile).setPositiveButton(android.R.string.ok, null).show());
+    configHelp.setEnabled(true); configActions.addView(configHelp);
     TextView status = new TextView(this); status.setId(R.id.word_tables_status);
     status.setMaxLines(4); status.setEllipsize(android.text.TextUtils.TruncateAt.END);
     status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -80,10 +93,11 @@ public final class WordTableActivity extends Activity
     ScrollView scroll = new ScrollView(this); scroll.setId(R.id.word_tables_list);
     LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); scroll.addView(content);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    content.addView(configActions);
     if (state != null)
     {
       if (!initialized || !lastSlot.equals(state.selection.slot))
-      { base = state.selection.base; extras.clear(); extras.addAll(state.selection.extras); initialized = true; lastSlot = state.selection.slot; }
+      { base = state.selection.base; extras.clear(); extras.addAll(state.selection.extras); patches.clear(); patches.addAll(state.selection.patches); initialized = true; lastSlot = state.selection.slot; }
       Set<String> ids = new HashSet<>(); for (WordTableStore.Entry entry : state.entries) ids.add(entry.id);
       if (!base.equals(WordTableStore.BUNDLED) && !ids.contains(base)) base = state.selection.base;
       extras.retainAll(ids);
@@ -110,10 +124,32 @@ public final class WordTableActivity extends Activity
         if (entry.id.equals(state.selection.base) || state.selection.extras.contains(entry.id)) remove.setEnabled(false);
         options.addView(remove); choices.addView(options);
       }
+      TextView configLabel = new TextView(this); configLabel.setText(R.string.words_configs_title); content.addView(configLabel);
+      LinearLayout configList = new LinearLayout(this); configList.setOrientation(LinearLayout.VERTICAL); configList.setId(R.id.rime_config_list); content.addView(configList);
+      Set<String> configIds = new HashSet<>(); for (RimeConfigStore.Entry entry : state.patches) configIds.add(entry.id);
+      patches.retainAll(configIds);
+      for (RimeConfigStore.Entry entry : state.patches)
+      {
+        LinearLayout options = row(); CheckBox enabled = new CheckBox(this);
+        enabled.setText(entry.filename + " · " + entry.sha256.substring(0, 8)); enabled.setChecked(patches.contains(entry.id)); enabled.setEnabled(!WordTableRuntime.busy);
+        enabled.setOnCheckedChangeListener((view, checked) -> { if (checked) patches.add(entry.id); else patches.remove(entry.id); });
+        options.addView(enabled, new LinearLayout.LayoutParams(0, -2, 1));
+        Button info = button(R.string.words_details, () -> new AlertDialog.Builder(this).setTitle(entry.filename)
+            .setMessage(getString(R.string.words_configs_metadata, entry.bytes, entry.sha256))
+            .setPositiveButton(android.R.string.ok, null).show());
+        info.setContentDescription(getString(R.string.words_details_choice, entry.filename)); options.addView(info);
+        Button remove = button(R.string.words_remove, () -> new AlertDialog.Builder(this).setMessage(R.string.words_configs_remove_confirm)
+            .setNegativeButton(android.R.string.cancel, null).setPositiveButton(android.R.string.ok,
+                (dialog, which) -> WordTableRuntime.run(this, false, store -> store.removeConfig(entry.id))).show());
+        remove.setContentDescription(getString(R.string.words_remove_choice, entry.filename));
+        if (state.retainedPatches.contains(entry.id)) remove.setEnabled(false);
+        options.addView(remove); configList.addView(options);
+      }
     }
     Button apply = button(R.string.words_apply, () -> {
       String selected = base; List<String> additions = new ArrayList<>(extras);
-      WordTableRuntime.run(this, true, store -> store.apply(selected, additions));
+      List<String> configSelection = new ArrayList<>(patches);
+      WordTableRuntime.run(this, true, store -> store.apply(selected, additions, configSelection));
     });
     apply.setId(R.id.word_tables_apply); if (state == null) apply.setEnabled(false); root.addView(apply, new LinearLayout.LayoutParams(-1, -2));
     root.addView(button(R.string.words_restore, () ->
@@ -121,6 +157,7 @@ public final class WordTableActivity extends Activity
     if (WordTableStore.hasFormalBundledPack(this))
       root.addView(button(R.string.words_legacy, () -> WordTableRuntime.run(this, true, WordTableStore::useLegacyBase)),
           new LinearLayout.LayoutParams(-1, -2));
+    content.addView(button(R.string.words_configs_reset, () -> WordTableRuntime.run(this, true, WordTableStore::disableConfigs)), new LinearLayout.LayoutParams(-1, -2));
   }
   private void radio(RadioGroup parent, String label, String id)
   {
@@ -138,12 +175,15 @@ public final class WordTableActivity extends Activity
     if (label == R.string.words_restore) button.setId(R.id.word_tables_restore);
     if (label == R.string.words_help) button.setId(R.id.word_tables_help);
     if (label == R.string.words_legacy) button.setId(R.id.word_tables_legacy);
+    if (label == R.string.words_configs_import) button.setId(R.id.rime_config_import);
+    if (label == R.string.words_configs_help) button.setId(R.id.rime_config_help);
+    if (label == R.string.words_configs_reset) button.setId(R.id.rime_config_reset);
     button.setEnabled(!WordTableRuntime.busy); button.setOnClickListener(view -> action.run()); return button;
   }
   @Override protected void onActivityResult(int request, int result, Intent data)
   {
     super.onActivityResult(request, result, data);
-    if (request != 70 || result != RESULT_OK || data == null) return;
+    if ((request != 70 && request != 71) || result != RESULT_OK || data == null) return;
     List<Uri> uris = new ArrayList<>();
     if (data.getClipData() != null)
       for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
@@ -163,7 +203,7 @@ public final class WordTableActivity extends Activity
           { InputStream input = app.getContentResolver().openInputStream(uri); if (input == null) throw new java.io.IOException("Cannot open word table / 无法打开词表"); return input; }
         });
       }
-      store.importTables(sources);
+      if (request == 71) store.importConfigs(sources); else store.importTables(sources);
     });
   }
 }

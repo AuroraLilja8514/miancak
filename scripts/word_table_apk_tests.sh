@@ -75,7 +75,7 @@ assert files and any(value['bytes']>0 for value in files.values()),'Expected rea
 Path('test-results','learning-'+sys.argv[1]+'.json').write_text(json.dumps(files,sort_keys=True,indent=2)+'\n')
 PY
 }
-run_test word-native -e class juloo.keyboard2.input.WordTableNativeTest
+run_test word-native -e class juloo.keyboard2.input.WordTableNativeTest,juloo.keyboard2.input.RimeConfigNativeTest
 adb shell ime enable org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2
 run_test word-prepare -e class juloo.keyboard2.WordTableUiTest -e wordPhase prepare
 adb shell am force-stop org.miancak.keyboard.debug

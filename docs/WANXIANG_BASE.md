@@ -78,10 +78,10 @@ return alone does not establish a usable compiled pipeline.
 
 The existing `.dict.yaml` importer remains data-only, with its original header,
 UTF-8, code, size, dependency and atomic-switch checks. Originals and catalog IDs
-are not rewritten. This interface does not import arbitrary `schema.yaml`,
-`custom.yaml`, scripts or models. Broader configuration-file support requires a
-separate defined validation/privacy contract; it is not implied by importing a
-dictionary.
+are not rewritten. This dictionary interface does not import schemas, scripts or models. A separate
+[custom configuration interface](RIME_CUSTOM_CONFIG.md) accepts standard named
+`.custom.yaml` patches for documented mobile settings, with independent validation,
+staged compilation and recovery; it does not install arbitrary external schemes.
 
 Supplements to bundled Base enter a separate generated dictionary that imports
 the untouched Wanxiang dictionary. Existing untoned user rows are not forced into
@@ -131,7 +131,8 @@ existing fixed numeric public summary; raw samples remain local.
 
 Required API 35 acceptance includes first installation in both entry orders,
 normal UI input/gestures, no-learning with a remembered normal schema, custom YAML
-supplements/bases, existing-data overwrite, reopening/reboot, dictionary repair,
+supplements/bases, custom-configuration import/disable/recovery, existing-data
+overwrite, reopening/reboot, dictionary repair,
 all quality/resource checks and the earlier unresolved diagnostic failures.
 Physical ARM and genuine formal two-version upgrades remain separate checks.
 No API 23 or API 33 guest run is part of the current scope. Version 0.3.2 history,
