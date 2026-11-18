@@ -1,4 +1,8 @@
 """Static APK inventory. No payload extraction, APK rewrite or device access."""
+if __name__ == "__main__":
+    from run_with_timeout import guard_script
+    guard_script(__file__)
+
 from collections import defaultdict
 import json
 from pathlib import PurePosixPath
