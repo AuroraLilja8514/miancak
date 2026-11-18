@@ -259,8 +259,28 @@ int main(int argc, char** argv) {
       values = input(session, "shi"); require(values.size() == 4, "custom base retains effective private page-size preference");
       require(!confirm(session).empty(), "configured data-only private commit"); api->destroy_session(session); api->finalize();
       require(learning(scratch / "legacy-user").empty(), "configured custom base remains non-learning");
+      // Replay a retained old deployment with a remembered normal schema.
+      // The new helper must cover it without rewriting its default source.
+      auto old_default = read_text(custom_base / "default.yaml");
+      auto remember_normal = [&]() {
+        initialize(custom_base, scratch / "legacy-remembered");
+        auto s = api->create_session(); require(s && api->select_schema(s, "miancak_pinyin"), "remember old normal schema");
+        input(s, "nihao"); require(!confirm(s).empty(), "old normal learned commit"); api->destroy_session(s); api->finalize();
+      };
+      remember_normal(); Snapshot previous = learning(scratch / "legacy-remembered");
+      initialize(custom_base, scratch / "legacy-remembered");
+      session = api->create_session(); require(session && api->select_schema(session, "miancak_pinyin_private"), "old startup control");
+      input(session, "nihao"); require(!confirm(session).empty(), "old startup control commit"); api->destroy_session(session); api->finalize();
+      bool old_startup_changed_db = learning(scratch / "legacy-remembered") != previous;
+      remember_normal(); previous = learning(scratch / "legacy-remembered");
+      initialize(custom_base, scratch / "legacy-remembered");
+      session = miancak::create_private_session(api); require(session && api->select_schema(session, "miancak_pinyin_private"), "retained profile starts private");
+      input(session, "nihao"); require(!confirm(session).empty(), "retained private commit"); api->destroy_session(session); api->finalize();
+      require(learning(scratch / "legacy-remembered") == previous, "remembered old normal cannot open learning DB during private startup");
+      require(read_text(custom_base / "default.yaml") == old_default, "old default source remains byte-for-byte unchanged");
       std::cout << "{\"scope\":\"actual host Base custom configuration; not Android UI/JNI acceptance\",\"checks\":" << checks
-                << ",\"compiled_and_visible_effect\":true,\"private_no_learning\":true,\"unsafe_private_and_order_refused\":true}\n";
+                << ",\"compiled_and_visible_effect\":true,\"private_no_learning\":true,\"unsafe_private_and_order_refused\":true,\"old_startup_control_changed_db\":"
+                << (old_startup_changed_db ? "true" : "false") << ",\"retained_private_startup_db_unchanged\":true}\n";
       return 0;
     }
     if (argc == 5) {

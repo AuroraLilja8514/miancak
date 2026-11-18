@@ -198,7 +198,7 @@ Java_juloo_keyboard2_input_RimeEngine_open(JNIEnv* env, jclass, jstring shared, 
     fail(env, "Rime runtime already uses another data directory");
     return 0;
   }
-  RimeSessionId id = api->create_session();
+  RimeSessionId id = miancak::create_private_session(api);
   if (!id || !api->select_schema(id, "miancak_pinyin_private")) {
     if (id) api->destroy_session(id);
     if (sessions.empty()) { api->finalize(); api = nullptr; }

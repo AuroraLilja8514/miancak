@@ -30,6 +30,19 @@ inline bool fixed_list(RimeApi* api, RimeConfig* config, const char* key, std::i
   return true;
 }
 
+inline RimeSessionId create_private_session(RimeApi* api) {
+  // Retained data-only deployments predate the fixed-order default. Keep this
+  // non-autosaving deployed-config object alive through Switcher construction:
+  // its component cache is weak. No old source/user/learning file is rewritten.
+  RimeConfig defaults = {};
+  if (!api->config_open("default", &defaults)) return 0;
+  if (!api->config_set_bool(&defaults, "switcher/fix_schema_list_order", True)) {
+    api->config_close(&defaults); return 0;
+  }
+  auto id = api->create_session();
+  api->config_close(&defaults); return id;
+}
+
 inline bool schemas_ready(RimeApi* api) {
   bool base = false;
   std::string normal_dictionary;

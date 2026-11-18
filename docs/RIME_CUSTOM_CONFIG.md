@@ -78,6 +78,12 @@ their effective configuration and recovery sources. Compiled readiness also
 checks schema IDs, known dictionaries, private component lists, disabled private
 user learning and the private-first Base default.
 
+Session creation also holds an in-memory, non-autosaving fixed-order default
+through Rime's switcher construction. This covers retained data-only deployments
+whose original default predates that flag, so a remembered normal schema cannot
+open a learning database before the frontend selects private input. Their source
+configuration and learning files are not rewritten for this compatibility guard.
+
 Disable custom configuration rebuilds without patches while retaining imported
 originals, the vocabulary selection, learning files and layout preferences. It
 does not need a readable custom catalog, so corrupt catalog metadata cannot
