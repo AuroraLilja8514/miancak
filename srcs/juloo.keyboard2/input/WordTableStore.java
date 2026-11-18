@@ -65,21 +65,44 @@ public final class WordTableStore
       this.patches = Collections.unmodifiableList(patches); this.retainedPatches = Collections.unmodifiableList(retainedPatches);
       this.learning = learning; this.retainedLearningSnapshot = retainedLearningSnapshot; this.learningIssue = learningIssue; }
   }
-  private final Context context;
+  /** Package-private seam for filesystem failure tests; production always uses APK assets. */
+  interface Packaged
+  {
+    RimeData.Paths identify() throws IOException;
+    RimeData.Paths prepare() throws IOException;
+    InputStream open(String name) throws IOException;
+  }
+  private final Packaged packaged;
+  private final File rimeRoot, user;
+  private String recoveryNotice = "";
   private final File root, tables, versions, catalog, state;
   private final RimeConfigStore configs;
   private final LearningRecovery learning;
   public WordTableStore(Context context) throws IOException
   {
-    this.context = context.getApplicationContext();
-    if (android.os.Build.VERSION.SDK_INT >= 24 && this.context.isDeviceProtectedStorage())
+    this(credentialFiles(context.getApplicationContext()), new Packaged() {
+      private final Context app = context.getApplicationContext();
+      public RimeData.Paths identify() throws IOException { return RimeData.identity(app); }
+      public RimeData.Paths prepare() throws IOException { return RimeData.bundled(app); }
+      public InputStream open(String name) throws IOException { return app.getAssets().open(name); }
+    });
+  }
+  private static File credentialFiles(Context context) throws IOException
+  {
+    if (android.os.Build.VERSION.SDK_INT >= 24 && context.isDeviceProtectedStorage())
       throw new IOException("Unlock before managing vocabulary / 请解锁后管理词表");
-    root = new File(this.context.getFilesDir(), "rime/word-tables").getCanonicalFile();
+    return context.getFilesDir();
+  }
+  WordTableStore(File files, Packaged packaged) throws IOException
+  {
+    this.packaged = packaged;
+    rimeRoot = new File(files, "rime").getCanonicalFile(); user = new File(rimeRoot, "user");
+    root = new File(rimeRoot, "word-tables").getCanonicalFile();
     tables = new File(root, "tables"); versions = new File(root, "versions");
     catalog = new File(root, "catalog.json"); state = new File(root, "selection.json");
     mkdir(tables); mkdir(versions);
     configs = new RimeConfigStore(root);
-    learning = new LearningRecovery(root, new File(this.context.getFilesDir(), "rime/user"));
+    learning = new LearningRecovery(root, user);
   }
   public View view() throws Exception
   {
@@ -89,23 +112,23 @@ public final class WordTableStore
     LearningRecovery.Preview preview = null; String issue = "";
     try { preview = learning.preview(); }
     catch (Exception invalid) { issue = "Retained learning snapshot needs review or explicit discard / 保留的学习快照需要检查或明确丢弃副本"; }
-    return new View(entries(), selection(saved.getJSONObject("current")), saved.optString("recovery"), configs.entries(), retained,
+    return new View(entries(), selection(saved.getJSONObject("current")), recoveryNotice.isEmpty() ? saved.optString("recovery") : recoveryNotice, configs.entries(), retained,
         preview, learning.exists(), issue);
   }
   public void previewLearningRecovery() throws Exception
   {
     RimeEngine.requireClosedForRecovery();
     JSONObject saved = state(); Selection active = selection(saved.getJSONObject("current"));
-    if (!active.base.equals(BUNDLED) || !saved.optString("recoveryShared").isEmpty())
+    if (!active.base.equals(BUNDLED) || !saved.optString("recoveryShared").isEmpty() || saved.optBoolean("assetPreparationDeferred"))
       throw new IOException("Apply bundled Wanxiang Base before recovering old Pinyin phrases; originals and current choices are retained / 请先应用内置万象 Base，再恢复旧学习短语；原文与当前选择保留");
-    RimeData.Paths packaged = RimeData.bundled(context);
-    File effective = active.slot.isEmpty() ? packaged.shared : new File(versions, active.slot);
+    RimeData.Paths bundle = packaged.prepare();
+    File effective = active.slot.isEmpty() ? bundle.shared : new File(versions, active.slot);
     if (!new File(effective, "miancak-profile.json").isFile())
       throw new IOException("Apply the current bundled Wanxiang Base before recovery / 请先应用当前内置万象 Base");
     // Resuming a legacy/custom Pinyin engine between preview and confirmation
     // can itself rewrite the old DB. Recovery targets an already applied Base
     // deployment, retaining its supplements/patches rather than forcing a switch.
-    learning.prepare(new RimeData.Paths(effective, packaged.user), active);
+    learning.prepare(new RimeData.Paths(effective, bundle.user), active);
   }
   public void applyLearningRecovery() throws Exception
   { learning.apply(this, selection(state().getJSONObject("current"))); }
@@ -208,7 +231,7 @@ public final class WordTableStore
   public void apply(String base, List<String> extras, List<String> patches) throws Exception
   {
     List<Entry> ordered = resolve(entries(), base, extras);
-    RimeData.Paths bundled = RimeData.bundled(context);
+    RimeData.Paths bundled = packaged.prepare();
     boolean wanxiang = base.equals(BUNDLED) && new File(bundled.shared, "miancak-profile.json").isFile();
     List<RimeConfigStore.Entry> selectedPatches = configs.resolve(patches, wanxiang);
     String slot = UUID.randomUUID().toString(); File shared = new File(versions, slot); mkdir(shared);
@@ -217,7 +240,7 @@ public final class WordTableStore
     {
       if (wanxiang) RimeData.copyBundled(bundled.shared, shared);
       else for (String name : Arrays.asList("default.yaml", "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml"))
-        try (InputStream in = context.getAssets().open("word-pack/custom-schema/" + name); FileOutputStream out = new FileOutputStream(new File(shared, name)))
+        try (InputStream in = packaged.open("word-pack/custom-schema/" + name); FileOutputStream out = new FileOutputStream(new File(shared, name)))
         { copy(in, out, 1024 * 1024); out.getFD().sync(); }
       File dictionary = new File(shared, wanxiang ? "miancak_custom.dict.yaml" : "pinyin_simp.dict.yaml");
       long rows = 0;
@@ -242,7 +265,7 @@ public final class WordTableStore
       if (rows == 0 && !wanxiang) throw new IOException("Selection has no entries / 所选词表没有词条");
       if (wanxiang && rows > 0)
       {
-        try (InputStream input = context.getAssets().open("word-pack/wanxiang-custom.dict.yaml");
+        try (InputStream input = packaged.open("word-pack/wanxiang-custom.dict.yaml");
              FileOutputStream output = new FileOutputStream(new File(shared, "miancak_wanxiang.dict.yaml")))
         { copy(input, output, 65536); output.getFD().sync(); }
         try (FileOutputStream out = new FileOutputStream(new File(shared, "miancak_pinyin.schema.yaml"), true))
@@ -270,6 +293,7 @@ public final class WordTableStore
       atomic(state, new JSONObject().put("format", 1).put("current", next.json()).put("previous", before.getJSONObject("current"))
           .put("packaged", bundled.shared.getName()).put("recovery", ""));
       committed = true;
+      recoveryNotice = "";
       try { cleanup(); } catch (Exception ignored) { /* A committed working selection must not be reported as failed because GC failed. */ }
     }
     finally { if (!committed) erase(shared); }
@@ -282,7 +306,7 @@ public final class WordTableStore
     importTables(Collections.singletonList(new Source() {
       @Override public String filename() { return LEGACY + ".dict.yaml"; }
       @Override public InputStream open() throws Exception
-      { return context.getAssets().open("word-pack/" + filename()); }
+      { return packaged.open("word-pack/" + filename()); }
     }));
     for (Entry entry : entries()) if (entry.name.equals(LEGACY))
     {
@@ -295,27 +319,75 @@ public final class WordTableStore
   {
     try
     {
-      RimeData.Paths packaged = RimeData.bundled(context); JSONObject saved = state();
-      String recoveryShared = saved.optString("recoveryShared");
-      if (recoveryShared.matches("shared-[a-f0-9]{64}"))
+      JSONObject saved = state(); RimeData.Paths identity = null;
+      // A deferred recovery is explicit: reopening input must not repeat a large
+      // failed preparation before the retained working engine can be reached.
+      if (saved.optBoolean("assetPreparationDeferred") || !saved.optString("recoveryShared").isEmpty())
       {
-        File previous = new File(packaged.shared.getParentFile(), recoveryShared);
-        if (RimeData.validDeployment(previous)) return new RimeData.Paths(previous, packaged.user);
+        RimeData.Paths retained = retainedPaths(saved, null, false);
+        if (retained != null) return retained;
+      }
+      RimeData.Paths bundle;
+      try { identity = packaged.identify(); bundle = packaged.prepare(); }
+      catch (IOException failure)
+      {
+        RimeData.Paths retained = retainedPaths(saved, identity, true);
+        if (retained == null) throw new OfflineDataException(failure);
+        defer(saved, "Offline data preparation failed; using verified retained data. Retry preparation in Word tables after checking free storage / 离线数据准备失败，正使用已校验的保留数据；检查可用存储后可在词表中重试");
+        return retained;
       }
       Selection active = selection(saved.getJSONObject("current"));
-      if (active.slot.isEmpty()) return packaged;
-      if (!saved.optString("packaged").equals(packaged.shared.getName()))
+      if (active.slot.isEmpty()) return bundle;
+      boolean retained = false;
+      if (!saved.optString("packaged").equals(bundle.shared.getName()))
       {
         try { apply(active.base, active.extras, active.patches); active = selection(state().getJSONObject("current")); }
         catch (Exception failure)
         {
-          saved.put("recovery", "Update rebuild failed; retained working vocabulary / 更新后重编译失败，已保留可用词表");
-          atomic(state, saved);
+          defer(saved, "Update rebuild failed; retained working vocabulary. Retry preparation in Word tables / 更新后重编译失败，已保留可用词表；可在词表中重试准备");
+          retained = true;
         }
       }
-      return new RimeData.Paths(new File(versions, active.slot), packaged.user);
+      return new RimeData.Paths(new File(versions, active.slot), bundle.user, retained);
     }
     catch (Exception invalid) { if (invalid instanceof IOException) throw (IOException)invalid; throw new IOException(invalid); }
+  }
+  /** Retry exactly the saved choices; pointer publication still requires the
+   * real compiler/candidate probe in apply. A failed retry keeps the fallback. */
+  public void retryDeployment() throws Exception
+  {
+    Selection active = selection(state().getJSONObject("current"));
+    apply(active.base, active.extras, active.patches);
+  }
+  private RimeData.Paths retainedPaths(JSONObject saved, RimeData.Paths identity, boolean search) throws Exception
+  {
+    String shared = saved.optString("recoveryShared");
+    if (shared.matches("shared-[a-f0-9]{64}"))
+    {
+      File candidate = new File(rimeRoot, shared);
+      if (RimeData.validDeployment(candidate)) return new RimeData.Paths(candidate, user, true);
+    }
+    Selection active = selection(saved.getJSONObject("current"));
+    if (!active.slot.isEmpty() && valid(active)) return new RimeData.Paths(new File(versions, active.slot), user, true);
+    Selection previous;
+    try { previous = selection(saved.getJSONObject("previous")); } catch (Exception invalid) { previous = bundledSelection(); }
+    if (!previous.slot.isEmpty() && valid(previous) && (search || previous.slot.equals(saved.optString("recoverySlot"))))
+    { saved.put("recoverySlot", previous.slot); return new RimeData.Paths(new File(versions, previous.slot), user, true); }
+    if (search)
+    {
+      File candidate = RimeData.previousBundle(identity == null ? new File(rimeRoot, "unidentified-package") : identity.shared);
+      if (candidate != null)
+      { saved.put("recoveryShared", candidate.getName()); return new RimeData.Paths(candidate, user, true); }
+    }
+    return null;
+  }
+  private void defer(JSONObject saved, String message) throws JSONException
+  {
+    recoveryNotice = message;
+    saved.put("assetPreparationDeferred", true).put("recovery", message);
+    // Full storage may also prevent a settings write. An already verified
+    // retained deployment can still be used without changing the pointer.
+    try { atomic(state, saved); } catch (IOException unavailable) { /* Paths.retained carries the input notice. */ }
   }
   /** Used only after a failed native open, before returning an engine to input. */
   public void recover() throws Exception
@@ -323,13 +395,17 @@ public final class WordTableStore
     JSONObject saved = state(); Selection fallback;
     try { fallback = selection(saved.getJSONObject("previous")); } catch (Exception invalid) { fallback = bundledSelection(); }
     if (!valid(fallback)) fallback = bundledSelection();
-    RimeData.Paths packaged = RimeData.bundled(context);
+    RimeData.Paths identity;
+    try { identity = packaged.identify(); }
+    catch (IOException unavailable) { identity = new RimeData.Paths(new File(rimeRoot, "unidentified-package"), user); }
     JSONObject recovered = new JSONObject().put("format", 1).put("current", fallback.json()).put("previous", bundledSelection().json())
-      .put("packaged", packaged.shared.getName()).put("recovery", "Deployment recovered / 已恢复上一可用词表或内置词表");
+      .put("packaged", saved.optString("packaged")).put("recovery", "Deployment recovered; retry preparation in Word tables / 已恢复词表；可在词表中重试准备");
+    if (!fallback.slot.isEmpty()) recovered.put("assetPreparationDeferred", true);
     if (fallback.slot.isEmpty())
     {
-      File previous = RimeData.previousBundle(context, packaged.shared);
+      File previous = RimeData.previousBundle(identity.shared);
       if (previous != null) recovered.put("recoveryShared", previous.getName())
+        .put("assetPreparationDeferred", true)
         .put("recovery", "New runtime failed; using intact earlier packaged data. Imports and learning retained / 新运行时未能启动，已使用保留的旧版数据；导入与学习文件仍保留");
     }
     atomic(state, recovered);
@@ -351,7 +427,7 @@ public final class WordTableStore
       Selection previous;
       try { previous = selection(saved.getJSONObject("previous")); } catch (Exception invalid) { previous = bundledSelection(); }
       if (!valid(previous)) previous = bundledSelection();
-      saved = initial().put("current", previous.json()).put("packaged", RimeData.bundled(context).shared.getName())
+      saved = initial().put("current", previous.json()).put("packaged", saved.optString("packaged"))
         .put("recovery", "Damaged deployment recovered / 部署损坏，已恢复上一可用词表或内置词表");
       atomic(state, saved);
     }

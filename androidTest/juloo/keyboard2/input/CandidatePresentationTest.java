@@ -48,6 +48,33 @@ public class CandidatePresentationTest
     view.measure(w, h); view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
   }
 
+  @Test public void deploymentFeedbackRemainsAccessibleAcrossLocalePageAndCompositionChanges()
+  {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+      Context base = InstrumentationRegistry.getInstrumentation().getTargetContext();
+      for (String locale : new String[] {"en", "zh-CN", "de"})
+        for (float scale : new float[] {1f, 1.8f})
+        {
+          Configuration config = new Configuration(base.getResources().getConfiguration()); config.setLocale(java.util.Locale.forLanguageTag(locale)); config.fontScale = scale;
+          Context context = new ContextThemeWrapper(base.createConfigurationContext(config), R.style.Light);
+          RimeCandidatesView view = new RimeCandidatesView(context, null); TextView status = view.findViewById(R.id.miancak_preedit);
+          view.show(new InputSnapshot(1, 1, InputRouter.Mode.CHINESE, true, EngineResult.EMPTY, "", true));
+          assertEquals(context.getString(R.string.miancak_initializing), status.getText().toString());
+          assertEquals(status.getText(), status.getContentDescription());
+          view.show(new InputSnapshot(1, 2, InputRouter.Mode.CHINESE, true, EngineResult.EMPTY, "", false, true));
+          view.setPageLabel("synthetic page"); layout(view, dp(context, 240));
+          assertEquals(context.getString(R.string.miancak_retained_data), status.getText().toString());
+          assertEquals(status.getText(), status.getContentDescription());
+          view.show(new InputSnapshot(1, 3, InputRouter.Mode.CHINESE, true,
+              new EngineResult(true, "", "ni", new String[] {"你"}, 0, true, false), "", false, true));
+          assertEquals("ni", status.getText().toString());
+          view.show(new InputSnapshot(1, 4, InputRouter.Mode.ENGLISH, true, EngineResult.EMPTY, OfflineDataException.MESSAGE));
+          assertEquals(context.getString(R.string.miancak_data_unavailable), status.getText().toString());
+          assertEquals(status.getText(), status.getContentDescription());
+        }
+    });
+  }
+
   @Test public void actualTextWidthsFitNarrowWideAndLargeFontRows()
   {
     InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {

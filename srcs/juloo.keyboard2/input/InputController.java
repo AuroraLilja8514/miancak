@@ -122,7 +122,7 @@ public final class InputController implements AutoCloseable
     {
       List<Edit> edits = directEdits(InputRouter.route(current.mode, false, action));
       deliver(handle, new InputSnapshot(handle.generation, revisions.incrementAndGet(), current.mode,
-            handle.allowed, current.engine, current.error), edits, null);
+            handle.allowed, current.engine, current.error, false, current.retainedData), edits, null);
       return;
     }
     queue(handle, edits -> executeAction(handle, action, edits), null);
@@ -266,7 +266,7 @@ public final class InputController implements AutoCloseable
       final String confirmationError = error;
       workerRevision = revisions.incrementAndGet();
       InputSnapshot result = new InputSnapshot(before == null ? generation.get() : before.generation,
-          workerRevision, mode, before != null && before.allowed, state, error);
+          workerRevision, mode, before != null && before.allowed, state, error, false, retainedData());
       ui.execute(() -> {
         boolean wasCurrent = current(before);
         if (wasCurrent) deliver(before, result, edits, null);
@@ -348,6 +348,9 @@ public final class InputController implements AutoCloseable
     return engine;
   }
 
+  private boolean retainedData()
+  { return mode == Mode.CHINESE && engine != null && engine.usesRetainedData(); }
+
   private void accept(EngineResult result, List<Edit> edits, boolean confirming)
   {
     state = Objects.requireNonNull(result);
@@ -368,10 +371,11 @@ public final class InputController implements AutoCloseable
       List<Edit> edits = new ArrayList<>();
       String error = "";
       try { work.run(edits); }
-      catch (Exception | LinkageError ex) { error = "Chinese input is unavailable. Tap the language button to retry."; }
+      catch (Exception | LinkageError ex)
+      { error = ex instanceof OfflineDataException ? OfflineDataException.MESSAGE : "Chinese input is unavailable. Tap the language button to retry."; }
       workerRevision = revisions.incrementAndGet();
       InputSnapshot result = new InputSnapshot(handle.generation, workerRevision, mode,
-          handle.allowed, state, error);
+          handle.allowed, state, error, false, retainedData());
       ui.execute(() -> {
         try { deliver(handle, result, edits, after); }
         finally { pending.decrementAndGet(); }

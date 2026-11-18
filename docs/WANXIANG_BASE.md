@@ -126,8 +126,11 @@ update. Earlier four-asset bundles did not persist a manifest; recovery verifies
 their exact reconstructed historical manifest against the content-addressed
 directory name without rewriting them. New bundles persist their manifest only
 after asset verification. A selected old deployment that cannot rebuild retains
-its working files. Insufficient space can still block deployment before runtime
-recovery; it does not delete the earlier files or establish a tested rollback.
+its working files. [Deployment recovery](DEPLOYMENT_RECOVERY.md) separates package
+identification from copying so an asset-preparation I/O failure can reach verified
+retained data, with an explicit notice and retry using saved choices. Storage or
+native failures can still prevent input; host failure checks do not establish an
+Android rollback or interruption pass.
 
 The raw grammar alone is about 388 MiB. Dictionaries, compiled data, APK storage
 and any filesystem copy fallback need additional space. Hash/deployment work stays

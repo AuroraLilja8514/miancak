@@ -34,7 +34,9 @@ public final class WordTableRuntime
   {
     long started = android.os.SystemClock.elapsedRealtime();
     android.util.Log.i("MIANCAK-Rime", "Preparing offline input");
-    WordTableStore store = new WordTableStore(context);
+    WordTableStore store;
+    try { store = new WordTableStore(context); }
+    catch (java.io.IOException unavailable) { throw new OfflineDataException(unavailable); }
     for (int attempt = 0; ; attempt++)
     {
       try

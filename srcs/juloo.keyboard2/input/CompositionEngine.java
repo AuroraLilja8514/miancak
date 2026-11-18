@@ -13,5 +13,7 @@ public interface CompositionEngine extends AutoCloseable
   /** Ranked prefix from the start, without changing the composition. */
   default EngineResult candidates(int limit) { throw new UnsupportedOperationException("Candidate browsing"); }
   void setLearning(boolean enabled);
+  /** True when preparation failed and this session uses a verified retained deployment. */
+  default boolean usesRetainedData() { return false; }
   @Override void close();
 }

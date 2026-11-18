@@ -1,0 +1,5 @@
+<resources>
+  <string name="miancak_data_unavailable">离线数据暂不可用。请检查可用存储后点击语言按钮重试；保留文件不会删除。</string>
+  <string name="miancak_retained_data">正使用保留数据；可在词表中重试准备</string>
+  <string name="words_retry_deployment">按已保存的选择重试数据准备</string>
+</resources>

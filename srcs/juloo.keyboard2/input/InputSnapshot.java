@@ -8,6 +8,7 @@ public final class InputSnapshot
   public final InputRouter.Mode mode;
   public final boolean engineAllowed;
   public final boolean initializing;
+  public final boolean retainedData;
   public final EngineResult engine;
   public final String error;
 
@@ -17,12 +18,17 @@ public final class InputSnapshot
 
   public InputSnapshot(long generation, long revision, InputRouter.Mode mode,
       boolean engineAllowed, EngineResult engine, String error, boolean initializing)
+  { this(generation, revision, mode, engineAllowed, engine, error, initializing, false); }
+
+  public InputSnapshot(long generation, long revision, InputRouter.Mode mode,
+      boolean engineAllowed, EngineResult engine, String error, boolean initializing, boolean retainedData)
   {
     this.generation = generation;
     this.revision = revision;
     this.mode = mode;
     this.engineAllowed = engineAllowed;
     this.initializing = initializing;
+    this.retainedData = retainedData;
     this.engine = engine;
     this.error = error;
   }

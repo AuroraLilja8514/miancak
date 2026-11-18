@@ -6,12 +6,14 @@ public final class RimeEngine implements CompositionEngine
   static { System.loadLibrary("miancak_rime"); }
   private final long owner = Thread.currentThread().getId();
   private long session;
+  private final boolean retained;
 
   public RimeEngine(RimeData.Paths paths)
   { this(paths, false); }
 
   RimeEngine(RimeData.Paths paths, boolean verifyDeployment)
   {
+    retained = paths.retained;
     if (!paths.build.isDirectory() && !paths.build.mkdirs()) throw new IllegalStateException("Cannot create Rime build directory");
     session = open(paths.shared.getAbsolutePath(), paths.user.getAbsolutePath(), paths.build.getAbsolutePath(), verifyDeployment);
     if (session == 0)
@@ -52,6 +54,7 @@ public final class RimeEngine implements CompositionEngine
   @Override public EngineResult page(boolean backward) { check(); return command(session, 3, backward ? 1 : 0); }
   @Override public EngineResult candidates(int limit) { check(); return command(session,5,limit); }
   @Override public void setLearning(boolean enabled) { check(); learning(session, enabled); }
+  @Override public boolean usesRetainedData() { return retained; }
   @Override public void close()
   {
     if (session == 0) return;

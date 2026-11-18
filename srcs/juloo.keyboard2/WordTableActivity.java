@@ -97,6 +97,9 @@ public final class WordTableActivity extends Activity
     content.addView(configActions);
     if (state != null)
     {
+      if (!state.recovery.isEmpty())
+        content.addView(button(R.string.words_retry_deployment, () ->
+            WordTableRuntime.run(this, true, WordTableStore::retryDeployment)), new LinearLayout.LayoutParams(-1, -2));
       if (!initialized || !lastSlot.equals(state.selection.slot))
       { base = state.selection.base; extras.clear(); extras.addAll(state.selection.extras); patches.clear(); patches.addAll(state.selection.patches); initialized = true; lastSlot = state.selection.slot; }
       Set<String> ids = new HashSet<>(); for (WordTableStore.Entry entry : state.entries) ids.add(entry.id);
@@ -202,6 +205,7 @@ public final class WordTableActivity extends Activity
     if (label == R.string.words_restore) button.setId(R.id.word_tables_restore);
     if (label == R.string.words_help) button.setId(R.id.word_tables_help);
     if (label == R.string.words_legacy) button.setId(R.id.word_tables_legacy);
+    if (label == R.string.words_retry_deployment) button.setId(R.id.word_tables_retry_deployment);
     if (label == R.string.words_configs_import) button.setId(R.id.rime_config_import);
     if (label == R.string.words_configs_help) button.setId(R.id.rime_config_help);
     if (label == R.string.words_configs_reset) button.setId(R.id.rime_config_reset);

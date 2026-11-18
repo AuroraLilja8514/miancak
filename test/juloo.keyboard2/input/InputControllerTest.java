@@ -52,6 +52,44 @@ public class InputControllerTest
     assertEquals("hello", editor.text());
   }
 
+  @Test public void offlinePreparationErrorIsSpecificAndAnExplicitRetryKeepsEnglishUsable() throws Exception
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor(); int[] starts = {0};
+    FakeEngine engine = new FakeEngine();
+    InputController controller = new InputController(worker, ui, () -> {
+      if (++starts[0] == 1) throw new OfflineDataException(new java.io.IOException("private local path must not be displayed"));
+      return engine;
+    }, snapshot -> {});
+    controller.startEditor(editor, Mode.CHINESE, true, true); worker.all(); ui.all();
+    assertEquals(OfflineDataException.MESSAGE, controller.snapshot().error);
+    assertEquals(Mode.ENGLISH, controller.snapshot().mode); assertFalse(controller.snapshot().initializing);
+    controller.submit(engineText("hello")); assertEquals("hello", editor.text());
+    controller.submit(TOGGLE_LANGUAGE); worker.all(); ui.all();
+    assertEquals(Mode.CHINESE, controller.snapshot().mode); assertEquals("", controller.snapshot().error); assertEquals(2, starts[0]);
+  }
+
+  @Test public void retainedDataNoticeSurvivesDirectAndQueuedInputAndEndsWithTheSession()
+  {
+    Queue worker = new Queue(), ui = new Queue(); Editor editor = new Editor(); FakeEngine engine = new FakeEngine(); engine.retained = true;
+    InputController controller = new InputController(worker, ui, () -> engine, snapshot -> {});
+    controller.startEditor(editor, Mode.CHINESE, true, true); worker.all(); ui.all();
+    assertTrue(controller.snapshot().retainedData);
+    controller.submit(literalText("。")); assertTrue(controller.snapshot().retainedData); assertEquals("。", editor.text());
+    controller.submit(engineText("nihao")); worker.all(); ui.all(); assertTrue(controller.snapshot().retainedData);
+    controller.submit(TOGGLE_LANGUAGE); worker.all(); ui.all(); assertFalse(controller.snapshot().retainedData);
+    controller.finishEditor(); worker.all(); ui.all(); assertFalse(controller.snapshot().retainedData);
+  }
+
+  @Test public void oldRetainedSessionCannotPublishNoticeIntoAChangedEditor()
+  {
+    Queue worker = new Queue(), ui = new Queue(); FakeEngine engine = new FakeEngine(); engine.retained = true;
+    InputController controller = new InputController(worker, ui, () -> engine, snapshot -> {});
+    controller.startEditor(new Editor(), Mode.CHINESE, true, true); worker.all();
+    controller.startEditor(new Editor(), Mode.ENGLISH, false, false); ui.all();
+    assertFalse(controller.snapshot().retainedData); assertEquals(Mode.ENGLISH, controller.snapshot().mode);
+    worker.all(); ui.all(); assertFalse(controller.snapshot().retainedData);
+  }
+
   @Test public void returningToTheCurrentProfileIsImmediateAndKeepsCandidateRevision()
   {
     Harness h = new Harness(Mode.CHINESE);
@@ -503,6 +541,8 @@ public class InputControllerTest
       calls.add("candidates:"+limit);String[] values=new String[limit];Arrays.fill(values,"候选");values[0]=selected();
       return new EngineResult(true,"",raw,values,0,true,false);
     }
+    boolean retained;
+    @Override public boolean usesRetainedData() { return retained; }
     @Override public void setLearning(boolean enabled) { learning.add(enabled); }
     @Override public void close() { closes++; }
   }

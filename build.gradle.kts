@@ -10,6 +10,8 @@ dependencies {
   implementation("androidx.window:window-java:1.4.0")
   implementation("androidx.core:core:1.16.0") // Version 1.17.0 available with sdk 36
   testImplementation("junit:junit:4.13.2")
+  // Real JSON for filesystem recovery tests; not an application/APK dependency.
+  testImplementation("org.json:json:20250517")
   androidTestImplementation("androidx.test:runner:1.6.2")
   androidTestImplementation("androidx.test.ext:junit:1.2.1")
   androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")

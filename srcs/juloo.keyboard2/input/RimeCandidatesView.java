@@ -37,7 +37,7 @@ public final class RimeCandidatesView extends LinearLayout
   {
     pageLabel = label;
     if (shown != null && !shown.initializing && !shown.engine.composing && shown.error.isEmpty())
-      preedit.setText(label != null ? label : getContext().getString(shown.mode == InputRouter.Mode.CHINESE ? R.string.miancak_pinyin : R.string.miancak_direct));
+    { preedit.setText(statusText(shown)); preedit.setContentDescription(preedit.getText()); }
     updateCandidateRow();
   }
   private Runnable languageAction, pageAction, expansionChanged;
@@ -157,17 +157,26 @@ public final class RimeCandidatesView extends LinearLayout
       if (languageAction != null) languageAction.run();
       else if (controller != null) controller.submit(SemanticAction.TOGGLE_LANGUAGE);
     });
-    preedit.setText(!snapshot.error.isEmpty() ? getContext().getString(snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus)
-        : snapshot.initializing ? getContext().getString(R.string.miancak_initializing)
-        : snapshot.engine.composing ? snapshot.engine.preedit
-        : pageLabel != null ? pageLabel : getContext().getString(chinese ? R.string.miancak_pinyin : R.string.miancak_direct));
-    preedit.setContentDescription(snapshot.initializing ? "Input initializing"
-        : snapshot.engine.composing ? "Pinyin: " + snapshot.engine.preedit : "Input status");
+    preedit.setAccessibilityLiveRegion(!snapshot.error.isEmpty() || snapshot.initializing || (!snapshot.engine.composing && snapshot.retainedData)
+        ? View.ACCESSIBILITY_LIVE_REGION_POLITE : View.ACCESSIBILITY_LIVE_REGION_NONE);
+    preedit.setText(statusText(snapshot));
+    preedit.setContentDescription(snapshot.engine.composing && snapshot.error.isEmpty()
+        ? "Pinyin: " + snapshot.engine.preedit : preedit.getText());
     cancel.setVisibility(snapshot.engine.composing ? VISIBLE : INVISIBLE);
     cancel.setOnClickListener(view -> { if (controller != null) controller.cancelComposition(); });
     if (!snapshot.engine.composing || snapshot.engine.candidates.isEmpty()) expanded = false;
     updateExpansion();
     renderCandidates();
+  }
+
+  private CharSequence statusText(InputSnapshot snapshot)
+  {
+    if (!snapshot.error.isEmpty()) return getContext().getString(snapshot.error.equals(OfflineDataException.MESSAGE)
+        ? R.string.miancak_data_unavailable : snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus);
+    if (snapshot.initializing) return getContext().getString(R.string.miancak_initializing);
+    if (snapshot.engine.composing) return snapshot.engine.preedit;
+    if (snapshot.retainedData) return getContext().getString(R.string.miancak_retained_data);
+    return pageLabel != null ? pageLabel : getContext().getString(snapshot.mode == InputRouter.Mode.CHINESE ? R.string.miancak_pinyin : R.string.miancak_direct);
   }
 
   private void updateCandidateRow()

@@ -3,7 +3,6 @@ package juloo.keyboard2.input;
 import android.content.Context;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +21,10 @@ public final class RimeData
     public final File shared;
     public final File user;
     public final File build;
-    Paths(File shared, File user) { this.shared = shared; this.user = user; this.build = new File(shared, "build"); }
+    public final boolean retained;
+    Paths(File shared, File user) { this(shared, user, false); }
+    Paths(File shared, File user, boolean retained)
+    { this.shared = shared; this.user = user; this.build = new File(shared, "build"); this.retained = retained; }
   }
 
   private RimeData() {}
@@ -30,18 +32,28 @@ public final class RimeData
   public static synchronized Paths deploy(Context context) throws IOException
   { return new WordTableStore(context).currentPaths(); }
 
-  public static synchronized Paths bundled(Context context) throws IOException
+  /** Identify the APK's destination without copying or creating any data. */
+  static Paths identity(Context context) throws IOException
+  { return identity(context, packagedManifest(context)); }
+
+  private static byte[] packagedManifest(Context context) throws IOException
   {
     if (android.os.Build.VERSION.SDK_INT >= 24 && context.isDeviceProtectedStorage())
       throw new IOException("Rime user data requires credential-protected storage");
-    byte[] manifest;
     try (InputStream in = context.getAssets().open("rime/manifest.json"))
-    {
-      manifest = read(in);
-    }
+    { return read(in); }
+  }
+
+  private static Paths identity(Context context, byte[] manifest)
+  {
     File root = new File(context.getFilesDir(), "rime");
-    File shared = new File(root, "shared-" + hash(manifest));
-    File user = new File(root, "user");
+    return new Paths(new File(root, "shared-" + hash(manifest)), new File(root, "user"));
+  }
+
+  public static synchronized Paths bundled(Context context) throws IOException
+  {
+    byte[] manifest = packagedManifest(context); Paths paths = identity(context, manifest);
+    File shared = paths.shared, user = paths.user;
     if ((!shared.isDirectory() && !shared.mkdirs()) || (!user.isDirectory() && !user.mkdirs()))
       throw new IOException("Cannot create Rime data directories");
     try
@@ -51,36 +63,8 @@ public final class RimeData
       while (names.hasNext())
       {
         String name = names.next();
-        File target = managedFile(shared, name);
-        File parent = target.getParentFile();
-        if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("Cannot create Rime asset directory");
         String expected = files.getString(name);
-        if (target.isFile())
-          try (InputStream in = new java.io.FileInputStream(target))
-          {
-            if (hash(in).equals(expected))
-              continue;
-          }
-        File temporary = new File(parent, target.getName() + ".tmp");
-        boolean installed = false;
-        try
-        {
-          MessageDigest digest = digest();
-          try (InputStream in = context.getAssets().open("rime/" + name);
-               FileOutputStream out = new FileOutputStream(temporary))
-          {
-            byte[] buffer = new byte[16384]; int count;
-            while ((count = in.read(buffer)) != -1)
-            { digest.update(buffer, 0, count); out.write(buffer, 0, count); }
-            out.getFD().sync();
-          }
-          if (!hex(digest.digest()).equals(expected))
-            throw new IOException("Packaged Rime asset failed integrity check");
-          if (!temporary.renameTo(target))
-            throw new IOException("Cannot atomically deploy Rime asset");
-          installed = true;
-        }
-        finally { if (!installed) temporary.delete(); }
+        RimeAssetInstaller.install(shared, name, expected, () -> context.getAssets().open("rime/" + name));
       }
       saveManifest(shared, manifest);
     }
@@ -118,7 +102,8 @@ public final class RimeData
     try (InputStream input = new java.io.FileInputStream(new File(shared, "manifest.json")))
     {
       byte[] bytes = read(input);
-      if (bytes.length > 1024 * 1024) throw new IOException("Rime manifest is too large");
+      if (shared.getName().matches("shared-[a-f0-9]{64}") && !shared.getName().equals("shared-" + hash(bytes)))
+        throw new IOException("Packaged Rime manifest failed integrity check");
       return new JSONObject(new String(bytes, StandardCharsets.UTF_8));
     }
     catch (JSONException invalid) { throw new IOException("Invalid Rime asset manifest", invalid); }
@@ -126,17 +111,7 @@ public final class RimeData
 
   static void saveManifest(File shared, byte[] manifest) throws IOException
   {
-    File target = new File(shared, "manifest.json"), temporary = new File(shared, "manifest.json.tmp");
-    if (target.isFile())
-      try (InputStream input = new java.io.FileInputStream(target))
-      { if (hash(input).equals(hash(manifest))) return; }
-    try
-    {
-      try (FileOutputStream output = new FileOutputStream(temporary))
-      { output.write(manifest); output.getFD().sync(); }
-      if (!temporary.renameTo(target)) throw new IOException("Cannot save Rime asset manifest");
-    }
-    finally { temporary.delete(); }
+    RimeAssetInstaller.install(shared, "manifest.json", hash(manifest), () -> new java.io.ByteArrayInputStream(manifest));
   }
 
   static java.util.Map<String, String> legacyAssetDigests(File shared) throws IOException
@@ -197,7 +172,7 @@ public final class RimeData
 
   /** A failed new deployment may use an intact previous packaged bundle. The
    * old directories and their stable user/learning directory are never removed. */
-  static File previousBundle(Context context, File current)
+  static File previousBundle(File current)
   {
     File[] candidates = current.getParentFile().listFiles();
     if (candidates == null) return null;

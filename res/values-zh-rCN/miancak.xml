@@ -1,4 +1,5 @@
 <resources>
+  <string name="miancak_initializing">正在准备离线中文数据…</string>
   <string name="miancak_expand_candidates">展开候选</string>
   <string name="miancak_collapse_candidates">收起候选</string>
   <string name="miancak_all_candidates">全部候选</string>

@@ -35,11 +35,17 @@ interruption is a distinct case, not a retry to erase a failed run.
 | Interruption point | Required result |
 | --- | --- |
 | Initial asset verification/copy or native compilation | Terminate only the owned test app at a recorded pending stage; reopen through the ordinary route. Partial data must not be presented as ready. Verify intact bundled data is repaired/validated and synthetic Chinese text is committed, or preserve the actual failure. |
+| Preparation failure with retained data | Verify active/previous/custom-patched or earlier packaged data is checked and reachable, the retained-data notice survives a page change, and reopen does not repeat a saved failed preparation. Explicit retry must preserve saved choices/originals on failure and clear recovery only after real compilation/probe/pointer commit. Include a failure to persist recovery metadata without treating a host fixture as actual Android full-storage acceptance. |
 | Custom dictionary/config deployment before pointer commit | Keep the previous working selection and exact imported originals. Reopen without activating a partial staged version; verify the previous candidates, patches and private policy. |
 | After selection commit, before UI reports completion | Reopen the committed deployment and verify actual text, no duplicate source import, retained recovery choice and accurate status. A UI error is not proof the pointer was rolled back. |
 | Learning recovery snapshot/export | Retain the original old DB byte-for-byte; a verified pristine snapshot remains after later failure. Preview cannot activate incomplete or unsupported output. Explicit discard removes only managed copies. |
 | Learning recovery confirmation | Exercise changed old learning, changed selection, damaged output, failed compilation and an interrupted catalog/selection/status step. Retain originals, snapshot and any imported recovered source; verify authoritative selection, no automatic DB conversion, and clearly bounded ranking/deletion limitations. |
 | Reopen/reboot/overwrite | Keep existing named-guest boot-ID/reboot checks and pinned historical upgrade baseline. Verify current preferences/layouts/catalog/patches and old/new learning remain separate through actual Android 15 overwrite and reboot. No uninstall/clear-data remedy or mocked host result substitutes for this check. |
+
+Implementation and host-versus-device boundaries are in
+[DEPLOYMENT_RECOVERY.md](DEPLOYMENT_RECOVERY.md). The isolated native/feedback
+instrumentation cases must execute on the exact candidate; their presence or
+successful compilation is not a recovery result.
 
 ## Input and configuration acceptance
 
