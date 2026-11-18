@@ -154,6 +154,13 @@ public class RimeConfigNativeTest
     File original = new File(root, "rime/user/pinyin_simp.userdb"); assertTrue(original.isDirectory());
     store.apply(WordTableStore.BUNDLED, Collections.emptyList(), Collections.emptyList()); return original;
   }
+  @Test public void learningRecoveryRequiresAppliedBaseWithoutChangingTheSelection() throws Exception
+  {
+    store.useLegacyBase(); String before = store.view().selection.slot;
+    try { store.previewLearningRecovery(); fail("Recovery silently switched away from a legacy base"); }
+    catch (IOException expected) { assertTrue(expected.getMessage().contains("Apply bundled")); }
+    assertEquals(before, store.view().selection.slot); assertFalse(store.view().retainedLearningSnapshot);
+  }
   @Test public void explicitLearningRecoveryPreservesOriginalSnapshotAndAppliedConfiguration() throws Exception
   {
     File original = learnOldPinyin(); String originalHash = LearningSnapshot.digest(original, LearningSnapshot.deadline());

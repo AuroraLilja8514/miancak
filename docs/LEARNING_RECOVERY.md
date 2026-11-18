@@ -28,6 +28,12 @@ preview, followed by a separate confirmation. It reads only this installation's
 credential-protected `pinyin_simp.userdb`; it is not an arbitrary database/archive
 importer and does not run automatically during an update.
 
+First explicitly apply bundled Wanxiang Base, keeping compatible supplements and
+patches. Preview refuses an applied legacy/custom data-only base or a retained
+old runtime fallback without switching it. Otherwise resuming that old engine
+between preview and confirmation can itself rewrite the old database. Recovery
+targets the already applied Base selection; it does not force a base change.
+
 The serialized maintenance transaction pauses input, confirms any existing
 composition and closes the engine before copying. A native idle guard refuses a
 live session. A bounded independent snapshot is verified against the original;

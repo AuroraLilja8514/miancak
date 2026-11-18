@@ -93,7 +93,20 @@ public final class WordTableStore
         preview, learning.exists(), issue);
   }
   public void previewLearningRecovery() throws Exception
-  { learning.prepare(RimeData.bundled(context), selection(state().getJSONObject("current"))); }
+  {
+    RimeEngine.requireClosedForRecovery();
+    JSONObject saved = state(); Selection active = selection(saved.getJSONObject("current"));
+    if (!active.base.equals(BUNDLED) || !saved.optString("recoveryShared").isEmpty())
+      throw new IOException("Apply bundled Wanxiang Base before recovering old Pinyin phrases; originals and current choices are retained / 请先应用内置万象 Base，再恢复旧学习短语；原文与当前选择保留");
+    RimeData.Paths packaged = RimeData.bundled(context);
+    File effective = active.slot.isEmpty() ? packaged.shared : new File(versions, active.slot);
+    if (!new File(effective, "miancak-profile.json").isFile())
+      throw new IOException("Apply the current bundled Wanxiang Base before recovery / 请先应用当前内置万象 Base");
+    // Resuming a legacy/custom Pinyin engine between preview and confirmation
+    // can itself rewrite the old DB. Recovery targets an already applied Base
+    // deployment, retaining its supplements/patches rather than forcing a switch.
+    learning.prepare(new RimeData.Paths(effective, packaged.user), active);
+  }
   public void applyLearningRecovery() throws Exception
   { learning.apply(this, selection(state().getJSONObject("current"))); }
   public void discardLearningRecovery() throws IOException { learning.discard(); }

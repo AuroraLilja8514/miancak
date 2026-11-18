@@ -5,7 +5,7 @@
   <string name="words_learning_details">检查保留的快照</string>
   <string name="words_learning_apply">添加恢复的短语</string>
   <string name="words_learning_discard">丢弃恢复副本</string>
-  <string name="words_learning_explanation">可选：从本次安装的 pinyin_simp.userdb 恢复短语。复制时暂停输入并关闭引擎，保留原数据库和经过校验的原始快照，只打开另一份工作副本。\n\n支持的有效短语转换为独立词表，权重为 max(1, 提交次数)。不迁移动态排序、近期性、上下文、统计或删除语义。已删除记录保留在原数据库且不导入；有不支持的记录时禁止启用。不会重命名或替换原学习文件。\n\n添加前请检查记录数。这不是完整的学习数据库迁移。再次预览前，必须明确丢弃保留的快照副本。</string>
+  <string name="words_learning_explanation">可选：从本次安装的 pinyin_simp.userdb 恢复短语。请先明确应用内置万象 Base，可保留兼容的补充词表和补丁。预览不会自动切换其他基础词表或旧运行时回退。\n\n复制时暂停输入并关闭引擎，保留原数据库和经过校验的原始快照，只打开另一份工作副本。\n\n支持的有效短语转换为独立词表，权重为 max(1, 提交次数)。不迁移动态排序、近期性、上下文、统计或删除语义。已删除记录保留在原数据库且不导入；有不支持的记录时禁止启用。不会重命名或替换原学习文件。\n\n添加前请检查记录数。这不是完整的学习数据库迁移。再次预览前，必须明确丢弃保留的快照副本。</string>
   <string name="words_learning_counts">来源：pinyin_simp.userdb\nSHA-256：%1$s\n有效：%2$d\n已删除（不迁移）：%3$d\n不支持：%4$d\n总记录：%5$d\n阶段：%6$s</string>
   <string name="words_learning_confirm">将恢复的词表添加为当前已应用词表及自定义配置的补充？本页尚未应用的选择不会一并启用。如果预览后旧学习数据或已应用选择发生变化，将拒绝确认。只有编译和输入探测通过才切换；部署失败时保留旧选择及已导入的恢复原文。</string>
   <string name="words_learning_discard_confirm">仅删除本次恢复的快照、工作副本和预览？原拼音数据库、已导入的恢复词表和已应用选择保持不变。请在确认短语恢复效果后再丢弃快照。</string>
