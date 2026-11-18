@@ -306,6 +306,16 @@ public class InputControllerTest
     assertEquals("", h.editor.text()); assertTrue(h.engine.calls.isEmpty());
   }
 
+  @Test public void manualShiftWhileOnlyInitializingRetainsIdleCapitalization()
+  {
+    Queue worker = new Queue(), ui = new Queue(); int[] requests = {0};
+    InputController controller = new InputController(worker, ui, FakeEngine::new, snapshot -> {});
+    controller.startEditor(new Editor(), Mode.CHINESE, true, true);
+    assertTrue(controller.snapshot().initializing); assertTrue(controller.hasPendingRequests());
+    new juloo.keyboard2.SemanticKeyAdapter(controller, () -> {}, () -> requests[0]++).shiftActivated();
+    assertEquals(0, requests[0]);
+  }
+
   @Test public void manualShiftInProtectedEditorDoesNotStartChineseOrChangeMode()
   {
     Harness h = new Harness(Mode.ENGLISH); h.controller.startEditor(h.editor, Mode.ENGLISH, false, false); h.flush();

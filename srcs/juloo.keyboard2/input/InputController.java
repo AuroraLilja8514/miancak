@@ -50,6 +50,7 @@ public final class InputController implements AutoCloseable
   private volatile boolean closed;
   private volatile boolean maintenance;
   private boolean externalHold;
+  private int pendingCompositionText; // UI-owned, reset at each editor generation.
   private volatile InputSnapshot snapshot = new InputSnapshot(0, 0, Mode.ENGLISH, false, EngineResult.EMPTY, "");
 
   // Worker-confined state. Never derive this from the possibly older UI snapshot.
@@ -69,6 +70,8 @@ public final class InputController implements AutoCloseable
 
   public InputSnapshot snapshot() { return snapshot; }
   public boolean hasPendingRequests() { return maintenance || pending.get() != 0; }
+  public boolean hasCompositionWork()
+  { checkUi(); return snapshot.engine.composing || pendingCompositionText != 0; }
 
   /** A newly created IME waits for an already-running vocabulary transaction. */
   public void holdForExternalUpdate()
@@ -86,6 +89,7 @@ public final class InputController implements AutoCloseable
     if (closed) return;
     Handle handle = new Handle(generation.incrementAndGet(), Objects.requireNonNull(editor), engineAllowed, learning);
     active = handle;
+    pendingCompositionText = 0;
     Mode initial = engineAllowed ? initialMode : Mode.ENGLISH;
     snapshot = new InputSnapshot(handle.generation, revisions.incrementAndGet(), initial,
         engineAllowed, EngineResult.EMPTY, "", initial == Mode.CHINESE && !maintenance);
@@ -125,7 +129,8 @@ public final class InputController implements AutoCloseable
             handle.allowed, current.engine, current.error, false, current.retainedData), edits, null);
       return;
     }
-    queue(handle, edits -> executeAction(handle, action, edits), null);
+    queue(handle, edits -> executeAction(handle, action, edits), null,
+        action.type == SemanticAction.Type.ENGINE_TEXT && !action.text.isEmpty());
   }
 
   /** Explicit profile selection is idempotent; callback runs after successful
@@ -310,6 +315,7 @@ public final class InputController implements AutoCloseable
     if (closed) return;
     generation.incrementAndGet();
     active = null;
+    pendingCompositionText = 0;
     snapshot = new InputSnapshot(generation.get(), revisions.incrementAndGet(), snapshot.mode,
         false, EngineResult.EMPTY, "");
     listener.changed(snapshot);
@@ -361,12 +367,19 @@ public final class InputController implements AutoCloseable
   }
 
   private void queue(Handle handle, Work work, Runnable after)
+  { queue(handle, work, after, false); }
+
+  private void queue(Handle handle, Work work, Runnable after, boolean compositionText)
   {
+    if (compositionText) pendingCompositionText++;
     pending.incrementAndGet();
     worker.execute(() -> {
       if (!current(handle))
       {
-        ui.execute(() -> pending.decrementAndGet());
+        ui.execute(() -> {
+          pending.decrementAndGet();
+          if (compositionText && current(handle)) pendingCompositionText--;
+        });
         return;
       }
       List<Edit> edits = new ArrayList<>();
@@ -379,7 +392,10 @@ public final class InputController implements AutoCloseable
           handle.allowed, state, error, false, retainedData());
       ui.execute(() -> {
         try { deliver(handle, result, edits, after); }
-        finally { pending.decrementAndGet(); }
+        finally {
+          pending.decrementAndGet();
+          if (compositionText && current(handle)) pendingCompositionText--;
+        }
       });
     });
   }

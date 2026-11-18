@@ -23,7 +23,7 @@ public final class SemanticKeyAdapter
   {
     juloo.keyboard2.input.InputSnapshot state = controller.snapshot();
     if (state.engineAllowed && state.mode == juloo.keyboard2.input.InputRouter.Mode.CHINESE
-        && (state.engine.composing || controller.hasPendingRequests())) englishRequested.run();
+        && controller.hasCompositionWork()) englishRequested.run();
   }
   public boolean inLegacy() { return legacyDepth != 0; }
 
