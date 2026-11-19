@@ -57,6 +57,51 @@ recovery, the four approved spelling selectors and their dependent schemas, and
 the optional recovered-phrases confirmation. Candidate actions must reach the
 receiving editor; source configuration and keycap text are insufficient.
 
+### Confirm that the bundled grammar loaded
+
+The Android build links `librime-octagram` at
+`57d18b9f58e5284bd891d559f6bdd16cf60341e9` into `libmiancak_rime.so`.
+`GramDb::Load()` emits `loading gram db:` before opening the file. The
+`found double array image of size` message follows the metadata checks and
+precedes installation of the trie array. `GetDb()` only retains the object
+after `Load()` succeeds. The build forces `ENABLE_LOGGING=OFF`, so neither
+message is available in Logcat for the delivered APK. The Java `MIANCAK-Rime`
+ready message can also follow a retained-data recovery. See the
+[source lock](../native/sources.lock.json), [CMake flags](../native/CMakeLists.txt)
+and [pinned loader](https://github.com/lotem/librime-octagram/blob/57d18b9f58e5284bd891d559f6bdd16cf60341e9/src/gram_db.cc#L13-L48).
+
+A fresh default deployment installs `assets/rime/wanxiang-lts-zh-hans.gram`
+under the app's credential-protected files directory at
+`files/rime/shared-0145043eedcb191eab8eaa70cee72e5850ca047eb333beff19568736880e10e3/wanxiang-lts-zh-hans.gram`.
+The directory suffix is the APK's Rime manifest SHA-256. The installed model
+must match the LTS asset pin in [wanxiang.lock.json](../native/wanxiang.lock.json).
+Rime looks in its user directory before the shared directory, so use a fresh
+test user to exclude a same-named override. Selected or retained deployments can
+have different shared paths. [Asset installer and path selection](../srcs/juloo.keyboard2/input/RimeData.java)
+
+On an authorized API 35 `miancak-interactions` guest, run the existing `native`
+stage of `scripts/emulator_tests.sh` with the verified app and test APKs. The
+`RimeNativeTest.englishHandoffKeepsRawInputAndExplicitPartialSelectionWithoutGuessing`
+case verifies the packaged bundle with `RimeData.bundled()` and opens it directly
+using an empty test user directory. The bundled `miancak-profile.json` requires
+JNI startup to load the Octagram and Lua modules and get the named database
+successfully. That startup throws if the model fails to open. Record the case's
+result as the loader observation for its session. Keep the prepared native run
+apart from both clean-install scenarios. See [the device case](../androidTest/juloo/keyboard2/input/RimeNativeTest.java),
+[JNI startup](../native/rime_jni.cc) and [the readiness guard](../native/wanxiang_runtime.h).
+
+The bounded Linux comparison used fresh user and build directories and kept the
+same Base schema, dictionary and manifest in both roots. The real JNI opened the
+bundled model and kept it mapped. The root missing only the `.gram` file was
+refused at the JNI guard. A separate host probe called the same pinned librime
+C API beneath that guard to compare ranking, with fresh sessions and no candidate
+commits. The compiled schemas, Wanxiang table and prism matched by hash. For
+`yiyuanmenkoukeyidache`, the top candidate was `医院门口可以打车` with the model and
+`医院门口渴一大车` without it. The other eight synthetic inputs kept their order.
+Use this phrase as a ranking spot check on default full Pinyin. The result can
+vary with schema, context and learning. The no-model comparison is a host
+negative control and the Android loader and ranking checks are pending.
+
 ### Onboarding and Shift on API 35
 
 Run [the existing first-install driver](../scripts/first_install_tests.sh)
