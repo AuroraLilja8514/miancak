@@ -6,9 +6,9 @@ import android.preference.DialogPreference;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.SeekBar;
+import juloo.keyboard2.R;
 
 /*
  ** IntSlideBarPreference
@@ -25,7 +25,7 @@ import android.widget.SeekBar;
 public class IntSlideBarPreference extends DialogPreference
   implements SeekBar.OnSeekBarChangeListener
 {
-  private LinearLayout _layout;
+  private View _layout;
   private TextView _textView;
   private SeekBar _seekBar;
 
@@ -37,17 +37,13 @@ public class IntSlideBarPreference extends DialogPreference
   {
     super(context, attrs);
     _initialSummary = getSummary().toString();
-    _textView = new TextView(context);
-    _textView.setPadding(48, 40, 48, 40);
-    _seekBar = new SeekBar(context);
+    _layout = View.inflate(context, R.layout.pref_slider_dialog, null);
+    _textView = _layout.findViewById(R.id.pref_slider_value);
+    _seekBar = _layout.findViewById(R.id.pref_slider_control);
     _seekBar.setOnSeekBarChangeListener(this);
     _min = attrs.getAttributeIntValue(null, "min", 0);
     int max = attrs.getAttributeIntValue(null, "max", 0);
     _seekBar.setMax(max - _min);
-    _layout = new LinearLayout(getContext());
-    _layout.setOrientation(LinearLayout.VERTICAL);
-    _layout.addView(_textView);
-    _layout.addView(_seekBar);
   }
 
   @Override
@@ -81,7 +77,7 @@ public class IntSlideBarPreference extends DialogPreference
       persistInt(value);
     }
     _seekBar.setProgress(value - _min);
-    updateText();
+    updateSummary();
   }
 
   @Override
@@ -98,7 +94,7 @@ public class IntSlideBarPreference extends DialogPreference
     else
       _seekBar.setProgress(getPersistedInt(_min) - _min);
 
-    updateText();
+    updateSummary();
   }
 
   protected View onCreateDialogView()
@@ -112,9 +108,12 @@ public class IntSlideBarPreference extends DialogPreference
 
   private void updateText()
   {
-    String f = String.format(_initialSummary, _seekBar.getProgress() + _min);
+    _textView.setText(String.format(_initialSummary, _seekBar.getProgress() + _min));
+  }
 
-    _textView.setText(f);
-    setSummary(f);
+  private void updateSummary()
+  {
+    updateText();
+    setSummary(_textView.getText());
   }
 }

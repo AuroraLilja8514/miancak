@@ -32,6 +32,8 @@ The maintainer reported that Chinese punctuation became accessible after changin
 
 C1 enables double-tap Shift for new installations and adds the language-switch corner. The APK interaction scenario checks punctuation/Shift pairs, quotation marks, `xi` + separator + `an` yielding “西安” without an early commit, and Shift-northeast language switching. C2 adds measured compact candidates, same-height expansion, expanded engine paging/selection and Back collapse. `CandidatePresentationTest` measures real Android TextViews at narrow/wide widths and 1.8 font scale, including overlong text and fixed-height expansion. Passing results for these additions must be recorded separately from the earlier MVP run.
 
+The prepared interaction guest also runs `SettingsRowPresentationTest`. It opens the shipped Settings activity, binds same-level framework rows at 300 and 640 dp, checks title wrapping and leading insets, and exercises the integer and decimal slider dialogs. Moving the control changes its preview, and Cancel must preserve the saved value and row summary. First-install routes stay separate. On an authorized API 35+ target, confirm real portrait and landscape behavior at default and enlarged font scales in English and Simplified Chinese, including actual Apply, Cancel, reopen and scrolling. Instrumentation assembly alone leaves these checks pending. Device evidence stays within the existing typed wrapper.
+
 The following remains the complete acceptance target; implementation/results must distinguish each covered phase from outstanding work:
 
 | Phase | UI path and assertions |

@@ -2,7 +2,9 @@ package juloo.keyboard2;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.Preference;
 import android.preference.PreferenceActivity;
+import android.preference.PreferenceGroup;
 
 public class SettingsActivity extends PreferenceActivity
 {
@@ -21,6 +23,7 @@ public class SettingsActivity extends PreferenceActivity
     }
     catch (Exception _e) { fallbackEncrypted(); return; }
     addPreferencesFromResource(R.xml.settings);
+    allowTitleWrapping(getPreferenceScreen());
     findPreference("pages").setOnPreferenceClickListener(preference -> {
       startActivity(new android.content.Intent(this, PageSettingsActivity.class)); return true;
     });
@@ -43,6 +46,16 @@ public class SettingsActivity extends PreferenceActivity
     findPreference("horizontal_margin_landscape_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_landscape_unfolded").setEnabled(foldableDevice);
+  }
+
+  private void allowTitleWrapping(PreferenceGroup group)
+  {
+    for (int index = 0; index < group.getPreferenceCount(); index++)
+    {
+      Preference row = group.getPreference(index);
+      if (row.isSelectable() && row.getTitle() != null) row.setSingleLineTitle(false);
+      if (row instanceof PreferenceGroup) allowTitleWrapping((PreferenceGroup)row);
+    }
   }
 
   void fallbackEncrypted()

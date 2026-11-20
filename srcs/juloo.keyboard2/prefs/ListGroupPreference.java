@@ -199,6 +199,7 @@ public abstract class ListGroupPreference<E> extends PreferenceGroup
       _index = index;
       setPersistent(false);
       setTitle(label_of_value(value, index));
+      setSingleLineTitle(false);
       if (should_allow_remove_item(value))
         setWidgetLayoutResource(R.layout.pref_listgroup_item_widget);
     }
@@ -243,6 +244,7 @@ public abstract class ListGroupPreference<E> extends PreferenceGroup
     {
       super(ctx);
       setPersistent(false);
+      setSingleLineTitle(false);
     }
 
     @Override

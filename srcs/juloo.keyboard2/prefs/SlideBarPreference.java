@@ -6,9 +6,9 @@ import android.preference.DialogPreference;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.SeekBar;
+import juloo.keyboard2.R;
 
 /*
  ** SideBarPreference
@@ -27,7 +27,7 @@ public class SlideBarPreference extends DialogPreference
 {
   private static final int STEPS = 100;
 
-  private LinearLayout _layout;
+  private View _layout;
   private TextView _textView;
   private SeekBar _seekBar;
 
@@ -41,18 +41,14 @@ public class SlideBarPreference extends DialogPreference
   {
     super(context, attrs);
     _initialSummary = getSummary().toString();
-    _textView = new TextView(context);
-    _textView.setPadding(48, 40, 48, 40);
-    _seekBar = new SeekBar(context);
+    _layout = View.inflate(context, R.layout.pref_slider_dialog, null);
+    _textView = _layout.findViewById(R.id.pref_slider_value);
+    _seekBar = _layout.findViewById(R.id.pref_slider_control);
     _seekBar.setOnSeekBarChangeListener(this);
     _seekBar.setMax(STEPS);
     _min = float_of_string(attrs.getAttributeValue(null, "min"));
     _value = _min;
     _max = Math.max(1f, float_of_string(attrs.getAttributeValue(null, "max")));
-    _layout = new LinearLayout(getContext());
-    _layout.setOrientation(LinearLayout.VERTICAL);
-    _layout.addView(_textView);
-    _layout.addView(_seekBar);
   }
 
   @Override
@@ -75,17 +71,10 @@ public class SlideBarPreference extends DialogPreference
   @Override
   protected void onSetInitialValue(boolean restorePersistedValue, Object defaultValue)
   {
-    if (restorePersistedValue)
-    {
-      _value = getPersistedFloat(_min);
-    }
-    else
-    {
-      _value = (Float)defaultValue;
-      persistFloat(_value);
-    }
-    _seekBar.setProgress((int)((_value - _min) * STEPS / (_max - _min)));
-    updateText();
+    float value = restorePersistedValue ? getPersistedFloat(_min) : (Float)defaultValue;
+    if (!restorePersistedValue) persistFloat(value);
+    restoreProgress(value);
+    updateSummary();
   }
 
   @Override
@@ -100,9 +89,17 @@ public class SlideBarPreference extends DialogPreference
     if (positiveResult)
       persistFloat(_value);
     else
-      _seekBar.setProgress((int)((getPersistedFloat(_min) - _min) * STEPS / (_max - _min)));
+      restoreProgress(getPersistedFloat(_min));
 
-    updateText();
+    updateSummary();
+  }
+
+  private void restoreProgress(float value)
+  {
+    _seekBar.setProgress((int)((value - _min) * STEPS / (_max - _min)));
+    // Restoring the slider position can trigger its listener and quantize the
+    // display. Keep the actual saved value until the next slider adjustment.
+    _value = value;
   }
 
   protected View onCreateDialogView()
@@ -116,10 +113,13 @@ public class SlideBarPreference extends DialogPreference
 
   private void updateText()
   {
-    String f = String.format(_initialSummary, _value);
+    _textView.setText(String.format(_initialSummary, _value));
+  }
 
-    _textView.setText(f);
-    setSummary(f);
+  private void updateSummary()
+  {
+    updateText();
+    setSummary(_textView.getText());
   }
 
   private static float float_of_string(String str)
