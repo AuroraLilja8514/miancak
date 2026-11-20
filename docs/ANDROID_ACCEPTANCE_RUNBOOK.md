@@ -39,4 +39,20 @@ Use a separate fresh target. Pair bundled debug code 6 (asset `747939897`) with 
 2. Offline, run `adb -s "$ANDROID_SERIAL" install --no-incremental -r "$UPDATE_APK"`. Confirm code 7 and original hashes before new learning. Check the saved choices, earlier-pack notice, unavailable Download and real Chinese input with the old pack.
 3. Cancel or reject a bad file and check old offline input again. Install the verified new pair. Check ready, actual Chinese and Shift input, original YAML and learning. Compare database bytes before new learning. Reopen and reboot offline, then check the activated exact pack needs no further transfer.
 
-The [same-manifest fixture](WANXIANG_ACCEPTANCE.md#bundled-to-split-overwrite-fixture) belongs to its earlier matching checkpoint. The formal v0.3.2 upgrade requires the real release signer and remains a separate gate. Keep actual Android HTTPS transfer and interruption, low-storage recovery, ARM and verified 16 KiB runtime as separate acceptance cases.
+The [same-manifest fixture](WANXIANG_ACCEPTANCE.md#bundled-to-split-overwrite-fixture) belongs to its earlier matching checkpoint. The formal v0.3.2 upgrade requires the real release signer and remains a separate gate. Keep uninterrupted HTTPS transfer, low-storage recovery, ARM and verified 16 KiB runtime as separate acceptance cases.
+
+## Force-stop during a live split-pack download
+
+This case is pending Android 15+ execution. Use only a disposable test device and the exact split debug APK from the receipt. Start with an independent clean install, or repeat steps 1–2 of the overwrite above to retain a verified earlier pack and synthetic data. Run rotation and in-app cancellation separately.
+
+1. With the device online, open **Chinese input setup** and tap **Download**. Read the on-disk length twice while setup shows a transfer. Require `0 < first < second < 390,786,092` bytes.
+
+   ```sh
+   adb -s "$ANDROID_SERIAL" shell 'run-as org.miancak.keyboard.debug stat -c %s files/rime/.wanxiang-stage/shared/wanxiang-lts-zh-hans.gram'
+   ```
+
+2. Immediately run `adb -s "$ANDROID_SERIAL" shell am force-stop org.miancak.keyboard.debug` from the host. Repeat the size check before reopening. Require a still-incomplete file and an absent `files/rime/shared-<manifest-sha256>` for the new pack. Use the SHA-256 of `assets/rime/manifest.json` in the exact APK. If the transfer finished or no growing partial was observed, record that this attempt did not exercise the interruption.
+3. Disable Wi-Fi and mobile data, then reopen MIANCAK manually. On a fresh install, require setup to offer Download again without showing a ready pack, and type `hello2` into the editor. On the overwrite, require the earlier pack to remain available, confirm the original synthetic YAML and learning hashes before new learning, and type `你好` offline. Use the ordinary IME picker if needed.
+4. After recording the offline result, reconnect and explicitly tap **Download** or **Retry download**. The installer is expected to restart at byte zero. Check for removal of the old partial and new growth below the stopped length. Record whether restart or resume was actually observed, then check ready, exact Chinese output and offline reuse after reopening. Keep the sizes and stage outcomes local.
+
+The installer writes under `.wanxiang-stage`. It checks the pinned files and runs a native probe before atomically moving the complete pack to `shared-<manifest-sha256>`. Earlier-pack discovery only considers validated `shared-…` directories, and user data lives separately. A killed transfer can leave a partial file consuming disk space across reopen and while offline. The next install attempt that reaches preparation removes it before checking space or opening a transfer. [Installer](../srcs/juloo.keyboard2/input/WanxiangInstall.java) · [Pack discovery](../srcs/juloo.keyboard2/input/RimeData.java) · [Setup states](../srcs/juloo.keyboard2/input/WanxiangSetup.java)
