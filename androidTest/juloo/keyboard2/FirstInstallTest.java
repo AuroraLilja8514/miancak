@@ -1,13 +1,18 @@
 package juloo.keyboard2;
 
+import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
+import android.net.ConnectivityManager;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.widget.EditText;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
@@ -62,14 +67,20 @@ public final class FirstInstallTest
     mark(START);
     pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation);
-    mark(WAKE_ENTER); device.wakeUp(); mark(WAKE_RETURN);
-    setOrientation(android.view.Surface.ROTATION_0);
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     Throwable primary = null;
     try
     {
+      mark(WAKE_ENTER); device.wakeUp(); mark(WAKE_RETURN);
+      setOrientation(android.view.Surface.ROTATION_0);
+      ConnectivityManager network = context.getSystemService(ConnectivityManager.class);
+      assertNotNull("Need Android connectivity state to verify the offline test", network);
+      long offlineDeadline = SystemClock.uptimeMillis() + 5000;
+      while (network.getActiveNetwork() != null && SystemClock.uptimeMillis() < offlineDeadline)
+        SystemClock.sleep(50);
+      assertNull("Every first-use lifecycle phase must start offline", network.getActiveNetwork());
       if (!revisit)
       {
         if (order.equals("settings-first"))
@@ -95,6 +106,7 @@ public final class FirstInstallTest
       selectThroughAndroidPicker(revisit);
       launch();
       focusEditor();
+      assertReceiverText("");
       if (!revisit && WanxiangSetupTest.splitResources(context))
       {
         // The same empty install remains offline. Exercise the editor before
@@ -106,6 +118,7 @@ public final class FirstInstallTest
         launch(); focusEditor();
         if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
         awaitLanguage("中文");
+        assertReceiverText("");
       }
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
       assertEquals("中文", object("miancak_language").getText());
@@ -125,7 +138,7 @@ public final class FirstInstallTest
       type("qq"); expected += "QQ";
       awaitEditor(expected);
       tap(0.75f, 2);
-      type("nihao"); candidate();
+      type("nihao"); assertEquals("你好", candidate());
       object("miancak_language").click();
       expected += "nihao";
       awaitEditor(expected);
@@ -147,6 +160,7 @@ public final class FirstInstallTest
       pressBack();
       focusEditor();
       type("nihao"); candidate = candidate();
+      assertEquals("你好", candidate);
       swipe('v', -1, -1);
       expected += candidate + "，";
       awaitEditor(expected);
@@ -156,7 +170,7 @@ public final class FirstInstallTest
       press("subscript", "zh"); press("2", "zh"); expected += "₂";
       awaitEditor(expected);
       screenshot("input-after-settings");
-      if (!revisit && order.equals("settings-first")) expected = verifyPartialShiftHandoff(expected);
+      expected = verifyPartialShiftHandoff(expected);
       // Read the normal first-install state after real view recreation in
       // both landscape directions. Do not prewrite the preference under test.
       for (boolean left : new boolean[] {true, false})
@@ -185,6 +199,8 @@ public final class FirstInstallTest
       setOrientation(android.view.Surface.ROTATION_270); awaitOrientation(android.view.Surface.ROTATION_270); assertKeyboardDefaults("zh");
       press("2", "zh"); expected += "2"; awaitEditor(expected);
       setOrientation(android.view.Surface.ROTATION_0); awaitOrientation(android.view.Surface.ROTATION_0); assertKeyboardDefaults("zh");
+      awaitEditor(expected);
+      assertNull("The receiver must finish the lifecycle phase offline", network.getActiveNetwork());
     }
     catch (Exception | Error failure)
     {
@@ -198,8 +214,15 @@ public final class FirstInstallTest
       {
         ProgressEvidence.cleanup(primary, () -> {
           mark(FINALLY_ENTER);
-          mark(EVIDENCE_ENTER); screenshot("first-run-final"); mark(EVIDENCE_RETURN);
-          mark(TEARDOWN_ENTER); device.unfreezeRotation(); mark(TEARDOWN_RETURN);
+          Throwable captureFailure = null;
+          try { mark(EVIDENCE_ENTER); screenshot("first-run-final"); mark(EVIDENCE_RETURN); }
+          catch (Exception | Error failure) { captureFailure = failure; throw failure; }
+          finally
+          {
+            ProgressEvidence.cleanup(captureFailure, () -> {
+              mark(TEARDOWN_ENTER); device.unfreezeRotation(); mark(TEARDOWN_RETURN);
+            });
+          }
           mark(FINALLY_RETURN);
         });
       }
@@ -522,7 +545,24 @@ public final class FirstInstallTest
     mark(RECEIVER_WAIT_ENTER);
     assertTrue("Actual editor text differs from: " + expected,
         device.wait(Until.hasObject(By.res(pkg, "launcher_tryhere_area").text(expected)), 20000));
+    assertReceiverText(expected);
     mark(RECEIVER_WAIT_RETURN);
+  }
+
+  private void assertReceiverText(String expected)
+  {
+    String[] actual = new String[1];
+    mainSync(() -> {
+      for (Activity activity : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))
+        if (activity instanceof LauncherActivity)
+        {
+          EditText editor = activity.findViewById(R.id.launcher_tryhere_area);
+          if (editor != null && editor.hasFocus()) actual[0] = editor.getText().toString();
+          return;
+        }
+    });
+    assertNotNull("The receiver must be focused in the resumed launcher", actual[0]);
+    assertEquals("Committed text in the actual launcher receiver", expected, actual[0]);
   }
 
   private void awaitLanguage(String language)

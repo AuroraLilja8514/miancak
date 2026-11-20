@@ -17,6 +17,38 @@ screenshots, hierarchies, preferences and learning data remain local/ephemeral.
 
 [Chinese input setup](WANXIANG_SETUP.md) explains the follow-up resource split. The detailed bundled-build procedure and results below retain their original source and scope. For the follow-up, run the guarded first-install driver with both exact files available in `MIANCAK_WANXIANG_FIXTURE_DIR`. Neither file is preinstalled in the app. The driver enables and selects the IME through the normal UI and checks real direct-mode text while disconnected. It opens normal setup and checks the Download response without a default network, rejects a deliberately corrupt local model, then installs the matching pair through DocumentsUI. Original Chinese, Shift, reopen and reboot checks follow. A missing fixture explicitly blocks the setup step. An independent approved network run is still needed for actual transfer, cancellation/retry and offline behavior after download. Record elapsed transfer, unpacking and native compilation separately on Android 15+. The source and Android-test compilation leave those runtime outcomes pending.
 
+### Bundled-to-split overwrite fixture
+
+Run the [private upgrade driver](../scripts/bundled_delivery_upgrade_tests.sh)
+on its own unused, named `miancak-words` API 35 guest. The baseline is the
+verified bundled debug APK at version code 6. Build the split debug APK and its
+instrumentation with `./gradlew -PmiancakVersionCode=7 :assembleDebug :assembleDebugAndroidTest`.
+Use matching debug signing and record the three expected APK SHA-256 values as
+`MIANCAK_BUNDLED_APK_SHA256`, `MIANCAK_SPLIT_APK_SHA256` and
+`MIANCAK_TEST_APK_SHA256`. With the standard pinned SDK/JDK environment,
+`--preflight` followed by the three APK paths verifies identities, signer,
+deployment roles and the exact shared manifest without ADB. The value 7 is a
+fixture build override. The production version and formal upgrade gates are
+separate.
+
+```sh
+MIANCAK_TEST_DISPOSABLE_GUEST=true MIANCAK_TEST_API=35 \
+  python3 scripts/public_test_evidence.py run --scenario word-table -- \
+    bash scripts/bundled_delivery_upgrade_tests.sh bundled-v6.apk split-v7.apk split-androidTest.apk
+```
+
+The first phase creates synthetic preferences, imports a dictionary and a
+`.custom.yaml` patch, applies both and creates real native learning. The driver
+installs the split APK over the baseline while offline. It supplies no setup
+files and requires a changed boot ID before the final phase. The test checks
+that the compatible model and selected deployment are reused, the original
+YAML bytes and preferences survive, the patch and table still affect native
+input, and the original learning database retains its synthetic entry without
+changes from the no-learning check. Run this separately from clean onboarding
+and the older formal-signer upgrade. It exercises the native input path. The
+receiver-editor and ordinary UI checks remain in the first-install and
+interaction drivers. Fixture logs and its app-sandbox snapshot are private.
+
 ## First deployment, waiting and resource cost
 
 The upstream [Android deployment guide](https://github.com/amzxyz/rime-wanxiang/blob/wanxiang/docs/doc/fcitx5-android.md)
@@ -111,24 +143,26 @@ negative control and the Android loader and ranking checks are pending.
 Run [the existing first-install driver](../scripts/first_install_tests.sh)
 twice with the same verified application and test APKs. Each entry order needs
 its own previously unused, named disposable guest and fresh evidence directory.
-The driver checks the actual guest API and unused installation, keeps Wi-Fi and
-mobile data setup, and runs clean-install, process reopen and guest reboot as
-separate phases. Use the existing finite budgets and changed boot-ID check.
+The driver checks the actual guest API and unused installation, disables Wi-Fi
+and mobile data before use and again after reboot, and runs clean-install,
+process reopen and guest reboot as separate phases. Each phase checks for an
+offline network state. Use the existing finite budgets and changed boot-ID check.
 
 | Entry order | Actual actions and receiver assertions |
 | --- | --- |
 | `settings-first` | Open the shipped launcher and its Settings UI before enabling or typing. Check the default MIANCAK QWERTY selection, then enable through Android's switch and choose MIANCAK through its picker. Check the visible `zh` page and exact `你好。` in the shipped try-here editor. Revisit Settings and verify the same default and `，` output. The driver applies Android's `zh-CN` app locale and leaves app preferences to the ordinary UI. |
 | `ime-first` | Start in Android's keyboard settings on a different clean guest. Enable and select through the system UI, type on the initial default page, and visit the app's Settings after input. Apply the same layout, punctuation, reopen and reboot assertions. |
 
-Both paths check whole editor text when the language control releases unselected
-`nihao` as literal letters. The fresh Settings-first phase additionally types
-`nihaoshijie` on the visible keyboard, taps the candidate `你好`, checks that the
-prefix is still in composition and the editor has received no additional text,
-then taps center Shift. The exact new suffix must be `你好shijie`. Confirm the
-English page has cleared composition and the next `q` appends `Q` without any
-extra text. The existing native and prepared interaction suites also cover the
-engine boundary, the unselected Shift case and idle Shift latch/lock. Prepared
-fixtures seed configuration, so keep them separate from either unused install.
+Both paths read the whole text from the focused try-here editor when the
+language control releases unselected `nihao` as literal letters. In every
+lifecycle phase, type `nihaoshijie` on the visible keyboard, tap `你好`, check
+that the prefix is still composing and the editor has received no additional
+text, then tap center Shift. The exact new suffix must be `你好shijie`. Confirm
+that composition clears, the next `q` appends `Q`, and returning to Chinese
+appends `你好。`. Check the exact editor text again after rotation. The existing
+native and prepared interaction suites also cover the engine boundary, the
+unselected Shift case and idle Shift latch/lock. Prepared fixtures seed
+configuration, so keep them separate from either unused install.
 
 On an authorized test host, use the same wrapper and scenario as CI. Provide the
 verified pair at `artifacts/app-debug.apk` and

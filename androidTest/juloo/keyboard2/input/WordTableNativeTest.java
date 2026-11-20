@@ -210,7 +210,7 @@ public class WordTableNativeTest
     store.apply(WordTableStore.BUNDLED, Collections.emptyList());
     assertEquals(user, store.currentPaths().user); assertTrue(containsLearned(user, learned.getBytes(StandardCharsets.UTF_8), false));
   }
-  private boolean containsLearned(File file, byte[] needle, boolean inDatabase) throws Exception
+  static boolean containsLearned(File file, byte[] needle, boolean inDatabase) throws Exception
   {
     boolean database = inDatabase || file.getName().contains(".userdb");
     if (file.isDirectory())

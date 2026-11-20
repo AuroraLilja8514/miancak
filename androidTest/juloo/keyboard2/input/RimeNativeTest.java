@@ -139,7 +139,7 @@ public class RimeNativeTest
     assertEquals("No private-session Lua/user-dictionary initialization writes", before, learningHashes(user, user));
   }
 
-  private static java.util.Map<String, String> learningHashes(File root, File file) throws Exception
+  static java.util.Map<String, String> learningHashes(File root, File file) throws Exception
   {
     java.util.Map<String, String> result = new java.util.TreeMap<>();
     if (file.isDirectory())

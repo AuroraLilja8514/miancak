@@ -88,4 +88,6 @@ if adb shell wm help 2>&1 | grep -q dismiss-keyguard; then
 else
   adb shell input keyevent 82
 fi
+adb shell svc wifi disable
+adb shell svc data disable
 run_phase reboot -e revisit true
