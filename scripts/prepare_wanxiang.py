@@ -106,13 +106,12 @@ def portable_candidate_limit(source):
     return source.replace(old, "limit = limit == 0 ? static_cast<size_t>(-1) : limit;", 1)
 
 
-def prepare(assets, sources):
+def prepare(assets, sources, *, include_model=True):
     spec = json.loads(LOCK.read_text())
     if spec["profile"] != "wanxiang-base" or spec["base"]["version"] != "v18.1.13":
         raise ValueError("Unsupported Wanxiang distribution")
     cache = ROOT / ".native/wanxiang-downloads"
     archive = fetch(spec["base"], cache / "base-v18.1.13.zip")
-    model = fetch(spec["model"], cache / spec["model"]["filename"])
     data = Path(assets) / "rime"
     stock = data / "wanxiang-stock"
     # Stage once so the original Base default can be retained as attribution,
@@ -130,13 +129,14 @@ def prepare(assets, sources):
     shutil.copyfile(stock / "default.yaml", notices / "upstream-default.yaml")
     shutil.copyfile(stock / "default.yaml", data / "wanxiang_defaults.yaml")
     shutil.rmtree(stock)
-    target = data / spec["model"]["filename"]
-    # This immutable build input can share storage with the verified cache.
-    # No hard link is made to a user's learning/configuration directory.
-    try:
-        os.link(model, target)
-    except OSError:
-        shutil.copyfile(model, target)
+    if include_model:
+        model = fetch(spec["model"], cache / spec["model"]["filename"])
+        target = data / spec["model"]["filename"]
+        # The opt-in host fixture can share these immutable cache bytes.
+        try:
+            os.link(model, target)
+        except OSError:
+            shutil.copyfile(model, target)
     for entry in spec["notices"]:
         source = fetch(entry, cache / entry["filename"])
         shutil.copyfile(source, notices / entry["filename"])

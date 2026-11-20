@@ -282,6 +282,34 @@ public class InputControllerTest
     assertEquals("改序", h.controller.snapshot().engine.candidates.get(1));
   }
 
+  @Test public void identicalDisplayStringsCannotSubstituteForNativeCandidateIdentity()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.lastPage = false; h.engine.changeIdentity = true;
+    h.controller.submit(engineText("shi")); h.flush();
+    InputSnapshot displayed = h.controller.snapshot();
+    h.controller.moreCandidates(displayed); h.worker.all();
+    h.controller.select(displayed, 1, () -> fail("An unverified mapping cannot close the panel"));
+    h.flush();
+    assertEquals("", h.editor.text());
+    assertFalse(h.engine.calls.contains("select:1"));
+  }
+
+  @Test public void missingChineseSetupKeepsEnglishInputAvailableWithoutRetryingOnOrdinaryKeys()
+  {
+    Harness h = new Harness(Mode.ENGLISH);
+    h.setupMissing = true;
+    h.controller.setLanguage(Mode.CHINESE, () -> fail("Chinese setup is incomplete"));
+    h.flush();
+    assertEquals(OfflineDataException.SETUP_MESSAGE, h.controller.snapshot().error);
+    assertEquals(Mode.ENGLISH, h.controller.snapshot().mode);
+    h.controller.submit(engineText("hello")); h.controller.submit(literalText("!")); h.flush();
+    assertEquals("hello!", h.editor.text()); assertEquals(1, h.creations);
+    h.setupMissing = false;
+    h.controller.setLanguage(Mode.CHINESE, null); h.flush();
+    assertEquals(Mode.CHINESE, h.controller.snapshot().mode);
+  }
+
   @Test public void editorRejectionDoesNotAcknowledgeACandidateTap()
   {
     Harness h = new Harness(Mode.CHINESE);
@@ -640,7 +668,7 @@ public class InputControllerTest
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
     boolean failConfirm, failEnglish, partialFailure, partialSelection;
-    boolean lastPage=true, changePrefix;
+    boolean lastPage=true, changePrefix, changeIdentity;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
     EngineResult result(boolean handled, String commit)
@@ -680,7 +708,7 @@ public class InputControllerTest
     {
       calls.add("candidates:"+limit);String[] values=new String[limit];Arrays.fill(values,"候选");values[0]=selected();
       if (changePrefix) values[1] = "改序";
-      return new EngineResult(true,"",raw,values,0,true,false);
+      return new EngineResult(true,"",raw,values,0,true,false, !changePrefix && !changeIdentity);
     }
     boolean retained;
     @Override public boolean usesRetainedData() { return retained; }
@@ -695,11 +723,12 @@ public class InputControllerTest
     final FakeEngine engine = new FakeEngine();
     final InputController controller;
     int creations;
-    boolean failInitialization;
+    boolean failInitialization, setupMissing;
     Harness(Mode mode)
     {
       controller = new InputController(worker, ui, () -> {
         creations++;
+        if (setupMissing) throw new OfflineDataException(new WanxiangInstall.SetupRequired());
         if (failInitialization) throw new IllegalStateException("test initialization failure");
         return engine;
       }, snapshot -> {});

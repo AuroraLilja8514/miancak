@@ -61,6 +61,8 @@ adb install --no-incremental -r upgrade-signed/app-debug.apk
 # Observe retention before a new instrumentation can stop/rebind the IME.
 record_ime_state after-install
 cmp test-results/default-ime-before-install.txt test-results/default-ime-after-install.txt
+stage_wanxiang_test_assets artifacts/app-debug.apk
+install_wanxiang_test_assets
 run_phase verify
 adb shell am start -n org.miancak.keyboard.debug/juloo.keyboard2.LauncherActivity
 adb shell ime set org.miancak.keyboard.debug/juloo.keyboard2.Keyboard2

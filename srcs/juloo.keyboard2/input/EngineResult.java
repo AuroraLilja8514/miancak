@@ -17,9 +17,14 @@ public final class EngineResult
   public final int highlighted;
   public final boolean composing;
   public final boolean lastPage;
+  private final boolean sameNativePrefix;
 
   public EngineResult(boolean handled, String committed, String preedit,
       String[] candidates, int highlighted, boolean composing, boolean lastPage)
+  { this(handled, committed, preedit, candidates, highlighted, composing, lastPage, false); }
+
+  public EngineResult(boolean handled, String committed, String preedit,
+      String[] candidates, int highlighted, boolean composing, boolean lastPage, boolean sameNativePrefix)
   {
     this.handled = handled;
     this.committed = Objects.requireNonNull(committed);
@@ -28,17 +33,18 @@ public final class EngineResult
     this.highlighted = highlighted;
     this.composing = composing;
     this.lastPage = lastPage;
+    this.sameNativePrefix = sameNativePrefix;
   }
 
   public EngineResult withCommitted(String text)
   {
     return new EngineResult(handled, text, preedit, candidates.toArray(new String[0]),
-        highlighted, composing, lastPage);
+        highlighted, composing, lastPage, sameNativePrefix);
   }
 
   boolean extendsCandidatePrefix(EngineResult before)
   {
-    return handled && composing && before.composing && committed.isEmpty()
+    return (this == before || sameNativePrefix) && handled && composing && before.composing && committed.isEmpty()
         && preedit.equals(before.preedit) && highlighted == before.highlighted
         && candidates.size() >= before.candidates.size()
         && candidates.subList(0, before.candidates.size()).equals(before.candidates);

@@ -178,6 +178,7 @@ public final class RimeCandidatesView extends LinearLayout
 
   private CharSequence statusText(InputSnapshot snapshot)
   {
+    if (snapshot.error.equals(OfflineDataException.SETUP_MESSAGE)) return getContext().getString(R.string.wanxiang_setup_input);
     if (!snapshot.error.isEmpty()) return getContext().getString(snapshot.error.equals(OfflineDataException.MESSAGE)
         ? R.string.miancak_data_unavailable : snapshot.engineAllowed ? R.string.miancak_retry : R.string.miancak_refocus);
     if (snapshot.initializing) return getContext().getString(R.string.miancak_initializing);

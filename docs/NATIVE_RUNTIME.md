@@ -15,7 +15,7 @@ python3 scripts/prepare_rime.py
 python3 scripts/check_native_apk.py build/outputs/apk/debug/*.apk
 ```
 
-Preparation downloads pinned sources into ignored `.native/`, verifies the Boost archive SHA-256 and generates APK assets in `build/generated-rime-assets/`. Run it again after `clean`. Downloads happen at build time, never in the typing path. Existing source caches can be reused; no signing secret is needed.
+Preparation downloads pinned build inputs into ignored `.native/`, verifies the Boost archive SHA-256 and generates the APK assets in `build/generated-rime-delivery/`. Run it again after `clean`. For a full Wanxiang host fixture in `build/generated-rime-assets/`, pass `--with-runtime-fixture`. The follow-up APK's resource download is explicit in [Chinese input setup](WANXIANG_SETUP.md). Normal typing uses local data. Existing source caches can be reused and no signing secret is needed.
 
 Declared APK ABIs: `arm64-v8a`, `armeabi-v7a`, `x86_64`. A local subset can be selected with `-PmiancakAbis=x86_64`; the standard packaging check intentionally requires all declared ABIs. Shared libraries use 16 KiB maximum ELF page alignment; APKs also require ZIP 16 KiB alignment. These static checks do not establish runtime on a verified 16 KiB-page guest. The inherited cdict C bridge is built by the same CMake entry point; `vendor/Android.mk` is retained for upstream provenance.
 

@@ -15,13 +15,15 @@ import json
 from pathlib import Path
 import struct
 import zipfile
-from apk_asset_inventory import read_manifest, size_report, verify_archive_names, verify_wanxiang_inventory
+from apk_asset_inventory import read_manifest, size_report, verify_archive_names, verify_wanxiang_inventory, wanxiang_apk_files
+from prepare_rime_delivery import delivery_plan
 
 root = Path(__file__).resolve().parent.parent
 lock = json.loads((root / "native/sources.lock.json").read_text())
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("apk", type=Path)
 parser.add_argument("--release", action="store_true")
+parser.add_argument("--historical-bundled", action="store_true", help="Validate a Wanxiang APK built before post-install delivery")
 parser.add_argument("--size-report", type=Path, help="Write a bounded static ZIP size report after all checks pass")
 args = parser.parse_args()
 apk = args.apk
@@ -49,7 +51,13 @@ with zipfile.ZipFile(apk) as archive:
     assert dictionary_bytes > 100000
     print(f"APK bytes: {apk.stat().st_size}; packaged dictionary bytes: {dictionary_bytes}")
     manifest = read_manifest(archive)
+    pack_lock = json.loads((root / "native/word-pack.lock.json").read_text())
+    delivery = pack_lock.get("default_profile") == "wanxiang-base" and not args.historical_bundled
+    wanxiang = json.loads((root / "native/wanxiang.lock.json").read_text()) if pack_lock.get("default_profile") == "wanxiang-base" else None
+    apk_files = wanxiang_apk_files(wanxiang) if delivery else manifest.keys()
     for name, digest in manifest.items():
+        if name not in apk_files:
+            continue
         hashed = hashlib.sha256()
         with archive.open("assets/rime/" + name) as source:
             for block in iter(lambda: source.read(1024 * 1024), b""): hashed.update(block)
@@ -63,7 +71,6 @@ with zipfile.ZipFile(apk) as archive:
             assert method in dex, (method, "Configuration/recovery JNI method was removed or renamed")
     assert json.loads(archive.read("assets/native-sources.json"))["librime"] == lock["librime"]
     assert any(name.startswith("assets/third-party/pinyin-simp/LICENSE") for name in archive.namelist())
-    pack_lock = json.loads((root / "native/word-pack.lock.json").read_text())
     if pack_lock.get("default_profile") == "ice-core":
         pack = json.loads(archive.read("assets/word-pack/current.json"))
         assert pack["profile"] == "ice-core" and pack["source"] == pack_lock["candidate"]
@@ -84,18 +91,23 @@ with zipfile.ZipFile(apk) as archive:
         assert hashlib.sha256(restored).hexdigest() == "e341598343a0f0f2035bb1aafc34a7f3bb7887deeecb3f60796262aaa2983e6b"
         print("Verified ice-core: 551875 unchanged source rows, attribution and offline 0.3.0 fallback")
     elif pack_lock.get("default_profile") == "wanxiang-base":
-        wanxiang = json.loads((root / "native/wanxiang.lock.json").read_text())
-        verify_wanxiang_inventory(archive.namelist(), manifest, wanxiang)
+        verify_wanxiang_inventory(archive.namelist(), manifest, wanxiang, delivery=delivery)
         pack = json.loads(archive.read("assets/word-pack/current.json"))
         assert pack["profile"] == "wanxiang-base" and pack["base"] == wanxiang["base"] and pack["model"] == wanxiang["model"]
         assert json.loads(archive.read("assets/native-sources.json"))["word_pack"] == pack
         for source in wanxiang["files"]:
             name = "wanxiang_defaults.yaml" if source["path"] == "default.yaml" else source["path"]
             assert manifest[name] == source["sha256"], name
-            assert archive.getinfo("assets/rime/" + name).file_size == source["bytes"], name
+            if name in apk_files:
+                assert archive.getinfo("assets/rime/" + name).file_size == source["bytes"], name
         model = wanxiang["model"]
         assert manifest[model["filename"]] == model["sha256"]
-        assert archive.getinfo("assets/rime/" + model["filename"]).file_size == model["bytes"]
+        if delivery:
+            overlays = {name: {"bytes": archive.getinfo("assets/rime/" + name).file_size, "sha256": manifest[name]}
+                        for name in apk_files}
+            assert json.loads(archive.read("assets/rime/delivery.json")) == delivery_plan(wanxiang, overlays)
+        else:
+            assert archive.getinfo("assets/rime/" + model["filename"]).file_size == model["bytes"]
         for variant in ("pro", "lite", "pure"):
             assert "assets/rime/wanxiang_" + variant + ".schema.yaml" not in archive.namelist()
         for name in ("base-LICENSE", "model-LICENSE", "model-LICENSE-SCOPE.md", "model-NOTICE.md"):
@@ -107,13 +119,15 @@ with zipfile.ZipFile(apk) as archive:
             assert b"octagram" in binary and b"lua" in binary, (abi, "missing static module registration")
             for method in (b"customConfig", b"requireClosedForRecovery", b"recoverLegacyCopy"):
                 assert b"Java_juloo_keyboard2_input_RimeEngine_" + method in binary, (abi, method, "missing configuration/recovery JNI entry")
-        print("Verified locked Wanxiang Base, full grammar, immutable source bytes and static module markers; runtime still requires device acceptance")
+        print("Verified pinned post-install resource plan and static module markers" if delivery else
+              "Verified bundled Base and full grammar bytes and static module markers")
     if args.size_report:
         report = size_report(archive, apk.stat().st_size)
         with apk.open("rb") as source:
             apk_hash = hashlib.file_digest(source, "sha256").hexdigest()
         report.update(apk_sha256=apk_hash,
                       asset_content_hashes_verified=True, native_abis=lock["abis"],
+                      post_install_delivery=delivery,
                       default_profile=pack_lock.get("default_profile"), release_checks=args.release)
         args.size_report.write_text(json.dumps(report, indent=2) + "\n")
 print("Verified declared native ABIs, 16 KiB ELF alignment, hashed offline data and provenance")

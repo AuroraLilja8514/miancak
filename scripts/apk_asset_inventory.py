@@ -48,23 +48,40 @@ def read_manifest(archive):
     return manifest
 
 
-def verify_wanxiang_inventory(names, manifest, lock):
+def wanxiang_delivered_files(lock):
+    names = ["wanxiang_defaults.yaml" if f["path"] == "default.yaml" else f["path"] for f in lock["files"]]
+    require(len(set(names)) == len(names) and lock["model"]["filename"] not in names,
+            "Duplicate or colliding Base source path")
+    files = dict(zip(names, (f["sha256"] for f in lock["files"])))
+    files[lock["model"]["filename"]] = lock["model"]["sha256"]
+    return files
+
+
+def wanxiang_apk_files(lock):
+    # Signed APK owns the pinned Lua, schema and conversion configuration.
+    # The verified upstream archive supplies only the locked data subset.
+    configuration = {"wanxiang_defaults.yaml" if entry["path"] == "default.yaml" else entry["path"]
+                     for entry in lock["files"] if entry["path"].endswith((".lua", ".yaml", ".json"))
+                     and not entry["path"].endswith(".dict.yaml")}
+    return MANAGED_RIME | configuration | {"version.txt"}
+
+
+def verify_wanxiang_inventory(names, manifest, lock, *, delivery=False):
     """The full pinned Base, one grammar and explicit MIANCAK compatibility only.
 
     This checks membership. check_native_apk separately hashes every asset and
     compares all upstream source/model hashes, sizes, modules and native ABIs.
     """
     verify_archive_names(names)
-    upstream = {"wanxiang_defaults.yaml" if f["path"] == "default.yaml" else f["path"]
-                for f in lock["files"]}
-    require(len(upstream) == len(lock["files"]), "Duplicate or colliding Base source path")
-    expected = upstream | MANAGED_RIME | {lock["model"]["filename"]}
+    expected = set(wanxiang_delivered_files(lock)) | MANAGED_RIME
     require(set(manifest) == expected, "Rime inventory differs from pinned Base and managed compatibility assets")
     files = {n for n in names if not n.endswith("/")}
     actual = {n[len("assets/rime/"):] for n in files if n.startswith("assets/rime/")}
-    require(actual == expected | {"manifest.json"}, "Extra or missing packaged Rime assets")
+    packaged = wanxiang_apk_files(lock) | {"manifest.json", "delivery.json"} if delivery else expected | {"manifest.json"}
+    require(actual == packaged, "Extra or missing packaged Rime assets")
     grammars = {n for n in files if PurePosixPath(n).suffix.lower() == ".gram"}
-    require(grammars == {"assets/rime/" + lock["model"]["filename"]}, "APK must contain exactly the requested grammar model")
+    expected_grammars = set() if delivery else {"assets/rime/" + lock["model"]["filename"]}
+    require(grammars == expected_grammars, "APK must contain exactly the requested grammar model inventory")
     tables = {n[len("assets/word-pack/"):] for n in files if n.startswith("assets/word-pack/")}
     require(tables == WORD_PACK, "Extra or missing compatibility word-pack assets")
 

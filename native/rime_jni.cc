@@ -1,7 +1,10 @@
 #include <jni.h>
 #include <rime_api.h>
+#include <rime/candidate.h>
 #include <rime/context.h>
+#include <rime/menu.h>
 #include <rime/service.h>
+#include <memory>
 #include <mutex>
 #include <map>
 #include <vector>
@@ -14,7 +17,16 @@
 namespace {
 std::mutex mutex;
 std::set<RimeSessionId> sessions;
-std::map<RimeSessionId,int> candidate_bases;
+struct VisibleChoice {
+  std::weak_ptr<rime::Candidate> object;
+  size_t start, end;
+};
+struct CandidateWindow {
+  int base = 0;
+  std::weak_ptr<rime::Menu> menu;
+  std::vector<VisibleChoice> choices;
+};
+std::map<RimeSessionId, CandidateWindow> candidate_windows;
 std::string shared_path, user_path, build_path, prebuilt_path;
 RimeApi* api = nullptr;
 
@@ -89,6 +101,31 @@ bool release_to_english(RimeSessionId id) {
   return context->Commit();
 }
 
+bool remember_window(RimeSessionId id, int base, size_t count, bool browsing) {
+  // The pinned API's get_context and candidate iterator both read the active
+  // segment's Menu. select_candidate uses the same absolute Menu indices.
+  auto session = rime::Service::instance().GetSession(id);
+  auto* context = session ? session->context() : nullptr;
+  auto menu = context && context->HasMenu() ? context->composition().back().menu : nullptr;
+  auto& previous = candidate_windows[id];
+  CandidateWindow next;
+  next.base = base;
+  next.menu = menu;
+  bool stable = browsing && menu && previous.menu.lock() == menu && previous.base == base &&
+                !previous.choices.empty() && previous.choices.size() <= count;
+  if (menu) for (size_t i = 0; i < count; ++i) {
+    auto candidate = menu->GetCandidateAt(base + i);
+    if (!candidate) { stable = false; break; }
+    next.choices.push_back({candidate, candidate->start(), candidate->end()});
+    if (stable && i < previous.choices.size()) {
+      const auto& old = previous.choices[i];
+      stable = old.object.lock() == candidate && old.start == candidate->start() && old.end == candidate->end();
+    }
+  }
+  previous = std::move(next);
+  return stable;
+}
+
 jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0) {
   RIME_STRUCT(RimeCommit, commit);
   std::string committed;
@@ -117,7 +154,7 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0
   } else if(has_context) {
     for(int i=0;i<context.menu.num_candidates;i++)values.emplace_back(context.menu.candidates[i].text?context.menu.candidates[i].text:"");
   }
-  candidate_bases[id]=base;
+  bool same_native_prefix = remember_window(id, base, values.size(), prefix_limit > 0);
   jclass string_class=env->FindClass("java/lang/String");
   jobjectArray candidates=env->NewObjectArray(values.size(),string_class,nullptr);env->DeleteLocalRef(string_class);
   for(size_t i=0;i<values.size();i++) {
@@ -127,11 +164,11 @@ jobject snapshot(JNIEnv* env, RimeSessionId id, bool handled, int prefix_limit=0
   jstring preedit = string(env, has_context ? context.composition.preedit : "");
   jclass cls = env->FindClass("juloo/keyboard2/input/EngineResult");
   jobject result = env->NewObject(cls, env->GetMethodID(cls, "<init>",
-      "(ZLjava/lang/String;Ljava/lang/String;[Ljava/lang/String;IZZ)V"),
+      "(ZLjava/lang/String;Ljava/lang/String;[Ljava/lang/String;IZZZ)V"),
       static_cast<jboolean>(handled), text, preedit, candidates,
       highlighted,
       static_cast<jboolean>(has_context && context.composition.length > 0),
-      static_cast<jboolean>(last_page));
+      static_cast<jboolean>(last_page), static_cast<jboolean>(same_native_prefix));
   if (has_context) api->free_context(&context);
   env->DeleteLocalRef(cls);
   env->DeleteLocalRef(text);
@@ -279,7 +316,7 @@ Java_juloo_keyboard2_input_RimeEngine_command(JNIEnv* env, jclass, jlong id, jin
   switch (cmd) {
     case 0: handled = confirm_selection(id); break;
     case 1: api->clear_composition(id); flush_idle_learning(id); break;
-    case 2: handled = arg >= 0 && api->select_candidate(id,static_cast<size_t>(candidate_bases[id])+arg); break;
+    case 2: handled = arg >= 0 && api->select_candidate(id, static_cast<size_t>(candidate_windows[id].base) + arg); break;
     case 3: handled = api->change_page(id, arg != 0); break;
     case 4: break; // Inspect without changing composition or re-emitting an old commit.
     case 5:
@@ -296,6 +333,7 @@ Java_juloo_keyboard2_input_RimeEngine_learning(JNIEnv* env, jclass, jlong id, jb
   std::lock_guard<std::mutex> lock(mutex);
   if (!valid(env, id)) return;
   flush_idle_learning(id);
+  candidate_windows.erase(id);
   if (!api->select_schema(id, enabled ? "miancak_pinyin" : "miancak_pinyin_private"))
     fail(env, "Cannot select the requested learning policy");
 }
@@ -307,7 +345,7 @@ Java_juloo_keyboard2_input_RimeEngine_destroy(JNIEnv*, jclass, jlong id) {
   api->clear_composition(id);
   flush_idle_learning(id);
   sessions.erase(id);
-  candidate_bases.erase(id);
+  candidate_windows.erase(id);
   api->destroy_session(id);
   if (sessions.empty()) { api->finalize(); api = nullptr; }
 }

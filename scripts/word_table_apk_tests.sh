@@ -51,6 +51,8 @@ if [[ "$actual_api" -ge 35 ]]; then
 fi
 adb shell mkdir -p /sdcard/Download
 for file in word-test-data/*.dict.yaml; do adb push "$file" /sdcard/Download/; done
+stage_wanxiang_test_assets artifacts/word-baseline.apk
+install_wanxiang_test_assets
 run_test() {
   local name="$1"
   shift

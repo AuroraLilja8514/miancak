@@ -41,6 +41,7 @@ if [[ "$actual_api" -ge 33 && "$MIANCAK_ENTRY_ORDER" == settings-first ]]; then
 fi
 adb shell svc wifi disable
 adb shell svc data disable
+stage_wanxiang_test_assets artifacts/app-debug.apk
 run_phase() {
   local phase="$1"
   shift

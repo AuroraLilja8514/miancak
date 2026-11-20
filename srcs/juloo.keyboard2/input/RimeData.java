@@ -54,6 +54,13 @@ public final class RimeData
   {
     byte[] manifest = packagedManifest(context); Paths paths = identity(context, manifest);
     File shared = paths.shared, user = paths.user;
+    if (hasDeliveryPlan(context))
+    {
+      if (Files.isSymbolicLink(shared.toPath()) || !new File(shared, "manifest.json").isFile() || !validDeployment(shared))
+        throw new WanxiangInstall.SetupRequired();
+      if (!user.isDirectory() && !user.mkdirs()) throw new IOException("Cannot create Rime user directory");
+      return paths;
+    }
     if ((!shared.isDirectory() && !shared.mkdirs()) || (!user.isDirectory() && !user.mkdirs()))
       throw new IOException("Cannot create Rime data directories");
     try
@@ -73,6 +80,12 @@ public final class RimeData
       throw new IOException("Invalid Rime asset manifest", ex);
     }
     return new Paths(shared, user);
+  }
+
+  static boolean hasDeliveryPlan(Context context) throws IOException
+  {
+    String[] entries = context.getAssets().list("rime");
+    return entries != null && java.util.Arrays.asList(entries).contains("delivery.json");
   }
 
   static File managedFile(File root, String name) throws IOException
@@ -183,7 +196,7 @@ public final class RimeData
     return null;
   }
 
-  private static byte[] read(InputStream in) throws IOException
+  static byte[] read(InputStream in) throws IOException
   {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     byte[] buffer = new byte[16384];
@@ -206,13 +219,13 @@ public final class RimeData
     while ((count = in.read(buffer)) != -1) digest.update(buffer, 0, count);
     return hex(digest.digest());
   }
-  private static MessageDigest digest()
+  static MessageDigest digest()
   {
     try
     { return MessageDigest.getInstance("SHA-256"); }
     catch (NoSuchAlgorithmException ex) { throw new AssertionError(ex); }
   }
-  private static String hex(byte[] bytes)
+  static String hex(byte[] bytes)
   {
     StringBuilder result = new StringBuilder(); String hex = "0123456789abcdef";
     for (byte b : bytes) result.append(hex.charAt((b & 255) >>> 4)).append(hex.charAt(b & 15));

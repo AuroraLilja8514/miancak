@@ -13,6 +13,10 @@ finite watchdogs. Use the maintained guest guards and wrapper; public evidence
 remains exactly the typed `summary.json` / `heartbeat.jsonl` boundary. Raw logs,
 screenshots, hierarchies, preferences and learning data remain local/ephemeral.
 
+## Post-install resource flow
+
+[Chinese input setup](WANXIANG_SETUP.md) explains the follow-up resource split. The detailed bundled-build procedure and results below retain their original source and scope. For the follow-up, run the guarded first-install driver with both exact files available in `MIANCAK_WANXIANG_FIXTURE_DIR`. Neither file is preinstalled in the app. The driver enables and selects the IME through the normal UI, checks real direct-mode text with networking disabled, then opens normal setup and selects the files in DocumentsUI before testing Chinese, Shift, reopen and reboot. A missing fixture explicitly blocks the setup step. An independent approved network run is still needed for actual transfer, cancellation/retry and offline behavior after download. Record elapsed transfer, unpacking and native compilation separately on Android 15+. The source and Android-test compilation leave those runtime outcomes pending.
+
 ## First deployment, waiting and resource cost
 
 The upstream [Android deployment guide](https://github.com/amzxyz/rime-wanxiang/blob/wanxiang/docs/doc/fcitx5-android.md)

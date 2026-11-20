@@ -3,6 +3,7 @@
   <PreferenceCategory android:title="@string/pref_category_layout">
     <Preference android:key="pages" android:title="@string/pages_title" android:summary="@string/pages_summary"/>
     <Preference android:key="word_tables" android:title="@string/words_title" android:summary="@string/words_summary"/>
+    <Preference android:key="wanxiang_setup" android:title="@string/wanxiang_setup_title"/>
     <PreferenceScreen android:title="@string/pref_extra_keys_title">
       <PreferenceCategory android:title="@string/pref_extra_keys_custom">
         <juloo.keyboard2.prefs.CustomExtraKeysPreference/>

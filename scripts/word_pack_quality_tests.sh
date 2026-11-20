@@ -34,6 +34,8 @@ actual_api="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 [[ "$actual_api" == "$MIANCAK_TEST_API" ]]
 adb shell svc wifi disable
 adb shell svc data disable
+stage_wanxiang_test_assets artifacts/app-debug.apk
+install_wanxiang_test_assets
 adb shell am instrument -w -e class juloo.keyboard2.input.WordPackQualityTest org.miancak.keyboard.debug.test/androidx.test.runner.AndroidJUnitRunner | tee test-results/quality.log
 ! grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' test-results/quality.log
 grep -Eq 'OK \(' test-results/quality.log

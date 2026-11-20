@@ -399,7 +399,7 @@ public final class InputController implements AutoCloseable
       EngineResult before = state;
       try { work.run(edits); }
       catch (Exception | LinkageError ex)
-      { error = ex instanceof OfflineDataException ? OfflineDataException.MESSAGE : "Chinese input is unavailable. Tap the language button to retry."; }
+      { error = ex instanceof OfflineDataException ? ex.getMessage() : "Chinese input is unavailable. Tap the language button to retry."; }
       workerRevision = revisions.incrementAndGet();
       // A tap on the still displayed row can wait behind an append-only load.
       // Every other operation invalidates the old ranks, even if text looks identical.

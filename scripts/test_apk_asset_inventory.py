@@ -9,8 +9,8 @@ import apk_asset_inventory as inventory
 
 class ApkAssetInventoryTest(unittest.TestCase):
     def fixture(self):
-        lock = {"files": [{"path": "default.yaml"}, {"path": "wanxiang.schema.yaml"}],
-                "model": {"filename": "wanxiang-lts-zh-hans.gram"}}
+        lock = {"files": [{"path": name, "sha256": "0" * 64} for name in ("default.yaml", "wanxiang.schema.yaml")],
+                "model": {"filename": "wanxiang-lts-zh-hans.gram", "sha256": "0" * 64}}
         manifest = {name: "0" * 64 for name in (
             "wanxiang_defaults.yaml", "wanxiang.schema.yaml", "default.yaml",
             "miancak_pinyin.schema.yaml", "miancak_pinyin_private.schema.yaml",
@@ -57,6 +57,20 @@ class ApkAssetInventoryTest(unittest.TestCase):
         lock, manifest, names = self.fixture()
         with self.assertRaisesRegex(ValueError, "compatibility word-pack"):
             inventory.verify_wanxiang_inventory(names + ["assets/word-pack/ice-full.dict.yaml"], manifest, lock)
+
+    def test_delivery_keeps_signed_configuration_and_excludes_download_payload(self):
+        lock, manifest, names = self.fixture()
+        for source in ("lua/wanxiang/processor.lua", "dicts/base.dict.yaml"):
+            lock["files"].append({"path": source, "sha256": "0" * 64})
+            manifest[source] = "0" * 64
+        names = [name for name in names if not name.endswith(".gram")] + [
+            "assets/rime/delivery.json", "assets/rime/version.txt", "assets/rime/lua/wanxiang/processor.lua"]
+        manifest["version.txt"] = "0" * 64; lock["files"].append({"path": "version.txt", "sha256": "0" * 64})
+        inventory.verify_wanxiang_inventory(names, manifest, lock, delivery=True)
+        with self.assertRaisesRegex(ValueError, "Extra or missing"):
+            inventory.verify_wanxiang_inventory(names + ["assets/rime/dicts/base.dict.yaml"], manifest, lock, delivery=True)
+        with self.assertRaisesRegex(ValueError, "Extra or missing"):
+            inventory.verify_wanxiang_inventory(names[:-1], manifest, lock, delivery=True)
 
     def test_colliding_upstream_default_alias_is_refused(self):
         lock, manifest, names = self.fixture()

@@ -32,6 +32,9 @@ public class LauncherActivity extends Activity implements Handler.Callback
   {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.launcher_activity);
+    View setup = findViewById(R.id.launcher_wanxiang_setup);
+    setup.setEnabled(getSystemService(android.os.UserManager.class).isUserUnlocked());
+    setup.setOnClickListener(view -> startActivity(new Intent(this, WanxiangSetupActivity.class)));
     // Android 15 enforces edge-to-edge for this activity. Include the IME
     // inset so the real try-here field scrolls above the keyboard as it opens.
     if (VERSION.SDK_INT >= 35)

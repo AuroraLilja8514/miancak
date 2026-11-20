@@ -47,7 +47,7 @@ android {
       manifest.srcFile("AndroidManifest.xml")
       java.srcDirs("srcs/juloo.keyboard2", "vendor/cdict/java/juloo.cdict")
       res.srcDirs("res", "build/generated-resources")
-      assets.srcDirs("assets", "build/generated-rime-assets")
+      assets.srcDirs("assets", "build/generated-rime-delivery")
     }
 
     named("test") {

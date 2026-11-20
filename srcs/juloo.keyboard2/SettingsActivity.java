@@ -27,8 +27,14 @@ public class SettingsActivity extends PreferenceActivity
     findPreference("word_tables").setOnPreferenceClickListener(preference -> {
       startActivity(new android.content.Intent(this, WordTableActivity.class)); return true;
     });
+    findPreference("wanxiang_setup").setOnPreferenceClickListener(preference -> {
+      startActivity(new android.content.Intent(this, WanxiangSetupActivity.class)); return true;
+    });
     if (Build.VERSION.SDK_INT >= 24 && !((android.os.UserManager)getSystemService(USER_SERVICE)).isUserUnlocked())
-    { findPreference("word_tables").setEnabled(false); findPreference("word_tables").setSummary(R.string.words_unlock); }
+    {
+      findPreference("word_tables").setEnabled(false); findPreference("word_tables").setSummary(R.string.words_unlock);
+      findPreference("wanxiang_setup").setEnabled(false); findPreference("wanxiang_setup").setSummary(R.string.words_unlock);
+    }
 
     boolean foldableDevice = FoldStateTracker.isFoldableDevice(this);
     findPreference("margin_bottom_portrait_unfolded").setEnabled(foldableDevice);

@@ -58,6 +58,8 @@ fi
 if [[ "$actual_api" -ge 35 ]]; then adb shell settings put system font_scale 1.3; fi
 adb shell svc wifi disable
 adb shell svc data disable
+stage_wanxiang_test_assets artifacts/app-debug.apk
+install_wanxiang_test_assets
 run_tests() {
   local result_name="$1"
   shift

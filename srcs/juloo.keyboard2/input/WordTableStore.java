@@ -333,7 +333,8 @@ public final class WordTableStore
       {
         RimeData.Paths retained = retainedPaths(saved, identity, true);
         if (retained == null) throw new OfflineDataException(failure);
-        defer(saved, "Offline data preparation failed; using verified retained data. Retry preparation in Word tables after checking free storage / 离线数据准备失败，正使用已校验的保留数据；检查可用存储后可在词表中重试");
+        if (!(failure instanceof WanxiangInstall.SetupRequired))
+          defer(saved, "Offline data preparation failed; using verified retained data. Retry preparation in Word tables after checking free storage / 离线数据准备失败，正使用已校验的保留数据；检查可用存储后可在词表中重试");
         return retained;
       }
       Selection active = selection(saved.getJSONObject("current"));

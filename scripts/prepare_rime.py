@@ -9,6 +9,7 @@ if __name__ == "__main__":
     from run_with_timeout import guard_script as _guard_script
     _guard_script(__file__)
 
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -62,7 +63,7 @@ def copy_notices(source, name):
         shutil.copyfile(p, out)
 
 
-def main():
+def main(*, with_runtime_fixture=False):
     CACHE.mkdir(exist_ok=True)
     rime = checkout("librime", LOCK["librime"])
     git(rime, "submodule", "update", "--init", "--recursive", "--depth=1",
@@ -100,9 +101,12 @@ def main():
     word_pack = install_default(report, ASSETS) if profile == "ice-core" else None
     if profile == "wanxiang-base":
         from prepare_wanxiang import prepare as prepare_wanxiang
-        word_pack = prepare_wanxiang(ASSETS, plugins)
+        word_pack = prepare_wanxiang(ASSETS, plugins, include_model=with_runtime_fixture)
     from prepare_wanxiang import sha256
     manifest = {p.relative_to(data).as_posix(): sha256(p) for p in sorted(data.rglob("*")) if p.is_file()}
+    if profile == "wanxiang-base" and not with_runtime_fixture:
+        model = word_pack["model"]
+        manifest[model["filename"]] = model["sha256"]
     (data / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
     metadata = dict(LOCK)
     if word_pack is not None:
@@ -121,8 +125,18 @@ def main():
             out = ASSETS / "third-party/librime" / name
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(rime / name, out)
-    print("Prepared locked native sources and hashed offline pinyin assets", flush=True)
+    delivery = ASSETS.with_name("generated-rime-delivery")
+    if profile == "wanxiang-base":
+        from prepare_rime_delivery import prepare as prepare_delivery
+        prepare_delivery(ASSETS, delivery)
+    else:
+        if delivery.exists():
+            shutil.rmtree(delivery)
+        shutil.copytree(ASSETS, delivery)
+    print("Prepared locked native sources and APK pinyin assets", flush=True)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--with-runtime-fixture", action="store_true", help="Also verify and stage the locked grammar for host runtime tests")
+    main(with_runtime_fixture=parser.parse_args().with_runtime_fixture)

@@ -95,6 +95,18 @@ public final class FirstInstallTest
       selectThroughAndroidPicker(revisit);
       launch();
       focusEditor();
+      if (!revisit && WanxiangSetupTest.splitResources(context))
+      {
+        // The same empty install remains offline. Exercise the editor before
+        // copying public resources via the real setup screen, without changing preferences.
+        awaitLanguage("EN");
+        type("hello"); press("2", "en"); awaitEditor("hello2");
+        object("launcher_tryhere_area").setText("");
+        pressBack(); WanxiangSetupTest.install(context, device, true);
+        launch(); focusEditor();
+        if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
+        awaitLanguage("中文");
+      }
       screenshot(revisit ? "reopened-default-keyboard" : "first-visible-keyboard");
       assertEquals("中文", object("miancak_language").getText());
       assertTrue("The visible keyboard must use the Chinese main page",

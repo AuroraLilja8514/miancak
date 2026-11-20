@@ -56,23 +56,33 @@ public final class WordTableRuntime
   public static void refresh(Context context) { if (!busy) run(context, false, store -> {}); }
   public static void run(Context context, boolean changesEngine, Operation operation)
   {
+    Context app = context.getApplicationContext();
+    runTask(app, changesEngine, () -> operation.run(new WordTableStore(app)), failure -> {});
+  }
+
+  static void activateResources(Context app, InputController.Maintenance install, InputController.MaintenanceListener completed)
+  { runTask(app, true, install, completed); }
+
+  private static void runTask(Context app, boolean changesEngine, InputController.Maintenance operation,
+                              InputController.MaintenanceListener completed)
+  {
     if (Looper.myLooper() != Looper.getMainLooper()) throw new IllegalStateException("Settings API belongs to UI");
     // Returning from DocumentsUI starts the activity (and its refresh) before
     // onActivityResult. Never discard that explicit import behind a refresh.
-    if (busy) { queued.add(() -> run(context.getApplicationContext(), changesEngine, operation)); return; }
-    Context app = context.getApplicationContext(); busy = true; updating = changesEngine; error = ""; publish();
+    if (busy) { queued.add(() -> runTask(app, changesEngine, operation, completed)); return; }
+    busy = true; updating = changesEngine; error = ""; publish();
     InputController current = controller.get();
     if (changesEngine && current != null)
-      current.reconfigure(() -> operation.run(new WordTableStore(app)), failure -> finish(app, failure));
+      current.reconfigure(operation, failure -> finish(app, failure, completed));
     else WORKER.execute(() -> {
       String failure = "";
-      try { operation.run(new WordTableStore(app)); }
+      try { operation.run(); }
       catch (Exception | LinkageError invalid) { failure = detail(invalid); }
       final String result = failure;
-      UI.post(() -> finish(app, result));
+      UI.post(() -> finish(app, result, completed));
     });
   }
-  private static void finish(Context context, String failure)
+  private static void finish(Context context, String failure, InputController.MaintenanceListener completed)
   {
     WORKER.execute(() -> {
       WordTableStore.View next = view; String issue = failure;
@@ -83,6 +93,7 @@ public final class WordTableRuntime
         view = result; error = message; busy = false; updating = false;
         InputController current = controller.get(); if (current != null) current.releaseExternalUpdate();
         if (queued.isEmpty()) publish(); else queued.remove().run();
+        completed.completed(failure);
       });
     });
   }
