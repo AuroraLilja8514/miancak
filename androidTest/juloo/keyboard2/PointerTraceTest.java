@@ -134,6 +134,35 @@ public final class PointerTraceTest
     });
   }
 
+  @Test public void holdingACompletedGestureEmitsOnlyOnceWhileAnOrdinaryKeyCanRepeat() throws Exception
+  {
+    Trace[] active = new Trace[4];
+    java.util.concurrent.CountDownLatch deadline = new java.util.concurrent.CountDownLatch(1);
+    main(() -> {
+      config.longPressTimeout = 80;
+      config.longPressInterval = 25;
+      config.keyrepeat_enabled = true;
+      KeyboardData.Key edited = key();
+      edited.keys[0] = KeyValue.layered(letter('a'), literal("转"));
+      edited.keys[7] = KeyValue.layered(letter('h'), literal("上"));
+      for (int i = 0; i < active.length; i++) { active[i] = create(edited); active[i].start(); }
+      active[0].move(0, -100); active[0].move(-100, 0);
+      active[1].move(0, -100); active[1].move(100, 0);
+      active[2].move(0, -100); active[2].move(0, 0);
+      new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(deadline::countDown, 180);
+    });
+    assertTrue("Android main looper did not cross the repeat deadline", deadline.await(5, java.util.concurrent.TimeUnit.SECONDS));
+    main(() -> {
+      for (Trace trace : active) trace.finish();
+      for (int i = 0; i < 3; i++) assertTrue("Gesture emitted a repeat before release", active[i].holds.isEmpty());
+      expect("held-anticlockwise", active[0], literal("逆"));
+      expect("held-clockwise", active[1], literal("转"));
+      expect("held-roundtrip", active[2], literal("上"));
+      assertFalse("Plain key repeat must remain available", active[3].holds.isEmpty());
+      expect("held-plain-key", active[3], letter('a'));
+    });
+  }
+
   @Test public void rotationSensitivityWrapAndReversalAreExplicit() throws Exception
   {
     main(() -> {

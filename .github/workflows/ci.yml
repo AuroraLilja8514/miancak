@@ -86,6 +86,7 @@ jobs:
           python3 scripts/check_project_identity.py
           python3 scripts/test_project_identity.py
           python3 scripts/test_prepare_wanxiang.py --timeout-seconds 120
+          python3 scripts/test_apk_asset_inventory.py --timeout-seconds 120
           python3 scripts/gen_phonetic_pages.py
           python3 scripts/test_phonetic_pages.py
           python3 scripts/check_word_table_fixtures.py

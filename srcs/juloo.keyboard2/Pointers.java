@@ -295,7 +295,7 @@ public final class Pointers implements Handler.Callback
       ptr.gesture.moved_to_center();
       ptr.value = apply_gesture(ptr, ptr.gesture.get_gesture());
       ptr.flags = 0;
-
+      stopLongPress(ptr);
     }
     else
     { // Pointer is on a quadrant.
@@ -324,6 +324,9 @@ public final class Pointers implements Handler.Callback
       }
       else if (ptr.gesture.changed_direction(direction))
       { // Gesture changed state
+        // Round trips and rotations represent one selection on release. The
+        // long-press timer belongs to the original tap or simple swipe.
+        stopLongPress(ptr);
         if (!ptr.gesture.is_in_progress())
         { // Gesture ended
           _handler.onPointerFlagsChanged(true);
@@ -331,7 +334,6 @@ public final class Pointers implements Handler.Callback
         else
         {
           ptr.value = apply_gesture(ptr, ptr.gesture.get_gesture());
-          restartLongPress(ptr);
           ptr.flags = 0; // Special behaviors are ignored during a gesture.
           _handler.onPointerFlagsChanged(true); // Vibrate
         }
@@ -428,12 +430,7 @@ public final class Pointers implements Handler.Callback
   private void stopLongPress(Pointer ptr)
   {
     _longpress_handler.removeMessages(ptr.timeoutWhat);
-  }
-
-  private void restartLongPress(Pointer ptr)
-  {
-    stopLongPress(ptr);
-    startLongPress(ptr);
+    ptr.timeoutWhat = -1;
   }
 
   /** A pointer is long pressing. */
