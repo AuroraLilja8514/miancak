@@ -358,7 +358,7 @@ public class Keyboard2View extends View
     float labelBaseSize = Math.min(
         _tc.row_height - _tc.vertical_margin,
         (width / 10 - _tc.horizontal_margin) * 3/2
-        ) * _config.characterSize;
+        ) * _config.characterSize * (_config.orientation_landscape ? 1.16f : 1f);
     _mainLabelSize = labelBaseSize * _config.labelTextSize;
     _subLabelSize = labelBaseSize * _config.sublabelTextSize;
     int height =

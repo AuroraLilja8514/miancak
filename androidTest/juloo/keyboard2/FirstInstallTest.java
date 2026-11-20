@@ -545,6 +545,11 @@ public final class FirstInstallTest
     awaitEditor(mixed);
     object("miancak_language").click();
     awaitLanguage("中文");
+    type("nihao");
+    assertEquals("你好", candidate());
+    swipe('c', -1, -1);
+    mixed += "你好。";
+    awaitEditor(mixed);
     return mixed;
   }
 

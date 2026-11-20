@@ -35,4 +35,12 @@ public final class EngineResult
     return new EngineResult(handled, text, preedit, candidates.toArray(new String[0]),
         highlighted, composing, lastPage);
   }
+
+  boolean extendsCandidatePrefix(EngineResult before)
+  {
+    return handled && composing && before.composing && committed.isEmpty()
+        && preedit.equals(before.preedit) && highlighted == before.highlighted
+        && candidates.size() >= before.candidates.size()
+        && candidates.subList(0, before.candidates.size()).equals(before.candidates);
+  }
 }

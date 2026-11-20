@@ -326,6 +326,10 @@ public class ImeInteractionTest
       device.pressBack();
       assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
       assertNotNull(keyboard());
+      assertEquals(output, text(activity.first));
+      find("miancak_expand_candidates").click();
+      output = selectVisibleExpandedCandidate(activity.first, output);
+      type("shi"); candidate();
       find("miancak_cancel").click(); awaitIdlePreedit();
       assertEquals(output, text(activity.first));
       // Space confirms once, while Backspace edits preedit before editor text.
@@ -416,6 +420,16 @@ public class ImeInteractionTest
       assertEquals(landscapeChinese, keyboard().getVisibleBounds());
       screenshot("rotation-landscape-english");
       language().click(); awaitMode("中文");
+      activity = (ImeTestActivity)instrumentation.startActivitySync(new Intent(context, ImeTestActivity.class)
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+      focus(activity.first); ensureChinese();
+      String landscapeOutput = "";
+      for (int repeat = 0; repeat < 2; repeat++)
+      {
+        type("shi"); candidate();
+        find("miancak_expand_candidates").click();
+        landscapeOutput = selectVisibleExpandedCandidate(activity.first, landscapeOutput);
+      }
       device.setOrientationNatural();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
@@ -549,6 +563,19 @@ public class ImeInteractionTest
     assertEquals("Unexpected candidate page", equal, value.equals(text));
   }
   private void awaitIdlePreedit() { assertTrue(device.wait(Until.gone(By.descStartsWith("Pinyin: ")), 15000)); }
+
+  private String selectVisibleExpandedCandidate(EditText editor, String output)
+  {
+    UiObject2 panel = find("miancak_expanded_candidates");
+    assertNotNull(panel);
+    UiObject2 choice = panel.wait(Until.findObject(By.descStartsWith("Candidate ")), 15000);
+    assertNotNull("The reopened candidate pane must offer a visible choice", choice);
+    String expected = output + choice.getText();
+    choice.click();
+    awaitText(editor, expected);
+    assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+    return expected;
+  }
   private void awaitOrientation(int expected)
   {
     long end = SystemClock.uptimeMillis() + 15000;

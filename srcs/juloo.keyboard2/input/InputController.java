@@ -59,6 +59,7 @@ public final class InputController implements AutoCloseable
   private EngineResult state = EngineResult.EMPTY;
   private Mode mode = Mode.ENGLISH;
   private long workerRevision;
+  private long firstSelectableRevision;
 
   public InputController(Executor worker, Executor ui, EngineFactory factory, Listener listener)
   {
@@ -174,15 +175,22 @@ public final class InputController implements AutoCloseable
   }
 
   public void select(InputSnapshot displayed, int index)
+  { select(displayed, index, null); }
+
+  /** Notify the view only when this selection reaches its current editor. */
+  public void select(InputSnapshot displayed, int index, Runnable applied)
   {
     checkUi();
     Handle handle = active;
-    if (maintenance || !current(handle) || displayed.generation != handle.generation) return;
+    if (maintenance || !current(handle) || displayed != snapshot || !displayed.engine.composing
+        || index < 0 || index >= displayed.engine.candidates.size()) return;
+    boolean[] selected = {false};
     queue(handle, edits -> {
-      if (displayed.revision != workerRevision || !state.composing
-          || index < 0 || index >= state.candidates.size()) return;
+      if (displayed.revision < firstSelectableRevision || displayed.revision > workerRevision
+          || !state.composing || index >= state.candidates.size()) return;
       accept(getEngine(handle).select(index), edits, false);
-    }, null);
+      selected[0] = true;
+    }, applied == null ? null : () -> { if (selected[0]) applied.run(); });
   }
 
   public void page(InputSnapshot displayed, boolean backward)
@@ -207,7 +215,7 @@ public final class InputController implements AutoCloseable
     queue(handle, edits -> {
       if (displayed.revision != workerRevision || !state.composing || state.lastPage) return;
       state = getEngine(handle).candidates(Math.addExact(state.candidates.size(), 40));
-    }, null);
+    }, null, false, true);
   }
 
   public void cancelComposition()
@@ -271,6 +279,7 @@ public final class InputController implements AutoCloseable
       catch (Exception | LinkageError failed) { error = message(failed); }
       final String confirmationError = error;
       workerRevision = revisions.incrementAndGet();
+      firstSelectableRevision = workerRevision;
       InputSnapshot result = new InputSnapshot(before == null ? generation.get() : before.generation,
           workerRevision, mode, before != null && before.allowed, state, error, false, retainedData());
       ui.execute(() -> {
@@ -370,6 +379,9 @@ public final class InputController implements AutoCloseable
   { queue(handle, work, after, false); }
 
   private void queue(Handle handle, Work work, Runnable after, boolean compositionText)
+  { queue(handle, work, after, compositionText, false); }
+
+  private void queue(Handle handle, Work work, Runnable after, boolean compositionText, boolean extendingCandidates)
   {
     if (compositionText) pendingCompositionText++;
     pending.incrementAndGet();
@@ -384,10 +396,15 @@ public final class InputController implements AutoCloseable
       }
       List<Edit> edits = new ArrayList<>();
       String error = "";
+      EngineResult before = state;
       try { work.run(edits); }
       catch (Exception | LinkageError ex)
       { error = ex instanceof OfflineDataException ? OfflineDataException.MESSAGE : "Chinese input is unavailable. Tap the language button to retry."; }
       workerRevision = revisions.incrementAndGet();
+      // A tap on the still displayed row can wait behind an append-only load.
+      // Every other operation invalidates the old ranks, even if text looks identical.
+      if (!extendingCandidates || !error.isEmpty() || !state.extendsCandidatePrefix(before))
+        firstSelectableRevision = workerRevision;
       InputSnapshot result = new InputSnapshot(handle.generation, workerRevision, mode,
           handle.allowed, state, error, false, retainedData());
       ui.execute(() -> {

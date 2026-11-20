@@ -18,12 +18,15 @@ import juloo.keyboard2.Theme;
 /** Measured compact candidates; expansion occupies the existing keyboard area. */
 public final class RimeCandidatesView extends LinearLayout
 {
+  private static final int CANDIDATE_SP = 18;
+  private static final int TOUCH_WIDTH_SP = 22;
   private final TextView language, preedit, cancel, expand;
   private final LinearLayout candidates;
   private final HorizontalScrollView compactScroll;
   private final LinearLayout candidateRow;
   private final Theme theme;
   private final int rowHeight;
+  private final int leadingInset;
   private InputController controller;
   private InputSnapshot shown;
   private View keyboard;
@@ -49,6 +52,7 @@ public final class RimeCandidatesView extends LinearLayout
   {
     super(context, attrs);
     theme = new Theme(context, attrs);
+    leadingInset = dp(8);
     setOrientation(VERTICAL);
     setLayoutDirection(LAYOUT_DIRECTION_LTR);
     TextView probe = text(26);
@@ -80,6 +84,7 @@ public final class RimeCandidatesView extends LinearLayout
     clickable(cancel);
     top.addView(cancel, new LayoutParams(dp(48), LayoutParams.MATCH_PARENT));
     LinearLayout row = candidateRow = new LinearLayout(context);
+    row.setPadding(leadingInset, 0, 0, 0);
     addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, rowHeight));
     compactScroll=new HorizontalScrollView(context) {
       @Override protected void onScrollChanged(int x,int y,int oldX,int oldY)
@@ -106,8 +111,9 @@ public final class RimeCandidatesView extends LinearLayout
     };
     expandedScroll.setId(R.id.miancak_expanded_candidates);
     expandedScroll.setFillViewport(true);
+    expandedScroll.setPadding(leadingInset, 0, 0, 0);
     expandedScroll.setOnApplyWindowInsetsListener((view, insets) -> {
-      view.setPadding(0,0,0,insets.getSystemWindowInsetBottom());
+      view.setPadding(leadingInset, 0, 0, insets.getSystemWindowInsetBottom());
       return insets;
     });
     expandedFlow = new CandidateFlow(getContext());
@@ -128,7 +134,8 @@ public final class RimeCandidatesView extends LinearLayout
 
   @Override protected void onMeasure(int widthSpec, int heightSpec)
   {
-    int available = Math.max(0, MeasureSpec.getSize(widthSpec) - dp(40));
+    int available = Math.max(0, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight()
+        - candidateRow.getPaddingLeft() - candidateRow.getPaddingRight() - expand.getLayoutParams().width);
     if (available != compactWidth) { compactWidth = available; renderCandidates(); }
     super.onMeasure(widthSpec, heightSpec);
   }
@@ -218,8 +225,7 @@ public final class RimeCandidatesView extends LinearLayout
     for(int i=0;i<widths.length;i++)
     {
       TextView cell=candidate(shown,i,false);
-      cell.measure(MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED),MeasureSpec.makeMeasureSpec(rowHeight,MeasureSpec.EXACTLY));
-      widths[i]=cell.getMeasuredWidth();cells.add(cell);
+      widths[i]=cell.getMinWidth();cells.add(cell);
     }
     int count=expanded?CandidateRowFitter.count(available,widths):widths.length;
     for(int i=0;i<count;i++)candidates.addView(cells.get(i),new LayoutParams(Math.min(widths[i],Math.max(1,available)),LayoutParams.MATCH_PARENT));
@@ -250,7 +256,7 @@ public final class RimeCandidatesView extends LinearLayout
 
   private TextView candidate(InputSnapshot snapshot, int index, boolean full)
   {
-    TextView cell = text(22);
+    TextView cell = text(TOUCH_WIDTH_SP);
     String value = snapshot.engine.candidates.get(index);
     cell.setText(value);
     cell.setContentDescription("Candidate " + (index + 1) + ": " + value);
@@ -263,9 +269,13 @@ public final class RimeCandidatesView extends LinearLayout
     cell.setMinHeight(rowHeight);
     if (index == snapshot.engine.highlighted) cell.setTypeface(null, android.graphics.Typeface.BOLD);
     clickable(cell);
+    // Keep the previous horizontal touch width when reducing the glyph size.
+    cell.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+        MeasureSpec.makeMeasureSpec(rowHeight, MeasureSpec.EXACTLY));
+    cell.setMinWidth(cell.getMeasuredWidth());
+    cell.setTextSize(CANDIDATE_SP);
     cell.setOnClickListener(view -> {
-      collapse();
-      if (controller != null) controller.select(snapshot, index);
+      if (controller != null) controller.select(snapshot, index, () -> { if (expanded) collapse(); });
     });
     return cell;
   }

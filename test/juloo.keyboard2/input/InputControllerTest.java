@@ -246,6 +246,53 @@ public class InputControllerTest
     assertEquals("你好", h.editor.text());
   }
 
+  @Test public void displayedCandidateSurvivesPendingAppendAndCommitsExactlyOnce()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.lastPage = false;
+    h.controller.submit(engineText("shi")); h.flush();
+    InputSnapshot displayed = h.controller.snapshot();
+    h.controller.moreCandidates(displayed);
+    h.worker.all(); // The extended list exists on the worker and the old row is still displayed.
+    assertSame(displayed, h.controller.snapshot());
+    int[] applied = {0};
+    Runnable accepted = () -> { assertEquals("候选", h.editor.text()); applied[0]++; };
+    h.controller.select(displayed, 1, accepted);
+    h.controller.select(displayed, 1, accepted);
+    h.worker.all();
+    assertEquals(0, applied[0]);
+    h.ui.all();
+    assertEquals("候选", h.editor.text());
+    assertEquals(1, applied[0]);
+    assertEquals(1, h.engine.calls.stream().filter(call -> call.equals("select:1")).count());
+  }
+
+  @Test public void aLoadThatChangesRankCannotSelectOrCloseTheOldPanel()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.lastPage = false;
+    h.engine.changePrefix = true;
+    h.controller.submit(engineText("shi")); h.flush();
+    InputSnapshot displayed = h.controller.snapshot();
+    h.controller.moreCandidates(displayed);
+    h.controller.select(displayed, 1, () -> fail("A reordered view cannot close the panel"));
+    h.flush();
+    assertEquals("", h.editor.text());
+    assertFalse(h.engine.calls.contains("select:1"));
+    assertEquals("改序", h.controller.snapshot().engine.candidates.get(1));
+  }
+
+  @Test public void editorRejectionDoesNotAcknowledgeACandidateTap()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.controller.submit(engineText("nihao")); h.flush();
+    h.editor.reject = true;
+    h.controller.select(h.controller.snapshot(), 0, () -> fail("Rejected delivery cannot close the panel"));
+    h.flush();
+    assertEquals("", h.editor.text());
+    assertFalse(h.controller.snapshot().engineAllowed);
+  }
+
   @Test public void candidateTapFromAnOldEditorIsIgnored()
   {
     Harness h = new Harness(Mode.CHINESE);
@@ -593,7 +640,7 @@ public class InputControllerTest
     final List<String> calls = new ArrayList<>();
     final List<Boolean> learning = new ArrayList<>();
     boolean failConfirm, failEnglish, partialFailure, partialSelection;
-    boolean lastPage=true;
+    boolean lastPage=true, changePrefix;
     int closes;
     String selected() { return raw.equals("nihao") ? "你好" : raw.equals("di") ? "第" : raw.equals("ni") ? "你" : raw; }
     EngineResult result(boolean handled, String commit)
@@ -632,6 +679,7 @@ public class InputControllerTest
     @Override public EngineResult candidates(int limit)
     {
       calls.add("candidates:"+limit);String[] values=new String[limit];Arrays.fill(values,"候选");values[0]=selected();
+      if (changePrefix) values[1] = "改序";
       return new EngineResult(true,"",raw,values,0,true,false);
     }
     boolean retained;

@@ -61,4 +61,36 @@ public final class LayoutPresentationTest
       catch(ReflectiveOperationException error){throw new AssertionError(error);}
     });
   }
+
+  @Test public void landscapeEnlargesPaintedLabelsWithoutChangingKeyGeometry()
+  {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+      try
+      {
+        Context c = new ContextThemeWrapper(context(), R.style.Light);
+        SharedPreferences p = c.getSharedPreferences("landscape-label-tests", Context.MODE_PRIVATE);
+        p.edit().putFloat("character_size", .94f).commit();
+        Config config = Config.forPreview(c, p);
+        Keyboard2View view = new Keyboard2View(c, null, config);
+        view.setKeyboard(PageLayouts.forEditor(c, "en", p));
+        int width = View.MeasureSpec.makeMeasureSpec(720, View.MeasureSpec.EXACTLY);
+        int height = View.MeasureSpec.makeMeasureSpec(2000, View.MeasureSpec.AT_MOST);
+        java.lang.reflect.Field main = Keyboard2View.class.getDeclaredField("_mainLabelSize");
+        java.lang.reflect.Field sub = Keyboard2View.class.getDeclaredField("_subLabelSize");
+        main.setAccessible(true); sub.setAccessible(true);
+        config.orientation_landscape = false;
+        view.measure(width, height);
+        float mainSize = main.getFloat(view), subSize = sub.getFloat(view);
+        int measuredHeight = view.getMeasuredHeight();
+        config.orientation_landscape = true;
+        view.forceLayout(); view.measure(width, height);
+        assertTrue(main.getFloat(view) > mainSize);
+        assertTrue(sub.getFloat(view) > subSize);
+        assertEquals(720, view.getMeasuredWidth());
+        assertEquals(measuredHeight, view.getMeasuredHeight());
+        assertEquals(.94f, p.getFloat("character_size", 0f), 0f);
+      }
+      catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    });
+  }
 }

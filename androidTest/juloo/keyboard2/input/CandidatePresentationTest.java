@@ -20,10 +20,14 @@ import static org.junit.Assert.*;
 public class CandidatePresentationTest
 {
   private Context themed(float fontScale)
+  { return themed(fontScale, Configuration.ORIENTATION_UNDEFINED); }
+
+  private Context themed(float fontScale, int orientation)
   {
     Context base = InstrumentationRegistry.getInstrumentation().getTargetContext();
     Configuration config = new Configuration(base.getResources().getConfiguration());
     config.fontScale = fontScale;
+    if (orientation != Configuration.ORIENTATION_UNDEFINED) config.orientation = orientation;
     return new ContextThemeWrapper(base.createConfigurationContext(config), R.style.Light);
   }
 
@@ -98,6 +102,42 @@ public class CandidatePresentationTest
               assertEquals(0,cell.getLayout().getEllipsisCount(0));
             previousRight = cell.getRight();
           }
+        }
+    });
+  }
+
+  @Test public void compactAndExpandedGlyphsScaleWithTheSystemAndKeepTheirInset()
+  {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+      for (int orientation : new int[] {Configuration.ORIENTATION_PORTRAIT, Configuration.ORIENTATION_LANDSCAPE})
+        for (float fontScale : new float[] {1f, 1.8f})
+        {
+          Context c = themed(fontScale, orientation);
+          String longCandidate = "长候选文字用来核对横屏和竖屏的开头间距与实际可用宽度";
+          RimeCandidatesView view = strip(c, new String[] {longCandidate, "候选"});
+          FrameLayout surface = new FrameLayout(c);
+          View keyboard = new View(c);
+          surface.addView(keyboard, new FrameLayout.LayoutParams(-1, dp(c, 200)));
+          view.attachSurface(surface, keyboard);
+          layout(view, dp(c, 240));
+          View compact = view.findViewById(R.id.miancak_candidate_scroll);
+          ViewGroup row = view.findViewById(R.id.miancak_compact_candidates);
+          TextView first = (TextView)row.getChildAt(0);
+          float scaled = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
+              18, c.getResources().getDisplayMetrics());
+          assertEquals(dp(c, 8), compact.getLeft());
+          assertEquals(dp(c, 240) - dp(c, 40) - dp(c, 8), compact.getWidth());
+          assertEquals(scaled, first.getTextSize(), .01f);
+          assertTrue(first.getHeight() >= dp(c, orientation == Configuration.ORIENTATION_LANDSCAPE ? 36 : 44));
+          view.findViewById(R.id.miancak_expand_candidates).performClick();
+          layout(surface, dp(c, 240));
+          ViewGroup scroll = surface.findViewById(R.id.miancak_expanded_candidates);
+          ViewGroup flow = (ViewGroup)scroll.getChildAt(0);
+          TextView expanded = (TextView)flow.getChildAt(0);
+          assertEquals(dp(c, 8), flow.getLeft());
+          assertEquals(scroll.getWidth() - dp(c, 8), flow.getWidth());
+          assertEquals(scaled, expanded.getTextSize(), .01f);
+          assertTrue(expanded.getHeight() >= first.getHeight());
         }
     });
   }
