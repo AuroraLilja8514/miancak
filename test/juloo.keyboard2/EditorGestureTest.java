@@ -35,6 +35,25 @@ public final class EditorGestureTest
     }
   }
 
+  @Test public void unchangedSectorDoesNotCancelTheSharedRotationRecognizer()
+  {
+    for (int sign : new int[] {1, -1})
+    {
+      Gesture rotation = new Gesture(0, 3);
+      int first = (16 + sign * 4) % 16;
+      Gesture.Name expected = sign > 0 ? Gesture.Name.Circle : Gesture.Name.Anticircle;
+      assertTrue(rotation.changed_direction(first));
+      assertFalse("Sampling the same sector is not a reversal", rotation.changed_direction(first));
+      assertTrue(rotation.is_in_progress());
+      assertEquals(expected, rotation.get_gesture());
+      assertFalse(rotation.changed_direction(8));
+      assertEquals(expected, rotation.get_gesture());
+      assertTrue("Actual reversal still cancels", rotation.changed_direction(first));
+      assertFalse(rotation.is_in_progress());
+      assertEquals(Gesture.Name.None, rotation.get_gesture());
+    }
+  }
+
   @Test public void cancelledRotationRetainsTheEffectiveActionLikePointers()
   {
     EditorGesture g=gesture();g.move(100,60);g.move(140,100);g.move(140,80);g.move(100,100);

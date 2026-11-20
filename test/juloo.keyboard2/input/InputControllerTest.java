@@ -333,6 +333,31 @@ public class InputControllerTest
     assertTrue(h.controller.snapshot().engine.composing);
   }
 
+  @Test public void completedCandidateWorkCannotWriteAfterTheEditorIsReplaced()
+  {
+    Harness h = new Harness(Mode.CHINESE);
+    h.engine.lastPage = false;
+    h.controller.submit(engineText("shi")); h.flush();
+    InputSnapshot displayed = h.controller.snapshot();
+    h.controller.moreCandidates(displayed);
+    h.controller.select(displayed, 1, () -> fail("The old editor must not acknowledge a tap"));
+    h.worker.all();
+    assertTrue("Native selection finishes before editor replacement", h.engine.calls.contains("select:1"));
+    assertEquals("", h.editor.text());
+
+    Editor replacement = new Editor();
+    h.controller.startEditor(replacement, Mode.CHINESE, true, true);
+    h.flush();
+    assertEquals("", h.editor.text());
+    assertEquals("", replacement.text());
+    assertFalse(h.controller.snapshot().engine.composing);
+
+    h.controller.submit(engineText("di")); h.flush();
+    h.controller.select(h.controller.snapshot(), 0); h.flush();
+    assertEquals("第", replacement.text());
+    assertEquals("", h.editor.text());
+  }
+
   @Test public void failedLiteralConfirmationCanStillReleaseRawInputToEnglish()
   {
     Harness h = new Harness(Mode.CHINESE);

@@ -2,7 +2,9 @@ package juloo.keyboard2.input;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.os.SystemClock;
 import android.view.ContextThemeWrapper;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -176,7 +178,7 @@ public class CandidatePresentationTest
     });
   }
 
-  @Test public void verifiedAppendKeepsTheExpandedTouchTargetAndUnverifiedMappingReplacesIt()
+  @Test public void verifiedAppendKeepsBothTouchTargetsAndTheExpandedScrollPosition()
   {
     InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
       Context context = themed(1f);
@@ -190,18 +192,45 @@ public class CandidatePresentationTest
       layout(view, dp(context, 240));
       view.findViewById(R.id.miancak_expand_candidates).performClick();
       layout(surface, dp(context, 240));
-      ViewGroup scroll = surface.findViewById(R.id.miancak_expanded_candidates);
+      android.widget.ScrollView scroll = surface.findViewById(R.id.miancak_expanded_candidates);
       ViewGroup flow = (ViewGroup)scroll.getChildAt(0);
-      View pressed = flow.getChildAt(0);
+      ViewGroup row = view.findViewById(R.id.miancak_compact_candidates);
       int originalCount = flow.getChildCount();
+      View compact = row.getChildAt(0), expanded = flow.getChildAt(originalCount - 1);
+      scroll.scrollTo(0, flow.getHeight());
+      int scrollY = scroll.getScrollY();
+      assertTrue(scrollY > 0);
+      java.util.List<Integer> touch = new java.util.ArrayList<>();
+      compact.setOnTouchListener((cell, event) -> { touch.add(event.getActionMasked()); return true; });
+      long down = SystemClock.uptimeMillis();
+      dispatchCandidateTouch(row, compact, down, MotionEvent.ACTION_DOWN);
       view.show(new InputSnapshot(1, 2, InputRouter.Mode.CHINESE, true,
           new EngineResult(true, "", "shi", more, 0, true, false, true), ""));
-      assertSame("Native append must not detach the active touch target", pressed, flow.getChildAt(0));
+      layout(view, dp(context, 240)); layout(surface, dp(context, 240));
+      assertSame("Native append must keep the compact touch target", compact, row.getChildAt(0));
+      assertSame("Native append must keep the scrolled touch target", expanded, flow.getChildAt(originalCount - 1));
+      assertEquals(scrollY, scroll.getScrollY());
       assertEquals(originalCount + 20, flow.getChildCount());
+      dispatchCandidateTouch(row, compact, down, MotionEvent.ACTION_UP);
+      assertEquals(java.util.Arrays.asList(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP), touch);
+
+      touch.clear();
+      dispatchCandidateTouch(row, compact, SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN);
       view.show(new InputSnapshot(1, 3, InputRouter.Mode.CHINESE, true,
           new EngineResult(true, "", "shi", more, 0, true, false), ""));
-      assertNotSame("Equal display text does not prove the selection mapping", pressed, flow.getChildAt(0));
+      assertNull("Equal display text does not prove the compact mapping", compact.getParent());
+      assertNull("Equal display text does not prove the expanded mapping", expanded.getParent());
+      assertEquals(0, scroll.getScrollY());
+      assertEquals(java.util.Arrays.asList(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_CANCEL), touch);
     });
+  }
+
+  private void dispatchCandidateTouch(ViewGroup row, View cell, long down, int action)
+  {
+    MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action,
+        cell.getLeft() + cell.getWidth() / 2f, cell.getTop() + cell.getHeight() / 2f, 0);
+    try { assertTrue(row.dispatchTouchEvent(event)); }
+    finally { event.recycle(); }
   }
   @Test public void denseStripAndExpandedGridKeepRankAndFillEveryRow()
   {

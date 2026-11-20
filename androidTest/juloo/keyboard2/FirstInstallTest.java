@@ -577,7 +577,8 @@ public final class FirstInstallTest
         device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").desc("Pinyin: ni hao shi jie")), 20000));
     BySelector partial = By.pkg(pkg).descStartsWith("Candidate ").text("你好");
     UiObject2 phrase = device.findObject(partial);
-    if (phrase == null)
+    boolean expandedForChoice = phrase == null;
+    if (expandedForChoice)
     {
       object("miancak_expand_candidates").click();
       phrase = device.wait(Until.findObject(partial), 15000);
@@ -587,6 +588,12 @@ public final class FirstInstallTest
     assertTrue("The selected prefix must remain in unfinished composition",
         device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").descStartsWith("Pinyin: 你好")), 15000));
     awaitEditor(expected);
+    if (expandedForChoice)
+    {
+      assertNotNull(object("miancak_expanded_candidates"));
+      object("miancak_expand_candidates").click();
+      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+    }
     tap(0.75f, 2); // Completed center Shift.
     String mixed = expected + "你好shijie";
     awaitEditor(mixed);

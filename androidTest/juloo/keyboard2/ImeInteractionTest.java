@@ -308,18 +308,8 @@ public class ImeInteractionTest
       assertNotNull(find("miancak_expanded_candidates"));
       assertEquals("Expansion must keep the allocated keyboard height", inputBounds, find("miancak_input_surface").getVisibleBounds());
       screenshot("expanded-candidates");
-      assertEquals(pageOne,candidate());UiObject2 eighth=null;
-      for(int attempt=0;attempt<16;attempt++)
-      {
-        eighth=device.findObject(By.descStartsWith("Candidate 80: "));
-        if(eighth!=null && eighth.getVisibleBounds().height()>16)break;
-        UiObject2 panel=find("miancak_expanded_candidates");assertNotNull(panel);
-        panel.setGestureMargin(20);panel.scroll(androidx.test.uiautomator.Direction.DOWN,.6f);
-      }
-      assertNotNull("Candidates omitted from the compact row must remain reachable", eighth);
-      String eighthText = eighth.getText();
-      eighth.click(); output += eighthText; awaitText(activity.first, output);
-      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+      assertEquals(pageOne, candidate());
+      output = commitExpandedCandidate(activity.first, output, scrollToExpandedRank(80));
       type("shi"); candidate();
       find("miancak_expand_candidates").click();
       assertNotNull(find("miancak_expanded_candidates"));
@@ -329,6 +319,7 @@ public class ImeInteractionTest
       assertEquals(output, text(activity.first));
       find("miancak_expand_candidates").click();
       output = selectVisibleExpandedCandidate(activity.first, output);
+      output = verifyExpandedPartialSelection(activity.first, output);
       type("shi"); candidate();
       find("miancak_cancel").click(); awaitIdlePreedit();
       assertEquals(output, text(activity.first));
@@ -375,9 +366,13 @@ public class ImeInteractionTest
       assertEquals(first, candidate());
       find("miancak_cancel").click(); awaitIdlePreedit();
       // A field switch cancels uncommitted text rather than leaking it into either editor.
-      type("nihao");
+      type("nihao"); candidate();
+      find("miancak_expand_candidates").click();
+      assertNotNull(find("miancak_expanded_candidates"));
       focus(activity.second);
-      assertEquals(output, text(activity.first));
+      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+      awaitText(activity.first, output);
+      awaitText(activity.second, "");
       type("di"); first = candidate();
       device.findObject(By.descStartsWith("Candidate 1: ")).click();
       awaitText(activity.second, first);
@@ -413,6 +408,7 @@ public class ImeInteractionTest
       device.setOrientationLeft();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_LANDSCAPE);
       assertTrue(device.wait(Until.hasObject(By.res(pkg, "keyboard_view")), 15000));
+      assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
       awaitIdlePreedit();
       Rect landscapeChinese = keyboard().getVisibleBounds();
       screenshot("rotation-landscape");
@@ -428,7 +424,8 @@ public class ImeInteractionTest
       {
         type("shi"); candidate();
         find("miancak_expand_candidates").click();
-        landscapeOutput = selectVisibleExpandedCandidate(activity.first, landscapeOutput);
+        landscapeOutput = repeat == 0 ? commitExpandedCandidate(activity.first, landscapeOutput, scrollToExpandedRank(80))
+            : selectVisibleExpandedCandidate(activity.first, landscapeOutput);
       }
       device.setOrientationNatural();
       awaitOrientation(android.content.res.Configuration.ORIENTATION_PORTRAIT);
@@ -570,10 +567,54 @@ public class ImeInteractionTest
     assertNotNull(panel);
     UiObject2 choice = panel.wait(Until.findObject(By.descStartsWith("Candidate ")), 15000);
     assertNotNull("The reopened candidate pane must offer a visible choice", choice);
+    return commitExpandedCandidate(editor, output, choice);
+  }
+
+  private UiObject2 scrollToExpandedRank(int rank)
+  {
+    for (int attempt = 0; attempt <= 16; attempt++)
+    {
+      UiObject2 panel = find("miancak_expanded_candidates");
+      assertNotNull(panel);
+      UiObject2 choice = panel.findObject(By.descStartsWith("Candidate " + rank + ": "));
+      if (choice != null && choice.getVisibleBounds().height() > 16) return choice;
+      if (attempt == 16) break;
+      panel.setGestureMargin(20);
+      panel.scroll(androidx.test.uiautomator.Direction.DOWN, .6f);
+    }
+    throw new AssertionError("Expanded candidate rank " + rank + " was not reachable");
+  }
+
+  private String commitExpandedCandidate(EditText editor, String output, UiObject2 choice)
+  {
     String expected = output + choice.getText();
     choice.click();
     awaitText(editor, expected);
     assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+    assertEquals("The scrolled tap must commit once", expected, text(editor));
+    return expected;
+  }
+
+  private String verifyExpandedPartialSelection(EditText editor, String output)
+  {
+    type("nihaoshijie");
+    assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").desc("Pinyin: ni hao shi jie")), 20000));
+    find("miancak_expand_candidates").click();
+    assertNotNull(find("miancak_expanded_candidates"));
+    UiObject2 prefix = device.wait(Until.findObject(By.pkg(pkg).descStartsWith("Candidate ").text("你好")), 15000);
+    assertNotNull("The visible prefix must be selectable", prefix);
+    prefix.click();
+    assertTrue(device.wait(Until.hasObject(By.res(pkg, "miancak_preedit").descStartsWith("Pinyin: 你好")), 15000));
+    assertNotNull("Selecting a partial phrase keeps the remaining choices open", find("miancak_expanded_candidates"));
+    awaitText(editor, output);
+    device.pressBack();
+    assertTrue(device.wait(Until.gone(By.res(pkg, "miancak_expanded_candidates")), 15000));
+    assertEquals(output, text(editor));
+    tap(0.75f, 2);
+    String expected = output + "你好shijie";
+    awaitText(editor, expected);
+    awaitMode("EN");
+    ensureChinese();
     return expected;
   }
   private void awaitOrientation(int expected)

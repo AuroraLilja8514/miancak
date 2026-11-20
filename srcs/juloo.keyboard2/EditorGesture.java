@@ -30,11 +30,7 @@ public final class EditorGesture
     int direction = ((int)((Math.atan2(dy, dx) + Math.PI) * 8 / Math.PI) + 12) % 16;
     if (gesture == null)
     { gesture = new Gesture(direction, sensitivity); effective = Gesture.Name.Swipe; }
-    // Android sends many samples in the same angular sector. The recognizer
-    // accepts direction changes, not zero-angle updates (which otherwise
-    // cancel a clockwise rotation). Empty slots still remain selectable.
-    else if (direction != gesture.current_direction())
-    { gesture.changed_direction(direction); rememberSelection(); }
+    else if (gesture.changed_direction(direction)) rememberSelection();
   }
 
   private void rememberSelection()

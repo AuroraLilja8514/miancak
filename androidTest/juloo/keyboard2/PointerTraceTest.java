@@ -136,7 +136,7 @@ public final class PointerTraceTest
 
   @Test public void holdingACompletedGestureEmitsOnlyOnceWhileAnOrdinaryKeyCanRepeat() throws Exception
   {
-    Trace[] active = new Trace[4];
+    Trace[] active = new Trace[5];
     java.util.concurrent.CountDownLatch deadline = new java.util.concurrent.CountDownLatch(1);
     main(() -> {
       config.longPressTimeout = 80;
@@ -147,8 +147,11 @@ public final class PointerTraceTest
       edited.keys[7] = KeyValue.layered(letter('h'), literal("上"));
       for (int i = 0; i < active.length; i++) { active[i] = create(edited); active[i].start(); }
       active[0].move(0, -100); active[0].move(-100, 0);
+      active[0].move(-105, 0);
       active[1].move(0, -100); active[1].move(100, 0);
+      active[1].move(105, 0);
       active[2].move(0, -100); active[2].move(0, 0);
+      active[4].move(0, -100);
       new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(deadline::countDown, 180);
     });
     assertTrue("Android main looper did not cross the repeat deadline", deadline.await(5, java.util.concurrent.TimeUnit.SECONDS));
@@ -160,6 +163,8 @@ public final class PointerTraceTest
       expect("held-roundtrip", active[2], literal("上"));
       assertFalse("Plain key repeat must remain available", active[3].holds.isEmpty());
       expect("held-plain-key", active[3], letter('a'));
+      assertFalse("Ordinary directional repeat must remain available", active[4].holds.isEmpty());
+      expect("held-directional-key", active[4], letter('h'));
     });
   }
 

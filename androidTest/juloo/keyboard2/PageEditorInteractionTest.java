@@ -6,7 +6,9 @@ import android.content.Intent;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.SystemClock;
+import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.inputmethod.InputMethodManager;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
@@ -111,7 +113,11 @@ public final class PageEditorInteractionTest
         anticircle(timing); expect("上转逆","anticircle-independent");
       }
       before=events.size(); roundtrip(0,0,2); function(before,KeyEvent.KEYCODE_F1); expect("上转逆","gesture-fn-fallback");
-      shot(restartOnly?"editor-after-restart":"editor-input"); choose("zh");
+      shot(restartOnly?"editor-after-restart":"editor-input");
+      clear();
+      heldAnticircle();
+      expect("逆", "anticircle-held-past-repeat-deadline");
+      choose("zh");
     }
     finally
     {
@@ -292,7 +298,63 @@ public final class PageEditorInteractionTest
   private void circle(GestureTimingEvidence timing)
   {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);Point[] points={p,new Point(p.x,p.y-y),new Point(p.x+x,p.y),new Point(p.x,p.y+y),new Point(p.x-x,p.y),p};assertTrue(timing.inject("circle-shift",points,10,()->device.swipe(points,10)));}
   private void anticircle(GestureTimingEvidence timing)
-  {Point p=point(1,2);int x=Math.round(unit()*.95f),y=Math.round(height()*.7f);Point[] points={p,new Point(p.x,p.y-y),new Point(p.x-x,p.y),new Point(p.x,p.y+y),new Point(p.x+x,p.y),p};assertTrue(timing.inject("anticircle-independent",points,10,()->device.swipe(points,10)));}
+  {
+    Point[] points = anticirclePath();
+    assertTrue(timing.inject("anticircle-independent", points, 10, () -> device.swipe(points, 10)));
+  }
+
+  private Point[] anticirclePath()
+  {
+    Point p = point(1, 2);
+    int x = Math.round(unit() * .95f), y = Math.round(height() * .7f);
+    return new Point[] {p, new Point(p.x, p.y - y), new Point(p.x - x, p.y),
+        new Point(p.x, p.y + y), new Point(p.x + x, p.y), p};
+  }
+
+  private void heldAnticircle() throws Exception
+  {
+    Point[] path = anticirclePath();
+    Config config = Config.globalConfig();
+    long pause = config.longPressTimeout + config.longPressInterval + 50;
+    assertTrue("Use the ordinary repeat settings in the disposable guest", config.keyrepeat_enabled && pause > 0 && pause <= 2150);
+    long down = SystemClock.uptimeMillis();
+    boolean released = false;
+    Throwable primary = null;
+    injectTouch(down, MotionEvent.ACTION_DOWN, path[0].x, path[0].y);
+    try
+    {
+      for (int i = 1; i < path.length; i++)
+      {
+        Point from = path[i - 1], to = path[i];
+        for (int step = 1; step <= 10; step++)
+        {
+          float fraction = step / 10f;
+          injectTouch(down, MotionEvent.ACTION_MOVE, from.x + (to.x - from.x) * fraction, from.y + (to.y - from.y) * fraction);
+          SystemClock.sleep(5);
+        }
+        if (i == 2)
+        {
+          SystemClock.sleep(pause);
+          expect("", "anticircle-held-before-release");
+        }
+      }
+      injectTouch(down, MotionEvent.ACTION_UP, path[0].x, path[0].y);
+      released = true;
+    }
+    catch (Exception | Error failure) { primary = failure; throw failure; }
+    finally
+    {
+      if (!released) ProgressEvidence.cleanup(primary, () -> injectTouch(down, MotionEvent.ACTION_CANCEL, path[0].x, path[0].y));
+    }
+  }
+
+  private void injectTouch(long down, int action, float x, float y)
+  {
+    MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, y, 0);
+    event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+    try { assertTrue(instrumentation.getUiAutomation().injectInputEvent(event, true)); }
+    finally { event.recycle(); }
+  }
   private void orientation(int expected)
   {long end=SystemClock.uptimeMillis()+15000;while(context.getResources().getConfiguration().orientation!=expected&&SystemClock.uptimeMillis()<end)SystemClock.sleep(30);assertEquals(expected,context.getResources().getConfiguration().orientation);device.waitForIdle();}
   private void shot(String name){device.waitForIdle();device.takeScreenshot(new java.io.File(TestEvidence.directory(context),name+".png"));}

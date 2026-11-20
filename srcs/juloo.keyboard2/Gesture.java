@@ -86,6 +86,7 @@ public final class Gesture
   public boolean changed_direction(int direction)
   {
     int d = dir_diff(current_dir, direction);
+    if (d == 0) return false;
     boolean clockwise = d > 0;
     switch (state)
     {

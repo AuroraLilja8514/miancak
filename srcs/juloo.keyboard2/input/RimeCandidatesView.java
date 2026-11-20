@@ -220,25 +220,34 @@ public final class RimeCandidatesView extends LinearLayout
   private void renderCandidates()
   { renderCandidates(false); }
 
-  private void renderCandidates(boolean keepExpandedCandidates)
+  private void renderCandidates(boolean keepCandidates)
   {
     if (shown == null) return;
-    candidates.removeAllViews();
-    int available=compactWidth;
-    ArrayList<TextView> cells=new ArrayList<>();int[] widths=new int[shown.engine.candidates.size()];
-    for(int i=0;i<widths.length;i++)
+    if (!keepCandidates) candidates.removeAllViews();
+    int existing = candidates.getChildCount();
+    int available = compactWidth;
+    ArrayList<TextView> cells = new ArrayList<>();
+    int[] widths = new int[shown.engine.candidates.size()];
+    for (int i = 0; i < widths.length; i++)
     {
-      TextView cell=candidate(shown,i,false);
-      widths[i]=cell.getMinWidth();cells.add(cell);
+      TextView cell = i < existing ? (TextView)candidates.getChildAt(i) : candidate(shown, i, false);
+      widths[i] = cell.getMinWidth();
+      cells.add(cell);
     }
-    int count=expanded?CandidateRowFitter.count(available,widths):widths.length;
-    for(int i=0;i<count;i++)candidates.addView(cells.get(i),new LayoutParams(Math.min(widths[i],Math.max(1,available)),LayoutParams.MATCH_PARENT));
-    if(expandedFlow!=null)
+    int count = expanded ? CandidateRowFitter.count(available, widths) : widths.length;
+    int kept = Math.min(existing, count);
+    if (existing > kept) candidates.removeViews(kept, existing - kept);
+    // Removing a pressed child cancels its touch, even while the panel below
+    // is expanded. Verified native prefixes can keep both rows' old targets.
+    for (int i = 0; i < kept; i++) bindSelection(cells.get(i), shown, i);
+    for (int i = kept; i < count; i++)
+      candidates.addView(cells.get(i), new LayoutParams(Math.min(widths[i], Math.max(1, available)), LayoutParams.MATCH_PARENT));
+    if (expandedFlow != null)
     {
       // An overlong first item remains abbreviated in the fixed header, but
       // must also be readable in full in the wrapping panel.
-      int start=count>0 && widths[0]>available?0:count;
-      if (expanded && keepExpandedCandidates && expandedStart == start)
+      int start = count > 0 && widths[0] > available ? 0 : count;
+      if (expanded && keepCandidates && expandedStart == start)
       {
         // An append may finish after touch-down. Keep the existing children
         // and rebind them only when the native selection indices still match.
@@ -295,7 +304,7 @@ public final class RimeCandidatesView extends LinearLayout
   private void bindSelection(View cell, InputSnapshot snapshot, int index)
   {
     cell.setOnClickListener(view -> {
-      if (controller != null) controller.select(snapshot, index, () -> { if (expanded) collapse(); });
+      if (controller != null && view.isAttachedToWindow() && view.isShown()) controller.select(snapshot, index);
     });
   }
 
