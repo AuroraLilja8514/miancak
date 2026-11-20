@@ -54,6 +54,8 @@ public final class WanxiangSetup
       try
       {
         WanxiangInstall install = WanxiangInstall.forApp(app);
+        try { install.reclaimInterruptedModel(); }
+        catch (IOException | RuntimeException failure) { android.util.Log.w("MIANCAK-Rime", "Resource staging cleanup deferred"); }
         boolean ready = install.installed();
         boolean earlierPack = !ready && install.hasEarlierBundle();
         UI.post(() -> publish(new Status(ready ? Phase.READY : Phase.NEEDED, install.version, install.transferBytes, 0, earlierPack)));
@@ -110,6 +112,7 @@ public final class WanxiangSetup
   private static Phase phaseFor(IOException failure, boolean network)
   {
     if (failure instanceof WanxiangInstall.InsufficientSpace) return Phase.SPACE;
+    if (failure instanceof WanxiangInstall.StagingBusy) return Phase.FAILED;
     if (failure instanceof WanxiangInstall.IntegrityFailure || failure instanceof java.util.zip.ZipException) return Phase.INTEGRITY;
     if (Thread.currentThread().isInterrupted()) return Phase.CANCELLED;
     return network ? Phase.UNAVAILABLE : Phase.FAILED;

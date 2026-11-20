@@ -2,24 +2,29 @@ package juloo.keyboard2.input;
 
 import android.content.Context;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.function.LongConsumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -27,16 +32,20 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** The staging directory contains only verified public resources and a disposable native probe. */
+/** Setup stages public resources and a disposable native probe outside every active data path. */
 final class WanxiangInstall
 {
   static final String PLAN = "rime/delivery.json";
   static final long BUILD_RESERVE = 256L * 1024 * 1024;
+  // One private Rime root per app process. Keep other threads from opening a
+  // second descriptor to the same file while the process holds its OS lock.
+  private static final Semaphore LOCAL_STAGE = new Semaphore(1);
 
   static final class SetupRequired extends IOException
   { SetupRequired() { super(OfflineDataException.SETUP_MESSAGE); } }
 
   static final class InsufficientSpace extends IOException {}
+  static final class StagingBusy extends IOException {}
   static final class IntegrityFailure extends IOException
   { IntegrityFailure(String message) { super(message); } }
 
@@ -84,12 +93,16 @@ final class WanxiangInstall
   private final Map<String, Entry> archiveFiles = new LinkedHashMap<>(), overlays = new LinkedHashMap<>();
   private final byte[] manifest;
   private final File target, pending;
+  private final Path lockPath, modelPart;
 
   WanxiangInstall(RimeData.Paths paths, byte[] plan, byte[] manifest) throws IOException
   {
     this.manifest = manifest.clone();
-    target = new File(paths.shared.getParentFile().getCanonicalFile(), paths.shared.getName());
+    File root = paths.shared.getParentFile();
+    if (Files.isSymbolicLink(root.toPath())) throw new IOException("Invalid Rime data root");
+    target = new File(root.getCanonicalFile(), paths.shared.getName());
     pending = new File(target.getParentFile(), ".wanxiang-stage");
+    lockPath = pending.toPath().resolveSibling(".wanxiang-stage.lock");
     try
     {
       JSONObject spec = parse(plan);
@@ -99,6 +112,7 @@ final class WanxiangInstall
       model = new Artifact(spec.getJSONObject("model"), "rime-wanxiang-data");
       modelName = spec.getJSONObject("model").getString("filename");
       if (!modelName.matches("[a-z0-9_-]+\\.gram")) throw new JSONException("Invalid grammar filename");
+      modelPart = pending.toPath().resolve("model-" + model.sha256 + ".part");
       JSONObject files = parse(manifest);
       Set<String> accounted = new HashSet<>();
       long bytes = locked(files, accounted, modelName, model);
@@ -150,23 +164,83 @@ final class WanxiangInstall
 
   boolean hasEarlierBundle() { return RimeData.previousBundle(target) != null; }
 
-  /** One calling worker prepares at a time. The directory is reserved solely for
-   * this operation, so a later explicit retry can remove interrupted transfers. */
-  Staged prepare(Source source, Assets assets, LongConsumer transferred, Runnable extracting) throws IOException
+  /** Run on the setup worker. Reclaim only a lone incomplete scratch file for
+   * this pin. Leave even a complete model copy and any prepared stage in place. */
+  void reclaimInterruptedModel() throws IOException
   {
-    erase(pending.toPath());
-    if (installed()) return null;
-    File root = target.getParentFile();
-    Files.createDirectories(root.toPath());
-    if (root.getUsableSpace() < requiredBytes) throw new InsufficientSpace();
-    Files.createDirectory(pending.toPath());
-    boolean complete = false;
+    Path stage = pending.toPath();
+    // A stage written by an older installer may lack an ownership lock.
+    if (!Files.isDirectory(stage, LinkOption.NOFOLLOW_LINKS) || !Files.isRegularFile(lockPath, LinkOption.NOFOLLOW_LINKS)) return;
+    try (StageLease lease = tryOwnStage(false))
+    {
+      if (lease == null || !onlyChild(stage, modelPart)) return;
+      BasicFileAttributes attrs = Files.readAttributes(modelPart, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+      if (attrs.isRegularFile() && attrs.size() < model.bytes) Files.delete(modelPart);
+    }
+  }
+
+  private static boolean onlyChild(Path directory, Path child) throws IOException
+  {
+    if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) return false;
+    try (DirectoryStream<Path> entries = Files.newDirectoryStream(directory))
+    {
+      Iterator<Path> children = entries.iterator();
+      return children.hasNext() && children.next().equals(child) && !children.hasNext();
+    }
+  }
+
+  /** The lock lives beside staging and is never replaced or erased. Close may
+   * run on a different worker after validation, activation or cancellation. */
+  private StageLease tryOwnStage(boolean create) throws IOException
+  {
+    if (!LOCAL_STAGE.tryAcquire()) return null;
+    FileChannel channel = null;
+    FileLock lock = null;
     try
     {
+      if (!Files.notExists(lockPath, LinkOption.NOFOLLOW_LINKS) && !Files.isRegularFile(lockPath, LinkOption.NOFOLLOW_LINKS))
+        throw new IOException("Invalid resource setup lock");
+      channel = create ? FileChannel.open(lockPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE, LinkOption.NOFOLLOW_LINKS)
+          : FileChannel.open(lockPath, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+      lock = channel.tryLock();
+      return lock == null ? null : new StageLease(lock);
+    }
+    finally { if (lock == null) releaseStageChannel(channel); }
+  }
+
+  private static void releaseStageChannel(FileChannel channel) throws IOException
+  {
+    try { if (channel != null) channel.close(); }
+    finally { LOCAL_STAGE.release(); }
+  }
+
+  private static final class StageLease implements AutoCloseable
+  {
+    private final FileLock lock;
+    StageLease(FileLock lock) { this.lock = lock; }
+    @Override public void close() throws IOException { releaseStageChannel(lock.channel()); }
+  }
+
+  Staged prepare(Source source, Assets assets, LongConsumer transferred, Runnable extracting) throws IOException
+  {
+    File root = target.getParentFile();
+    Files.createDirectories(root.toPath());
+    StageLease lease = tryOwnStage(true);
+    if (lease == null) throw new StagingBusy();
+    boolean created = false, complete = false;
+    try
+    {
+      if (installed()) return null;
+      erase(pending.toPath());
+      if (root.getUsableSpace() < requiredBytes) throw new InsufficientSpace();
+      Files.createDirectory(pending.toPath());
+      created = true;
       File shared = new File(pending, "shared");
       // Check the larger (and less often available) model first, without
       // spending bandwidth on the Base archive if its pinned endpoint is gone.
-      copy(source.open(model), RimeData.managedFile(shared, modelName), model, transferred);
+      copy(source.open(model), modelPart.toFile(), model, transferred);
+      Files.createDirectory(shared.toPath());
+      Files.move(modelPart, RimeData.managedFile(shared, modelName).toPath(), StandardCopyOption.ATOMIC_MOVE);
       File archive = new File(pending, "base.zip");
       copy(source.open(base), archive, base, bytes -> transferred.accept(model.bytes + bytes));
       extracting.run();
@@ -176,10 +250,15 @@ final class WanxiangInstall
         copy(assets.open(file.getKey()), RimeData.managedFile(shared, file.getKey()), file.getValue(), bytes -> {});
       RimeData.saveManifest(shared, manifest);
       File user = new File(pending, "probe-user"); Files.createDirectory(user.toPath());
+      Staged staged = new Staged(new RimeData.Paths(shared, user), lease);
       complete = true;
-      return new Staged(new RimeData.Paths(shared, user));
+      return staged;
     }
-    finally { if (!complete) erase(pending.toPath()); }
+    finally
+    {
+      if (!complete)
+        try (StageLease owned = lease) { if (created) erase(pending.toPath()); }
+    }
   }
 
   private void extract(File archive, File shared) throws IOException
@@ -247,12 +326,15 @@ final class WanxiangInstall
   final class Staged implements AutoCloseable
   {
     private final RimeData.Paths paths;
-    private Staged(RimeData.Paths paths) { this.paths = paths; }
+    private final StageLease lease;
+    private boolean closed;
+    private Staged(RimeData.Paths paths, StageLease lease) { this.paths = paths; this.lease = lease; }
 
     /** Call on the native worker with the live engine closed. A failure never
      * changes the active vocabulary pointer or the user's database. */
-    void activate(Validator validator) throws Exception
+    synchronized void activate(Validator validator) throws Exception
     {
+      if (closed) throw new IOException("Resource setup has already closed");
       validator.verify(paths);
       if (!RimeData.validDeployment(paths.shared)) throw new IntegrityFailure("Staged resources changed during validation");
       if (installed()) return;
@@ -273,7 +355,12 @@ final class WanxiangInstall
       }
     }
 
-    @Override public void close() throws IOException { erase(pending.toPath()); }
+    @Override public synchronized void close() throws IOException
+    {
+      if (closed) return;
+      closed = true;
+      try (StageLease owned = lease) { erase(pending.toPath()); }
+    }
   }
 
   private static void erase(Path path) throws IOException
