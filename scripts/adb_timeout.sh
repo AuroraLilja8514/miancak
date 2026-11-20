@@ -70,6 +70,7 @@ PY
     adb shell mkdir -p /sdcard/Download
     adb push "$fixture_dir/base-v18.1.13.zip" /sdcard/Download/miancak-fixture-base.zip
     adb push "$fixture_dir/wanxiang-lts-zh-hans.gram" /sdcard/Download/miancak-fixture-grammar.gram
+    adb shell 'printf "invalid fixture\n" > /sdcard/Download/miancak-fixture-corrupt.gram'
   fi
 }
 

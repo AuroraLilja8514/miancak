@@ -64,7 +64,14 @@ public final class WanxiangSetup
     });
   }
 
-  public static void download(Context context) { begin(context, null, null); }
+  public static void download(Context context)
+  {
+    if (status.busy() || status.phase == Phase.READY) return;
+    android.net.ConnectivityManager connectivity = context.getSystemService(android.net.ConnectivityManager.class);
+    if (connectivity != null && connectivity.getActiveNetwork() == null)
+    { update(Phase.UNAVAILABLE, 0); return; }
+    begin(context, null, null);
+  }
   public static void installFiles(Context context, Uri base, Uri model) { begin(context, base, model); }
 
   private static void begin(Context context, Uri base, Uri model)

@@ -41,13 +41,30 @@ public final class WanxiangSetupTest
         By.text(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(ready) + "|" + java.util.regex.Pattern.quote(files)))), 15000));
     if (!fresh && device.hasObject(By.res(pkg, "wanxiang_setup_status").text(ready)))
     { device.pressBack(); return; }
-    UiObject2 pick = device.findObject(By.res(pkg, "wanxiang_setup_files").enabled(true));
-    assertNotNull("A pack is missing; need Install from verified files", pick); pick.click();
-    choose(device, "miancak-fixture-base.zip");
-    choose(device, "miancak-fixture-grammar.gram");
+    if (fresh)
+    {
+      android.net.ConnectivityManager network = context.getSystemService(android.net.ConnectivityManager.class);
+      assertNull("First-use fixture must be disconnected before the download action", network.getActiveNetwork());
+      UiObject2 download = device.findObject(By.res(pkg, "wanxiang_setup_download").enabled(true));
+      assertNotNull("The setup screen should offer download before installation", download); download.click();
+      assertTrue("Disconnected setup must offer a local recovery path", device.wait(Until.hasObject(By.res(pkg,
+          "wanxiang_setup_status").text(context.getString(R.string.wanxiang_setup_unavailable))), 15000));
+      choosePair(device, pkg, "miancak-fixture-corrupt.gram");
+      assertTrue("A corrupt model must be rejected before the app becomes ready", device.wait(Until.hasObject(By.res(pkg,
+          "wanxiang_setup_status").text(context.getString(R.string.wanxiang_setup_integrity))), 15000));
+    }
+    choosePair(device, pkg, "miancak-fixture-grammar.gram");
     assertTrue("Exact native setup must become ready offline", device.wait(Until.hasObject(
         By.res(pkg, "wanxiang_setup_status").text(ready)), 180000));
     device.pressBack();
+  }
+
+  private static void choosePair(UiDevice device, String pkg, String model)
+  {
+    UiObject2 pick = device.findObject(By.res(pkg, "wanxiang_setup_files").enabled(true));
+    assertNotNull("A pack is missing; need Install from verified files", pick); pick.click();
+    choose(device, "miancak-fixture-base.zip");
+    choose(device, model);
   }
 
   private static void choose(UiDevice device, String name)

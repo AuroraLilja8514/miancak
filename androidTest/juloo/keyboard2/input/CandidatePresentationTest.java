@@ -175,6 +175,34 @@ public class CandidatePresentationTest
       assertEquals(View.VISIBLE, base.getVisibility());
     });
   }
+
+  @Test public void verifiedAppendKeepsTheExpandedTouchTargetAndUnverifiedMappingReplacesIt()
+  {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+      Context context = themed(1f);
+      String[] first = new String[30], more = new String[50];
+      java.util.Arrays.fill(first, "候选"); java.util.Arrays.fill(more, "候选");
+      RimeCandidatesView view = strip(context, first);
+      FrameLayout surface = new FrameLayout(context);
+      View keyboard = new View(context);
+      surface.addView(keyboard, new FrameLayout.LayoutParams(-1, dp(context, 200)));
+      view.attachSurface(surface, keyboard);
+      layout(view, dp(context, 240));
+      view.findViewById(R.id.miancak_expand_candidates).performClick();
+      layout(surface, dp(context, 240));
+      ViewGroup scroll = surface.findViewById(R.id.miancak_expanded_candidates);
+      ViewGroup flow = (ViewGroup)scroll.getChildAt(0);
+      View pressed = flow.getChildAt(0);
+      int originalCount = flow.getChildCount();
+      view.show(new InputSnapshot(1, 2, InputRouter.Mode.CHINESE, true,
+          new EngineResult(true, "", "shi", more, 0, true, false, true), ""));
+      assertSame("Native append must not detach the active touch target", pressed, flow.getChildAt(0));
+      assertEquals(originalCount + 20, flow.getChildCount());
+      view.show(new InputSnapshot(1, 3, InputRouter.Mode.CHINESE, true,
+          new EngineResult(true, "", "shi", more, 0, true, false), ""));
+      assertNotSame("Equal display text does not prove the selection mapping", pressed, flow.getChildAt(0));
+    });
+  }
   @Test public void denseStripAndExpandedGridKeepRankAndFillEveryRow()
   {
     InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{

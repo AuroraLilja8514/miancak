@@ -49,6 +49,18 @@ public class CustomExtraKeysPreference extends ListGroupPreference<String>
   String label_of_value(String value, int i) { return value; }
 
   @Override
+  AddButton on_attach_add_button(AddButton previous)
+  {
+    AddButton button = super.on_attach_add_button(previous);
+    if (previous == null)
+    {
+      button.setKey("add_custom_extra_key");
+      button.setTitle(R.string.pref_extra_keys_add_custom_key);
+    }
+    return button;
+  }
+
+  @Override
   void select(final SelectionCallback<String> callback, String old_value)
   {
     View content = View.inflate(getContext(), R.layout.dialog_edit_text, null);

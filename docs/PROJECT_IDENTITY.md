@@ -4,6 +4,8 @@
 
 v0.3.2 was formally released on 2026-11-16. The current 0.3.3 source is unpublished: its N1/N2 defaults are described separately in [DEFAULT_PREFERENCES.md](DEFAULT_PREFERENCES.md). The N4 source/link changes below must not be attributed to the already released APK. Dated acceptance records, hashes and failures remain historical evidence.
 
+The post-install resource follow-up refreshes the English and Simplified Chinese launcher instructions and store descriptions. The text explains direct typing before setup, compatible local resources and offline Chinese after setup. The existing metadata generator also updates the 24 fallback locales. The separately frozen bundled APK keeps its original copy and resources. [Chinese input setup](WANXIANG_SETUP.md)
+
 | Area | Source change / retained behavior |
 | --- | --- |
 | Project/source | `res/values/untranslated_strings.xml:launcher_repo_url` now points to `https://github.com/AuroraLilja8514/miancak`. The existing autolink remains; the TextView gains a stable ID. |

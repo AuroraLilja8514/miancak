@@ -34,6 +34,7 @@ public final class RimeCandidatesView extends LinearLayout
   private CandidateFlow expandedFlow;
   private boolean expanded;
   private int compactWidth;
+  private int expandedStart;
   private String pageLabel;
   private long requestedRevision = -1;
   public void setPageLabel(String label)
@@ -148,10 +149,9 @@ public final class RimeCandidatesView extends LinearLayout
 
   public void show(InputSnapshot snapshot)
   {
-    boolean continuation=shown!=null && shown.generation==snapshot.generation
-      && shown.engine.preedit.equals(snapshot.engine.preedit)
-      && snapshot.engine.candidates.size()>=shown.engine.candidates.size()
-      && snapshot.engine.candidates.subList(0,shown.engine.candidates.size()).equals(shown.engine.candidates);
+    boolean continuation = shown != null && shown.generation == snapshot.generation
+        && shown.error.isEmpty() && snapshot.error.isEmpty()
+        && snapshot.engine.extendsCandidatePrefix(shown.engine);
     shown=snapshot; requestedRevision=-1;
     if(!continuation){compactScroll.scrollTo(0,0);if(expandedScroll!=null)expandedScroll.scrollTo(0,0);}
     updateCandidateRow();
@@ -173,7 +173,7 @@ public final class RimeCandidatesView extends LinearLayout
     cancel.setOnClickListener(view -> { if (controller != null) controller.cancelComposition(); });
     if (!snapshot.engine.composing || snapshot.engine.candidates.isEmpty()) expanded = false;
     updateExpansion();
-    renderCandidates();
+    renderCandidates(continuation);
   }
 
   private CharSequence statusText(InputSnapshot snapshot)
@@ -218,6 +218,9 @@ public final class RimeCandidatesView extends LinearLayout
   }
 
   private void renderCandidates()
+  { renderCandidates(false); }
+
+  private void renderCandidates(boolean keepExpandedCandidates)
   {
     if (shown == null) return;
     candidates.removeAllViews();
@@ -232,11 +235,21 @@ public final class RimeCandidatesView extends LinearLayout
     for(int i=0;i<count;i++)candidates.addView(cells.get(i),new LayoutParams(Math.min(widths[i],Math.max(1,available)),LayoutParams.MATCH_PARENT));
     if(expandedFlow!=null)
     {
-      expandedFlow.removeAllViews();
       // An overlong first item remains abbreviated in the fixed header, but
       // must also be readable in full in the wrapping panel.
       int start=count>0 && widths[0]>available?0:count;
-      if(expanded)for(int i=start;i<shown.engine.candidates.size();i++)expandedFlow.addView(candidate(shown,i,true));
+      if (expanded && keepExpandedCandidates && expandedStart == start)
+      {
+        // An append may finish after touch-down. Keep the existing children
+        // and rebind them only when the native selection indices still match.
+        for (int i = 0; i < expandedFlow.getChildCount(); i++)
+          bindSelection(expandedFlow.getChildAt(i), shown, start + i);
+      }
+      else expandedFlow.removeAllViews();
+      expandedStart = start;
+      if (expanded)
+        for (int i = start + expandedFlow.getChildCount(); i < shown.engine.candidates.size(); i++)
+          expandedFlow.addView(candidate(shown, i, true));
     }
     post(this::maybeLoadMore);
   }
@@ -275,10 +288,15 @@ public final class RimeCandidatesView extends LinearLayout
         MeasureSpec.makeMeasureSpec(rowHeight, MeasureSpec.EXACTLY));
     cell.setMinWidth(cell.getMeasuredWidth());
     cell.setTextSize(CANDIDATE_SP);
+    bindSelection(cell, snapshot, index);
+    return cell;
+  }
+
+  private void bindSelection(View cell, InputSnapshot snapshot, int index)
+  {
     cell.setOnClickListener(view -> {
       if (controller != null) controller.select(snapshot, index, () -> { if (expanded) collapse(); });
     });
-    return cell;
   }
 
   private TextView text(int size)

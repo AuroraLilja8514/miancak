@@ -243,7 +243,6 @@ public abstract class ListGroupPreference<E> extends PreferenceGroup
     {
       super(ctx);
       setPersistent(false);
-      setLayoutResource(R.layout.pref_listgroup_add_btn);
     }
 
     @Override

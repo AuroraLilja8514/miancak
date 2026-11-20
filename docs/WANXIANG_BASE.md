@@ -45,9 +45,11 @@ without dropping that ABI or suppressing its conversion diagnostic. Before/after
 source hashes are recorded in the packaged provenance; upstream checkouts remain
 clean. The existing OpenCC C++17 iterator deprecation exception also applies to
 the Lua adapter that includes those same pinned headers.
-Downloads occur only during the build; input remains offline. External dynamic
-Rime-plugin discovery remains disabled. All three ABIs and the existing 16 KiB
-ELF/ZIP alignment checks remain required.
+The frozen bundled build fetches the resources at build time. The follow-up APK
+keeps the pinned code and configuration and acquires the matching data through
+[Chinese input setup](WANXIANG_SETUP.md). Normal input remains offline.
+External dynamic Rime-plugin discovery remains disabled. All three ABIs and
+the existing 16 KiB ELF/ZIP alignment checks remain required.
 
 ## MIANCAK adaptation
 
