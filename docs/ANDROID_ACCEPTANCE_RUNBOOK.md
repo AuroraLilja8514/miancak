@@ -1,0 +1,42 @@
+# Private Android 15 acceptance
+
+Use an authorized dedicated API 35+ device. For the maintained drivers, use a hardware-accelerated guest that matches the named disposable API 35 profile. Record manual evidence separately on a physical device or newer API. See [the Android gates](ANDROID_SUPPORT.md).
+
+## Check the inputs before installing
+
+- Check the receipt's exact source and SHA-256 values for the split APK, instrumentation and applicable overwrite pair. Use the debug APKs for installation.
+- Verify local `base-v18.1.13.zip` and `wanxiang-lts-zh-hans.gram` against [the current pins](WANXIANG_SETUP.md). Check both before installing. The older model cache uses the earlier pin.
+- Set the authorized `ANDROID_SERIAL`. Use `adb -s "$ANDROID_SERIAL" shell` for `getprop ro.build.version.sdk`, `getprop ro.product.cpu.abi` and `getconf PAGESIZE`. Check Android is booted and unlocked with working package and IME services. Confirm each clean target has no earlier app install or restored data. Use synthetic inputs only.
+- Keep APK identities, actual stage results and failure foregrounds local. Follow the typed `summary.json` / `heartbeat.jsonl` boundary for evidence staging.
+
+## Clean install and prepared interaction
+
+In a fresh private run directory, link the verified pair to `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`. Set `REPO` to the checkout and `MIANCAK_WANXIANG_FIXTURE_DIR` to the verified files' directory.
+
+```sh
+export ANDROID_SERIAL MIANCAK_WANXIANG_FIXTURE_DIR
+export MIANCAK_TEST_API=35 MIANCAK_TEST_DISPOSABLE_GUEST=true
+MIANCAK_ENTRY_ORDER=settings-first python3 "$REPO/scripts/public_test_evidence.py" run \
+  --scenario first-install -- bash "$REPO/scripts/first_install_tests.sh"
+```
+
+Use a fresh `miancak-clean` guest for each entry order. Repeat with `MIANCAK_ENTRY_ORDER=ime-first`. Each invocation covers clean installation, reopen and reboot with a changed kernel boot ID, using the ordinary UI and actual receiving editor.
+
+On a separate fresh `miancak-interactions` guest, use the same wrapper with `--scenario interaction -- bash "$REPO/scripts/emulator_tests.sh"`. It covers held anticircle, scrolling and rotation, Settings rows, and the Project and Issues destinations without opening a browser.
+
+On a dedicated physical device, use the ordinary Android enable/picker UI. Start in app Settings for one clean case and Android IME Settings for the other.
+
+1. Offline, type `hello2` before setup. Check unavailable Download and reject a corrupt model. Use Files to install the verified pair. Record first candidates and commit. Check unsplit QWERTY, Sup/Sub (`²`, `₂`), `你好。` and Chinese comma.
+2. Select the `你好` prefix from `nihaoshijie`. Confirm the panel stays open and editor text stays unchanged. Close it, tap Shift, and type `q` for exact `你好shijieQ`. Return to Chinese. Check scrolling, rotation, inset and label sizes, then change editor with the panel open. In the prepared edited layout, require `上转逆` for the original three gestures and `逆` once for a single held anticircle.
+3. Check Settings wrapping, slider Apply/Cancel and saved summaries in both orientations, with English/Chinese and ordinary/enlarged fonts. The full N3 matrix is separate. Use `LauncherIdentityTest` for exact URL dispatch.
+4. Reopen offline, then reboot and verify a changed boot ID and completed boot. Check actual text after each transition.
+
+## Separate overwrite with an earlier installed pack
+
+Use a separate fresh target. Pair bundled debug code 6 (asset `747939897`) with same-signer split debug code 7 (asset `763629573`). Verify the two manifests and common debug certificate.
+
+1. Install the bundled APK. Choose a non-default split and Sup/Sub setting. Apply a synthetic dictionary and `wanxiang.custom.yaml` with `patch: {menu/page_size: 3}`. Learn a synthetic phrase. Force-stop and record preferences, YAML hashes and a non-empty learning database through read-only `run-as` in the debug sandbox.
+2. Offline, run `adb -s "$ANDROID_SERIAL" install --no-incremental -r "$UPDATE_APK"`. Confirm code 7 and original hashes before new learning. Check the saved choices, earlier-pack notice, unavailable Download and real Chinese input with the old pack.
+3. Cancel or reject a bad file and check old offline input again. Install the verified new pair. Check ready, actual Chinese and Shift input, original YAML and learning. Compare database bytes before new learning. Reopen and reboot offline, then check the activated exact pack needs no further transfer.
+
+The [same-manifest fixture](WANXIANG_ACCEPTANCE.md#bundled-to-split-overwrite-fixture) belongs to its earlier matching checkpoint. The formal v0.3.2 upgrade requires the real release signer and remains a separate gate. Keep actual Android HTTPS transfer and interruption, low-storage recovery, ARM and verified 16 KiB runtime as separate acceptance cases.

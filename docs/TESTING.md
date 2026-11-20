@@ -2,6 +2,8 @@
 
 N4 当前源码的 `LauncherIdentityTest` 在已准备的 interaction 客体检查实际 URLSpan 外发目标及中英／回退布局，不打开浏览器、不提交问题、不参与首装设置。源码／回退清单、执行边界和仍待完成的 API 35 页面走查见 [PROJECT_IDENTITY.md](PROJECT_IDENTITY.md)。
 
+当前开发版的 [Android 15 私有验收步骤](ANDROID_ACCEPTANCE_RUNBOOK.md)区分两个全新安装场景、准备态交互和递增版本的离线覆装回归。设备结果仍待实际运行。
+
 All maintained execution scripts accept `--timeout-seconds N` or `MIANCAK_SCRIPT_TIMEOUT_SECONDS` (default one hour). Nested calls share the remaining budget, ADB stages have shorter limits, and timeout returns 124. See [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md) for cancellation and subprocess-cleanup checks.
 
 # APK Testing
