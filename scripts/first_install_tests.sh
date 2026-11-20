@@ -41,7 +41,9 @@ if [[ "$actual_api" -ge 33 && "$MIANCAK_ENTRY_ORDER" == settings-first ]]; then
 fi
 adb shell svc wifi disable
 adb shell svc data disable
-stage_wanxiang_test_assets artifacts/app-debug.apk
+setup_mode="${MIANCAK_WANXIANG_SETUP_MODE:-files}"
+case "$setup_mode" in files|https) ;; *) echo 'Unexpected Wanxiang setup mode' >&2; exit 1 ;; esac
+stage_wanxiang_test_assets artifacts/app-debug.apk "$setup_mode"
 run_phase() {
   local phase="$1"
   shift
@@ -51,7 +53,7 @@ run_phase() {
   if grep -Eq 'FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=' "test-results/$phase.log"; then exit 1; fi
   grep -Eq 'OK \(' "test-results/$phase.log"
 }
-run_phase clean-install
+run_phase clean-install -e setupMode "$setup_mode"
 adb shell am force-stop org.miancak.keyboard.debug
 run_phase reopen -e revisit true
 # Revisit the same normally configured install after a real guest reboot.

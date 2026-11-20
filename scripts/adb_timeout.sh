@@ -46,30 +46,17 @@ verify_test_target() {
 stage_wanxiang_test_assets() {
   test -n "${MIANCAK_VERIFIED_TEST_SERIAL:-}" && test "$MIANCAK_VERIFIED_TEST_SERIAL" = "$ANDROID_SERIAL" || return 1
   local fixture_dir="${MIANCAK_WANXIANG_FIXTURE_DIR:-.native/wanxiang-downloads}" mode
-  mode="$(python3 - "$MIANCAK_ADB_HELPER_DIR" "$1" "$fixture_dir" <<'PY'
-from pathlib import Path
-import json, sys, zipfile
-scripts, apk, fixtures = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-sys.path.insert(0, str(scripts))
-from prepare_wanxiang import LOCK, sha256
-with zipfile.ZipFile(apk) as package:
-    if 'assets/rime/delivery.json' not in package.namelist():
-        print('bundled')
-        raise SystemExit(0)
-lock = json.loads(LOCK.read_text())
-for role, name in [('base', 'base-' + lock['base']['version'] + '.zip'), ('model', lock['model']['filename'])]:
-    item = fixtures / name
-    expected = lock[role]
-    if not item.is_file() or item.stat().st_size != expected['bytes'] or sha256(item) != expected['sha256']:
-        raise SystemExit('Missing or invalid pinned Wanxiang ' + role + ' fixture. Supply MIANCAK_WANXIANG_FIXTURE_DIR from an approved source.')
-print('split')
-PY
-)" || return 1
+  local setup="${2:-files}"
+  local flags=()
+  if [[ "$setup" == https ]]; then flags+=(--base-only); fi
+  mode="$(python3 "$MIANCAK_ADB_HELPER_DIR/wanxiang_test_assets.py" "$1" --directory "$fixture_dir" "${flags[@]}")" || return 1
   MIANCAK_TEST_SPLIT_RESOURCES="$mode"
   if [[ "$mode" == split ]]; then
     adb shell mkdir -p /sdcard/Download
     adb push "$fixture_dir/base-v18.1.13.zip" /sdcard/Download/miancak-fixture-base.zip
-    adb push "$fixture_dir/wanxiang-lts-zh-hans.gram" /sdcard/Download/miancak-fixture-grammar.gram
+    if [[ "$setup" == files ]]; then
+      adb push "$fixture_dir/wanxiang-lts-zh-hans.gram" /sdcard/Download/miancak-fixture-grammar.gram
+    fi
     adb shell 'printf "invalid fixture\n" > /sdcard/Download/miancak-fixture-corrupt.gram'
   fi
 }

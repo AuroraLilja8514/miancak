@@ -32,7 +32,7 @@ LIMIT = 512 * 1024 * 1024
 GATES = {
     "generated", "unit", "build-debug", "build-release", "build-upgrade-baseline",
     "emulator-reboot (35)", "interaction-tests (35)",
-    "first-install (35, settings-first)", "first-install (35, ime-first)",
+    "first-install (35, settings-first)", "first-install (35, ime-first)", "first-install (35, settings-first-download)",
     "upgrade-tests (35)", "word-table-tests (35)", "word-pack-quality (35)",
 }
 

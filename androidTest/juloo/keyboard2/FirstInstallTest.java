@@ -68,6 +68,7 @@ public final class FirstInstallTest
     pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation);
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
+    boolean https = InstrumentationRegistry.getArguments().getString("setupMode", "files").equals("https");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     Throwable primary = null;
@@ -107,14 +108,16 @@ public final class FirstInstallTest
       launch();
       focusEditor();
       assertReceiverText("");
-      if (!revisit && WanxiangSetupTest.splitResources(context))
+      boolean split = WanxiangSetupTest.splitResources(context);
+      if (https) assertTrue("The download case requires a fresh split-resource APK", !revisit && split);
+      if (!revisit && split)
       {
         // The same empty install remains offline. Exercise the editor before
         // copying public resources via the real setup screen, without changing preferences.
         awaitLanguage("EN");
         type("hello"); press("2", "en"); awaitEditor("hello2");
         object("launcher_tryhere_area").setText("");
-        pressBack(); WanxiangSetupTest.install(context, device, true);
+        pressBack(); WanxiangSetupTest.install(context, device, true, https);
         launch(); focusEditor();
         if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
         awaitLanguage("中文");

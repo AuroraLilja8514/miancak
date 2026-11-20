@@ -15,14 +15,14 @@ Keep the baseline job names `generated`, `unit` and `build-debug` stable. Debug 
 | `build-debug` | All declared native ABIs in debug/test APKs, ELF alignment, hashed offline data and provenance |
 | `build-release` | All declared native ABIs in the minified unsigned release APK, package inspection and shrinking/fixture exclusions |
 | `interaction-tests (35)` | Real API 35 x86_64 native, Android policy, touch/editor and process-restart tests |
-| `first-install (<api>, <entry>)` | Two fresh-image API 35 APK jobs: settings-first/IME-first, Android UI enablement/selection and process reopen |
+| `first-install (<api>, <entry>)` | Separate fresh API 35 guests for Settings-first and IME-first offline Files setup, plus Settings-first live HTTPS setup. All require normal enablement, actual editor input, reopen and real reboot |
 | `build-upgrade-baseline` | Builds the pinned actual 0.3.0 source for replacement tests |
 | `upgrade-tests (35)` | Real old APK input/learning, overwrite installation, configuration migration and guest reboot |
 | `word-table-tests (35)` | Native recovery plus actual Files import, base/addon selection, offline fallback, learning, APK replacement and reboot |
 | `word-pack-quality (35)` | Isolated users and fixed corpus for historical old/full/core data plus actual Wanxiang Base/grammar; candidate/commit and resource thresholds |
 | `emulator-reboot (35)` | Independent empty guest, three actual adb reboots with changed boot IDs; runs independently of APK jobs on other hosts |
 
-The public-base matrix has 12 expanded checks, derived and compared against the required release gate names by `tools/release/test_release.py`. Application/test minSdk is 33; runtime jobs target API 35 only. Additional jobs integrated later must also enter the exact gate set; a stale count is not a waiver. Emulator version and GPU settings are pinned for API 35; see [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md). Every maintained script has a finite configurable deadline, and individual ADB/instrumentation operations have shorter limits; see [SCRIPT_TIMEOUTS.md](SCRIPT_TIMEOUTS.md).
+The split candidate's matrix has 13 expanded checks, derived and compared against the required release gate names by `tools/release/test_release.py`. Application/test minSdk is 33. Runtime jobs target API 35 only. Emulator version and GPU settings are pinned for API 35. See [EMULATOR_ENVIRONMENT.md](EMULATOR_ENVIRONMENT.md) and the finite [script deadlines](SCRIPT_TIMEOUTS.md).
 
 The `generated` job runs the release host contracts without signing inputs or SDK fixtures. They check the expanded workflow names against the reviewed gate set and verify generated inline helpers. During actual release preparation and provenance rechecks, the helper independently requires exactly that job-name set from the selected CI run and a successful latest result for every gate. Unknown jobs are rejected even when successful, so adding a matrix entry requires updating the reviewed gate set in the same change.
 
@@ -45,6 +45,8 @@ python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
 Actual APK inspection verifies every declared ABI, 16 KiB ELF load-segment alignment, offline asset hashes and dependency provenance. Release inspection also checks that JNI class names survive shrinking and the debug editor fixture is absent.
 
 The unit job also compiles the Android test driver against the public SDK so API/type errors fail before emulator provisioning. The emulator jobs still execute that driver against the installed APKs.
+
+The unit and ordinary build jobs use the overlay-only `prepare_rime.py` path. API 35 offline device jobs fetch the exact public Base/model pair from the shipped plan into runner temporary storage, check the pins and stage them for the Files picker. The separate HTTPS guest receives only the Base ZIP and a corrupt small test file for the existing rejection check. Its grammar comes from the app's Download action. The code-2 vocabulary baseline is a same-source split APK. The historical upgrade baseline predates Wanxiang. No CI APK contains the retired grammar, and runner-local pack fixtures stay outside the APK, test-result and cache paths.
 
 Artifacts are retained for seven days:
 

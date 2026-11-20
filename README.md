@@ -8,15 +8,15 @@ MIANCAK 是基于 [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyb
 
 [项目／源码](https://github.com/AuroraLilja8514/miancak) · [问题反馈](https://github.com/AuroraLilja8514/miancak/issues)。本分支的问题请反馈到 MIANCAK 仓库。
 
-未发布的 0.3.3 开发源码改用固定版本的[万象 Base](docs/WANXIANG_BASE.md)，包含原始带调词库与离线简体语法模型，不使用 Pro、Lite 或 Pure。MIANCAK 保留自己的键盘、字面输出与不学习策略。模型本体约 388 MiB，另有词表和编译产物；新源码的 Android 15 输入、质量与资源验收仍待完成。通过**设置 → 中文词表**继续导入受支持的 `.dict.yaml`，原始导入文件、已选配置和旧学习数据库不会被清空。万象使用单独的学习标识，旧学习的排名与编码不自动转换。正式 v0.3.2 的雾凇词包与实测记录仍见[历史词库评估](docs/WORD_PACK_EVALUATION.md)。
+未发布的 0.3.4 开发源码使用固定版本的[万象 Base](docs/WANXIANG_BASE.md)，保留原始带调词库与离线简体语法模型。MIANCAK 保留自己的键盘、字面输出与不学习策略。新源码的 Android 15 输入、质量与资源验收仍待完成。通过**设置 → 中文词表**可导入受支持的 `.dict.yaml` 与[标准配置补丁](docs/RIME_CUSTOM_CONFIG.md)。原始导入文件、已选配置和旧学习数据库均予保留。万象使用单独的学习标识，旧学习的排名与编码不自动转换。正式 v0.3.2 的雾凇词包与实测记录仍见[历史词库评估](docs/WORD_PACK_EVALUATION.md)。
 
 首次准备离线数据时会显示等待提示。准备失败时，开发源码可使用已校验的保留部署并明确提示；检查可用存储后，可在**中文词表 → 按已保存的选择重试数据准备**中重试，保留词表、配置原文和学习目录。无可用保留数据时，失败后仍可英文直输。实际 Android 15 等待时间与中断恢复仍待验收，见[部署恢复说明](docs/DEPLOYMENT_RECOVERY.md)。
 
-后续开发的精简 APK 在**设置 → 设置中文输入**获取万象 Base 数据和离线语法模型。已有兼容资源可直接复用；初次设置之前仍可直接输入英文等字符。固定模型的在线来源待确认，开发版也可从本地已校验文件设置。单独冻结的 v0.3.3 APK 保留其完整内置资源。见[首次设置与来源](docs/WANXIANG_SETUP.md)。
+0.3.4 候选版在**设置 → 设置中文输入**显式下载万象 Base 数据和语法模型，校验后可离线使用。也可选择本地已校验的文件。初次设置前可直接输入英文等字符，已有兼容资源可继续离线使用。两个官方资源合计约 398 MiB，另需编译空间。单独冻结的 v0.3.3 是完整内置资源的开发记录。见[首次设置与来源](docs/WANXIANG_SETUP.md)。
 
 ## 项目现状
 
-未发布的 0.3.3 同时修正 [Shift 英文交接](docs/SHIFT_ENGLISH_HANDOFF.md)：组词时完成 Shift 动作或明确切到英文，不再替用户选择首候选；保留已明确选择的文字，剩余按键原样作为英文交接。闲置 Shift 的临时大写／锁定行为保留，Android 15 接收端正文验收仍待执行。
+未发布的 0.3.4 包含 [Shift 英文交接](docs/SHIFT_ENGLISH_HANDOFF.md)修复。组词时完成 Shift 动作或明确切到英文会保留已明确选择的文字，剩余按键原样作为英文交接，避免未选候选被提交。闲置 Shift 的临时大写／锁定行为保留，Android 15 接收端正文验收仍待执行。
 
 MIANCAK 已实现**实验性的离线简体拼音输入**，包括固定版本的 librime 运行库、语义输入控制器、按字面精确输出，以及独立的触控候选栏。R0–R7 应用阶段验收已通过包含 18 项检查的 APK 测试矩阵和固定词汇测试集；更广泛的日常使用与设备适配仍在[问题 #20](https://github.com/AuroraLilja8514/miancak/issues/20) 中跟踪。原有手势和单指 Shift 临时大写／锁定行为均予以保留。实际验证范围见[测试说明](docs/TESTING.md)。
 
@@ -28,7 +28,7 @@ MIANCAK 已实现**实验性的离线简体拼音输入**，包括固定版本�
 
 当前开发情况记录在[修复进度日志](docs/FN_REPAIR_PROGRESS.md)中；[R7 验收报告](docs/R7_APK_ACCEPTANCE.md)记录了确切的测试 APK 和原始接收端证据。[可视化编辑器指南](docs/VISUAL_LAYOUT_EDITOR.md)介绍现有控件。[历史词库评估](docs/WORD_PACK_EVALUATION.md)记录雾凇核心词表与原实测限制；[万象 Base 集成](docs/WANXIANG_BASE.md)说明新开发源码、来源与待验收范围。[词表导入](docs/RIME_WORD_TABLES.md)继续是独立的数据功能。
 
-v0.3.2 已于 2026-11-16 正式发布。当前源码版本 0.3.3 尚未发布；分体默认关闭和 Sup/Sub 默认显示属于后续开发变更，已保存的值仍保留，见[默认偏好说明](docs/DEFAULT_PREFERENCES.md)。项目入口与翻译回退清单见 [N4 核对记录](docs/PROJECT_IDENTITY.md)。
+v0.3.2 已于 2026-11-16 正式发布。[0.3.4 候选版](docs/releases/0.3.4.md)尚未发布。分体默认关闭和 Sup/Sub 默认显示属于后续开发变更，已保存的值仍保留，见[默认偏好说明](docs/DEFAULT_PREFERENCES.md)。项目入口与翻译回退清单见 [N4 核对记录](docs/PROJECT_IDENTITY.md)。
 
 0.3.2 更新加入了更紧凑的滚动候选栏、跨类别翻页的符号页、按正常键盘尺寸显示的编辑器，以及高度更低、左右边距对称的横屏键盘。[输入界面报告](docs/INPUT_UI_FOLLOWUP.md)记录了确切 APK、同一 APK 在 API 23 和 35 上的验证、保留的失败记录，以及设备和签名方面的验证限制。
 
@@ -43,7 +43,7 @@ v0.3.2 已于 2026-11-16 正式发布。当前源码版本 0.3.3 尚未发布；
 
 ## 安装与使用
 
-当前未发布的 0.3.3 源码最低要求 Android 13（API 33），实际设备验收聚焦 Android 15（API 35）及以上；不再安排 Android 6 测试。已发布 v0.3.2 的原始最低版本声明和历史结果保持不变。安装下限不是 API 33 已实测的声明，见[Android 支持范围](docs/ANDROID_SUPPORT.md)。
+0.3.4 候选版最低要求 Android 13（API 33），实际设备验收聚焦 Android 15（API 35）及以上。已发布 v0.3.2 的原始最低版本声明和历史结果见[Android 支持范围](docs/ANDROID_SUPPORT.md)。
 
 请从 [GitHub 正式发布页](https://github.com/AuroraLilja8514/miancak/releases/latest)下载已签名的 APK，安装后在 Android 输入法设置中启用并选择 MIANCAK。正式版包名为 `org.miancak.keyboard`。
 

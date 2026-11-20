@@ -1,4 +1,6 @@
-# Wanxiang Android acceptance plan (unreleased 0.3.3)
+# Wanxiang Android acceptance plan
+
+The next release candidate is [0.3.4 with post-install resources](releases/0.3.4.md). The bundled 0.3.3 procedures and any dated results below apply to their original source.
 
 Application minimum: Android 13 / API 33. Actual runtime scope: Android 15+ /
 API 35+, using an authorized named disposable empty guest or a separately
@@ -18,7 +20,7 @@ clean and overwrite sequences on the available Android target.
 
 ## Post-install resource flow
 
-[Chinese input setup](WANXIANG_SETUP.md) explains the follow-up resource split. The detailed bundled-build procedure and results below retain their original source and scope. For the follow-up, run the guarded first-install driver with both exact files available in `MIANCAK_WANXIANG_FIXTURE_DIR`. Neither file is preinstalled in the app. The driver enables and selects the IME through the normal UI and checks real direct-mode text while disconnected. It opens normal setup and checks the Download response without a default network, rejects a deliberately corrupt local model, then installs the matching pair through DocumentsUI. Original Chinese, Shift, reopen and reboot checks follow. A missing fixture explicitly blocks the setup step. An independent approved network run is still needed for actual transfer, cancellation/retry and offline behavior after download. Record elapsed transfer, unpacking and native compilation separately on Android 15+. The source and Android-test compilation leave those runtime outcomes pending.
+[Chinese input setup](WANXIANG_SETUP.md) explains the resource split. Both offline first-install paths start with an unused guest and normally enable and select the IME. They require offline direct text, the unavailable Download response, rejection of a corrupt model, and normal DocumentsUI installation from the exact pair in `MIANCAK_WANXIANG_FIXTURE_DIR`. They then check Chinese, Shift, reopen and reboot. The independent Settings-first HTTPS job requires the same offline and corrupt checks, then the actual Download action. Its host stages only the Base and corrupt file. The device goes offline again before Chinese input, reopen and reboot. Record elapsed transfer, unpacking and native compilation separately on Android 15+. Actual runs, interruption and retry remain pending.
 
 ### Bundled-to-split overwrite fixture
 

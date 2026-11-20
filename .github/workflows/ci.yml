@@ -86,6 +86,7 @@ jobs:
           python3 scripts/check_project_identity.py
           python3 scripts/test_project_identity.py
           python3 scripts/test_prepare_wanxiang.py --timeout-seconds 120
+          python3 scripts/test_wanxiang_test_assets.py --timeout-seconds 120
           python3 scripts/test_apk_asset_inventory.py --timeout-seconds 120
           python3 scripts/gen_phonetic_pages.py
           python3 scripts/test_phonetic_pages.py
@@ -296,6 +297,8 @@ jobs:
           mkdir -p artifacts
           find artifacts-download -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
           find artifacts-download -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+      - name: Fetch pinned runner-local Wanxiang fixtures
+        run: python3 scripts/wanxiang_test_assets.py artifacts/app-debug.apk --directory "$RUNNER_TEMP/miancak-wanxiang" --fetch
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -317,7 +320,7 @@ jobs:
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-interactions.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu ${{ env.MIANCAK_EMULATOR_GPU_API35 }} -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: MIANCAK_TEST_API=${{ matrix.api }} python3 scripts/public_test_evidence.py run --scenario interaction -- bash scripts/emulator_tests.sh
+          script: MIANCAK_TEST_API=${{ matrix.api }} MIANCAK_WANXIANG_FIXTURE_DIR="$RUNNER_TEMP/miancak-wanxiang" python3 scripts/public_test_evidence.py run --scenario interaction -- bash scripts/emulator_tests.sh
       - name: Stage typed public device evidence
         if: always()
         id: public-evidence
@@ -353,6 +356,8 @@ jobs:
           mkdir -p artifacts
           find artifacts-download -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
           find artifacts-download -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+      - name: Fetch pinned runner-local Wanxiang fixtures
+        run: python3 scripts/wanxiang_test_assets.py artifacts/app-debug.apk --directory "$RUNNER_TEMP/miancak-wanxiang" --fetch
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -374,7 +379,7 @@ jobs:
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-quality.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu ${{ env.MIANCAK_EMULATOR_GPU_API35 }} -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: MIANCAK_TEST_API=${{ matrix.api }} python3 scripts/public_test_evidence.py run --scenario word-pack -- bash scripts/word_pack_quality_tests.sh
+          script: MIANCAK_TEST_API=${{ matrix.api }} MIANCAK_WANXIANG_FIXTURE_DIR="$RUNNER_TEMP/miancak-wanxiang" python3 scripts/public_test_evidence.py run --scenario word-pack -- bash scripts/word_pack_quality_tests.sh
       - name: Stage typed public device evidence
         if: always()
         id: public-evidence
@@ -396,7 +401,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [35]
-        entry: [settings-first, ime-first]
+        entry: [settings-first, ime-first, settings-first-download]
     needs: [build-debug]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -411,6 +416,13 @@ jobs:
           mkdir -p artifacts
           find artifacts-download -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
           find artifacts-download -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
+      - name: Fetch pinned setup fixtures for this entry path
+        env:
+          ENTRY: ${{ matrix.entry }}
+        run: |
+          flags=()
+          if [[ "$ENTRY" == settings-first-download ]]; then flags+=(--base-only); fi
+          python3 scripts/wanxiang_test_assets.py artifacts/app-debug.apk --directory "$RUNNER_TEMP/miancak-wanxiang" --fetch "${flags[@]}"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -432,7 +444,12 @@ jobs:
           disable-animations: true
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-clean.avd/config.ini"
           emulator-options: -no-window -gpu ${{ env.MIANCAK_EMULATOR_GPU_API35 }} -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: MIANCAK_TEST_API=${{ matrix.api }} MIANCAK_ENTRY_ORDER=${{ matrix.entry }} python3 scripts/public_test_evidence.py run --scenario first-install -- bash scripts/first_install_tests.sh
+          script: >-
+            MIANCAK_TEST_API=${{ matrix.api }}
+            MIANCAK_ENTRY_ORDER=${{ matrix.entry == 'settings-first-download' && 'settings-first' || matrix.entry }}
+            MIANCAK_WANXIANG_SETUP_MODE=${{ matrix.entry == 'settings-first-download' && 'https' || 'files' }}
+            MIANCAK_WANXIANG_FIXTURE_DIR="$RUNNER_TEMP/miancak-wanxiang"
+            python3 scripts/public_test_evidence.py run --scenario first-install -- bash scripts/first_install_tests.sh
       - name: Stage typed public device evidence
         if: always()
         id: public-evidence
@@ -473,6 +490,8 @@ jobs:
           find artifacts-download/current -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
           find artifacts-download/current -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
           cp artifacts-download/fixture/baseline.apk artifacts/word-baseline.apk
+      - name: Fetch pinned runner-local Wanxiang fixtures
+        run: python3 scripts/wanxiang_test_assets.py artifacts/word-baseline.apk --directory "$RUNNER_TEMP/miancak-wanxiang" --fetch
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -494,7 +513,7 @@ jobs:
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-words.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu ${{ env.MIANCAK_EMULATOR_GPU_API35 }} -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: MIANCAK_TEST_API=${{ matrix.api }} python3 scripts/public_test_evidence.py run --scenario word-table -- bash scripts/word_table_apk_tests.sh
+          script: MIANCAK_TEST_API=${{ matrix.api }} MIANCAK_WANXIANG_FIXTURE_DIR="$RUNNER_TEMP/miancak-wanxiang" python3 scripts/public_test_evidence.py run --scenario word-table -- bash scripts/word_table_apk_tests.sh
       - name: Stage typed public device evidence
         if: always()
         id: public-evidence
@@ -578,6 +597,8 @@ jobs:
           find artifacts-download/current -name '*androidTest.apk' -exec cp {} artifacts/app-debug-androidTest.apk \;
           find artifacts-download/current -name '*.apk' ! -name '*androidTest.apk' -exec cp {} artifacts/app-debug.apk \;
           cp artifacts-download/baseline/baseline.apk artifacts/baseline.apk
+      - name: Fetch pinned runner-local Wanxiang fixtures
+        run: python3 scripts/wanxiang_test_assets.py artifacts/app-debug.apk --directory "$RUNNER_TEMP/miancak-wanxiang" --fetch
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -598,7 +619,7 @@ jobs:
           pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-upgrade.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu ${{ env.MIANCAK_EMULATOR_GPU_API35 }} -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: python3 scripts/public_test_evidence.py run --scenario upgrade -- bash scripts/upgrade_apk_tests.sh
+          script: MIANCAK_WANXIANG_FIXTURE_DIR="$RUNNER_TEMP/miancak-wanxiang" python3 scripts/public_test_evidence.py run --scenario upgrade -- bash scripts/upgrade_apk_tests.sh
       - name: Stage typed public device evidence
         if: always()
         id: public-evidence

@@ -362,10 +362,18 @@ class Diagnostics(unittest.TestCase):
              self.assertRaisesRegex(smoke.ops.ReleaseError, "^RELEASE_INPUT_VERIFY$"):
             smoke.phase("verify")
 
-    def exercise_main(self, failure=None, collector_error=None, transfer_error=None):
+    def exercise_main(self, failure=None, collector_error=None, transfer_error=None, split=False):
+        from zipfile import ZipFile
         signed = Path("signed"); signed.mkdir(exist_ok=True)
         record = {"version": "0.3.4", "apk_sha256": "f" * 64, "source_sha": "a" * 40}
         (signed / "release-provenance.json").write_text(json.dumps(record))
+        with ZipFile(signed / "miancak-0.3.4.apk", "w") as apk:
+            if split:
+                apk.writestr("assets/rime/delivery.json", "{}")
+        if split:
+            Path("prepared").mkdir(exist_ok=True)
+            with ZipFile("prepared/previous.apk", "w"):
+                pass
         order = []
         boot_ids = iter(("before", "after"))
         def shell(*args, **kwargs):
@@ -378,8 +386,8 @@ class Diagnostics(unittest.TestCase):
             if args == ("cat", "/proc/sys/kernel/random/boot_id"):
                 return next(boot_ids)
             return ""
-        def phase(name):
-            order.append(name)
+        def phase(name, *, setup_resources=False):
+            order.append(name + "-setup" if setup_resources else name)
             if failure is not None and name == "verify":
                 raise failure
         def collect(*args):
@@ -404,7 +412,8 @@ class Diagnostics(unittest.TestCase):
             collector = stack.enter_context(mock.patch.object(smoke, "collect_failure_diagnostics", side_effect=collect))
             stack.enter_context(mock.patch.object(smoke.ops, "verify_signed"))
             stack.enter_context(mock.patch.object(smoke.ops, "file_sha", return_value=record["apk_sha256"]))
-            stack.enter_context(mock.patch.object(smoke.ops, "inspect_apk", return_value={"version_code": 7}))
+            stack.enter_context(mock.patch.object(smoke.ops, "inspect_apk", side_effect=lambda path: {
+                "version_code": 5 if path.name == "previous.apk" else 7}))
             stack.enter_context(mock.patch.object(smoke.signal, "signal"))
             alarm = stack.enter_context(mock.patch.object(smoke.signal, "alarm"))
             stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
@@ -431,6 +440,11 @@ class Diagnostics(unittest.TestCase):
         self.assertEqual(order, ["prepare", "verify", "rebooted", "ui-pull"])
         self.assertEqual(collected, 0); self.assertEqual(snapshots, 4)
         self.assertEqual(json.loads(Path("test-results/release/acceptance.json").read_text())["result"], "passed")
+
+    def test_split_release_runs_setup_after_overwriting_the_old_signed_app(self):
+        order, collected, snapshots = self.exercise_main(split=True)
+        self.assertEqual(order, ["prepare", "verify-setup", "rebooted", "ui-pull"])
+        self.assertEqual((collected, snapshots), (0, 4))
 
     def test_original_exit_status_is_not_replaced_by_final_transfer_exception(self):
         failure = SystemExit(42)

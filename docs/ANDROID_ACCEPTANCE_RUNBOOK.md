@@ -9,7 +9,7 @@ Use an authorized dedicated API 35+ device. For the maintained drivers, use a ha
 - Set the authorized `ANDROID_SERIAL`. Use `adb -s "$ANDROID_SERIAL" shell` for `getprop ro.build.version.sdk`, `getprop ro.product.cpu.abi` and `getconf PAGESIZE`. Check Android is booted and unlocked with working package and IME services. Confirm each clean target has no earlier app install or restored data. Use synthetic inputs only.
 - Keep APK identities, actual stage results and failure foregrounds local. Follow the typed `summary.json` / `heartbeat.jsonl` boundary for evidence staging.
 
-## Verified local cleanup build
+## Earlier verified local cleanup build
 
 The cleanup APKs come from `e269053ee9258ddbd8762a63ad83c86b5da64ab3`. All inputs below declare minSdk 33 and targetSdk 36. The app APKs have `arm64-v8a`, `armeabi-v7a` and `x86_64` libraries. The instrumentation APK contains no native libraries and targets the debug app.
 
@@ -21,7 +21,7 @@ The cleanup APKs come from `e269053ee9258ddbd8762a63ad83c86b5da64ab3`. All input
 | Bundled debug baseline from `aaa22ef` | `org.miancak.keyboard.debug` · 6 | `4fd93129e03c22f9dfce89ad94ba08756902a0a6707fa3df9f05520c70e2e22f` |
 | Minified unsigned release | `org.miancak.keyboard` · 6 | `5e3eec3d0db0fe673c80ae56cd2ff7b9ba84e37cf7e21b6edf04294cf2723945` |
 
-All debug inputs share certificate SHA-256 `24ea47d2f87c43b0a8e3daaef685e4c052a267029e990d98c043a4933c8cc8c1`. Use those APKs for the device cases. The unsigned release is a static packaging check. Real Android install, input, HTTPS, force-stop and overwrite are pending.
+These debug inputs share certificate SHA-256 `24ea47d2f87c43b0a8e3daaef685e4c052a267029e990d98c043a4933c8cc8c1`. Use a separate receipt with the exact 0.3.4 APKs for the next release candidate. Real Android install, input, HTTPS, force-stop and overwrite are pending.
 
 ## Clean install and prepared interaction
 
@@ -35,6 +35,8 @@ MIANCAK_ENTRY_ORDER=settings-first python3 "$REPO/scripts/public_test_evidence.p
 ```
 
 Use a fresh `miancak-clean` guest for each entry order. Repeat with `MIANCAK_ENTRY_ORDER=ime-first`. Each invocation covers clean installation, reopen and reboot with a changed kernel boot ID, using the ordinary UI and actual receiving editor.
+
+On a third unused `miancak-clean` guest, use `MIANCAK_ENTRY_ORDER=settings-first` and `MIANCAK_WANXIANG_SETUP_MODE=https`. Supply only the pinned Base ZIP in `MIANCAK_WANXIANG_FIXTURE_DIR`. The driver checks unavailable Download and corrupt-file rejection while offline, then lets the app fetch the verified pair. Actual input, reopen and reboot must run with the guest disconnected again.
 
 On a separate fresh `miancak-interactions` guest, use the same wrapper with `--scenario interaction -- bash "$REPO/scripts/emulator_tests.sh"`. It covers held anticircle, scrolling and rotation, Settings rows, and the Project and Issues destinations without opening a browser.
 
@@ -53,7 +55,7 @@ Use a separate fresh target. Pair bundled debug code 6 (asset `747939897`) with 
 2. Offline, run `adb -s "$ANDROID_SERIAL" install --no-incremental -r "$UPDATE_APK"`. Confirm code 7 and original hashes before new learning. Check the saved choices, earlier-pack notice, unavailable Download and real Chinese input with the old pack.
 3. Cancel or reject a bad file and check old offline input again. Install the verified new pair. Check ready, actual Chinese and Shift input, original YAML and learning. Compare database bytes before new learning. Reopen and reboot offline, then check the activated exact pack needs no further transfer.
 
-The [same-manifest fixture](WANXIANG_ACCEPTANCE.md#bundled-to-split-overwrite-fixture) belongs to its earlier matching checkpoint. The formal v0.3.2 upgrade requires the real release signer and remains a separate gate. Keep uninterrupted HTTPS transfer, low-storage recovery, ARM and verified 16 KiB runtime as separate acceptance cases.
+The [same-manifest fixture](WANXIANG_ACCEPTANCE.md#bundled-to-split-overwrite-fixture) belongs to its earlier matching checkpoint. Keep the old bundled debug APK local. The maintained CI replacement jobs instead use the pinned actual 0.3.0 APK and the same-source code-2 split vocabulary fixture. The separate formal upgrade must use published v0.3.2 (code 5), the registered release signer and the signed 0.3.4 (code 7). Its guarded helper compares preference and learning bytes before setup, uses the regular Download UI and checks actual editor output offline after installation and reboot. Keep low-storage recovery, ARM and verified 16 KiB runtime as separate acceptance cases.
 
 ## Force-stop during a live split-pack download
 

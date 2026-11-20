@@ -1,6 +1,6 @@
 # Wanxiang setup after installation
 
-The download candidate keeps MIANCAK's engine, all pinned Wanxiang Lua and runtime configuration, the small compatibility vocabulary, and the original licenses in the APK. Setup downloads the remaining Wanxiang Base data and the Simplified Chinese grammar. The candidate pins a newer official grammar. The frozen v0.3.3 APK contains the earlier grammar and the full Base.
+The 0.3.4 candidate keeps MIANCAK's engine, all pinned Wanxiang Lua and runtime configuration, the small compatibility vocabulary, and the original licenses in the APK. Setup downloads the remaining Wanxiang Base data and the Simplified Chinese grammar. The frozen v0.3.3 APK contains the earlier grammar and the full Base.
 
 ## Set up Chinese input
 

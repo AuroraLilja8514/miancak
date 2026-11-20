@@ -14,6 +14,7 @@ import signal
 import subprocess
 import sys
 import time
+from zipfile import ZipFile
 import release_ops as ops
 
 PACKAGE = ops.PACKAGE
@@ -305,11 +306,17 @@ def snapshot(name):
     ops.write_json(RESULTS / (name + ".json"), values)
     return values
 
-def phase(name):
+def split_resources(apk):
+    with ZipFile(apk) as archive:
+        return 'assets/rime/delivery.json' in archive.namelist()
+
+def phase(name, *, setup_resources=False):
     shell("ime", "enable", PACKAGE + "/juloo.keyboard2.Keyboard2")
     shell("ime", "set", PACKAGE + "/juloo.keyboard2.Keyboard2")
+    setup = ["-e", "releaseSetup", "true"] if setup_resources else []
     text = shell("am", "instrument", "-w", "-e", "class", "juloo.keyboard2.ReleaseApkTest",
                  "-e", "releasePhase", name,
+                 *setup,
                  PACKAGE + ".debug.test/androidx.test.runner.AndroidJUnitRunner", timeout=600)
     (RESULTS / (name + ".log")).write_text(text)
     passed = "OK (1 test)" in text and not re.search(
@@ -383,13 +390,13 @@ def main():
         adb("install", "--no-incremental", str(baseline), timeout=180)
         shell("svc", "wifi", "disable"); shell("svc", "data", "disable")
         shell("settings", "put", "secure", "show_ime_with_hard_keyboard", "1")
-        phase("prepare")
+        phase("prepare", setup_resources=split_resources(baseline))
         inactive()
         before = snapshot("before-install")
         adb("install", "--no-incremental", "-r", str(apk), timeout=180)
         after = snapshot("after-install")
         ops.require(before == after, "RELEASE_UPGRADE_DATA_CHANGED")
-        phase("verify")
+        phase("verify", setup_resources=split_resources(apk))
         inactive()
         before_boot = snapshot("before-reboot")
         boot_before = shell("cat", "/proc/sys/kernel/random/boot_id")

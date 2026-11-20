@@ -44,8 +44,15 @@ public final class ReleaseApkTest
       launch();
       if (phase.equals("prepare")) setPreferenceMarkers();
       else assertPreferenceMarkers();
+      boolean setup = InstrumentationRegistry.getArguments().getString("releaseSetup", "false").equals("true");
+      if (setup) WanxiangSetupTest.installSignedAppFromNetwork(driver, device, APP);
+      android.net.ConnectivityManager network = driver.getSystemService(android.net.ConnectivityManager.class);
+      assertNotNull(network);
+      assertNull("Signed receiver check must run offline", network.getActiveNetwork());
       launch();
       focusEditor();
+      if (setup && "EN".equals(node("miancak_language").getText())) node("miancak_language").click();
+      assertTrue(device.wait(Until.hasObject(By.res(APP, "miancak_language").text("中文")), 15000));
       assertEquals("中文", node("miancak_language").getText());
       type("nihao");
       UiObject2 candidate = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ").text("你好")), 180000);
