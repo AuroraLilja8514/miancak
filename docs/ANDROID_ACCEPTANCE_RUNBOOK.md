@@ -9,6 +9,20 @@ Use an authorized dedicated API 35+ device. For the maintained drivers, use a ha
 - Set the authorized `ANDROID_SERIAL`. Use `adb -s "$ANDROID_SERIAL" shell` for `getprop ro.build.version.sdk`, `getprop ro.product.cpu.abi` and `getconf PAGESIZE`. Check Android is booted and unlocked with working package and IME services. Confirm each clean target has no earlier app install or restored data. Use synthetic inputs only.
 - Keep APK identities, actual stage results and failure foregrounds local. Follow the typed `summary.json` / `heartbeat.jsonl` boundary for evidence staging.
 
+## Verified local cleanup build
+
+The cleanup APKs come from `e269053ee9258ddbd8762a63ad83c86b5da64ab3`. All inputs below declare minSdk 33 and targetSdk 36. The app APKs have `arm64-v8a`, `armeabi-v7a` and `x86_64` libraries. The instrumentation APK contains no native libraries and targets the debug app.
+
+| Role | Package and version code | SHA-256 |
+| --- | --- | --- |
+| Split debug, clean install | `org.miancak.keyboard.debug` · 6 | `49515410432e00b255cdf1d991c11dd4c64310ae9549c8f8471cd627dee4e4a0` |
+| Signed instrumentation | `org.miancak.keyboard.debug.test` · 0 | `1ed1fdee284334c91f7f2c609ac65ad6726e0a789972fc8afd241879dc7323fc` |
+| Split debug, overwrite fixture | `org.miancak.keyboard.debug` · 7 | `9f7d265f432e656c1f531961b36fa339c9b7af1fe14fdeb4c4b9fd2df8ba2f4e` |
+| Bundled debug baseline from `aaa22ef` | `org.miancak.keyboard.debug` · 6 | `4fd93129e03c22f9dfce89ad94ba08756902a0a6707fa3df9f05520c70e2e22f` |
+| Minified unsigned release | `org.miancak.keyboard` · 6 | `5e3eec3d0db0fe673c80ae56cd2ff7b9ba84e37cf7e21b6edf04294cf2723945` |
+
+All debug inputs share certificate SHA-256 `24ea47d2f87c43b0a8e3daaef685e4c052a267029e990d98c043a4933c8cc8c1`. Use those APKs for the device cases. The unsigned release is a static packaging check. Real Android install, input, HTTPS, force-stop and overwrite are pending.
+
 ## Clean install and prepared interaction
 
 In a fresh private run directory, link the verified pair to `artifacts/app-debug.apk` and `artifacts/app-debug-androidTest.apk`. Set `REPO` to the checkout and `MIANCAK_WANXIANG_FIXTURE_DIR` to the verified files' directory.
