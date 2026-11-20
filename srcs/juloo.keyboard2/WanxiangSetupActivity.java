@@ -91,6 +91,7 @@ public final class WanxiangSetupActivity extends Activity
     if (phase == Phase.NEEDED) message.setText(getString(description, status.version, size));
     else if (phase == Phase.COPYING) message.setText(getString(description, percent));
     else message.setText(description);
+    if (status.earlierPack && phase != Phase.READY) message.append("\n" + getString(R.string.wanxiang_setup_earlier_pack));
     progress.setVisibility(status.busy() ? View.VISIBLE : View.GONE);
     progress.setIndeterminate(phase != Phase.COPYING);
     if (phase == Phase.COPYING) progress.setProgress(percent);

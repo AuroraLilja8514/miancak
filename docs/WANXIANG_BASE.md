@@ -13,10 +13,11 @@ The Android minimum remains API 33 and runtime acceptance targets API 35+.
 - Repository commit: `9704d41ee6e52bac3f66618a267826d360aa64ee`.
 - `rime-wanxiang-base.zip`, asset `746092731`, 26,197,573 bytes,
   SHA-256 `2a94c48aa51eab2de20b4fdc89e065c05c828875b2bb3336a680f7c140ef088d`.
-- The separate [LTS grammar](https://github.com/amzxyz/rime-wanxiang-data/releases/tag/LTS):
-  `wanxiang-lts-zh-hans.gram`, asset `747939897`, 407,160,876 bytes,
+- The download candidate pins [LTS grammar asset 763629573](https://api.github.com/repos/amzxyz/rime-wanxiang-data/releases/assets/763629573), `wanxiang-lts-zh-hans.gram`, 390,786,092 bytes,
+  SHA-256 `e9ddd501b7d536bc5ea1346f8f900ae49a719a05be349e0a17cb27e717143ca5`.
+- The frozen bundled build still uses asset `747939897`, 407,160,876 bytes,
   SHA-256 `d4f64356231764ff27b79c9b0db79cd9d665013464cf5544e2fbd9a71e0f1c5a`.
-  LTS asset URLs can change; both size and digest must match, not just the tag.
+  Each build checks its numeric asset ID, size and digest.
 
 The former `amzxyz/RIME-LMDG` URL redirects to `amzxyz/rime-wanxiang-data`.
 Base and model data carry CC BY 4.0 attribution. The model repository's

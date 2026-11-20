@@ -109,8 +109,8 @@ class ApkAssetInventoryTest(unittest.TestCase):
     def test_real_lock_still_declares_full_base_and_one_original_model(self):
         lock = json.loads((Path(__file__).resolve().parents[1] / "native/wanxiang.lock.json").read_text())
         self.assertEqual(len(lock["files"]), 80)
-        self.assertEqual(lock["model"]["bytes"], 407160876)
-        self.assertEqual(lock["model"]["sha256"], "d4f64356231764ff27b79c9b0db79cd9d665013464cf5544e2fbd9a71e0f1c5a")
+        self.assertEqual(lock["model"]["bytes"], 390786092)
+        self.assertEqual(lock["model"]["sha256"], "e9ddd501b7d536bc5ea1346f8f900ae49a719a05be349e0a17cb27e717143ca5")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@
   <string name="wanxiang_setup_info">Wanxiang Base and its grammar model are needed for Chinese suggestions. You can type English and other characters directly before setup. After setup, Chinese input works offline.</string>
   <string name="wanxiang_setup_checking">Checking for compatible resources on this device…</string>
   <string name="wanxiang_setup_needed">Wanxiang Base %1$s and grammar · %2$s</string>
+  <string name="wanxiang_setup_earlier_pack">You can keep using the earlier verified pack offline if this update is unavailable.</string>
   <string name="wanxiang_setup_download">Download (%1$s)</string>
   <string name="wanxiang_setup_retry">Retry download (%1$s)</string>
   <string name="wanxiang_setup_files">Install from verified files</string>

@@ -91,6 +91,50 @@ public final class WanxiangInstallTest
     fixture.assertRetained();
   }
 
+  @Test public void aVerifiedEarlierPackStaysUsableUntilTheRefreshActivates() throws Exception
+  {
+    Fixture fixture = new Fixture(baseZip(null));
+    WanxiangInstall install = fixture.open();
+    assertFalse(install.hasEarlierBundle());
+    byte[] earlierModel = bytes("earlier locked grammar");
+    JSONObject hashes = new JSONObject(new String(fixture.manifest, StandardCharsets.UTF_8));
+    hashes.put("test.gram", hash(earlierModel));
+    byte[] earlierManifest = bytes(hashes.toString());
+    File earlier = new File(fixture.root, "shared-" + hash(earlierManifest));
+    Files.createDirectory(earlier.toPath());
+    for (java.util.Iterator<String> names = hashes.keys(); names.hasNext(); )
+    {
+      String name = names.next(); File file = new File(earlier, name);
+      Files.createDirectories(file.getParentFile().toPath());
+      byte[] data = name.equals("test.gram") ? earlierModel : name.equals("wanxiang.dict.yaml") ? DICT
+          : name.equals("lua/data/chaifen.txt") ? new byte[0] : fixture.asset(name).readAllBytes();
+      Files.write(file.toPath(), data);
+    }
+    RimeData.saveManifest(earlier, earlierManifest);
+
+    WordTableStore store = new WordTableStore(fixture.files, new WordTableStore.Packaged() {
+      @Override public RimeData.Paths identify() { return new RimeData.Paths(fixture.target, fixture.user); }
+      @Override public RimeData.Paths prepare() throws IOException
+      { if (!install.installed()) throw new WanxiangInstall.SetupRequired(); return identify(); }
+      @Override public ByteArrayInputStream open(String name) { return fixture.asset(name); }
+    });
+    assertTrue(install.hasEarlierBundle());
+    assertTrue(store.currentPaths().retained);
+    assertThrows(IOException.class, () -> fixture.prepare(spec -> { throw new IOException("Pinned asset is unavailable"); }));
+    assertThrows(WanxiangInstall.IntegrityFailure.class, () -> fixture.prepare(spec -> new ByteArrayInputStream(new byte[]{MODEL[0]})));
+    assertEquals(earlier, store.currentPaths().shared);
+    try (WanxiangInstall.Staged stage = fixture.stage(install, new ArrayList<>()))
+    {
+      assertEquals(earlier, store.currentPaths().shared);
+      stage.activate(paths -> assertArrayEquals(MODEL, read(paths.shared, "test.gram")));
+    }
+    assertFalse(store.currentPaths().retained);
+    assertEquals(fixture.target, store.currentPaths().shared);
+    assertEquals(fixture.user, store.currentPaths().user);
+    assertArrayEquals(earlierModel, read(earlier, "test.gram"));
+    fixture.assertRetained();
+  }
+
   @Test public void rejectsAPathOutsideStagingEvenWhenTheArchiveItselfMatchesThePin() throws Exception
   {
     Fixture fixture = new Fixture(baseZip("../escaped.yaml"));
@@ -131,7 +175,8 @@ public final class WanxiangInstallTest
 
   private final class Fixture
   {
-    final File root = temporary.newFolder(), user = new File(root, "user"), pending = new File(root, ".wanxiang-stage");
+    final File files = temporary.newFolder(), root = new File(files, "rime");
+    final File user = new File(root, "user"), pending = new File(root, ".wanxiang-stage");
     final File target;
     final byte[] archive, manifest, plan;
     final File previous = new File(root, "existing-deployment");
@@ -152,7 +197,7 @@ public final class WanxiangInstallTest
       plan = bytes(new JSONObject().put("format", 1).put("version", "test").put("base", base).put("model", model)
           .put("files", dictionary).put("overlays", overlays).toString());
       target = new File(root, "shared-" + hash(manifest));
-      Files.createDirectory(user.toPath()); Files.write(new File(user, "learnt-data").toPath(), STOCK);
+      Files.createDirectories(user.toPath()); Files.write(new File(user, "learnt-data").toPath(), STOCK);
       Files.createDirectory(previous.toPath()); Files.write(new File(previous, "custom.yaml").toPath(), OVERLAY);
     }
 

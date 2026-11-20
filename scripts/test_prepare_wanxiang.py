@@ -71,12 +71,26 @@ class WanxiangPreparationTest(unittest.TestCase):
         spec = json.loads(w.LOCK.read_text())
         self.assertEqual(spec["profile"], "wanxiang-base")
         self.assertEqual(spec["base"]["asset_id"], 746092731)
-        self.assertEqual(spec["model"]["asset_id"], 747939897)
-        self.assertEqual(spec["model"]["bytes"], 407160876)
+        self.assertEqual(spec["model"]["asset_id"], 763629573)
+        self.assertEqual(spec["model"]["bytes"], 390786092)
+        self.assertEqual(spec["model"]["url"], "https://api.github.com/repos/amzxyz/rime-wanxiang-data/releases/assets/763629573")
         self.assertEqual(spec["base"]["commit"], "9704d41ee6e52bac3f66618a267826d360aa64ee")
         names = {entry["path"] for entry in spec["files"]}
         self.assertIn("wanxiang.schema.yaml", names)
         self.assertFalse(any("wanxiang_pro" in n or "wanxiang_lite" in n or "wanxiang_pure" in n for n in names))
+
+    def test_fixed_release_endpoint_requests_binary_without_credentials(self):
+        spec = json.loads(w.LOCK.read_text())["model"]
+        with patch.object(w.urllib.request, "build_opener") as build:
+            w.open_source(spec)
+            request = build.return_value.open.call_args.args[0]
+            self.assertEqual(request.get_method(), "GET")
+            self.assertEqual(request.full_url, spec["url"])
+            self.assertEqual(request.get_header("Accept"), "application/octet-stream")
+            self.assertIsNone(request.data)
+            self.assertIsNone(request.get_header("Authorization"))
+        with self.assertRaises(ValueError):
+            w.open_source({**spec, "url": spec["url"] + "?mutable=1"})
 
     def test_private_schema_has_no_lua_writer_pipeline(self):
         source = (w.ROOT / "native/wanxiang/miancak_pinyin_private.schema.yaml").read_text()

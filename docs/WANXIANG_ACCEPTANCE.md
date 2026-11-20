@@ -19,6 +19,13 @@ screenshots, hierarchies, preferences and learning data remain local/ephemeral.
 
 ### Bundled-to-split overwrite fixture
 
+This same-manifest fixture uses the earlier grammar on both APKs. Keep it on
+the matching source checkpoint. The candidate with asset `763629573` changes
+the resource manifest. On that candidate, test an earlier installed pack before
+refresh, with the new endpoint unavailable, after interruption and after
+successful activation. Verify actual earlier Chinese input until activation,
+and verify the same preferences, user originals and learning after reboot.
+
 Run the [private upgrade driver](../scripts/bundled_delivery_upgrade_tests.sh)
 on its own unused, named `miancak-words` API 35 guest. The baseline is the
 verified bundled debug APK at version code 6. Build the split debug APK and its

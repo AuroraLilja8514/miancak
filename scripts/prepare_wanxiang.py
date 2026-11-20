@@ -10,6 +10,7 @@ import os
 from pathlib import Path, PurePosixPath
 import shutil
 import stat
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -33,8 +34,30 @@ def safe_path(name):
     return path
 
 
+class ReleaseAssetRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        target = urllib.parse.urlsplit(newurl)
+        if (target.scheme != "https" or target.hostname not in {"release-assets.githubusercontent.com", "objects.githubusercontent.com"}
+                or target.username is not None or target.password is not None or target.port not in (None, 443)):
+            raise ValueError("Unexpected release asset redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def open_source(spec):
+    url = spec["url"]
+    if not url.startswith("https://api.github.com/"):
+        return urllib.request.urlopen(url, timeout=60)
+    repository = spec["repository"].removeprefix("https://github.com/")
+    if (repository not in {"amzxyz/rime-wanxiang", "amzxyz/rime-wanxiang-data"}
+            or url != f"https://api.github.com/repos/{repository}/releases/assets/{spec['asset_id']}"):
+        raise ValueError("Unexpected release asset endpoint")
+    request = urllib.request.Request(url, headers={"Accept": "application/octet-stream", "Accept-Encoding": "identity",
+                                                    "User-Agent": "MIANCAK-build-resource-preparation"})
+    return urllib.request.build_opener(ReleaseAssetRedirect).open(request, timeout=60)
+
+
 def fetch(spec, target):
-    """A mutable release URL is accepted only at its locked size and digest."""
+    """Accept a release resource only at its locked size and digest."""
     target = Path(target)
     if target.is_file():
         if target.stat().st_size != spec["bytes"] or sha256(target) != spec["sha256"]:
@@ -43,7 +66,7 @@ def fetch(spec, target):
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(target.name + ".partial")
     try:
-        with urllib.request.urlopen(spec["url"], timeout=60) as source, temporary.open("xb") as output:
+        with open_source(spec) as source, temporary.open("xb") as output:
             total = 0
             for data in iter(lambda: source.read(1024 * 1024), b""):
                 total += len(data)
@@ -130,8 +153,9 @@ def prepare(assets, sources, *, include_model=True):
     shutil.copyfile(stock / "default.yaml", data / "wanxiang_defaults.yaml")
     shutil.rmtree(stock)
     if include_model:
-        model = fetch(spec["model"], cache / spec["model"]["filename"])
-        target = data / spec["model"]["filename"]
+        pin = spec["model"]
+        model = fetch(pin, cache / f"model-{pin['asset_id']}" / pin["filename"])
+        target = data / pin["filename"]
         # The opt-in host fixture can share these immutable cache bytes.
         try:
             os.link(model, target)

@@ -4,15 +4,11 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import javax.net.ssl.HttpsURLConnection;
 
 /** Explicit setup owns networking; no engine or typing entry point calls it. */
 public final class WanxiangSetup
@@ -24,8 +20,9 @@ public final class WanxiangSetup
     public final Phase phase;
     public final String version;
     public final long bytes, transferred;
-    Status(Phase phase, String version, long bytes, long transferred)
-    { this.phase = phase; this.version = version; this.bytes = bytes; this.transferred = transferred; }
+    public final boolean earlierPack;
+    Status(Phase phase, String version, long bytes, long transferred, boolean earlierPack)
+    { this.phase = phase; this.version = version; this.bytes = bytes; this.transferred = transferred; this.earlierPack = earlierPack; }
     public boolean busy()
     {
       return phase == Phase.CHECKING || phase == Phase.COPYING || phase == Phase.UNPACKING
@@ -35,7 +32,7 @@ public final class WanxiangSetup
 
   private static final Handler UI = new Handler(Looper.getMainLooper());
   private static final List<Runnable> listeners = new ArrayList<>();
-  private static Status status = new Status(Phase.NEEDED, "", 0, 0);
+  private static Status status = new Status(Phase.NEEDED, "", 0, 0, false);
   private static Thread transfer;
   private static Context foreground;
   private static WanxiangInstall.Staged awaitingActivation;
@@ -58,7 +55,8 @@ public final class WanxiangSetup
       {
         WanxiangInstall install = WanxiangInstall.forApp(app);
         boolean ready = install.installed();
-        UI.post(() -> publish(new Status(ready ? Phase.READY : Phase.NEEDED, install.version, install.transferBytes, 0)));
+        boolean earlierPack = !ready && install.hasEarlierBundle();
+        UI.post(() -> publish(new Status(ready ? Phase.READY : Phase.NEEDED, install.version, install.transferBytes, 0, earlierPack)));
       }
       catch (IOException invalid) { UI.post(() -> update(Phase.FAILED, 0)); }
     });
@@ -85,7 +83,7 @@ public final class WanxiangSetup
         WanxiangInstall install = WanxiangInstall.forApp(app);
         long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
         WanxiangInstall.Source source = base == null
-            ? artifact -> openPinned(artifact, deadline)
+            ? artifact -> WanxiangDownload.open(artifact, deadline)
             : artifact -> localFile(app, artifact == install.base ? base : model, deadline);
         int[] previousPercent = {-1};
         WanxiangInstall.Staged staged = install.prepare(source, name -> app.getAssets().open("rime/" + name), bytes -> {
@@ -93,7 +91,8 @@ public final class WanxiangSetup
           if (percent != previousPercent[0])
           {
             previousPercent[0] = percent;
-            UI.post(() -> { if (status.phase == Phase.COPYING) publish(new Status(Phase.COPYING, install.version, install.transferBytes, bytes)); });
+            UI.post(() -> { if (status.phase == Phase.COPYING)
+              publish(new Status(Phase.COPYING, install.version, install.transferBytes, bytes, status.earlierPack)); });
           }
         }, () -> UI.post(() -> { if (status.phase == Phase.COPYING) update(Phase.UNPACKING, status.bytes); }));
         UI.post(() -> finishTransfer(staged));
@@ -162,78 +161,18 @@ public final class WanxiangSetup
   { Thread thread = new Thread(operation, "MIANCAK-ResourceSetup"); thread.start(); return thread; }
 
   private static void update(Phase phase, long transferred)
-  { publish(new Status(phase, status.version, status.bytes, transferred)); }
+  { publish(new Status(phase, status.version, status.bytes, transferred, status.earlierPack)); }
 
   private static void publish(Status next)
   { status = next; for (Runnable listener : new ArrayList<>(listeners)) listener.run(); }
 
   private static InputStream localFile(Context context, Uri uri, long deadline) throws IOException
   {
-    checkDeadline(deadline);
+    WanxiangDownload.checkDeadline(deadline);
     if (uri == null || !"content".equals(uri.getScheme())) throw new IOException("File must be selected through Android documents");
     InputStream stream = context.getContentResolver().openInputStream(uri);
     if (stream == null) throw new IOException("Cannot open selected resource");
-    return new BoundedStream(stream, deadline, null);
-  }
-
-  private static InputStream openPinned(WanxiangInstall.Artifact artifact, long deadline) throws IOException
-  {
-    URL url = new URL(artifact.url);
-    for (int redirects = 0; redirects <= 3; redirects++)
-    {
-      checkDeadline(deadline);
-      HttpsURLConnection connection = (HttpsURLConnection)url.openConnection();
-      connection.setConnectTimeout(15_000);
-      connection.setReadTimeout(30_000);
-      connection.setUseCaches(false);
-      connection.setInstanceFollowRedirects(false);
-      connection.setRequestProperty("Accept", "application/octet-stream");
-      connection.setRequestProperty("User-Agent", "MIANCAK-resource-setup");
-      boolean returningStream = false;
-      try
-      {
-        int code = connection.getResponseCode();
-        if (code == 200)
-        {
-          long size = connection.getContentLengthLong();
-          if (size != -1 && size != artifact.bytes) throw new IOException("Unexpected resource transfer length");
-          InputStream stream = new BoundedStream(connection.getInputStream(), deadline, connection);
-          returningStream = true;
-          return stream;
-        }
-        if (code != 301 && code != 302 && code != 303 && code != 307 && code != 308)
-          throw new IOException("Pinned release asset unavailable");
-        String location = connection.getHeaderField("Location");
-        if (location == null) throw new IOException("Missing asset redirect");
-        url = new URL(url, location);
-        String host = url.getHost();
-        if (!url.getProtocol().equals("https") || url.getUserInfo() != null || (url.getPort() != -1 && url.getPort() != 443)
-            || (!host.equals("release-assets.githubusercontent.com") && !host.equals("objects.githubusercontent.com")))
-          throw new IOException("Unexpected asset redirect");
-      }
-      finally { if (!returningStream) connection.disconnect(); }
-    }
-    throw new IOException("Too many asset redirects");
-  }
-
-  private static void checkDeadline(long deadline) throws IOException
-  {
-    WanxiangInstall.interrupted();
-    if (System.nanoTime() - deadline >= 0) throw new InterruptedIOException("Resource transfer timed out");
-  }
-
-  private static final class BoundedStream extends FilterInputStream
-  {
-    private final long deadline;
-    private final HttpsURLConnection connection;
-    BoundedStream(InputStream stream, long deadline, HttpsURLConnection connection)
-    { super(stream); this.deadline = deadline; this.connection = connection; }
-    @Override public int read(byte[] bytes, int offset, int count) throws IOException
-    { checkDeadline(deadline); int length = super.read(bytes, offset, count); checkDeadline(deadline); return length; }
-    @Override public int read() throws IOException
-    { checkDeadline(deadline); int value = super.read(); checkDeadline(deadline); return value; }
-    @Override public void close() throws IOException
-    { try { super.close(); } finally { if (connection != null) connection.disconnect(); } }
+    return WanxiangDownload.bound(stream, deadline);
   }
 
   private WanxiangSetup() {}

@@ -148,6 +148,8 @@ final class WanxiangInstall
   boolean installed()
   { return !Files.isSymbolicLink(target.toPath()) && new File(target, "manifest.json").isFile() && RimeData.validDeployment(target); }
 
+  boolean hasEarlierBundle() { return RimeData.previousBundle(target) != null; }
+
   /** One calling worker prepares at a time. The directory is reserved solely for
    * this operation, so a later explicit retry can remove interrupted transfers. */
   Staged prepare(Source source, Assets assets, LongConsumer transferred, Runnable extracting) throws IOException

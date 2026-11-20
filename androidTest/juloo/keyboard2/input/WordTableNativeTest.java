@@ -94,7 +94,11 @@ public class WordTableNativeTest
     store.apply(WordTableStore.BUNDLED, Collections.singletonList(addon));
     assertTrue("A supplement must retain the seven actual Base tables", candidates("nihao").contains("你好"));
     assertTrue("Existing untoned custom YAML must remain usable", candidates("ceshi").contains("MIANCAK·附加词表"));
-    assertEquals(407160876L, new File(store.currentPaths().shared, "wanxiang-lts-zh-hans.gram").length());
+    try (InputStream input = app.getAssets().open("rime/miancak-profile.json"))
+    {
+      org.json.JSONObject model = new org.json.JSONObject(new String(RimeData.read(input), StandardCharsets.UTF_8)).getJSONObject("model");
+      assertEquals(model.getLong("bytes"), new File(store.currentPaths().shared, model.getString("filename")).length());
+    }
     try (InputStream input = new FileInputStream(original)) { assertArrayEquals(before, readAll(input)); }
     store.apply(WordTableStore.BUNDLED, Collections.emptyList());
     assertTrue(original.isFile());
