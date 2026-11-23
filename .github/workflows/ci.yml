@@ -598,3 +598,127 @@ jobs:
           name: upgrade-results-api-${{ matrix.api }}-${{ github.sha }}
           path: test-results/
           retention-days: 7
+
+  inbound-smoke-build:
+    name: Hold synthetic preview inputs
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Stage only synthetic bytes and a digest receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-input-smoke"
+          mkdir "$stage"
+          python3 tools/protected-preview/smoke_inputs.py stage --stage "$stage" --timeout-seconds 60
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-inbound-input-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-input-smoke/receipt/receipt.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Encrypt synthetic inputs for the authenticated receiver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-input-smoke"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 tools/protected-preview/smoke_inputs.py seal --stage "$stage" --timeout-seconds 500
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-inbound-input-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-input-smoke/inputs.age
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Clear synthetic input staging
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-input-smoke"
+
+  inbound-smoke-approval:
+    name: Approve synthetic receipt
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Check the in-progress dummy receipt and actual three-job overlap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_inputs.py approve --stage "$RUNNER_TEMP" --timeout-seconds 370
+
+  inbound-smoke-gate:
+    name: Authorize synthetic inputs
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Bind the dummy authorization to the successful same-attempt approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_inputs.py gate --stage "$RUNNER_TEMP" --timeout-seconds 385
+
+  inbound-smoke-receive:
+    name: Receive synthetic preview inputs
+    needs: inbound-smoke-gate
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    permissions:
+      contents: read
+      actions: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/protected-preview-inbound-smoke.yml

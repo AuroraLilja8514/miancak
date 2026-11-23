@@ -1,0 +1,66 @@
+name: Receive private synthetic inputs
+on: workflow_call
+
+permissions: {}
+jobs:
+  receiver:
+    name: Verify private input ciphertext
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1 &&
+      github.workflow_ref == 'AuroraLilja8514/miancak/.github/workflows/ci.yml@refs/heads/review/protected-preview-ciphertext'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Create a run-local receiver only after dummy authorization
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-input-smoke"
+          mkdir "$stage"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 tools/protected-preview/smoke_inputs.py recipient --stage "$stage" --timeout-seconds 90
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: recipient-proof
+        with:
+          subject-path: ${{ runner.temp }}/miancak-input-smoke/recipient/recipient.json
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
+          predicate: '{"role":"input-recipient"}'
+          show-summary: false
+      - name: Stage only the public synthetic receiver and proof
+        env:
+          PROOF_PATH: ${{ steps.recipient-proof.outputs.bundle-path }}
+        run: cp -- "$PROOF_PATH" "$RUNNER_TEMP/miancak-input-smoke/recipient/proof.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-inbound-input-recipient-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/miancak-input-smoke/recipient/recipient.json
+            ${{ runner.temp }}/miancak-input-smoke/recipient/proof.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Require successful same-attempt builder and rehash dummy inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_inputs.py receive --stage "$RUNNER_TEMP/miancak-input-smoke" --timeout-seconds 325
+      - name: Clear synthetic plaintext and local recipient key
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-input-smoke"

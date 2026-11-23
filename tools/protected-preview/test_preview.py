@@ -15,6 +15,7 @@ import yaml
 import preview_device as device
 import preview_ops as preview
 import release_ops as ops
+import smoke_inputs
 
 REVISION = "a" * 40
 BUILD = 123
@@ -312,6 +313,11 @@ class Workflow(unittest.TestCase):
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         ordinary = f"github.event_name != 'workflow_dispatch' || github.ref != '{branch}'"
         restored = copy.deepcopy(revised)
+        for name in ("inbound-smoke-build", "inbound-smoke-approval", "inbound-smoke-gate", "inbound-smoke-receive"):
+            job = restored["jobs"].pop(name)
+            self.assertIn(review, job["if"].replace("\n", " "))
+            self.assertIn("github.actor == github.repository_owner", job["if"])
+            self.assertIn("github.run_attempt == 1", job["if"])
         guard = None
         for name, job in restored["jobs"].items():
             if name not in required:
@@ -345,6 +351,42 @@ class Workflow(unittest.TestCase):
             with self.subTest(field=field):
                 result = subprocess.run(["bash", "-c", guard], cwd=preview.ROOT, env=env | {field: value})
                 self.assertNotEqual(result.returncode, 0)
+
+    def test_inbound_smoke_only_exposes_dummy_metadata_and_ciphertext(self):
+        def read(path):
+            return yaml.load((preview.ROOT / path).read_bytes(), Loader=yaml.BaseLoader)
+
+        jobs = read(".github/workflows/ci.yml")["jobs"]
+        receiver_workflow = read(smoke_inputs.RECEIVER_WORKFLOW)
+        self.assertEqual(receiver_workflow["on"], "workflow_call")
+        receiver = receiver_workflow["jobs"]["receiver"]
+        caller = jobs["inbound-smoke-receive"]
+        self.assertEqual(caller["uses"], "./" + smoke_inputs.RECEIVER_WORKFLOW)
+        self.assertEqual(caller["needs"], "inbound-smoke-gate")
+        self.assertEqual(caller["name"] + " / " + receiver["name"], smoke_inputs.RECEIVE)
+        proof_permissions = {"contents": "read", "actions": "read", "attestations": "write", "id-token": "write"}
+        self.assertEqual(caller["permissions"], proof_permissions)
+        self.assertEqual(receiver["permissions"], proof_permissions)
+        build = jobs["inbound-smoke-build"]
+        self.assertEqual(build["name"], smoke_inputs.BUILD)
+        for name, job in (("build", build), ("approval", jobs["inbound-smoke-approval"]),
+                          ("gate", jobs["inbound-smoke-gate"]), ("receiver", receiver)):
+            rendered = json.dumps(job)
+            self.assertNotIn("environment", job)
+            for forbidden in ("secrets.", ".apk", "apksigner", "release-signing", "adb", "contents\": \"write"):
+                self.assertNotIn(forbidden, rendered)
+            if name != "receiver":
+                self.assertEqual(job["permissions"], {"contents": "read", "actions": "read"})
+            for step in job["steps"]:
+                if "run" in step:
+                    subprocess.run(["bash", "-n"], input=step["run"], text=True, check=True)
+        def uploads(job):
+            return [[Path(line).name for line in step["with"]["path"].splitlines()]
+                    for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@")]
+        self.assertEqual(uploads(build), [["receipt.json"], ["inputs.age"]])
+        self.assertEqual(uploads(receiver), [["recipient.json", "proof.json"]])
+        for name in ("inbound-smoke-approval", "inbound-smoke-gate"):
+            self.assertEqual(uploads(jobs[name]), [])
 
     def test_workflow_is_manual_with_scoped_keys_and_no_early_signed_upload(self):
         path = preview.ROOT / preview.WORKFLOW

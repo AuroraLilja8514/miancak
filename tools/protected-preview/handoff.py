@@ -46,7 +46,7 @@ class WorkflowPolicy:
     publisher: str
     branch: str
     event: str
-    title: str
+    title: str | None
     accept_job: str
     publish_job: str
     artifact_prefix: str
@@ -95,7 +95,8 @@ def active_run(scope):
                 and run.get("head_sha") == scope.revision
                 and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
                                         f"{policy.caller}@{policy.ref}")
-                and run.get("display_title") == policy.title and run.get("status") == "in_progress"
+                and (policy.title is None or run.get("display_title") == policy.title)
+                and run.get("status") == "in_progress"
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
                 and (policy != PRODUCTION or preview.approved_actor(run.get("actor", {}).get("login", ""))),
                 "HANDOFF_ACTIVE_RUN")

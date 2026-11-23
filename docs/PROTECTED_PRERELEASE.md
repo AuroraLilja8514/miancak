@@ -244,6 +244,17 @@ broad pull-request trigger omits ordinary Android CI. This leaves the
 required checks pending for review. Preserve the tested tree and link the
 exact push run from the draft. [GitHub workflow skip behavior](https://docs.github.com/actions/managing-workflow-runs/skipping-workflow-runs)
 
+The same manual check-only run includes an inbound rehearsal. Its builder
+holds three literal dummy files. Two concurrent read-only jobs verify the
+same-attempt receipt and approval while the builder is still active. A
+separate reusable receiver publishes an attested public recipient only
+after the gate. The builder then uploads only ciphertext and the receiver
+requires real builder success before decrypting and comparing all three
+dummy files. The rehearsal checks expiry, run and attempt replay,
+and ciphertext tampering. It uses a same-run test approval job. The
+distinct production owner dispatch still needs verification before
+enabling production modes.
+
 ## Required checks before merge
 
 The active default-branch ruleset requires an up-to-date head, resolved
@@ -258,14 +269,15 @@ The local `ci.yml` revision scopes review-only mode to an explicit manual
 dispatch on `review/protected-preview-ciphertext`. It uses the already
 registered workflow and takes no new dispatch inputs. It runs the original
 steps of all three required jobs, including both debug fixture builds and
-native validation. It disables artifact uploads, caches and the other
-jobs for this mode. Normal PR and master push jobs keep their existing
-behavior. Each required job checks the owner, repository, branch, attempt,
+native validation. It disables required-check uploads, caches and ordinary
+optional jobs for this mode. The inbound rehearsal publishes only its
+dummy receipt, public recipient/proof and ciphertext. Normal PR and master
+push jobs keep their existing behavior. Each required job checks the owner, repository, branch, attempt,
 workflow SHA, and checked-out SHA. Retain the `[skip ci]` marker at the exact
 review HEAD, then recheck the branch and PR head before and after the
 authorized manual run. GitHub documents that manual branch dispatch checks
 the last commit on the given ref. Verify the three successful GitHub
-Actions check runs on the PR head, the empty artifacts list, and the absence
+Actions check runs on the PR head, the dummy-only artifacts list, and the absence
 of check results on a competing test-merge commit before marking ready.
 Actual attachment to #38 awaits that run.
 [Dispatch source SHA](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
