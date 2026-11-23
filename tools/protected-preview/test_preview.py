@@ -363,6 +363,8 @@ class Workflow(unittest.TestCase):
         caller = jobs["inbound-smoke-receive"]
         self.assertEqual(caller["uses"], "./" + smoke_inputs.RECEIVER_WORKFLOW)
         self.assertEqual(caller["needs"], "inbound-smoke-gate")
+        self.assertIn("needs.inbound-smoke-gate.result == 'success'", caller["if"])
+        self.assertIn("!cancelled()", caller["if"])
         self.assertEqual(caller["name"] + " / " + receiver["name"], smoke_inputs.RECEIVE)
         proof_permissions = {"contents": "read", "actions": "read", "attestations": "write", "id-token": "write"}
         self.assertEqual(caller["permissions"], proof_permissions)
@@ -497,4 +499,6 @@ class Workflow(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     unittest.main()

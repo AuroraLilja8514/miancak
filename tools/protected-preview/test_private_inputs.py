@@ -204,3 +204,9 @@ class Custody(unittest.TestCase):
                                                 {"id": encrypted_artifact["id"],
                                                  "digest": encrypted_artifact["digest"]}, scope.approval)
                     previous.assert_not_called()
+
+
+if __name__ == "__main__":
+    from run_with_timeout import guard_script
+    guard_script(__file__)
+    unittest.main()

@@ -55,6 +55,8 @@ def install(root, name):
 
 
 if __name__ == "__main__":
+    from run_with_timeout import guard_script
+    guard_script(__file__)
     parser = argparse.ArgumentParser()
     parser.add_argument("destination", type=Path)
     parser.add_argument("--age-only", action="store_true")

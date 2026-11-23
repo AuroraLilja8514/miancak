@@ -712,6 +712,7 @@ jobs:
     name: Receive synthetic preview inputs
     needs: inbound-smoke-gate
     if: >-
+      !cancelled() && needs.inbound-smoke-gate.result == 'success' &&
       github.repository == 'AuroraLilja8514/miancak' &&
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/review/protected-preview-ciphertext' &&

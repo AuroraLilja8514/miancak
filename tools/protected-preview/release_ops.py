@@ -288,3 +288,8 @@ def upload_asset(release, path):
             return json.load(response)
     except urllib.error.HTTPError as failure:
         raise ReleaseError("UPLOAD_HTTP_" + str(failure.code)) from None
+
+
+if __name__ == "__main__":
+    from run_with_timeout import guard_script
+    guard_script(__file__)
