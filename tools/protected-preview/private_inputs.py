@@ -18,7 +18,6 @@ import handoff
 import preview_ops as preview
 import release_ops as ops
 
-OWNER_ID = 315702774
 BUILD_JOB = "Compile private preview inputs"
 GATE_JOB = "Authorize private preview inputs"
 APPROVE_JOB = "Confirm exact preview input receipt"
@@ -87,7 +86,7 @@ def owner_run(run, scope):
             and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
                                     f"{policy.caller}@{policy.ref}")
             and run.get("head_repository", {}).get("id") == ops.REPO_ID
-            and all(run.get(field, {}).get("id") == OWNER_ID
+            and all(run.get(field, {}).get("id") == preview.OWNER_ID
                     and preview.approved_actor(run.get(field, {}).get("login", ""))
                     for field in ("actor", "triggering_actor")))
 

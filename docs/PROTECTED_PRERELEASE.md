@@ -1,28 +1,27 @@
 # Protected preview release review
 
-This local master-based review stages a dispatch-only workflow at
-`.github/workflows/protected-preview.yml`. Its exact target is the existing
+The dispatch-only workflow at `.github/workflows/protected-preview.yml`
+admits the exact existing
 `v0.3.4-preview.1` commit `30b074bf08ba7e668761874b41819781a3f4d44f`,
 version code 7, draft 453133947. Stable v0.3.2 is code 5. The stable
 trigger, gate logic, signing tools, publisher and version tags keep their
 current paths.
 
-The production modes in this revision stop at `private-input-review`. The
-build path reviewed in PR #38 would upload the three unencrypted build
-inputs for seven days. A public repository's artifacts can be downloaded
-by signed-in readers. The encrypted output handoff does not protect that
-earlier upload. The production modes stay held until the private input
-transport and signed acceptance described here are implemented and reviewed.
+PR #38 introduced the encrypted input and output handoff with production
+held. The activation review replaces that hold with read-only admission
+for the current protected `master` workflow revision, the owner account,
+attempt 1, the pinned source and tree, the empty prerelease draft, and the
+current stable APK digest. Both production modes require this job. A
+review branch or pull request has no admitted production path.
 [GitHub artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 
 ## Candidate admission and approval
 
-1. Review the template and trusted helpers in a workflow-only change on
+1. Review admission and trusted helpers in a workflow-only change on
    protected `master`. The preview source already exists as a public tag.
    Its commit and tree are pinned in the preview policy. It can be admitted
-   explicitly through this review without promoting application code to
-   `master`. Review the execution and visible metadata below before enabling
-   production modes.
+   explicitly through the activation review. Review the execution and
+   visible metadata below before merging the activation.
 2. Review the isolated runtime in `tools/protected-preview`. Its shared
    signing, Android and watchdog helpers are pinned to the reviewed source
    `e878ac038e7fc458b0da85295fd5115a901a290f`. That snapshot supports the
@@ -54,7 +53,10 @@ limits branches and has no required reviewers.
    and unique successful approval job. The approval must occur after the
    receipt and within 15 minutes. Both dispatches use the current protected
    master. A separate concurrency group lets the approval run start while
-   the production run waits.
+   the production run waits. Arrange one session when the owner is available
+   before starting the build. The live builder and signer custody windows
+   still apply. If the receipt expires, let the run fail and report the
+   outcome. Any future approval must bind a fresh receipt.
 3. **Receive.** The signer starts only after the read-only authorization
    job passes. It uses a distinct reusable workflow to attest a fresh
    `age` recipient. The builder authenticates the signer and recipient
@@ -84,20 +86,20 @@ The three previously built local inputs total 79,922,499 bytes before
 transport overhead. The inbound limit is 96 MiB with exact per-file lengths
 bound to the approved receipt. The signed output cap remains 64 MiB.
 
-The local tests exercise this path with dummy bytes, real `age` and
-simulated GitHub API records. The production modes stop at
-`private-input-review`. Before enabling them, validate the owner approval
-and new direction on GitHub in a separate synthetic-only run without
-the signing environment or a Contents-write token. That run needs to
-confirm the three-runner overlap, authoritative owner and attempt metadata,
-in-progress artifact access, replay and expiry rejection, and decryption.
-The previous synthetic run verified the outgoing direction.
+Host tests use real `age` on dummy bytes and simulated GitHub API records.
+Hosted dummy runs verified inbound and outbound ciphertext, in-progress
+artifact access, and a separate owner dispatch bound to the live receipt.
+The protected, signed Android run still supplies the release acceptance.
+[Inbound rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45160602643)
+[Cross-run approval rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45164145446)
 
 Public Actions would expose run and job statuses, the typed build receipt,
 approval run IDs, public recipients, encrypted archive sizes and digest,
-and attestation metadata. The owner needs to approve that visibility.
-Raw compiler and guest output, APKs, signing data and acceptance diagnostics
-stay in runner-local staging. Use a verified private runner or storage route
+and attestation metadata. Type only the live run ID and receipt SHA-256 into
+the approval form. Compiler, signer, emulator and guest output stays in
+runner-local staging. Success and failure steps emit fixed status messages.
+The release receives the single signed APK after Android acceptance.
+Use a verified private runner or storage route
 if this visibility is unsuitable. Private runner availability is unverified.
 [Workflow run metadata](https://docs.github.com/en/rest/actions/workflow-runs)
 
@@ -208,10 +210,14 @@ proof or acceptance aborts delivery.
 The tool installer fetches the official Linux x86-64 release archives for
 `age` 1.3.2 and `gh` 2.105.0 over HTTPS and checks their exact sizes and
 SHA-256 hashes before extracting only named binaries. Checkout, upload,
-emulation and attestation actions use full commit pins. Review must confirm
+emulation and attestation code use full commit pins. The signer runs the
+pinned emulator entry point with both output streams redirected so guest
+setup and failure output stays private as well. Review must confirm
 the repository allows the pinned attestation action, GitHub/Sigstore
-network access, and the scoped OIDC permissions. Keep production modes held
-until the input transport and signed checks pass. If run status or ciphertext
+network access, and the scoped OIDC permissions. The publisher requires a
+successful signer job in the exact run and attempt before reading the
+ciphertext. A failed Android check prevents sealing, upload, and publication.
+If run status or ciphertext
 must also stay private, use an approved private execution and custody
 route before signing.
 
@@ -272,8 +278,9 @@ review threads and successful `generated`, `unit` and `build-debug` checks
 from the PR event. A branch dispatch cannot satisfy those checks.
 [Required check evaluation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
-The scoped `pull_request` mode is for draft #38 in this repository. It
-requires the owner, the same-repository `review/protected-preview-ciphertext`
+The scoped `pull_request` mode is for the draft activation review in this
+repository. It requires the owner, the same-repository
+`review/activate-protected-preview-v0.3.4-preview.1`
 head, the `master` base and the first attempt. The required jobs check the
 actual checkout against the event SHA and verify the test merge has the
 event's base and head as parents. They run the original generated-file,
@@ -285,8 +292,8 @@ message for the PR synchronize event. Verify the exact head, test merge,
 required checks and empty artifact list before requesting merge approval.
 [Pull request checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)
 
-Master pushes and other PRs use ordinary CI. The #38 scope requires a
-draft and fails if the review branch or base changes. Remove the obsolete
+Master pushes and other PRs use ordinary CI. The activation scope requires a
+draft and the exact review branch and base. Remove the obsolete
 one-PR scope in a separately reviewed workflow cleanup after this review
 closes. The manual modes remain limited to that review branch until
 their cleanup.

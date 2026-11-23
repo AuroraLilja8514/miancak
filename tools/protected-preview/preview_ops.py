@@ -19,6 +19,7 @@ import release_ops as ops
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ".github/workflows/protected-preview.yml"
+OWNER_ID = 315702774
 TAG = "v0.3.4-preview.1"
 SOURCE = "30b074bf08ba7e668761874b41819781a3f4d44f"
 TREE = "4cf327606fbf51372771dc061bd8728eda8f8a70"
@@ -26,6 +27,7 @@ APP_INPUT = "8c5b3db965cf5726fa891e6390c9636dc74839cad6abd7b1aa8ad832ed1500a5"
 DRAFT_ID = 453133947
 STABLE_ID = 446744401
 STABLE_TAG = "v0.3.2"
+STABLE_APK_NAME = "miancak-0.3.2.apk"
 STABLE_APK = "74e884ef6465c96b57daa174ae5f5ce585f2c55417b591c76b8b77f212684bd5"
 APK = "miancak-0.3.4.apk"  # Exact basename emitted by the existing signer.
 ATTACHMENT = "miancak-0.3.4-preview.1.apk"
@@ -61,6 +63,7 @@ def workflow_revision(mode):
                 and env.get("GITHUB_REF") == "refs/heads/master"
                 and env.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{WORKFLOW}@refs/heads/master"
                 and env.get("GITHUB_RUN_ATTEMPT") == "1"
+                and env.get("GITHUB_ACTOR_ID") == str(OWNER_ID)
                 and approved_actor(env.get("GITHUB_ACTOR", ""))
                 and approved_actor(env.get("GITHUB_TRIGGERING_ACTOR", ""))
                 and re.fullmatch(r"[0-9a-f]{40}", revision)
@@ -93,6 +96,17 @@ def exact_release(published=False):
     ops.require(stable["id"] == STABLE_ID and stable["tag_name"] == STABLE_TAG
                 and stable["draft"] is False and stable["prerelease"] is False, "PREVIEW_STABLE_LATEST")
     return draft, stable
+
+
+def admit(mode):
+    authority(mode)
+    draft, stable = exact_release()
+    ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
+    source = ops.api(f"git/commits/{SOURCE}", timeout=15)
+    ops.require(source["sha"] == SOURCE and source["tree"]["sha"] == TREE, "PREVIEW_CANDIDATE_TREE")
+    assets = [asset for asset in stable["assets"] if asset["name"] == STABLE_APK_NAME]
+    ops.require(len(assets) == 1 and assets[0]["state"] == "uploaded"
+                and assets[0]["digest"] == f"sha256:{STABLE_APK}", "PREVIEW_BASELINE_DIGEST")
 
 
 def candidate_checkout(path):
@@ -238,7 +252,7 @@ def prepare_private(folder, revision, run_id, record, transport, approved_sha):
     draft, stable = exact_release()
     ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
     previous = folder / "previous.apk"
-    item = ops.release_asset(stable, "miancak-0.3.2.apk", previous)
+    item = ops.release_asset(stable, STABLE_APK_NAME, previous)
     ops.require(item.get("digest") == "sha256:" + STABLE_APK
                 and ops.file_sha(previous) == STABLE_APK, "PREVIEW_BASELINE_DIGEST")
     require_identity(ops.inspect_apk(previous), previous=True)
@@ -382,13 +396,17 @@ def publish(folder, revision, approved_sha):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("build-check", "sign", "seal"))
+    parser.add_argument("operation", choices=("admit", "build-check", "sign", "seal"))
     parser.add_argument("--folder", type=Path)
     parser.add_argument("--prepared", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--probe-classes", type=Path)
     args = parser.parse_args()
     ops.install_deadline()
+    if args.operation == "admit":
+        admit(os.environ.get("PREVIEW_MODE", ""))
+        print("PASS: PREVIEW_EXACT_DISPATCH_ADMITTED")
+        return
     # The credential-bearing step has no GitHub token. Provenance is checked
     # before it and publication checks it independently on a clean runner.
     mode = "publish"

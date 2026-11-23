@@ -19,7 +19,7 @@ import smoke_owner as owner
 from test_preview import identity
 
 SCOPE = handoff.Scope(123, 1, "a" * 40, "b" * 64)
-OWNER = {"id": inputs.OWNER_ID, "login": ops.REPO.split("/")[0]}
+OWNER = {"id": preview.OWNER_ID, "login": ops.REPO.split("/")[0]}
 APPROVAL_ID = 456
 
 
