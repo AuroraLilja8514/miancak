@@ -358,7 +358,7 @@ class Workflow(unittest.TestCase):
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
-                 "github.head_ref == 'review/activate-protected-preview-v0.3.4-preview.1'))")
+                 "github.head_ref == 'review/repair-protected-preview-draft-access'))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
@@ -444,7 +444,7 @@ class Workflow(unittest.TestCase):
             git("update-ref", "HEAD", merge)
             event = {"number": 101, "repository": {"id": ops.REPO_ID},
                      "pull_request": {"draft": True,
-                                      "head": {"ref": "review/activate-protected-preview-v0.3.4-preview.1",
+                                      "head": {"ref": "review/repair-protected-preview-draft-access",
                                                "sha": head, "repo": {"id": ops.REPO_ID}},
                                       "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
             event_path = Path(directory) / "event.json"
@@ -581,6 +581,16 @@ class Workflow(unittest.TestCase):
         publisher = publisher_workflow["jobs"]["publisher"]
         self.assertNotIn("environment", publisher)
         self.assertEqual(publisher["permissions"], jobs["publish"]["permissions"])
+        publisher_steps = publisher["steps"]
+        draft_preflight = next(i for i, step in enumerate(publisher_steps)
+                               if "handoff.py recipient" in step.get("run", ""))
+        recipient_publication = next(i for i, step in enumerate(publisher_steps)
+                                     if "upload-artifact" in step.get("uses", ""))
+        accepted_receive = next(i for i, step in enumerate(publisher_steps)
+                                if "handoff.py receive" in step.get("run", ""))
+        self.assertTrue(draft_preflight < recipient_publication < accepted_receive)
+        self.assertNotIn("continue-on-error", publisher_steps[draft_preflight])
+        self.assertNotIn("if", publisher_steps[recipient_publication])
         for name, job in list(jobs.items()) + [("publisher", publisher), ("signer", signer)]:
             for step in job.get("steps", []):
                 if "uses" in step:
@@ -592,13 +602,16 @@ class Workflow(unittest.TestCase):
                     self.assertIn("preview_ops.py sign", step["run"])
                     self.assertNotIn("GH_TOKEN", step["env"])
         steps = signer["steps"]
+        input_recipient = next(i for i, step in enumerate(steps) if "private_inputs.py recipient" in step.get("run", ""))
+        input_recipient_publication = next(i for i, step in enumerate(steps) if "upload-artifact" in step.get("uses", ""))
         inbound = next(i for i, step in enumerate(steps) if "private_inputs.py receive" in step.get("run", ""))
         recipient = next(i for i, step in enumerate(steps) if "handoff.py await-recipient" in step.get("run", ""))
         pre_key = next(i for i, step in enumerate(steps) if "private_inputs.py pre-key" in step.get("run", ""))
         sign = next(i for i, step in enumerate(steps) if "preview_ops.py sign" in step.get("run", ""))
         device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("run", ""))
         seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
-        self.assertTrue(inbound <= recipient < pre_key < sign < device_step < seal)
+        self.assertTrue(input_recipient < input_recipient_publication < inbound <= recipient < pre_key
+                        < sign < device_step < seal)
         self.assertNotIn("continue-on-error", steps[recipient])
         self.assertNotIn("continue-on-error", steps[device_step])
         self.assertNotIn("if", steps[seal])

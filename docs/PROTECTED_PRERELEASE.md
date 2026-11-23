@@ -266,9 +266,9 @@ review threads and successful `generated`, `unit` and `build-debug` checks
 from the PR event. A branch dispatch cannot satisfy those checks.
 [Required check evaluation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
-The scoped `pull_request` mode is for the draft activation review in this
+The scoped `pull_request` mode is for the draft access repair review in this
 repository. It requires the owner, the same-repository
-`review/activate-protected-preview-v0.3.4-preview.1`
+`review/repair-protected-preview-draft-access`
 head, the `master` base and the first attempt. The required jobs check the
 actual checkout against the event SHA and verify the test merge has the
 event's base and head as parents. They run the original generated-file,
@@ -280,7 +280,7 @@ message for the PR synchronize event. Verify the exact head, test merge,
 required checks and empty artifact list before requesting merge approval.
 [Pull request checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)
 
-Master pushes and other PRs use ordinary CI. The activation scope requires a
+Master pushes and other PRs use ordinary CI. The repair scope requires a
 draft and the exact review branch and base. Remove the obsolete
 one-PR scope in a separately reviewed workflow cleanup after this review
 closes. The manual modes remain limited to that review branch until
