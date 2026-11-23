@@ -7,6 +7,8 @@ import re
 import shlex
 import sys
 
+import android_progress as progress
+from android_progress import Phase, Status
 import device_smoke as smoke
 import preview_ops as preview
 import release_ops as ops
@@ -82,6 +84,8 @@ def custom_slot():
 
 
 def main(prepared, signed):
+    progress.mark(Phase.BOOT, Status.PASSED)
+    progress.mark(Phase.DRIVER, Status.STARTED)
     # Recheck the approved app and two driver digests after signing and before
     # handing any package to the disposable guest. This step has no signing key.
     revision = preview.workflow_revision("publish")
@@ -91,6 +95,7 @@ def main(prepared, signed):
                 and not smoke.split_resources(previous), "PREVIEW_ANDROID_BASELINE")
     ops.require(smoke.split_resources(signed / preview.APK), "PREVIEW_ANDROID_SPLIT")
     preview.signed_record(signed)
+    progress.mark(Phase.DRIVER, Status.PASSED)
     sys.argv = [sys.argv[0], "--prepared", str(prepared), "--signed", str(signed),
                 "--api", "35", "--timeout-seconds", "1200"]
     selected = None
@@ -105,12 +110,14 @@ def main(prepared, signed):
 
     smoke.main(before_overwrite=seed_yaml, before_verify=seed_custom_yaml, after_verify=after_verify,
                after_reboot=after_reboot, custom_yaml_sha=CUSTOM_SHA)
+    progress.mark(Phase.REPORT, Status.STARTED)
     result = smoke.RESULTS / "acceptance.json"
     report = json.loads(result.read_bytes())
     report["legacy_yaml_preserved"] = True
     report["requires_online_pack_setup"] = True
     report["custom_yaml_activated_after_reboot"] = True
     ops.write_json(result, report)
+    progress.mark(Phase.REPORT, Status.PASSED)
 
 
 if __name__ == "__main__":
@@ -123,5 +130,9 @@ if __name__ == "__main__":
                     "PREVIEW_ANDROID_ARGUMENTS")
         main(Path(sys.argv[1]), Path(sys.argv[2]))
     except ops.ReleaseError as failure:
+        progress.failure(failure)
         print(f"FAIL: {failure}", file=sys.stderr)
         raise SystemExit(1)
+    except Exception as failure:
+        progress.failure(failure)
+        raise

@@ -358,7 +358,7 @@ class Workflow(unittest.TestCase):
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
-                 "github.head_ref == 'review/guard-protected-preview-signer-startup'))")
+                 "github.head_ref == 'review/trace-protected-preview-android'))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
@@ -395,6 +395,7 @@ class Workflow(unittest.TestCase):
                 cli = job["steps"].pop()
                 self.assertEqual(cli["if"], "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'")
                 self.assertIn("test_preview_cli.py --timeout-seconds 40", cli["run"])
+                self.assertIn("test_android_progress.py --timeout-seconds 30", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
@@ -444,7 +445,7 @@ class Workflow(unittest.TestCase):
             git("update-ref", "HEAD", merge)
             event = {"number": 101, "repository": {"id": ops.REPO_ID},
                      "pull_request": {"draft": True,
-                                      "head": {"ref": "review/guard-protected-preview-signer-startup",
+                                      "head": {"ref": "review/trace-protected-preview-android",
                                                "sha": head, "repo": {"id": ops.REPO_ID}},
                                       "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
             event_path = Path(directory) / "event.json"
@@ -667,9 +668,17 @@ class Workflow(unittest.TestCase):
             executables.mkdir(parents=True)
             for name, script in {
                 "git": '#!/bin/sh\nprintf "%s\\n" "$PREVIEW_EMULATOR_RUNNER"\n',
-                "python3": '#!/bin/sh\necho private-stdout\necho private-stderr >&2\nexit "$MOCK_EXIT"\n',
+                "python3": '''#!/bin/sh
+case "$1" in
+  */android_progress.py) shift; exec /usr/bin/python3 "$MOCK_PROGRESS_HELPER" "$@" ;;
+esac
+echo private-stdout
+echo private-stderr >&2
+exit "$MOCK_EXIT"
+''',
                 "node": """#!/usr/bin/python3
 import os
+import subprocess
 import sys
 assert sys.argv[1].endswith("/.preview-emulator/lib/main.js")
 assert os.environ["INPUT_API-LEVEL"] == os.environ["INPUT_SYSTEM-IMAGE-API-LEVEL"] == "35"
@@ -677,6 +686,12 @@ assert os.environ["INPUT_EMULATOR-BUILD"] == "16428233"
 assert os.environ["INPUT_AVD-NAME"] == "miancak-release-35"
 assert os.environ["INPUT_TARGET"] == "google_apis" and os.environ["INPUT_ARCH"] == "x86_64"
 assert "-accel on" in os.environ["INPUT_EMULATOR-OPTIONS"]
+assert "-gpu swangle" in os.environ["INPUT_EMULATOR-OPTIONS"]
+assert os.environ["INPUT_EMULATOR-BOOT-TIMEOUT"] == "600"
+prelaunch = os.environ["INPUT_PRE-EMULATOR-LAUNCH-SCRIPT"]
+assert "android_progress.py" in prelaunch
+subprocess.run(["sh", "-n", "-c", prelaunch], check=True)
+subprocess.run(["/usr/bin/python3", os.environ["MOCK_PROGRESS_HELPER"], "before-boot"], check=True)
 assert "preview_device.py" in os.environ["INPUT_SCRIPT"]
 print("private-stdout")
 print("private-stderr", file=sys.stderr)
@@ -688,6 +703,8 @@ raise SystemExit(int(os.environ["MOCK_EXIT"]))
                 stub.chmod(0o700)
             env = {"PATH": f"{executables}:/usr/bin:/bin", "JAVA_HOME_17_X64": str(java),
                    "GITHUB_WORKSPACE": directory, "RUNNER_TEMP": directory,
+                   "PYTHONDONTWRITEBYTECODE": "1",
+                   "MOCK_PROGRESS_HELPER": str(preview.ROOT / "tools/protected-preview/android_progress.py"),
                    "PREVIEW_EMULATOR_RUNNER": signer["env"]["PREVIEW_EMULATOR_RUNNER"]}
             signing_env = env | {"MIANCAK_RELEASE_KEYSTORE_B64": "synthetic-keystore",
                                  "MIANCAK_RELEASE_STORE_PASSWORD": "synthetic-password"}
@@ -710,7 +727,16 @@ raise SystemExit(int(os.environ["MOCK_EXIT"]))
                         result = subprocess.run(["bash", "-c", run], cwd=root, text=True, capture_output=True,
                                                 env=step_env | {"MOCK_EXIT": str(status)})
                         self.assertEqual(result.returncode, 1 if status else 0)
-                        self.assertEqual(result.stdout, f"FAIL: {error}\n" if status else success)
+                        expected = f"FAIL: {error}\n" if status else success
+                        if error == "PREVIEW_ANDROID_ACCEPTANCE":
+                            lines = result.stdout.splitlines(keepends=True)
+                            self.assertEqual(lines.pop(0), "PREVIEW_ANDROID emulator-action started +0s\n")
+                            self.assertRegex(lines.pop(0), r"^PREVIEW_ANDROID emulator-boot started \+\d+s\n$")
+                            if status:
+                                self.assertEqual(lines.pop(0), "PREVIEW_ANDROID emulator-boot runner-failed\n")
+                            self.assertEqual(lines, [expected])
+                        else:
+                            self.assertEqual(result.stdout, expected)
                         self.assertEqual(result.stderr, "")
                         self.assertCountEqual((stage / log).read_text().splitlines(),
                                               ["private-stdout", "private-stderr"])

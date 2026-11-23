@@ -102,6 +102,14 @@ Public Actions metadata includes run and job statuses, the build receipt,
 attested grant, public recipients, ciphertext sizes and digests, and
 attestations. Compiler, signer, emulator and guest output stay in
 runner-local staging. Success and failure steps emit fixed status messages.
+The Android wrapper reports validated host checkpoints at exit. A bounded,
+private status file records the emulator action, boot, guest guard, v0.3.2
+install, signed 5-to-7 replacement and reboot. The combined verification
+marks the online pack, offline input and functional YAML after the checks
+succeed. Exact known fixture failures are mapped locally to fixed error
+kinds. Public lines contain phase and status enums with bounded whole
+seconds from the start of the action. The status file and private logs stay
+on the runner. The acceptance report and job result gate publication.
 The release receives the single signed APK after Android acceptance.
 [Workflow run metadata](https://docs.github.com/en/rest/actions/workflow-runs)
 
@@ -123,6 +131,11 @@ assertions run in the guest. The reviewed host code binds their results to
 the actual signed APK and independently verifies the data and reboot.
 Use the API 35 Google APIs x86_64 image with emulator build 16428233 and
 `swangle`, as used by the ordinary CI recipe.
+The prior API 35 upgrade action took 3m12s and exercised an earlier APK.
+The preview adds the pinned online pack of about 417 MB. The fixture waits
+six minutes for ready status, and the app bounds a transfer at 15 minutes.
+The emulator boot timeout is 600 seconds. Those windows do not identify the
+point at which a run failed. The host checkpoints distinguish those stages.
 [Reusable workflow secret mappings](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows#using-inputs-and-secrets-in-a-reusable-workflow)
 [Prior API 35 CI run](https://github.com/AuroraLilja8514/miancak/actions/runs/43833769359)
 
@@ -283,9 +296,9 @@ review threads and successful `generated`, `unit` and `build-debug` checks
 from the PR event. A branch dispatch cannot satisfy those checks.
 [Required check evaluation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
-The scoped `pull_request` mode is for the draft signer startup review in this
+The scoped `pull_request` mode is for the draft Android status review in this
 repository. It requires the owner, the same-repository
-`review/guard-protected-preview-signer-startup`
+`review/trace-protected-preview-android`
 head, the `master` base and the first attempt. The required jobs check the
 actual checkout against the event SHA and verify the test merge has the
 event's base and head as parents. They run the original generated-file,
@@ -297,7 +310,7 @@ message for the PR synchronize event. Verify the exact head, test merge,
 required checks and empty artifact list before requesting merge approval.
 [Pull request checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)
 
-Master pushes and other PRs use ordinary CI. The signer startup scope requires a
+Master pushes and other PRs use ordinary CI. The Android status scope requires a
 draft and the exact review branch and base. Remove the obsolete
 one-PR scope in a separately reviewed workflow cleanup after this review
 closes. The manual modes remain limited to that review branch until
