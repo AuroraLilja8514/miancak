@@ -87,7 +87,7 @@ class Scope:
         return {**common, "synthetic_workflow": self.workflow.caller}
 
 
-def active_run(scope):
+def active_run(scope, *, starting=False):
     run = ops.api(f"actions/runs/{scope.run_id}", timeout=10)
     policy = scope.workflow
     ops.require(run.get("id") == scope.run_id and run.get("run_attempt") == scope.attempt
@@ -96,10 +96,14 @@ def active_run(scope):
                 and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
                                         f"{policy.caller}@{policy.ref}")
                 and (policy.title is None or run.get("display_title") == policy.title)
-                and run.get("status") == "in_progress"
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
                 and (policy != PRODUCTION or preview.approved_actor(run.get("actor", {}).get("login", ""))),
                 "HANDOFF_ACTIVE_RUN")
+    status = run.get("status")
+    if status == "in_progress":
+        return True
+    ops.require(starting and status in ("queued", "pending", "requested"), "HANDOFF_ACTIVE_RUN_STATUS")
+    return None
 
 
 def certificate_claims(scope, workflow, certificate):

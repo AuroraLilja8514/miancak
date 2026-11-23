@@ -79,6 +79,25 @@ class Trust(unittest.TestCase):
                     api.return_value = run | changes
                     handoff.active_run(scope)
 
+    def test_startup_wait_accepts_no_work_during_queued_metadata(self):
+        scope = replace(SCOPE, workflow=smoke.POLICY)
+        policy = scope.workflow
+        run = {"id": scope.run_id, "run_attempt": scope.attempt, "event": policy.event,
+               "head_branch": policy.branch, "head_sha": scope.revision, "path": policy.caller,
+               "display_title": policy.title, "status": "pending", "head_repository": {"id": ops.REPO_ID}}
+        with mock.patch.object(ops, "api", return_value=run) as api:
+            self.assertIsNone(handoff.active_run(scope, starting=True))
+            with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ACTIVE_RUN_STATUS"):
+                handoff.active_run(scope)
+            api.return_value = run | {"status": "waiting"}
+            with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ACTIVE_RUN_STATUS"):
+                handoff.active_run(scope, starting=True)
+            api.return_value = run | {"head_sha": "d" * 40}
+            with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ACTIVE_RUN"):
+                handoff.active_run(scope, starting=True)
+            api.return_value = run | {"status": "in_progress"}
+            self.assertTrue(handoff.active_run(scope, starting=True))
+
     def test_attestation_binds_workflow_role_revision_and_run_attempt(self):
         for kind in ("recipient", "ciphertext", "input-recipient"):
             handoff.verified_subject([attested_subject(kind)], SCOPE, kind, SHA)

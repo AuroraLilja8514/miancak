@@ -56,7 +56,7 @@ def current_scope():
     ops.require(checkout == revision, "INPUT_SMOKE_CHECKOUT")
     scope = handoff.Scope(inputs.identifier(env.get("GITHUB_RUN_ID", "")), 1, revision, "", POLICY)
     scope = replace(scope, approval=ops.digest(receipt_bytes(scope)))
-    handoff.active_run(scope)
+    inputs.wait(40, lambda: handoff.active_run(scope, starting=True))
     return scope
 
 
@@ -86,7 +86,8 @@ def check_receipt(scope, item, stage):
 
 def approve(scope, stage):
     def overlap():
-        handoff.active_run(scope)
+        if not handoff.active_run(scope, starting=True):
+            return None
         jobs = handoff.jobs_for_attempt(scope)
         if all(running(handoff.select_job(scope, jobs, name)) for name in (BUILD, GATE)):
             return inputs.artifact(scope, "input-receipt")
@@ -100,7 +101,8 @@ def approve(scope, stage):
 
 def gate(scope, stage):
     def granted():
-        handoff.active_run(scope)
+        if not handoff.active_run(scope, starting=True):
+            return None
         if inputs.finished(scope, APPROVE):
             return inputs.artifact(scope, "input-receipt")
         return None
@@ -115,7 +117,8 @@ def gate(scope, stage):
 
 def seal(scope, stage):
     def ready():
-        handoff.active_run(scope)
+        if not handoff.active_run(scope, starting=True):
+            return None
         if inputs.finished(scope, GATE) and handoff.publisher_running(scope):
             return inputs.artifact(scope, "input-recipient")
         return None
@@ -142,7 +145,8 @@ def recipient(scope, stage):
 
 def receive(scope, stage):
     def ready():
-        handoff.active_run(scope)
+        if not handoff.active_run(scope, starting=True):
+            return None
         if inputs.finished(scope, BUILD):
             return inputs.artifact(scope, "input-ciphertext")
         return None
