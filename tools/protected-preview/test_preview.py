@@ -570,6 +570,14 @@ class Workflow(unittest.TestCase):
         self.assertFalse(any("candidate" in step.get("with", {}).get("path", "") for step in gate["steps"]))
         self.assertEqual(set(signer_workflow["on"]["workflow_call"]["inputs"]),
                          {"approval_sha256", "grant_artifact_id"})
+        signing_secrets = {
+            "MIANCAK_RELEASE_KEYSTORE_B64": "${{ secrets.MIANCAK_RELEASE_KEYSTORE_B64 }}",
+            "MIANCAK_RELEASE_STORE_PASSWORD": "${{ secrets.MIANCAK_RELEASE_STORE_PASSWORD }}",
+        }
+        self.assertEqual([name for name, job in jobs.items() if "secrets" in job], ["sign-and-accept"])
+        self.assertEqual(jobs["sign-and-accept"]["secrets"], signing_secrets)
+        self.assertEqual(signer_workflow["on"]["workflow_call"]["secrets"],
+                         {name: {"required": "true"} for name in signing_secrets})
         self.assertEqual(jobs["sign-and-accept"]["with"], {
             "approval_sha256": "${{ needs.authorize.outputs.approval_sha256 }}",
             "grant_artifact_id": "${{ needs.authorize.outputs.grant_artifact_id }}",
@@ -612,6 +620,7 @@ class Workflow(unittest.TestCase):
         seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
         self.assertTrue(input_recipient < input_recipient_publication < inbound <= recipient < pre_key
                         < sign < device_step < seal)
+        self.assertEqual(steps[sign]["env"], signing_secrets)
         self.assertNotIn("continue-on-error", steps[recipient])
         self.assertNotIn("continue-on-error", steps[device_step])
         self.assertNotIn("if", steps[seal])
@@ -680,14 +689,26 @@ raise SystemExit(int(os.environ["MOCK_EXIT"]))
             env = {"PATH": f"{executables}:/usr/bin:/bin", "JAVA_HOME_17_X64": str(java),
                    "GITHUB_WORKSPACE": directory, "RUNNER_TEMP": directory,
                    "PREVIEW_EMULATOR_RUNNER": signer["env"]["PREVIEW_EMULATOR_RUNNER"]}
+            signing_env = env | {"MIANCAK_RELEASE_KEYSTORE_B64": "synthetic-keystore",
+                                 "MIANCAK_RELEASE_STORE_PASSWORD": "synthetic-password"}
+            signing_step = next(step for step in signer["steps"] if "preview_ops.py sign" in step.get("run", ""))
+            for missing in signing_step["env"]:
+                with self.subTest(missing=missing):
+                    result = subprocess.run(["bash", "-c", signing_step["run"]], cwd=root, text=True,
+                                            capture_output=True, env=signing_env | {missing: ""})
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "FAIL: PREVIEW_SIGNING_ENVIRONMENT_CREDENTIALS_UNAVAILABLE\n")
+                    self.assertEqual(result.stderr, "")
+                    self.assertFalse((root / "miancak-preview" / "signing-private.log").exists())
             for spec, error, log, success in cases:
                 run = next(step["run"] for step in spec["steps"] if f"FAIL: {error}" in step.get("run", ""))
                 stage = root / ("miancak-preview-build" if spec is build else "miancak-preview")
                 stage.mkdir(exist_ok=True)
+                step_env = signing_env if error == "PREVIEW_SIGNING" else env
                 for status in (0, 2):
                     with self.subTest(step=error, status=status):
                         result = subprocess.run(["bash", "-c", run], cwd=root, text=True, capture_output=True,
-                                                env=env | {"MOCK_EXIT": str(status)})
+                                                env=step_env | {"MOCK_EXIT": str(status)})
                         self.assertEqual(result.returncode, 1 if status else 0)
                         self.assertEqual(result.stdout, f"FAIL: {error}\n" if status else success)
                         self.assertEqual(result.stderr, "")

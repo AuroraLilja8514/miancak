@@ -94,10 +94,12 @@ The release receives the single signed APK after Android acceptance.
 ## Signing, acceptance and artifact visibility
 
 The protected `release-signing` job checks out the reviewed workflow revision.
-It uses the existing `MIANCAK_RELEASE_KEYSTORE_B64` and
-`MIANCAK_RELEASE_STORE_PASSWORD` environment secrets only in the isolated
-signing step. That step runs the registered certificate challenge before it
-uses the key. The candidate app is never built or executed as host tooling
+The caller maps `MIANCAK_RELEASE_KEYSTORE_B64` and
+`MIANCAK_RELEASE_STORE_PASSWORD` by name so the called job can resolve the
+existing environment secrets. Only the isolated signing step receives their
+values in its environment. It fails with a fixed diagnostic if either is
+unavailable and runs the registered certificate challenge before using the key.
+The candidate app is never built or executed as host tooling
 on this runner. The installed candidate and the debug test driver execute
 inside the disposable Android 15 guest after key-file cleanup. Build Tools
 must find precisely one instrumentation declaration for the debug package
@@ -107,6 +109,7 @@ assertions run in the guest. The reviewed host code binds their results to
 the actual signed APK and independently verifies the data and reboot.
 Use the API 35 Google APIs x86_64 image with emulator build 16428233 and
 `swangle`, as used by the ordinary CI recipe.
+[Reusable workflow secret mappings](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows#using-inputs-and-secrets-in-a-reusable-workflow)
 [Prior API 35 CI run](https://github.com/AuroraLilja8514/miancak/actions/runs/43833769359)
 
 The same runner retains the signed bytes through acceptance. The pinned
