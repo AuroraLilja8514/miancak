@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/bind-protected-preview-signing-secrets')) }}
+  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/guard-protected-preview-signer-startup')) }}
   MIANCAK_SCRIPT_TIMEOUT_SECONDS: "3600"
   MIANCAK_ADB_TIMEOUT_SECONDS: "30"
   MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
@@ -41,7 +41,7 @@ jobs:
   # Independent host diagnostic. Its separate guest cannot gate app tests on
   # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
-    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/bind-protected-preview-signing-secrets'))) }}
+    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/guard-protected-preview-signer-startup'))) }}
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -117,7 +117,7 @@ jobs:
           assert type(number) is int and number > 0 and pr["draft"] is True
           assert os.environ["GITHUB_REF"] == f"refs/pull/{number}/merge"
           assert event["repository"]["id"] == head["repo"]["id"] == base["repo"]["id"] == 1355190124
-          assert head["ref"] == "review/bind-protected-preview-signing-secrets" and base["ref"] == "master"
+          assert head["ref"] == "review/guard-protected-preview-signer-startup" and base["ref"] == "master"
           assert os.environ["GITHUB_WORKFLOW_SHA"] in (commit, head["sha"])
           header = subprocess.check_output(["git", "cat-file", "commit", commit], text=True).splitlines()
           parents = [line.removeprefix("parent ") for line in header[:header.index("")] if line.startswith("parent ")]
@@ -146,7 +146,7 @@ jobs:
       - name: Verify generated files are current
         run: git diff --exit-code
 
-      - name: Test protected preview CLI with no credentials
+      - name: Test protected preview CLI and startup with synthetic inputs
         if: env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'
         run: PYTHONDONTWRITEBYTECODE=1 python3 tools/protected-preview/test_preview_cli.py --timeout-seconds 40
 
@@ -207,7 +207,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload unit test reports
-        if: ${{ always() && !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/bind-protected-preview-signing-secrets'))) }}
+        if: ${{ always() && !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/guard-protected-preview-signer-startup'))) }}
         uses: actions/upload-artifact@v7
         with:
           name: unit-results-${{ github.sha }}
