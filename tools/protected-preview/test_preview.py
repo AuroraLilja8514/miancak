@@ -131,15 +131,23 @@ class Trust(unittest.TestCase):
         state.update({source_url: {"sha": preview.SOURCE, "tree": {"sha": preview.TREE}},
                       "git/ref/heads/master": {"object": {"sha": REVISION}}})
         state["releases/latest"]["assets"] = [baseline]
+
+        def read_only(path, **kwargs):
+            if path == draft_url:
+                raise ops.ReleaseError("API_HTTP_403")
+            return state[path]
+
         with mock.patch.object(ops, "command", return_value=mock.Mock(stdout=REVISION.encode())), \
-             mock.patch.object(ops, "api", side_effect=lambda path, **kwargs: state[path]):
+             mock.patch.object(ops, "api", side_effect=read_only) as api:
             with mock.patch.dict(os.environ, self.trusted_env() | {"PREVIEW_MODE": "approve-inputs"}, clear=True):
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_WORKFLOW_AUTHORITY"):
                     preview.admit("approve-inputs")
             with mock.patch.dict(os.environ, self.trusted_env(), clear=True):
                 preview.admit("publish")
+                self.assertNotIn(draft_url, [call.args[0] for call in api.call_args_list])
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRAFT_READ_API_HTTP_403"):
+                    preview.exact_release()
                 for endpoint, replacement, error in (
-                    (draft_url, {"assets": [{"id": 1}]}, "PREVIEW_DRAFT_NOT_EMPTY"),
                     (source_url, {"tree": {"sha": "0" * 40}}, "PREVIEW_CANDIDATE_TREE"),
                     ("releases/latest", {"assets": [baseline, baseline]}, "PREVIEW_BASELINE_DIGEST"),
                     ("releases/latest", {"assets": [baseline | {"digest": "sha256:" + "0" * 64}]},
@@ -149,6 +157,9 @@ class Trust(unittest.TestCase):
                     with self.subTest(error=error), mock.patch.dict(state[endpoint], replacement):
                         with self.assertRaisesRegex(ops.ReleaseError, error):
                             preview.admit("publish")
+                with mock.patch.object(ops, "api", side_effect=ops.ReleaseError("API_HTTP_403")):
+                    with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_MASTER_READ_API_HTTP_403"):
+                        preview.admit("publish")
 
     def test_manifest_policy_is_exact_and_roles_are_distinct(self):
         preview.require_identity(identity())
@@ -588,6 +599,7 @@ class Workflow(unittest.TestCase):
         device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("run", ""))
         seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
         self.assertTrue(inbound <= recipient < pre_key < sign < device_step < seal)
+        self.assertNotIn("continue-on-error", steps[recipient])
         self.assertNotIn("continue-on-error", steps[device_step])
         self.assertNotIn("if", steps[seal])
         self.assertIn("handoff.py encrypt", steps[seal]["run"])

@@ -80,35 +80,47 @@ def workflow_revision(mode):
     return revision
 
 
+def read_metadata(path, context, **kwargs):
+    try:
+        return ops.api(path, **kwargs)
+    except ops.ReleaseError as failure:
+        raise ops.ReleaseError(f"{context}_{failure}") from None
+
+
 def authority(mode):
     revision = workflow_revision(mode)
-    ops.require(revision == ops.api("git/ref/heads/master")["object"]["sha"],
+    master = read_metadata("git/ref/heads/master", "PREVIEW_MASTER_READ")
+    ops.require(revision == master["object"]["sha"],
                 "PREVIEW_TRUSTED_REVISION")
     return revision
 
 
-def exact_release(published=False):
-    tag = ops.api(f"git/ref/tags/{TAG}")
-    draft = ops.api(f"releases/{DRAFT_ID}")
-    stable = ops.api("releases/latest")
+def public_baseline():
+    tag = read_metadata(f"git/ref/tags/{TAG}", "PREVIEW_TAG_READ")
     ops.require(tag.get("ref") == f"refs/tags/{TAG}"
                 and tag.get("object") == {"sha": SOURCE, "type": "commit",
                                           "url": f"https://api.github.com/repos/{ops.REPO}/git/commits/{SOURCE}"},
                 "PREVIEW_TAG_CHANGED")
+    stable = read_metadata("releases/latest", "PREVIEW_BASELINE_READ")
+    ops.require(stable["id"] == STABLE_ID and stable["tag_name"] == STABLE_TAG
+                and stable["draft"] is False and stable["prerelease"] is False, "PREVIEW_STABLE_LATEST")
+    return stable
+
+
+def exact_release(published=False):
+    stable = public_baseline()
+    draft = read_metadata(f"releases/{DRAFT_ID}", "PREVIEW_DRAFT_READ")
     ops.require(draft["id"] == DRAFT_ID and draft["tag_name"] == TAG
                 and draft["draft"] is (not published) and draft["prerelease"] is True
                 and draft["upload_url"] == f"https://uploads.github.com/repos/{ops.REPO}/releases/{DRAFT_ID}/assets{{?name,label}}",
                 "PREVIEW_DRAFT_IDENTITY")
-    ops.require(stable["id"] == STABLE_ID and stable["tag_name"] == STABLE_TAG
-                and stable["draft"] is False and stable["prerelease"] is False, "PREVIEW_STABLE_LATEST")
     return draft, stable
 
 
 def admit(mode):
     authority(mode)
-    draft, stable = exact_release()
-    ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
-    source = ops.api(f"git/commits/{SOURCE}", timeout=15)
+    stable = public_baseline()
+    source = read_metadata(f"git/commits/{SOURCE}", "PREVIEW_CANDIDATE_READ", timeout=15)
     ops.require(source["sha"] == SOURCE and source["tree"]["sha"] == TREE, "PREVIEW_CANDIDATE_TREE")
     assets = [asset for asset in stable["assets"] if asset["name"] == STABLE_APK_NAME]
     ops.require(len(assets) == 1 and assets[0]["state"] == "uploaded"
@@ -257,8 +269,7 @@ def signing_manifest(record, transport):
 def prepare_private(folder, revision, run_id, record, transport, approved_sha):
     require_approval(record, approved_sha)
     ops.require(input_record(folder, revision, run_id) == record, "PREVIEW_PRIVATE_INPUT_CHANGED")
-    draft, stable = exact_release()
-    ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
+    stable = public_baseline()
     previous = folder / "previous.apk"
     item = ops.release_asset(stable, STABLE_APK_NAME, previous)
     ops.require(item.get("digest") == "sha256:" + STABLE_APK
@@ -422,8 +433,7 @@ def main():
     revision = workflow_revision(mode) if args.operation == "sign" else authority(mode)
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if args.operation == "build-check":
-        draft, _ = exact_release()
-        ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
+        public_baseline()
         candidate_checkout(args.folder)
     elif args.operation == "sign":
         ops.require(not os.environ.get("GH_TOKEN") and os.environ.get("PREVIEW_MODE") == "publish",

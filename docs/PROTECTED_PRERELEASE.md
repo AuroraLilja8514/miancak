@@ -10,9 +10,9 @@ current paths.
 PR #38 introduced the encrypted input and output handoff with production
 held. The activation review replaces that hold with read-only admission
 for the current protected `master` workflow revision, the owner account,
-attempt 1, the pinned source and tree, the empty prerelease draft, and the
-current stable APK digest. The single dispatch has no inputs and admission
-requires the owner account on the protected branch.
+attempt 1, the pinned source and tree, and the current stable APK digest.
+The single dispatch has no inputs and admission requires the owner account
+on the protected branch. The publisher checks the exact empty draft.
 [GitHub artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 
 ## Candidate admission and build verification
@@ -60,9 +60,11 @@ existing branch rules and has no required reviewers.
    The final step before credentials rechecks the grant, current master,
    freshness, and the SHA-256 of every APK, including the published baseline.
 4. **Accept and publish.** The separate publisher starts after build and
-   grant success. The signer verifies its independent recipient before
-   signing. The publisher requires a successful signed device test and
-   independently checks the accepted APK before uploading to the exact draft.
+   grant success. Its existing Contents-write token reads the exact empty
+   draft before it issues an attested recipient. The signer verifies that
+   recipient before accessing credentials. The publisher rechecks the draft
+   before writing the accepted APK. A successful signed device test and an
+   independent check of the accepted APK are required for that upload.
 
 The builder's compile phase has 40 minutes and the verification job waits
 up to 45 minutes for the receipt. The receipt expires for the signer after

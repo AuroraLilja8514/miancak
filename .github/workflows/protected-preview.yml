@@ -31,7 +31,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Verify the live master revision, candidate tree, draft and baseline
+      - name: Verify the live master revision, candidate tree and public baseline
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/protected-preview/preview_ops.py admit --timeout-seconds 75
