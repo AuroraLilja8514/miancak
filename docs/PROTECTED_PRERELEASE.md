@@ -115,26 +115,30 @@ route before signing.
 
 ## Opt-in synthetic Actions verification
 
-Review a separate manual-only workflow and reusable publisher, with
-distinct file identities and both jobs restricted to Contents read and
-Actions read plus OIDC and attestation permissions. Give neither job a
-signing environment, inherited secrets, or release-writing permissions.
-Use a separate fixed smoke policy when verifying the test certificates,
-so production verifiers will reject those workflow identities even in the
-same repository. The smoke entry points call the archive, age, transport,
-and attestation helpers using literal synthetic bytes and a synthetic
-receipt. They must have no path to candidate checkout, `apksigner`, ADB,
-`preview_ops.publish`, or the Releases API. A successful test compares the
-recovered dummy bytes in memory and prints only a pass marker.
+The first push creating `review/protected-preview-ciphertext` opts into
+`protected-preview-smoke.yml`. Its reusable receiver executes the same
+handoff checks under a distinct workflow, source ref, push event and
+artifact names. Each job gets Contents read, Actions read, OIDC and
+attestation permissions. The workflow checks out only the trusted tooling
+and operates on a literal dummy payload. Its two short-lived artifacts each
+contain an attestation bundle and either the public age recipient or the
+encrypted payload. The private age identity stays in the receiver's job
+directory and is cleaned up at job exit.
 
-The authorized test should check in-progress artifact listing and download,
-resolved reusable-workflow certificate identity, exact run-attempt claims,
-and signer job completion before decrypting. Exercise missing overlap,
-wrong recipient, changed ciphertext, non-success job, mismatched proof, and
-prior-attempt replay. Inspect the finalized artifact member names and
-console output for ciphertext-only transfer and local key cleanup.
-No production credential, APK, guest, or release mutation belongs in that
-test. This review did not dispatch the smoke workflow.
+The sender requires the receiver to be running while it lists, downloads
+and authenticates the recipient. It tests cross-run and cross-attempt
+replay and ambiguous names. The receiver requires a successful sender
+in the same attempt, verifies the ciphertext proof, compares the decrypted
+bytes and digest, and rejects a changed ciphertext and a wrong key. Local
+tests separately exercise queued and failed jobs, absent overlap and
+untrusted workflow identities. The runner logs contain pass and failure
+markers for synthetic operations. Production signing, Android acceptance
+and publishing need their own authorized runs.
+
+Use a same-tree `[skip ci]` head for the draft review so the repository's
+broad pull-request trigger omits ordinary Android CI. This leaves the
+required checks pending for review. Preserve the tested tree and link the
+exact push run from the draft. [GitHub workflow skip behavior](https://docs.github.com/actions/managing-workflow-runs/skipping-workflow-runs)
 
 ## Upgrade from this preview to stable
 

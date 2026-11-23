@@ -28,11 +28,34 @@ MAX_CIPHERTEXT = 64 * 1024 * 1024
 PROOF_BYTES = 128 * 1024
 RECEIPT_BYTES = 4096
 TRANSPORT = {
-    "recipient": ("recipient.json", PUBLISHER, RECEIPT_BYTES, 256 * 1024),
-    "ciphertext": ("accepted.age", preview.WORKFLOW, MAX_CIPHERTEXT, MAX_CIPHERTEXT + 256 * 1024),
+    "recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
+    "ciphertext": ("accepted.age", MAX_CIPHERTEXT, MAX_CIPHERTEXT + 256 * 1024),
 }
 RECEIPT = "handoff.json"
 RECIPIENT_PATTERN = r"age1[0-9a-z]{58}"
+
+
+@dataclass(frozen=True)
+class WorkflowPolicy:
+    caller: str
+    publisher: str
+    branch: str
+    event: str
+    title: str
+    accept_job: str
+    publish_job: str
+    artifact_prefix: str
+
+    @property
+    def ref(self):
+        return "refs/heads/" + self.branch
+
+    def signer_for(self, kind):
+        return self.publisher if kind == "recipient" else self.caller
+
+
+PRODUCTION = WorkflowPolicy(preview.WORKFLOW, PUBLISHER, "master", "workflow_dispatch",
+                            f"{preview.TAG} publish", SIGN_JOB, PUBLISH_JOB, "preview")
 
 
 @dataclass(frozen=True)
@@ -41,51 +64,58 @@ class Scope:
     attempt: int
     revision: str
     approval: str
+    workflow: WorkflowPolicy = PRODUCTION
 
     @property
     def invocation(self):
         return f"https://github.com/{ops.REPO}/actions/runs/{self.run_id}/attempts/{self.attempt}"
 
     def name(self, kind):
-        return f"preview-{kind}-{self.run_id}-{self.attempt}"
+        return f"{self.workflow.artifact_prefix}-{kind}-{self.run_id}-{self.attempt}"
 
     def record(self):
-        return {"schema": 1, "repository_id": ops.REPO_ID, "run_id": self.run_id,
-                "attempt": self.attempt, "revision": self.revision, "approval_sha256": self.approval,
-                "source": preview.SOURCE, "tag": preview.TAG, "draft_id": preview.DRAFT_ID}
+        common = {"schema": 1, "repository_id": ops.REPO_ID, "run_id": self.run_id,
+                  "attempt": self.attempt, "revision": self.revision, "approval_sha256": self.approval}
+        if self.workflow == PRODUCTION:
+            return {**common, "source": preview.SOURCE, "tag": preview.TAG, "draft_id": preview.DRAFT_ID}
+        return {**common, "synthetic_workflow": self.workflow.caller}
 
 
 def active_run(scope):
     run = ops.api(f"actions/runs/{scope.run_id}", timeout=10)
+    policy = scope.workflow
     ops.require(run.get("id") == scope.run_id and run.get("run_attempt") == scope.attempt
-                and run.get("event") == "workflow_dispatch" and run.get("head_branch") == "master"
-                and run.get("head_sha") == scope.revision and preview.matches_workflow(run.get("path"))
-                and run.get("display_title") == f"{preview.TAG} publish" and run.get("status") == "in_progress"
+                and run.get("event") == policy.event and run.get("head_branch") == policy.branch
+                and run.get("head_sha") == scope.revision
+                and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
+                                        f"{policy.caller}@{policy.ref}")
+                and run.get("display_title") == policy.title and run.get("status") == "in_progress"
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
-                and preview.approved_actor(run.get("actor", {}).get("login", "")), "HANDOFF_ACTIVE_RUN")
+                and (policy != PRODUCTION or preview.approved_actor(run.get("actor", {}).get("login", ""))),
+                "HANDOFF_ACTIVE_RUN")
 
 
 def certificate_claims(scope, workflow, certificate):
     expected = {
         "issuer": OIDC_ISSUER, "buildSignerDigest": scope.revision,
         "sourceRepositoryIdentifier": str(ops.REPO_ID), "sourceRepositoryDigest": scope.revision,
-        "sourceRepositoryRef": "refs/heads/master", "buildConfigDigest": scope.revision,
-        "buildTrigger": "workflow_dispatch", "runInvocationURI": scope.invocation,
+        "sourceRepositoryRef": scope.workflow.ref, "buildConfigDigest": scope.revision,
+        "buildTrigger": scope.workflow.event, "runInvocationURI": scope.invocation,
         "runnerEnvironment": "github-hosted",
     }
     def workflow_uri(path, value):
         prefix = f"https://github.com/{ops.REPO}/{path}@"
-        return value in {prefix + "refs/heads/master", prefix + scope.revision}
+        return value in {prefix + scope.workflow.ref, prefix + scope.revision}
     ops.require(all(certificate.get(k) == v for k, v in expected.items())
                 and workflow_uri(workflow, certificate.get("buildSignerURI"))
-                and workflow_uri(preview.WORKFLOW, certificate.get("buildConfigURI")),
+                and workflow_uri(scope.workflow.caller, certificate.get("buildConfigURI")),
                 "HANDOFF_ATTESTATION_ORIGIN")
 
 
 def verified_subject(result, scope, kind, sha):
     ops.require(isinstance(result, list) and len(result) == 1, "HANDOFF_ATTESTATION_COUNT")
     verified = result[0]["verificationResult"]
-    certificate_claims(scope, TRANSPORT[kind][1], verified["signature"]["certificate"])
+    certificate_claims(scope, scope.workflow.signer_for(kind), verified["signature"]["certificate"])
     statement = verified["statement"]
     subject = statement["subject"]
     ops.require(statement["predicateType"] == PREDICATE and statement["predicate"] == {"role": kind}
@@ -94,16 +124,19 @@ def verified_subject(result, scope, kind, sha):
 
 
 def verify_proof(scope, kind, folder, tools):
-    subject, workflow, _, _ = TRANSPORT[kind]
+    subject, _, _ = TRANSPORT[kind]
+    workflow = scope.workflow.signer_for(kind)
     body = folder / subject
     bundle = folder / "proof.json"
     verified = ops.command([tools / "gh", "attestation", "verify", body, "--bundle", bundle,
                             "--repo", ops.REPO, "--signer-workflow", f"{ops.REPO}/{workflow}",
                             "--signer-digest", scope.revision, "--source-digest", scope.revision,
-                            "--source-ref", "refs/heads/master", "--deny-self-hosted-runners",
+                            "--source-ref", scope.workflow.ref, "--deny-self-hosted-runners",
                             "--cert-oidc-issuer", OIDC_ISSUER, "--predicate-type", PREDICATE,
                             "--format", "json"], timeout=90)
-    verified_subject(json.loads(verified.stdout), scope, kind, ops.file_sha(body))
+    result = json.loads(verified.stdout)
+    verified_subject(result, scope, kind, ops.file_sha(body))
+    return result
 
 
 def matching_artifact(scope, kind, listing):
@@ -114,11 +147,11 @@ def matching_artifact(scope, kind, listing):
     item = items[0]
     run = item.get("workflow_run", {})
     ops.require(item.get("name") == scope.name(kind) and type(item.get("id")) is int and item["id"] > 0
-                and item.get("expired") is False and 0 < item.get("size_in_bytes", 0) <= TRANSPORT[kind][3]
+                and item.get("expired") is False and 0 < item.get("size_in_bytes", 0) <= TRANSPORT[kind][2]
                 and re.fullmatch(r"sha256:[0-9a-f]{64}", item.get("digest", ""))
                 and run.get("id") == scope.run_id and run.get("repository_id") == ops.REPO_ID
                 and run.get("head_repository_id") == ops.REPO_ID
-                and run.get("head_branch") == "master" and run.get("head_sha") == scope.revision,
+                and run.get("head_branch") == scope.workflow.branch and run.get("head_sha") == scope.revision,
                 "HANDOFF_ARTIFACT_ORIGIN")
     return item
 
@@ -138,7 +171,7 @@ def select_job(scope, listing, name):
 
 
 def acceptance_job(scope, listing):
-    job = select_job(scope, listing, SIGN_JOB)
+    job = select_job(scope, listing, scope.workflow.accept_job)
     if job is None:
         return False
     if job.get("status") == "completed":
@@ -158,7 +191,7 @@ def accepted(scope):
 
 
 def publisher_running(scope):
-    job = select_job(scope, jobs_for_attempt(scope), PUBLISH_JOB)
+    job = select_job(scope, jobs_for_attempt(scope), scope.workflow.publish_job)
     if job is None:
         return False
     ops.require(job.get("status") != "completed" and job.get("conclusion") is None, "HANDOFF_PUBLISHER_EXITED")
@@ -199,7 +232,7 @@ def fetch_wire(scope, kind, item, folder):
     matching_artifact(scope, kind, {"total_count": 1, "artifacts": [current]})
     ops.require((current["id"], current["digest"], current["size_in_bytes"]) ==
                 (item["id"], item["digest"], item["size_in_bytes"]), "HANDOFF_ARTIFACT_CHANGED")
-    subject, _, payload_limit, wire_limit = TRANSPORT[kind]
+    subject, payload_limit, wire_limit = TRANSPORT[kind]
     with tempfile.TemporaryDirectory(dir=folder.parent) as tmp:
         zipped = Path(tmp) / "wire.zip"
         ops.download_api(f"actions/artifacts/{item['id']}/zip", zipped, item["digest"], limit=wire_limit)

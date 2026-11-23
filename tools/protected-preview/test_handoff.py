@@ -1,5 +1,6 @@
 """Offline workflow trust checks and real age tests with disposable fixture bytes."""
 import json
+from dataclasses import replace
 from pathlib import Path
 import os
 import tempfile
@@ -10,21 +11,23 @@ from zipfile import ZipFile
 import handoff
 import preview_ops as preview
 import release_ops as ops
+import smoke_handoff as smoke
 
 SCOPE = handoff.Scope(1234, 1, "a" * 40, "b" * 64)
 SHA = "c" * 64
 
 
-def attested_subject(kind):
-    role_path = handoff.TRANSPORT[kind][1]
+def attested_subject(kind, scope=SCOPE):
+    policy = scope.workflow
+    role_path = policy.signer_for(kind)
     uri = f"https://github.com/{ops.REPO}/"
     certificate = {
-        "issuer": handoff.OIDC_ISSUER, "buildSignerDigest": SCOPE.revision,
-        "sourceRepositoryIdentifier": str(ops.REPO_ID), "sourceRepositoryDigest": SCOPE.revision,
-        "sourceRepositoryRef": "refs/heads/master", "buildConfigDigest": SCOPE.revision,
-        "buildTrigger": "workflow_dispatch", "runInvocationURI": SCOPE.invocation,
-        "buildSignerURI": uri + role_path + "@refs/heads/master",
-        "buildConfigURI": uri + preview.WORKFLOW + "@refs/heads/master",
+        "issuer": handoff.OIDC_ISSUER, "buildSignerDigest": scope.revision,
+        "sourceRepositoryIdentifier": str(ops.REPO_ID), "sourceRepositoryDigest": scope.revision,
+        "sourceRepositoryRef": policy.ref, "buildConfigDigest": scope.revision,
+        "buildTrigger": policy.event, "runInvocationURI": scope.invocation,
+        "buildSignerURI": uri + role_path + "@" + policy.ref,
+        "buildConfigURI": uri + policy.caller + "@" + policy.ref,
         "runnerEnvironment": "github-hosted",
     }
     return {"verificationResult": {"signature": {"certificate": certificate}, "statement": {
@@ -46,6 +49,36 @@ def job():
 
 
 class Trust(unittest.TestCase):
+    def test_synthetic_attestations_and_transport_have_a_separate_identity(self):
+        scope = replace(SCOPE, workflow=smoke.POLICY)
+        for kind in handoff.TRANSPORT:
+            with self.subTest(kind=kind):
+                proof = [attested_subject(kind, scope)]
+                handoff.verified_subject(proof, scope, kind, SHA)
+                with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ATTESTATION_ORIGIN"):
+                    handoff.verified_subject(proof, SCOPE, kind, SHA)
+                with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ATTESTATION_ORIGIN"):
+                    handoff.verified_subject([attested_subject(kind)], scope, kind, SHA)
+                self.assertNotEqual(scope.name(kind), SCOPE.name(kind))
+        self.assertNotIn("draft_id", scope.record())
+        self.assertEqual(scope.record()["synthetic_workflow"], smoke.POLICY.caller)
+
+    def test_synthetic_run_matches_exact_active_branch_revision_and_attempt(self):
+        scope = replace(SCOPE, workflow=smoke.POLICY)
+        policy = scope.workflow
+        run = {"id": scope.run_id, "run_attempt": scope.attempt, "event": "push",
+               "head_branch": policy.branch, "head_sha": scope.revision,
+               "path": f"{policy.caller}@{policy.branch}", "display_title": policy.title,
+               "status": "in_progress", "head_repository": {"id": ops.REPO_ID}}
+        with mock.patch.object(ops, "api", return_value=run) as api:
+            handoff.active_run(scope)
+            api.assert_called_once_with(f"actions/runs/{scope.run_id}", timeout=10)
+            for changes in ({"run_attempt": 2}, {"head_branch": "master"}, {"event": "workflow_dispatch"},
+                            {"path": preview.WORKFLOW}, {"status": "completed"}):
+                with self.subTest(changes=changes), self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ACTIVE_RUN"):
+                    api.return_value = run | changes
+                    handoff.active_run(scope)
+
     def test_attestation_binds_workflow_role_revision_and_run_attempt(self):
         for kind in handoff.TRANSPORT:
             handoff.verified_subject([attested_subject(kind)], SCOPE, kind, SHA)
