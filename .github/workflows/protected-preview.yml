@@ -193,6 +193,9 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+    secrets:
+      MIANCAK_RELEASE_KEYSTORE_B64: ${{ secrets.MIANCAK_RELEASE_KEYSTORE_B64 }}
+      MIANCAK_RELEASE_STORE_PASSWORD: ${{ secrets.MIANCAK_RELEASE_STORE_PASSWORD }}
     with:
       approval_sha256: ${{ needs.authorize.outputs.approval_sha256 }}
       grant_artifact_id: ${{ needs.authorize.outputs.grant_artifact_id }}

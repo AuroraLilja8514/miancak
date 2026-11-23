@@ -9,6 +9,11 @@ on:
       grant_artifact_id:
         required: true
         type: string
+    secrets:
+      MIANCAK_RELEASE_KEYSTORE_B64:
+        required: true
+      MIANCAK_RELEASE_STORE_PASSWORD:
+        required: true
 
 permissions: {}
 jobs:
@@ -103,6 +108,10 @@ jobs:
           set -euo pipefail
           umask 077
           ulimit -c 0
+          if [[ -z "${MIANCAK_RELEASE_KEYSTORE_B64:-}" || -z "${MIANCAK_RELEASE_STORE_PASSWORD:-}" ]]; then
+            echo 'FAIL: PREVIEW_SIGNING_ENVIRONMENT_CREDENTIALS_UNAVAILABLE'
+            exit 1
+          fi
           stage="$RUNNER_TEMP/miancak-preview"
           if ! python3 tools/protected-preview/preview_ops.py sign --prepared "$stage/prepared" --folder "$stage/signed" --probe-classes "$stage" > "$stage/signing-private.log" 2>&1; then
             echo 'FAIL: PREVIEW_SIGNING'
