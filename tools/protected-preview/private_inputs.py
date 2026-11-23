@@ -76,53 +76,56 @@ def load_receipt(scope, item, scratch):
     return record
 
 
-def approval_title(scope):
-    return f"{preview.TAG} approve-inputs {scope.run_id} {scope.approval}"
+def approval_title(scope, *, label=preview.TAG):
+    return f"{label} approve-inputs {scope.run_id} {scope.approval}"
 
 
 def owner_run(run, scope):
-    return (run.get("event") == "workflow_dispatch" and run.get("run_attempt") == 1
-            and run.get("head_branch") == "master" and run.get("head_sha") == scope.revision
-            and preview.matches_workflow(run.get("path"))
+    policy = scope.workflow
+    return (run.get("event") == policy.event and run.get("run_attempt") == scope.attempt == 1
+            and run.get("head_branch") == policy.branch and run.get("head_sha") == scope.revision
+            and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
+                                    f"{policy.caller}@{policy.ref}")
             and run.get("head_repository", {}).get("id") == ops.REPO_ID
             and all(run.get(field, {}).get("id") == OWNER_ID
                     and preview.approved_actor(run.get(field, {}).get("login", ""))
                     for field in ("actor", "triggering_actor")))
 
 
-def approval_origin(run, scope, created):
+def approval_origin(run, scope, created, *, label=preview.TAG):
     asked_at = timestamp(run.get("created_at"))
     ops.require(owner_run(run, scope) and type(run.get("id")) is int
                 and run["id"] > 0 and run["id"] != scope.run_id
-                and run.get("display_title") == approval_title(scope)
+                and run.get("display_title") == approval_title(scope, label=label)
                 and created <= asked_at <= created + timedelta(seconds=REVIEW_SECONDS),
                 "PREVIEW_OWNER_APPROVAL_ORIGIN")
 
 
-def approved_run(scope, created, approval_run_id):
+def approved_run(scope, created, approval_run_id, *, label=preview.TAG, job_name=APPROVE_JOB):
     run = ops.api(f"actions/runs/{approval_run_id}", timeout=10)
-    approval_origin(run, scope, created)
+    approval_origin(run, scope, created, label=label)
     ops.require(run["id"] == approval_run_id, "PREVIEW_OWNER_APPROVAL_ORIGIN")
     if run.get("status") != "completed":
         return None
     ops.require(run.get("conclusion") == "success", "PREVIEW_OWNER_APPROVAL_FAILED")
     approval_scope = replace(scope, run_id=approval_run_id)
     ops.require(handoff.acceptance_job(approval_scope, handoff.jobs_for_attempt(approval_scope),
-                                       APPROVE_JOB), "PREVIEW_OWNER_APPROVAL_JOB")
+                                       job_name), "PREVIEW_OWNER_APPROVAL_JOB")
     return approval_run_id
 
 
-def find_approval(scope, created):
-    query = urlencode({"event": "workflow_dispatch", "branch": "master", "head_sha": scope.revision,
+def find_approval(scope, created, *, label=preview.TAG, job_name=APPROVE_JOB):
+    policy = scope.workflow
+    query = urlencode({"event": policy.event, "branch": policy.branch, "head_sha": scope.revision,
                        "created": ">=" + created.strftime("%Y-%m-%dT%H:%M:%SZ"), "per_page": 100})
-    listing = ops.api(f"actions/workflows/{Path(preview.WORKFLOW).name}/runs?{query}", timeout=10)
+    listing = ops.api(f"actions/workflows/{Path(policy.caller).name}/runs?{query}", timeout=10)
     runs = listing["workflow_runs"]
     ops.require(listing["total_count"] == len(runs) <= 100, "PREVIEW_OWNER_APPROVAL_LIST")
-    matches = [run for run in runs if run.get("display_title") == approval_title(scope)]
+    matches = [run for run in runs if run.get("display_title") == approval_title(scope, label=label)]
     ops.require(len(matches) <= 1, "PREVIEW_OWNER_APPROVAL_AMBIGUOUS")
     if matches:
-        approval_origin(matches[0], scope, created)
-        return approved_run(scope, created, matches[0]["id"])
+        approval_origin(matches[0], scope, created, label=label)
+        return approved_run(scope, created, matches[0]["id"], label=label, job_name=job_name)
     return None
 
 

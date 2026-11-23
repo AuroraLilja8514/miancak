@@ -39,7 +39,7 @@ def receipt_bytes(scope):
     })
 
 
-def current_scope():
+def current_scope(policy=POLICY):
     env = os.environ
     revision = env.get("GITHUB_SHA", "")
     ops.require(re.fullmatch(r"[0-9a-f]{40}", revision)
@@ -47,14 +47,14 @@ def current_scope():
                 and env.get("GITHUB_REPOSITORY_ID") == str(ops.REPO_ID)
                 and env.get("GITHUB_ACTOR_ID") == str(inputs.OWNER_ID)
                 and preview.approved_actor(env.get("GITHUB_TRIGGERING_ACTOR", ""))
-                and env.get("GITHUB_REF") == POLICY.ref and env.get("GITHUB_EVENT_NAME") == POLICY.event
-                and env.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{POLICY.caller}@{POLICY.ref}"
+                and env.get("GITHUB_REF") == policy.ref and env.get("GITHUB_EVENT_NAME") == policy.event
+                and env.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{policy.caller}@{policy.ref}"
                 and env.get("GITHUB_WORKFLOW_SHA") == revision and env.get("GITHUB_RUN_ATTEMPT") == "1",
                 "INPUT_SMOKE_SCOPE")
     checkout = ops.command(["git", "-C", Path(__file__).resolve().parents[2], "rev-parse", "HEAD"],
                            timeout=10).stdout.decode().strip()
     ops.require(checkout == revision, "INPUT_SMOKE_CHECKOUT")
-    scope = handoff.Scope(inputs.identifier(env.get("GITHUB_RUN_ID", "")), 1, revision, "", POLICY)
+    scope = handoff.Scope(inputs.identifier(env.get("GITHUB_RUN_ID", "")), 1, revision, "", policy)
     scope = replace(scope, approval=ops.digest(receipt_bytes(scope)))
     inputs.wait(40, lambda: handoff.active_run(scope, starting=True))
     return scope

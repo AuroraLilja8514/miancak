@@ -49,10 +49,6 @@ def approved_actor(name):
     return name.lower() == ops.REPO.split("/")[0].lower()
 
 
-def matches_workflow(path):
-    return path in (WORKFLOW, f"{WORKFLOW}@master", f"{WORKFLOW}@refs/heads/master")
-
-
 def workflow_revision(mode):
     """Pin the tools checkout to the executing workflow."""
     env = os.environ
@@ -250,7 +246,7 @@ def prepare_private(folder, revision, run_id, record, transport, approved_sha):
     ops.write_json(folder / "approved.json", record)
     ops.write_json(folder / "transport.json", transport)
     ops.write_json(folder / "prepared.json", signing_manifest(record, transport))
-    (folder / "release-notes.md").write_bytes((ROOT / "docs/releases/0.3.4-preview.1.md").read_bytes())
+    (folder / "release-notes.md").write_bytes((ROOT / "docs/PROTECTED_PRERELEASE_NOTES.md").read_bytes())
 
 
 def bind_signing_input(folder, revision, approved_sha):
@@ -369,7 +365,7 @@ def publish(folder, revision, approved_sha):
         ops.require(len(again["assets"]) == 1 and again["assets"][0]["id"] == asset["id"],
                     "PREVIEW_DRAFT_ASSETS_CHANGED")
         inspect_asset(again["assets"][0], apk)
-        notes = (ROOT / "docs/releases/0.3.4-preview.1.md").read_text()
+        notes = (ROOT / "docs/PROTECTED_PRERELEASE_NOTES.md").read_text()
         notes += (f"\n\nSource `{SOURCE}`. Version code 7.\n\n"
                   f"APK SHA-256 `{record['apk_sha256']}`.\n\n"
                   f"Signing certificate SHA-256 `{ops.CERTIFICATE}`.\n")

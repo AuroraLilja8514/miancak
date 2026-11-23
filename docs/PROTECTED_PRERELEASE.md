@@ -239,48 +239,57 @@ untrusted workflow identities. The runner logs contain pass and failure
 markers for synthetic operations. Production signing, Android acceptance
 and publishing need their own authorized runs.
 
-Use a same-tree `[skip ci]` head for the draft review so the repository's
-broad pull-request trigger omits ordinary Android CI. This leaves the
-required checks pending for review. Preserve the tested tree and link the
-exact push run from the draft. [GitHub workflow skip behavior](https://docs.github.com/actions/managing-workflow-runs/skipping-workflow-runs)
-
-The same manual check-only run includes an inbound rehearsal. Its builder
+An explicit review-branch dispatch with the default empty input includes
+an inbound rehearsal. Its builder
 holds three literal dummy files. Two concurrent read-only jobs verify the
 same-attempt receipt and approval while the builder is still active. A
 separate reusable receiver publishes an attested public recipient only
 after the gate. The builder then uploads only ciphertext and the receiver
 requires real builder success before decrypting and comparing all three
 dummy files. The rehearsal checks expiry, run and attempt replay,
-and ciphertext tampering. It uses a same-run test approval job. The
-distinct production owner dispatch still needs verification before
-enabling production modes.
+and ciphertext tampering. It uses a same-run test approval job.
+
+The separate cross-run rehearsal uses the same registered CI workflow on
+the review branch. Dispatch `owner_approval_probe=start` as the repository
+owner. The holder uploads one digest receipt calculated from literal dummy
+payloads. Once the in-progress artifact is visible, dispatch
+`owner_approval_probe="approve-inputs RUN_ID RECEIPT_SHA256"` on the same
+revision. Both runs check the actor, workflow, repository, revision and
+attempt against GitHub's API. The approval job compares the exact receipt
+bytes and the holder requires the distinct approval run and its specific
+job to succeed. Receipt expiry is six minutes. The holding and confirming
+roles have separate concurrency groups and eight- and three-minute job
+limits. If dispatch, overlap, artifact access or approval fails, the
+holder expires. Statuses, the dummy receipt and its digest are visible
+through GitHub Actions. Neither run compiles the app or uses the signing
+environment. This rehearsal exercises the API boundary. The protected
+workflow remains held for review.
 
 ## Required checks before merge
 
 The active default-branch ruleset requires an up-to-date head, resolved
-review threads and real `generated`, `unit` and `build-debug` check results.
-The skipped draft has no check runs. A successful synthetic run on the
-same tree under another commit cannot satisfy the required checks. Current
-`ci.yml` starts the broad workflow on both a PR and a manual dispatch. It
-uploads debug and instrumentation APKs, fixtures and an unsigned app.
-That makes it unsuitable for a metadata-only review.
+review threads and successful `generated`, `unit` and `build-debug` checks
+from the PR event. A branch dispatch cannot satisfy those checks.
+[Required check evaluation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
-The local `ci.yml` revision scopes review-only mode to an explicit manual
-dispatch on `review/protected-preview-ciphertext`. It uses the already
-registered workflow and takes no new dispatch inputs. It runs the original
-steps of all three required jobs, including both debug fixture builds and
-native validation. It disables required-check uploads, caches and ordinary
-optional jobs for this mode. The inbound rehearsal publishes only its
-dummy receipt, public recipient/proof and ciphertext. Normal PR and master
-push jobs keep their existing behavior. Each required job checks the owner, repository, branch, attempt,
-workflow SHA, and checked-out SHA. Retain the `[skip ci]` marker at the exact
-review HEAD, then recheck the branch and PR head before and after the
-authorized manual run. GitHub documents that manual branch dispatch checks
-the last commit on the given ref. Verify the three successful GitHub
-Actions check runs on the PR head, the dummy-only artifacts list, and the absence
-of check results on a competing test-merge commit before marking ready.
-Actual attachment to #38 awaits that run.
-[Dispatch source SHA](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
+The scoped `pull_request` mode is for draft #38 in this repository. It
+requires the owner, the same-repository `review/protected-preview-ciphertext`
+head, the `master` base and the first attempt. The required jobs check the
+actual checkout against the event SHA and verify the test merge has the
+event's base and head as parents. They run the original generated-file,
+unit, debug fixture and native validations. Uploads, cache operations,
+optional Android jobs and dummy smoke jobs are disabled for that PR.
+The release notes proposal lives in `docs/PROTECTED_PRERELEASE_NOTES.md`
+outside the release-rehearsal paths. The review head needs a normal commit
+message for the PR synchronize event. Verify the exact head, test merge,
+required checks and empty artifact list before requesting merge approval.
+[Pull request checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)
+
+Master pushes and other PRs use ordinary CI. The #38 scope requires a
+draft and fails if the review branch or base changes. Remove the obsolete
+one-PR scope in a separately reviewed workflow cleanup after this review
+closes. The manual modes remain limited to that review branch until
+their cleanup.
 
 When the owner approves a merge after those checks, use a squash or merge
 message that explicitly carries `[skip ci]` on the new master commit.

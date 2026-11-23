@@ -307,15 +307,29 @@ class Workflow(unittest.TestCase):
                              Loader=yaml.BaseLoader)
         revised = yaml.load((preview.ROOT / path).read_bytes(), Loader=yaml.BaseLoader)
         required = {"generated", "unit", "build-debug"}
-        self.assertEqual(revised["on"], original["on"])
         self.assertEqual(revised["permissions"], {"contents": "read"})
         branch = "refs/heads/review/protected-preview-ciphertext"
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
-        ordinary = f"github.event_name != 'workflow_dispatch' || github.ref != '{branch}'"
+        scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
+                 "(github.event_name == 'pull_request' && github.event.number == 38))")
+        ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
+        self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
+        self.assertEqual(restored["on"]["workflow_dispatch"]["inputs"]["owner_approval_probe"]["default"], "")
+        restored["on"]["workflow_dispatch"] = original["on"]["workflow_dispatch"]
+        self.assertIn(review, restored.pop("run-name"))
+        self.assertIn(review, restored["concurrency"]["cancel-in-progress"])
+        for group in ("owner-probe-hold", "owner-probe-approve"):
+            self.assertIn(group, restored["concurrency"]["group"])
+        restored["concurrency"] = original["concurrency"]
+        for name in ("owner-smoke-hold", "owner-smoke-approve"):
+            owner_job = restored["jobs"].pop(name)
+            self.assertIn("github.event_name == 'workflow_dispatch'", owner_job["if"])
+            self.assertIn("inputs.owner_approval_probe", owner_job["if"])
         for name in ("inbound-smoke-build", "inbound-smoke-approval", "inbound-smoke-gate", "inbound-smoke-receive"):
             job = restored["jobs"].pop(name)
-            self.assertIn(review, job["if"].replace("\n", " "))
+            self.assertIn(f"github.ref == '{branch}'", job["if"])
+            self.assertIn("github.event_name == 'workflow_dispatch' && inputs.owner_approval_probe == ''", job["if"])
             self.assertIn("github.actor == github.repository_owner", job["if"])
             self.assertIn("github.run_attempt == 1", job["if"])
         guard = None
@@ -324,33 +338,107 @@ class Workflow(unittest.TestCase):
                 self.assertEqual(job.pop("if"), ordinary)
                 continue
             self.assertEqual(job["name"], name)
-            self.assertNotIn("if", job)
+            self.assertEqual(job.pop("if"), "${{ !((" + review + f" && github.repository == '{ops.REPO}' "
+                             "&& inputs.owner_approval_probe != '')) }}")
             check = job["steps"].pop(1)
-            self.assertEqual(check["if"], review)
+            self.assertEqual(check["if"], "env.MIANCAK_REVIEW_CI == 'true'")
             guard = guard or check["run"]
             self.assertEqual(check["run"], guard)
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
                     condition = step.pop("if")
-                    if condition == f"always() && ({ordinary})":
+                    if condition == "${{ always() && !(" + scope + ") }}":
                         step["if"] = "always()"
                     else:
                         self.assertEqual(condition, ordinary)
                 if uses.startswith("gradle/actions/setup-gradle@"):
-                    self.assertEqual(step.pop("with"), {"cache-disabled": "${{ " + review + " }}"})
+                    self.assertEqual(step.pop("with"), {"cache-disabled": "${{ env.MIANCAK_REVIEW_CI == 'true' }}"})
         self.assertEqual(restored, original)
         head = subprocess.check_output(["git", "-C", preview.ROOT, "rev-parse", "HEAD"], text=True).strip()
         env = os.environ | {"GITHUB_SHA": head, "GITHUB_WORKFLOW_SHA": head, "GITHUB_REPOSITORY": ops.REPO,
+                            "GITHUB_REPOSITORY_ID": str(ops.REPO_ID), "GITHUB_ACTOR_ID": str(315702774),
+                            "GITHUB_EVENT_NAME": "workflow_dispatch",
                             "GITHUB_REF": branch, "GITHUB_RUN_ATTEMPT": "1",
                             "GITHUB_ACTOR": "owner", "GITHUB_REPOSITORY_OWNER": "owner"}
         self.assertIsNotNone(guard)
         subprocess.run(["bash", "-c", guard], cwd=preview.ROOT, env=env, check=True)
         for field, value in {"GITHUB_REF": "refs/heads/master", "GITHUB_WORKFLOW_SHA": "a" * 40,
-                             "GITHUB_RUN_ATTEMPT": "2", "GITHUB_ACTOR": "someone-else"}.items():
+                             "GITHUB_RUN_ATTEMPT": "2", "GITHUB_ACTOR": "someone-else",
+                             "GITHUB_ACTOR_ID": "1"}.items():
             with self.subTest(field=field):
                 result = subprocess.run(["bash", "-c", guard], cwd=preview.ROOT, env=env | {field: value})
                 self.assertNotEqual(result.returncode, 0)
+        for job in revised["jobs"].values():
+            for step in job.get("steps", []):
+                if "run" in step:
+                    subprocess.run(["bash", "-n"], input=step["run"], text=True, check=True)
+
+    def test_scoped_pull_request_checks_require_exact_draft_and_real_merge_parents(self):
+        path = preview.ROOT / ".github/workflows/ci.yml"
+        workflow = yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)
+        guard = workflow["jobs"]["generated"]["steps"][1]["run"]
+        with tempfile.TemporaryDirectory() as directory:
+            env = os.environ | {"GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.invalid",
+                                "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.invalid"}
+
+            def git(*args, **kwargs):
+                return subprocess.check_output(["git", *args], cwd=directory, env=env, text=True, **kwargs).strip()
+
+            git("init", "-q", "--initial-branch=fixture")
+            tree = git("mktree", input="")
+            base = git("commit-tree", tree, "-m", "base")
+            head = git("commit-tree", tree, "-p", base, "-m", "head")
+            merge = git("commit-tree", tree, "-p", base, "-p", head, "-m", "merge")
+            git("update-ref", "HEAD", merge)
+            event = {"number": 38, "repository": {"id": ops.REPO_ID},
+                     "pull_request": {"draft": True,
+                                      "head": {"ref": "review/protected-preview-ciphertext",
+                                               "sha": head, "repo": {"id": ops.REPO_ID}},
+                                      "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
+            event_path = Path(directory) / "event.json"
+            env.update(GITHUB_SHA=merge, GITHUB_WORKFLOW_SHA=merge, GITHUB_REPOSITORY=ops.REPO,
+                       GITHUB_REPOSITORY_ID=str(ops.REPO_ID), GITHUB_ACTOR_ID=str(315702774),
+                       GITHUB_EVENT_PATH=str(event_path), GITHUB_EVENT_NAME="pull_request",
+                       GITHUB_REF="refs/pull/38/merge", GITHUB_RUN_ATTEMPT="1",
+                       GITHUB_ACTOR="owner", GITHUB_REPOSITORY_OWNER="owner")
+            event_path.write_text(json.dumps(event))
+            result = subprocess.run(["bash", "-c", guard], cwd=directory, env=env, text=True,
+                                    check=True, capture_output=True)
+            self.assertIn(f"head {head}, test merge {merge}", result.stdout)
+            for keys, wrong in ((("number",), 99), (("pull_request", "draft"), False),
+                                (("pull_request", "head", "ref"), "other"),
+                                (("pull_request", "head", "sha"), "a" * 40),
+                                (("pull_request", "head", "repo", "id"), 1),
+                                (("pull_request", "base", "ref"), "other"),
+                                (("pull_request", "base", "sha"), head)):
+                altered = copy.deepcopy(event)
+                field = altered
+                for key in keys[:-1]:
+                    field = field[key]
+                field[keys[-1]] = wrong
+                with self.subTest(keys=keys):
+                    event_path.write_text(json.dumps(altered))
+                    result = subprocess.run(["bash", "-c", guard], cwd=directory, env=env, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0)
+
+    def test_owner_probe_is_manual_read_only_and_uploads_only_the_dummy_receipt(self):
+        jobs = yaml.load((preview.ROOT / ".github/workflows/ci.yml").read_bytes(), Loader=yaml.BaseLoader)["jobs"]
+        for name in ("owner-smoke-hold", "owner-smoke-approve"):
+            job = jobs[name]
+            self.assertEqual(job["permissions"], {"contents": "read", "actions": "read"})
+            self.assertIn("github.actor == github.repository_owner && github.run_attempt == 1", job["if"])
+            self.assertNotIn("environment", job)
+            rendered = json.dumps(job)
+            for forbidden in ("secrets.", ".apk", "apksigner", "release-signing", "adb", "actions/cache"):
+                self.assertNotIn(forbidden, rendered)
+            for step in job["steps"]:
+                if "uses" in step:
+                    self.assertRegex(step["uses"], r"@[0-9a-f]{40}$")
+            uploads = [step["with"]["path"] for step in job["steps"]
+                       if step.get("uses", "").startswith("actions/upload-artifact@")]
+            expected = ["${{ runner.temp }}/owner-smoke-receipt/receipt.json"] if name.endswith("hold") else []
+            self.assertEqual(uploads, expected)
 
     def test_inbound_smoke_only_exposes_dummy_metadata_and_ciphertext(self):
         def read(path):

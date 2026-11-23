@@ -14,6 +14,8 @@ import handoff
 import preview_ops as preview
 import private_inputs as inputs
 import release_ops as ops
+import smoke_inputs as smoke
+import smoke_owner as owner
 from test_preview import identity
 
 SCOPE = handoff.Scope(123, 1, "a" * 40, "b" * 64)
@@ -94,6 +96,46 @@ class Approval(unittest.TestCase):
         with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_INPUT_RECEIPT"):
             preview.validate_input_record(record | {"extra": "synthetic unapproved metadata"},
                                           SCOPE.revision, SCOPE.run_id)
+
+    def test_cross_run_rehearsal_verifies_dummy_receipt_and_cannot_authorize_production(self):
+        target = replace(SCOPE, workflow=owner.POLICY)
+        raw = smoke.receipt_bytes(target)
+        target = replace(target, approval=ops.digest(raw))
+        title = inputs.approval_title(target, label=owner.LABEL)
+        confirmation = approval(target, self.created + timedelta(seconds=1),
+                                head_branch=owner.POLICY.branch, path=owner.POLICY.caller,
+                                display_title=title)
+        self.assertFalse(inputs.owner_run(confirmation, SCOPE))
+        confirmer = replace(target, run_id=APPROVAL_ID)
+        item = {"created_at": iso(self.created)}
+        request = title.removeprefix(owner.LABEL + " ")
+
+        def transport(scope, kind, artifact, folder):
+            self.assertEqual(scope.workflow, owner.POLICY)
+            self.assertEqual((kind, artifact), ("input-receipt", item))
+            folder.mkdir()
+            (folder / "receipt.json").write_bytes(raw)
+
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(owner, "current_receipt", return_value=item), \
+             mock.patch.object(handoff, "fetch_wire", side_effect=transport), \
+             mock.patch.object(ops, "api", return_value=confirmation | {"status": "in_progress"}):
+            stage = Path(directory)
+            owner.approve(confirmer, stage, request)
+            with self.assertRaisesRegex(ops.ReleaseError, "INPUT_SMOKE_RECEIPT"):
+                owner.approve(confirmer, stage, f"approve-inputs {target.run_id} " + "0" * 64)
+            with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_OWNER_APPROVAL_ORIGIN"):
+                owner.approve(target, stage, request)
+
+        selected = job(confirmer, owner.APPROVE_JOB)
+        with mock.patch.object(ops, "api", side_effect=[
+            {"total_count": 1, "workflow_runs": [confirmation]}, confirmation,
+            {"total_count": 1, "jobs": [selected]},
+        ]) as api:
+            self.assertEqual(inputs.find_approval(target, self.created, label=owner.LABEL,
+                                                 job_name=owner.APPROVE_JOB), APPROVAL_ID)
+            self.assertTrue(api.call_args_list[0].args[0].startswith("actions/workflows/ci.yml/runs?"))
+            self.assertEqual(api.call_args.args[0], f"actions/runs/{APPROVAL_ID}/attempts/1/jobs?per_page=100")
 
 
 @unittest.skipUnless(os.environ.get("MIANCAK_HANDOFF_TEST_TOOLS"), "Pinned age fixture required")
