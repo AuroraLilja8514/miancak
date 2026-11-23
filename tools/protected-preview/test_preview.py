@@ -358,7 +358,7 @@ class Workflow(unittest.TestCase):
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
-                 "github.head_ref == 'review/repair-protected-preview-draft-access'))")
+                 "github.head_ref == 'review/bind-protected-preview-signing-secrets'))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
@@ -444,7 +444,7 @@ class Workflow(unittest.TestCase):
             git("update-ref", "HEAD", merge)
             event = {"number": 101, "repository": {"id": ops.REPO_ID},
                      "pull_request": {"draft": True,
-                                      "head": {"ref": "review/repair-protected-preview-draft-access",
+                                      "head": {"ref": "review/bind-protected-preview-signing-secrets",
                                                "sha": head, "repo": {"id": ops.REPO_ID}},
                                       "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
             event_path = Path(directory) / "event.json"
