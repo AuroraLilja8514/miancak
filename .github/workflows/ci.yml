@@ -146,6 +146,10 @@ jobs:
       - name: Verify generated files are current
         run: git diff --exit-code
 
+      - name: Test protected preview CLI with no credentials
+        if: env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'
+        run: PYTHONDONTWRITEBYTECODE=1 python3 tools/protected-preview/test_preview_cli.py --timeout-seconds 40
+
   unit:
     if: *review_checks_enabled
     name: unit

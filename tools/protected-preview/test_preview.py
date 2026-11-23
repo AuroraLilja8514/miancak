@@ -373,6 +373,10 @@ class Workflow(unittest.TestCase):
             self.assertEqual(check["if"], "env.MIANCAK_REVIEW_CI == 'true'")
             guard = guard or check["run"]
             self.assertEqual(check["run"], guard)
+            if name == "generated":
+                cli = job["steps"].pop()
+                self.assertEqual(cli["if"], "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'")
+                self.assertIn("test_preview_cli.py --timeout-seconds 40", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
