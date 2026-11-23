@@ -74,14 +74,28 @@ still enforced. The builder, verification, signer and publisher jobs have
 1,200 seconds. Changing master, expiring the receipt or cancelling the run
 closes that run's path to signing and publication.
 
+While the builder waits for the signer, GitHub may report `waiting`, `queued`,
+`pending` or `requested` for the entire run. The builder can read verified run
+metadata in those states within the existing receipt deadline. The signer can
+use the same metadata wait for up to 40 seconds before reading the grant.
+Each poll checks the owner, repository, ref, revision, run and attempt. The
+wait logs its fixed phase and known status. A terminal or unknown status
+fails the check. The run must be `in_progress` before artifact access can
+resume. The builder verifies the recipient's attestation and rechecks the
+live signer and the same recipient before encryption. The signer download,
+pre-key check and publisher handoff require `in_progress` throughout.
+[GitHub workflow run statuses](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow)
+
 The three previously built local inputs total 79,922,499 bytes before
 transport overhead. The inbound limit is 96 MiB with exact per-file lengths
 bound to the approved receipt. The signed output cap remains 64 MiB.
 
 Host tests use real `age` on dummy bytes and synthetic GitHub API and
 attestation records. Hosted dummy runs previously verified inbound and
-outbound ciphertext and in-progress artifact access. The protected, signed
-Android run supplies the release acceptance.
+outbound ciphertext and in-progress artifact access. The scoped PR's
+generated check also exercises startup with synthetic GitHub API responses.
+The protected run exercises the live environment transition and supplies
+the signed Android release acceptance.
 [Inbound rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45160602643)
 
 Public Actions metadata includes run and job statuses, the build receipt,
@@ -269,9 +283,9 @@ review threads and successful `generated`, `unit` and `build-debug` checks
 from the PR event. A branch dispatch cannot satisfy those checks.
 [Required check evaluation](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
-The scoped `pull_request` mode is for the draft signer wiring review in this
+The scoped `pull_request` mode is for the draft signer startup review in this
 repository. It requires the owner, the same-repository
-`review/bind-protected-preview-signing-secrets`
+`review/guard-protected-preview-signer-startup`
 head, the `master` base and the first attempt. The required jobs check the
 actual checkout against the event SHA and verify the test merge has the
 event's base and head as parents. They run the original generated-file,
@@ -283,7 +297,7 @@ message for the PR synchronize event. Verify the exact head, test merge,
 required checks and empty artifact list before requesting merge approval.
 [Pull request checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)
 
-Master pushes and other PRs use ordinary CI. The signer wiring scope requires a
+Master pushes and other PRs use ordinary CI. The signer startup scope requires a
 draft and the exact review branch and base. Remove the obsolete
 one-PR scope in a separately reviewed workflow cleanup after this review
 closes. The manual modes remain limited to that review branch until

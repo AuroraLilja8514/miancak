@@ -23,6 +23,7 @@ GATE_JOB = "Authorize private preview inputs"
 RECEIPT_STEP = "Upload the exact build receipt"
 BUILD_WAIT = 45 * 60
 RECEIPT_SECONDS = 22 * 60
+SIGNER_START_SECONDS = 40
 
 
 def identifier(text):
@@ -147,19 +148,24 @@ def seal_inputs(scope, stage):
     record = json.loads((stage / "receipt/receipt.json").read_bytes())
     preview.require_approval(record, scope.approval)
 
-    def current_recipient():
-        handoff.active_run(scope)
+    def current_recipient(startup_phase=None):
+        if not handoff.active_run(scope, startup_phase=startup_phase):
+            return None
         item = artifact(scope, "input-receipt")
         if item is not None:
             fresh(item)
         if not finished(scope, GATE_JOB):
             return None
         signer = handoff.select_job(scope, handoff.jobs_for_attempt(scope), handoff.SIGN_JOB)
-        if signer and signer.get("status") == "in_progress" and signer.get("conclusion") is None:
-            return artifact(scope, "input-recipient")
-        return None
+        if signer is None:
+            return None
+        status = signer.get("status")
+        ops.require(signer.get("conclusion") is None
+                    and status in ("in_progress", *handoff.SIGNER_STARTUP_STATES), "PREVIEW_INPUT_SIGNER_STATE")
+        return artifact(scope, "input-recipient") if status == "in_progress" else None
 
-    item = wait(RECEIPT_SECONDS, current_recipient)
+    item = wait(RECEIPT_SECONDS, lambda: current_recipient("builder-await-signer"))
+    handoff.active_run(scope)
     recipient = stage / "recipient"
     handoff.fetch_wire(scope, "input-recipient", item, recipient)
     tools = stage / "tools"
@@ -167,6 +173,8 @@ def seal_inputs(scope, stage):
     staged = stage / "inputs"
     ops.require(preview.input_record(staged, scope.revision, scope.run_id) == record,
                 "PREVIEW_PRIVATE_INPUT_CHANGED")
+    ops.require(current_recipient() == item, "PREVIEW_INPUT_RECIPIENT_CHANGED")
+    handoff.active_run(scope)
     handoff.encrypt_files(scope, recipient / "recipient.json", staged,
                           {name: entry["bytes"] for name, entry in record["apks"].items()},
                           stage / "inputs.age", tools, limit=handoff.MAX_INPUT_CIPHERTEXT)
@@ -185,6 +193,7 @@ def receive_inputs(scope, stage):
     folder = stage / "input-ciphertext"
     handoff.fetch_wire(scope, "input-ciphertext", item, folder)
     prepared = stage / "prepared"
+    handoff.active_run(scope)
     handoff.decrypt_files(scope, stage / "recipient/recipient.json", stage / "identity.txt",
                           folder / "inputs.age", prepared,
                           {name: entry["bytes"] for name, entry in record["apks"].items()},
@@ -205,7 +214,10 @@ def run(args):
     if operation in ("seal", "recipient", "receive", "pre-key"):
         ops.require(preview.hex_digest(approval), "PREVIEW_APPROVAL_REQUIRED")
     scope = handoff.Scope(run_id, 1, revision, approval)
-    handoff.active_run(scope)
+    if operation == "recipient":
+        wait(SIGNER_START_SECONDS, lambda: handoff.active_run(scope, startup_phase="signer-startup"))
+    elif operation != "seal":
+        handoff.active_run(scope)
     if operation == "stage":
         record = preview.input_record(stage / "inputs", revision, run_id)
         folder = stage / "receipt"
@@ -219,6 +231,7 @@ def run(args):
         seal_inputs(scope, stage)
     elif operation == "recipient":
         confirm_grant(scope, stage)
+        handoff.active_run(scope)
         handoff.create_recipient(scope, stage, stage / "tools")
     elif operation == "receive":
         receive_inputs(scope, stage)

@@ -65,6 +65,8 @@ class WorkflowPolicy:
 
 PRODUCTION = WorkflowPolicy(preview.WORKFLOW, PUBLISHER, "master", "workflow_dispatch",
                             f"{preview.TAG} publish", SIGN_JOB, PUBLISH_JOB, "preview", SIGNER)
+QUEUED_STATES = ("queued", "pending", "requested")
+SIGNER_STARTUP_STATES = (*QUEUED_STATES, "waiting")
 
 
 @dataclass(frozen=True)
@@ -90,7 +92,10 @@ class Scope:
         return {**common, "synthetic_workflow": self.workflow.caller}
 
 
-def active_run(scope, *, starting=False):
+def active_run(scope, *, starting=False, startup_phase=None):
+    if startup_phase is not None:
+        ops.require(scope.workflow == PRODUCTION and startup_phase in ("builder-await-signer", "signer-startup"),
+                    "HANDOFF_STARTUP_PHASE")
     run = ops.api(f"actions/runs/{scope.run_id}", timeout=10)
     policy = scope.workflow
     ops.require(run.get("id") == scope.run_id and run.get("run_attempt") == scope.attempt
@@ -103,9 +108,13 @@ def active_run(scope, *, starting=False):
                 and (policy != PRODUCTION or preview.owner_dispatch(run)),
                 "HANDOFF_ACTIVE_RUN")
     status = run.get("status")
-    if status == "in_progress" and run.get("conclusion") is None:
+    unfinished = run.get("conclusion") is None
+    if status == "in_progress" and unfinished:
         return True
-    ops.require(starting and status in ("queued", "pending", "requested"), "HANDOFF_ACTIVE_RUN_STATUS")
+    if startup_phase is not None and unfinished and status in SIGNER_STARTUP_STATES:
+        print(f"WAIT: {startup_phase} {status}", flush=True)
+        return None
+    ops.require(starting and unfinished and status in QUEUED_STATES, "HANDOFF_ACTIVE_RUN_STATUS")
     return None
 
 
