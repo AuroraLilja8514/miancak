@@ -122,6 +122,22 @@ def require_split(path):
                     and not any(name.endswith(".gram") for name in files), "PREVIEW_BUNDLED_DATA")
 
 
+def require_driver_target(apk, sdk):
+    """Check the actual compiled instrumentation target with pinned aapt2."""
+    text = ops.command([sdk / "aapt2", "dump", "xmltree", "--file", "AndroidManifest.xml",
+                        apk]).stdout.decode()
+    parts = re.split(r"(?m)^ +E: ([^ (\r\n]+)[^\r\n]*\r?\n", text)[1:]
+    declarations = [body for name, body in zip(parts[::2], parts[1::2]) if name == "instrumentation"]
+    ops.require(len(declarations) == 1, "PREVIEW_DRIVER_TARGET")
+    attributes = re.findall(
+        r'(?m)^ +A: http://schemas\.android\.com/apk/res/android:(name|targetPackage)'
+        r'\(0x[0-9a-fA-F]+\)="([^"\r\n]+)"', declarations[0])
+    ops.require(sorted(attributes) == [
+        ("name", "androidx.test.runner.AndroidJUnitRunner"),
+        ("targetPackage", ops.PACKAGE + ".debug"),
+    ], "PREVIEW_DRIVER_TARGET")
+
+
 def inspect_inputs(folder):
     ops.require({p.name for p in folder.iterdir()} == INPUTS, "PREVIEW_INPUT_FILES")
     sdk, hashes = ops.sdk_tools()
@@ -142,6 +158,8 @@ def inspect_inputs(folder):
                     and fixture["min_sdk"] == 33, "PREVIEW_DRIVER_IDENTITY")
         if suffix == ".debug":
             ops.require(fixture["version_code"] == 7 and fixture["debuggable"], "PREVIEW_DRIVER_VERSION")
+        else:
+            require_driver_target(apk, sdk)
         printed = ops.command([sdk / "apksigner", "verify", "--print-certs", apk], env=java).stdout.decode()
         signers = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([0-9a-f]{64})", printed)
         ops.require(len(signers) == 1, "PREVIEW_DRIVER_CERTIFICATE")
@@ -258,7 +276,7 @@ def require_acceptance(report, apk_sha):
         "certificate_sha256": ops.CERTIFICATE, "baseline_version_code": 5, "version_code": 7,
         "scenario": "previous-formal-release-upgrade", "result": "passed",
         "real_reboot": True, "legacy_yaml_preserved": True,
-        "requires_online_pack_setup": True,
+        "requires_online_pack_setup": True, "custom_yaml_activated_after_reboot": True,
     }
     ops.require(all(type(report.get(key)) is type(value) and report[key] == value
                     for key, value in expected.items()), "PREVIEW_SIGNED_ACCEPTANCE")
@@ -272,7 +290,7 @@ def seal(folder, report_path, revision, approved_sha):
     record["preview_acceptance"] = {key: report[key] for key in (
         "api", "source_sha", "apk_sha256", "certificate_sha256", "baseline_version_code",
         "version_code", "scenario", "result", "real_reboot", "legacy_yaml_preserved",
-        "requires_online_pack_setup")}
+        "requires_online_pack_setup", "custom_yaml_activated_after_reboot")}
     record["trusted_revision"] = revision
     record["approval_sha256"] = approved_sha
     ops.write_json(folder / "release-provenance.json", record)

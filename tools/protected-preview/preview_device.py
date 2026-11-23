@@ -46,6 +46,10 @@ def verify_rebooted_data():
 
 
 def main(prepared, signed):
+    # Recheck the approved app and two driver digests after signing and before
+    # handing any package to the disposable guest. This step has no signing key.
+    revision = preview.workflow_revision("publish")
+    preview.bind_signing_input(prepared, revision, os.environ.get("PREVIEW_APPROVAL_SHA256", ""))
     previous = prepared / "previous.apk"
     ops.require(previous.is_file() and ops.file_sha(previous) == preview.STABLE_APK
                 and not smoke.split_resources(previous), "PREVIEW_ANDROID_BASELINE")
@@ -58,6 +62,8 @@ def main(prepared, signed):
     report = json.loads(result.read_bytes())
     report["legacy_yaml_preserved"] = True
     report["requires_online_pack_setup"] = True
+    # The original driver checks byte retention only. The publication gate
+    # requires a separate real import, apply and offline post-reboot probe.
     ops.write_json(result, report)
 
 

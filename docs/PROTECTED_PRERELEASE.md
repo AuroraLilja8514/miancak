@@ -7,34 +7,96 @@ version code 7, draft 453133947. Stable v0.3.2 is code 5. The stable
 trigger, gate logic, signing tools, publisher and version tags keep their
 current paths.
 
+The production modes in this revision stop at `private-input-review`. The
+build path reviewed in PR #38 would upload the three unencrypted build
+inputs for seven days. A public repository's artifacts can be downloaded
+by signed-in readers. The encrypted output handoff does not protect that
+earlier upload. The production modes stay held until the private input
+transport and signed acceptance described here are implemented and reviewed.
+[GitHub artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+
 ## Candidate admission and approval
 
 1. Review the template and trusted helpers in a workflow-only change on
    protected `master`. The preview source already exists as a public tag.
    Its commit and tree are pinned in the preview policy. It can be admitted
    explicitly through this review without promoting application code to
-   `master`. Install the template at `.github/workflows/protected-preview.yml`
-   only after approval of the execution and artifact visibility below.
+   `master`. Review the execution and visible metadata below before enabling
+   production modes.
 2. Review the isolated runtime in `tools/protected-preview`. Its shared
    signing, Android and watchdog helpers are pinned to the reviewed source
    `e878ac038e7fc458b0da85295fd5115a901a290f`. That snapshot supports the
    preview's API 33 installation floor and API 35 acceptance. The stable
    workflow and its original helpers stay at their existing paths.
-3. The repository owner dispatches `build` on that exact reviewed
-   `master` revision. An unprivileged runner builds the exact tag's app and
-   the matching debug fixtures without release secrets or writable repository
-   credentials. A separate runner inspects the actual compiler outputs. Its
-   attestation covers the trusted workflow revision, source and tree, the
-   GitHub run and artifact digest, APK identity, Build Tools hashes, and all
-   three APK digests.
-4. Review the unsigned output and attestation, then approve its exact digest.
-   The owner dispatches `publish` from the same still-current `master`
-   revision with that successful build run ID, artifact ID, and attestation
-   SHA-256. Signing recomputes the entire attestation before using the
-   approved bytes. The previous local unsigned APK is a reference for this
-   review. A fresh runner build can produce a different digest and must be
-   reviewed on its own evidence. Changed master, wrong mode or an incomplete
-   build fails the pin checks.
+
+### Private build input handoff
+
+Use one production run for build, signing and publication, with a separate
+owner-only digest approval dispatch. This lets the build and signing
+runners use a fresh `age` identity without copying a private decryption
+key between runs. The current `release-signing` environment limits branches
+and has no required reviewer. The digest approval gate must run outside that
+environment and succeed before the signing job can start.
+
+1. **Build.** On the exact reviewed `master` revision, compile the tagged
+   candidate and debug driver on an unprivileged runner. Keep all three
+   APKs in private temporary storage. Publish only a strictly typed receipt
+   with the trusted workflow revision, exact tag commit and tree, application
+   fingerprint, run and attempt, Build Tools hashes, expected package and
+   version, and the names, lengths and SHA-256 hashes of the three APKs.
+   Record the SHA-256 of the canonical receipt. Keep compiler output and
+   archives local. The job waits for a recipient from the authorized signer.
+2. **Approve.** A concurrent, read-only job validates the receipt and waits
+   for the owner to review it and dispatch a dedicated `approve-digest` mode
+   with the production run ID and receipt hash. That mode has a single
+   no-secrets validation job and a fixed run title that binds the two inputs.
+   Use the authenticated Actions API to require that exact workflow and
+   completed successful approval job on the same current `master` revision.
+   Check the owner account ID in both actor fields, repository ID, branch,
+   workflow path, event, run title, and first attempt, with the approval
+   created after the receipt. Fail on missing, mismatched, duplicate or
+   replayed approvals. A build job output alone cannot satisfy this gate.
+3. **Receive and verify.** Only after the approval job succeeds, start the
+   protected signing job. It generates a runner-local `age` identity and
+   attests the public recipient with an input-specific role tied to the
+   approved receipt and this exact run and attempt. The build runner
+   authenticates it with the existing same-attempt transport checks. It seals
+   the three allowlisted APKs and the canonical receipt, uploads only the
+   ciphertext, clears plaintext staging and finishes successfully. The
+   signer verifies the origin and archive digest, waits for build success,
+   decrypts in temporary storage and independently inspects the actual
+   APKs and Build Tools. Require all digests and the canonical receipt to
+   match the owner approval before the credential-bearing step. Check the
+   current master and tag again before using the key.
+4. **Publish.** Start the publisher after both approval and build success.
+   The signer authenticates that second recipient before signing. It uses
+   the independent output transfer and acceptance gates below. Delaying the
+   publisher lets two hosted runners suffice throughout the run. Give the
+   receipt, owner review, transfer and cancellation paths finite deadlines.
+   Run approval in its own concurrency group so it can finish while the
+   production run waits. A timeout or lost runner requires a fresh build
+   and approval, including if only a debug fixture digest changes.
+
+The preserved local inputs total 79,922,499 bytes before transport overhead.
+Use a separate input archive limit, for example 96 MiB, with per-file
+lengths bound by the receipt. The 64 MiB signed-output cap is too small
+for this input transfer and should stay scoped to its existing role.
+
+This design is a proposal. Exercise the new approval and incoming transfer
+with only synthetic data before enabling real inputs. The successful
+synthetic run below exercised the other direction. A configured, explicitly
+approved private runner and transfer service could also hold the three
+inputs, provided it enforces the same byte comparison and pre-key owner
+approval. A registered private runner or storage integration has not been
+verified here.
+
+Public Actions would expose workflow and job statuses, typed receipt
+metadata and hashes, approval IDs, the public recipients, ciphertext sizes
+and attestation metadata. Approve this boundary before production
+execution. Keep raw logs, APKs, signing data and acceptance evidence
+outside summaries, caches and unencrypted artifacts. Check an uploaded
+APK against authenticated draft metadata before changing release state.
+[Actions workflow run metadata](https://docs.github.com/en/rest/actions/workflow-runs)
 
 ## Signing, acceptance and artifact visibility
 
@@ -44,8 +106,15 @@ It uses the existing `MIANCAK_RELEASE_KEYSTORE_B64` and
 signing step. That step runs the registered certificate challenge before it
 uses the key. The candidate app is never built or executed as host tooling
 on this runner. The installed candidate and the debug test driver execute
-inside the disposable Android 15 guest after key-file cleanup. The production
-signer remains scoped to this package and certificate.
+inside the disposable Android 15 guest after key-file cleanup. Build Tools
+must find precisely one instrumentation declaration for the debug package
+and the expected AndroidJUnitRunner. Before installation, recheck the
+already approved APK and both fixture digests. The candidate driver's UI
+assertions run in the guest. The reviewed host code binds their results to
+the actual signed APK and independently verifies the data and reboot.
+Use the API 35 Google APIs x86_64 image with emulator build 16428233 and
+`swangle`, as used by the ordinary CI recipe.
+[Prior API 35 CI run](https://github.com/AuroraLilja8514/miancak/actions/runs/43833769359)
 
 The same runner retains the signed bytes through acceptance. The pinned
 v0.3.2 APK is installed, used to set real preferences and generate learning,
@@ -57,6 +126,51 @@ Rime user directory must survive overwrite, setup and reboot. The downloaded
 grammar digest is checked in the active resource directory after reboot. This tests
 legacy YAML byte retention. The old release's catalog import activation and
 the preview's new custom YAML UI are separate acceptance cases.
+
+### Signed custom YAML acceptance
+
+Keep the existing signed smoke intact. Add the following on the guarded,
+disposable Android 15 guest after the normal signed upgrade, offline editor
+checks and real reboot. The pinned candidate needs no application change.
+Test the shipped picker and actual receiving editor. Directly seeding a
+compiled schema, selection JSON or app-private catalog cannot pass.
+
+1. Use the existing signed code-7 package. Confirm the app is using the
+   pinned Wanxiang Base and grammar. In an ordinary receiving editor,
+   confirm `nihao` commits `你好` with the default spelling. Record whether
+   `nihc` already offers the same result so the spelling probe has a control.
+2. Place the synthetic file below in Android Downloads. Open **Settings →
+   Chinese word tables → Import Rime configuration** and choose
+   `wanxiang.custom.yaml` through the normal Files picker. Check that the
+   imported original's bytes and digest match, and that its checkbox starts
+   clear. Confirm the import alone leaves the active selection unchanged.
+
+   ```yaml
+   patch:
+     speller/algebra:
+       __patch: [wanxiang_algebra:/base/小鹤双拼]
+   ```
+
+3. Select the imported file and apply word tables. Wait for the successful
+   deployment. Check the selected digest and managed slot. Offline in a
+   real receiving editor, type `nihc`, explicitly select `你好` and require
+   exact committed text. If the unpatched control could already produce this
+   text, also verify the compiled spelling change in the active slot.
+4. Force-stop and reopen, then reboot and require a changed boot ID. Repeat
+   the offline check without reimporting or applying. Verify the managed
+   original and the legacy file both survived. Verify a null default
+   Android network and no usable external route for the tested guest before
+   the offline assertions. Keep the raw observations local. Tests already
+   present in `RimeConfigNativeTest` use a debug-only isolated store and
+   provide a supplement.
+
+The release report must require a typed
+`custom_yaml_activated_after_reboot: true` from the trusted guest check.
+The byte-retention-only driver cannot produce that field. The marker and
+sequence are prepared for review. The pinned host parser accepts the
+synthetic marker (SHA-256
+`f9c8c56de2cba0025fc65d76db00b05006ed4d6774417238b565472a37598c6b`).
+The import, editor and reboot checks await Android execution.
 
 The public Actions handoff uses two independently scheduled, fresh hosted
 runners. The reusable publisher workflow comes from the caller's exact
@@ -106,8 +220,8 @@ The tool installer fetches the official Linux x86-64 release archives for
 SHA-256 hashes before extracting only named binaries. Checkout, upload,
 emulation and attestation actions use full commit pins. Review must confirm
 the repository allows the pinned attestation action, GitHub/Sigstore
-network access, and the scoped OIDC permissions. Keep production dispatch
-pending the synthetic verification below. If run status or ciphertext
+network access, and the scoped OIDC permissions. Keep production modes held
+until the input transport and signed checks pass. If run status or ciphertext
 must also stay private, use an approved private execution and custody
 route before signing.
 
@@ -139,6 +253,37 @@ Use a same-tree `[skip ci]` head for the draft review so the repository's
 broad pull-request trigger omits ordinary Android CI. This leaves the
 required checks pending for review. Preserve the tested tree and link the
 exact push run from the draft. [GitHub workflow skip behavior](https://docs.github.com/actions/managing-workflow-runs/skipping-workflow-runs)
+
+## Required checks before merge
+
+The active default-branch ruleset requires an up-to-date head, resolved
+review threads and real `generated`, `unit` and `build-debug` check results.
+The skipped draft has no check runs. A successful synthetic run on the
+same tree under another commit cannot satisfy the required checks. Current
+`ci.yml` starts the broad workflow on both a PR and a manual dispatch. It
+uploads debug and instrumentation APKs, fixtures and an unsigned app.
+That makes it unsuitable for a metadata-only review.
+
+For a separate review, add an explicit review-only input to the existing
+`ci.yml` manual dispatch on the exact workflow review branch. Run the
+original steps of all three required checks, including both debug fixture
+builds and native validation, with artifact uploads disabled. Skip the other
+jobs only in this scoped mode. Leave normal PR and master push behavior
+unchanged. Keep the review HEAD marked `[skip ci]`, so its PR does not start
+CI before the approved dispatch. Review the effective job list and confirm
+the actual passed checks at the commit GitHub is requiring before merge.
+Check that the base and protected application inputs are unchanged. Do not
+stand in required status checks, skip required jobs or bypass the ruleset.
+
+When the owner approves a merge after those checks, use a squash or merge
+message that explicitly carries `[skip ci]` on the new master commit.
+Confirm the marker is in the actual commit message GitHub will use. This
+avoids the post-merge master push build. The existing stable publisher
+listens for successful master push CI. It does not accept a review branch
+dispatch as a release source. The ordinary master run's early uploads would
+occur even if the stable publisher later reported an already-used version.
+This path requires separate review of the scoped CI mode and the merge.
+[Required check commit selection](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 
 ## Upgrade from this preview to stable
 

@@ -49,10 +49,32 @@ def acceptance(sha):
     return {"api": 35, "source_sha": preview.SOURCE, "apk_sha256": sha,
             "certificate_sha256": ops.CERTIFICATE, "baseline_version_code": 5, "version_code": 7,
             "scenario": "previous-formal-release-upgrade", "result": "passed", "real_reboot": True,
-            "legacy_yaml_preserved": True, "requires_online_pack_setup": True}
+            "legacy_yaml_preserved": True, "requires_online_pack_setup": True,
+            "custom_yaml_activated_after_reboot": True}
 
 
 class Trust(unittest.TestCase):
+    def test_driver_manifest_targets_only_the_independent_debug_app(self):
+        declaration = (
+            '      E: instrumentation (line=9)\n'
+            '        A: http://schemas.android.com/apk/res/android:name(0x01010003)'
+            '="androidx.test.runner.AndroidJUnitRunner"\n'
+            '        A: http://schemas.android.com/apk/res/android:targetPackage(0x01010021)'
+            '="org.miancak.keyboard.debug" (Raw: "org.miancak.keyboard.debug")\n'
+        )
+        apk = Path("driver.apk")
+        sdk = Path("pinned-build-tools")
+        with mock.patch.object(ops, "command", return_value=mock.Mock(stdout=declaration.encode())) as command:
+            preview.require_driver_target(apk, sdk)
+            command.assert_called_once_with(
+                [sdk / "aapt2", "dump", "xmltree", "--file", "AndroidManifest.xml", apk])
+            for invalid in ("", declaration + declaration,
+                            declaration.replace(ops.PACKAGE + ".debug", ops.PACKAGE),
+                            declaration.replace("AndroidJUnitRunner", "OtherRunner")):
+                with self.subTest(invalid=invalid), self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRIVER_TARGET"):
+                    command.return_value.stdout = invalid.encode()
+                    preview.require_driver_target(apk, sdk)
+
     def trusted_env(self):
         owner = ops.REPO.split("/")[0]
         return {"PREVIEW_MODE": "publish", "GITHUB_REPOSITORY": ops.REPO,
@@ -159,10 +181,13 @@ class Publication(unittest.TestCase):
     def test_missing_real_upgrade_or_offline_reboot_receipt_aborts(self):
         report = acceptance(APPROVAL)
         preview.require_acceptance(report, APPROVAL)
+        retention_only = {key: value for key, value in report.items() if key != "custom_yaml_activated_after_reboot"}
+        with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
+            preview.require_acceptance(retention_only, APPROVAL)
         for key, value in {"api": 33, "result": "failure", "baseline_version_code": 7, "version_code": 6,
                            "certificate_sha256": "e" * 64, "source_sha": "e" * 40, "apk_sha256": "e" * 64,
                            "legacy_yaml_preserved": 1, "requires_online_pack_setup": False,
-                           "real_reboot": False}.items():
+                           "real_reboot": False, "custom_yaml_activated_after_reboot": 1}.items():
             with self.subTest(key=key), self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
                 preview.require_acceptance(report | {key: value}, APPROVAL)
 
@@ -189,6 +214,11 @@ class Publication(unittest.TestCase):
                 with self.assertRaisesRegex(ops.ReleaseError, "SIGNED_CERTIFICATE"):
                     preview.publish(folder, REVISION, APPROVAL)
                 verify.side_effect = None
+                del record["preview_acceptance"]["custom_yaml_activated_after_reboot"]
+                ops.write_json(record_path, record)
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
+                    preview.publish(folder, REVISION, APPROVAL)
+                record["preview_acceptance"]["custom_yaml_activated_after_reboot"] = True
                 record["preview_acceptance"]["apk_sha256"] = "0" * 64
                 ops.write_json(record_path, record)
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
@@ -291,8 +321,16 @@ class Workflow(unittest.TestCase):
                          ["publish"])
         self.assertEqual([name for name, job in jobs.items() if "environment" in job], ["sign-and-accept"])
         self.assertEqual(jobs["sign-and-accept"]["environment"], "release-signing")
-        self.assertNotIn("needs", jobs["publish"])
-        self.assertNotIn("needs", jobs["sign-and-accept"])
+        for name in ("build", "sign-and-accept", "publish"):
+            self.assertEqual(jobs[name]["needs"], "private-input-review")
+            self.assertNotIn("always()", jobs[name]["if"])
+        hold = jobs["private-input-review"]
+        self.assertEqual(hold["permissions"], {})
+        self.assertNotIn("environment", hold)
+        result = subprocess.run(["bash", "-ec", hold["steps"][0]["run"]], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.strip(), "FAIL: PREVIEW_PRIVATE_INPUT_TRANSPORT_REQUIRED")
+        self.assertEqual(jobs["attest"]["needs"], "build")
         self.assertEqual(jobs["publish"]["uses"], "./.github/workflows/protected-preview-publisher.yml")
         self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
         publisher_path = preview.ROOT / ".github/workflows/protected-preview-publisher.yml"
