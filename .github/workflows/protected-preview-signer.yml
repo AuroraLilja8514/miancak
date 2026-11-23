@@ -139,8 +139,11 @@ jobs:
           umask 077
           stage="$RUNNER_TEMP/miancak-preview"
           runner="$GITHUB_WORKSPACE/.preview-emulator"
+          export PREVIEW_ANDROID_STATUS_FILE="$stage/acceptance-status.json"
+          outcome=passed
           # Redirect the whole action. Its emulator and ADB setup also emit output.
           if ! {
+            python3 tools/protected-preview/android_progress.py begin "$PREVIEW_ANDROID_STATUS_FILE" --timeout-seconds 15 || :
             test "$(git -C "$runner" rev-parse HEAD)" = "$PREVIEW_EMULATOR_RUNNER" &&
             env \
               'INPUT_API-LEVEL=35' 'INPUT_SYSTEM-IMAGE-API-LEVEL=35' 'INPUT_EMULATOR-BUILD=16428233' \
@@ -149,11 +152,17 @@ jobs:
               'INPUT_EMULATOR-PORT=5554' 'INPUT_EMULATOR-BOOT-TIMEOUT=600' \
               'INPUT_DISABLE-ANIMATIONS=true' 'INPUT_DISABLE-LINUX-HW-ACCEL=false' \
               'INPUT_ENABLE-HW-KEYBOARD=false' 'INPUT_DISABLE-SPELLCHECKER=false' \
-              'INPUT_PRE-EMULATOR-LAUNCH-SCRIPT=sed -i "s/^hw.keyboard=.*/hw.keyboard=no/" "$HOME/.android/avd/miancak-release-35.avd/config.ini"' \
+              'INPUT_PRE-EMULATOR-LAUNCH-SCRIPT=sed -i "s/^hw.keyboard=.*/hw.keyboard=no/" "$HOME/.android/avd/miancak-release-35.avd/config.ini" && (python3 "$GITHUB_WORKSPACE/tools/protected-preview/android_progress.py" before-boot --timeout-seconds 15 || :)' \
               'INPUT_EMULATOR-OPTIONS=-no-window -accel on -gpu swangle -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none' \
               'INPUT_SCRIPT=cd "$RUNNER_TEMP/miancak-preview" && python3 "$GITHUB_WORKSPACE/tools/protected-preview/preview_device.py" prepared signed' \
               node "$runner/lib/main.js"
           } > "$stage/acceptance-private.log" 2>&1; then
+            outcome=failed
+          fi
+          if ! python3 tools/protected-preview/android_progress.py report "$PREVIEW_ANDROID_STATUS_FILE" "$outcome" --timeout-seconds 15 2>> "$stage/acceptance-private.log"; then
+            echo 'PREVIEW_ANDROID status-unavailable'
+          fi
+          if [[ "$outcome" == failed ]]; then
             echo 'FAIL: PREVIEW_ANDROID_ACCEPTANCE'
             exit 1
           fi

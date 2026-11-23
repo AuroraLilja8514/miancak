@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 from zipfile import ZipFile
+import android_progress as progress
+from android_progress import Phase, Status
 import release_ops as ops
 
 PACKAGE = ops.PACKAGE
@@ -324,6 +326,7 @@ def phase(name, *, setup_resources=False, custom_yaml_sha=None):
         r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", text)
     if not passed:
         # Raw instrumentation text remains local behind the console boundary.
+        progress.fixture_failure(name, text)
         print("FAIL: RELEASE_INPUT_PHASE", flush=True)
     ops.require(passed, "RELEASE_INPUT_" + name.upper())
     print("PASS: ACTUAL_SIGNED_APK_" + name.upper(), flush=True)
@@ -367,6 +370,7 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
     signal.signal(signal.SIGALRM, expired)
     signal.alarm(args.timeout_seconds)
     RESULTS.mkdir(parents=True, exist_ok=True)
+    progress.mark(Phase.GUEST, Status.STARTED)
     verify_release_target(args.api)
     global original_ime
     original_ime = shell("settings", "get", "secure", "default_input_method")
@@ -375,6 +379,8 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
     try:
         ops.require(int(shell("getprop", "ro.build.version.sdk")) == args.api, "RELEASE_TEST_API")
         root()
+        progress.mark(Phase.GUEST, Status.PASSED)
+        progress.mark(Phase.BASELINE, Status.STARTED)
         prepared, signed = Path(args.prepared), Path(args.signed)
         record = json.loads((signed / "release-provenance.json").read_text())
         apk = signed / ("miancak-" + record["version"] + ".apk")
@@ -390,6 +396,8 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
         adb("install", "--no-incremental", str(prepared / "app-debug.apk"), timeout=180)
         adb("install", "--no-incremental", str(prepared / "app-debug-androidTest.apk"), timeout=180)
         adb("install", "--no-incremental", str(baseline), timeout=180)
+        progress.mark(Phase.BASELINE, Status.PASSED)
+        progress.mark(Phase.PREPARE, Status.STARTED)
         shell("svc", "wifi", "disable"); shell("svc", "data", "disable")
         shell("settings", "put", "secure", "show_ime_with_hard_keyboard", "1")
         phase("prepare", setup_resources=split_resources(baseline))
@@ -397,15 +405,27 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
         if before_overwrite is not None:
             before_overwrite()
         before = snapshot("before-install")
+        progress.mark(Phase.PREPARE, Status.PASSED)
+        progress.mark(Phase.UPGRADE, Status.STARTED)
         adb("install", "--no-incremental", "-r", str(apk), timeout=180)
         after = snapshot("after-install")
         ops.require(before == after, "RELEASE_UPGRADE_DATA_CHANGED")
+        progress.mark(Phase.UPGRADE, Status.PASSED)
+        progress.mark(Phase.VERIFY, Status.STARTED)
         if before_verify is not None:
             before_verify()
-        phase("verify", setup_resources=split_resources(apk), custom_yaml_sha=custom_yaml_sha)
+        needs_pack = split_resources(apk)
+        phase("verify", setup_resources=needs_pack, custom_yaml_sha=custom_yaml_sha)
+        if needs_pack:
+            progress.mark(Phase.PACK, Status.PASSED)
+        progress.mark(Phase.OFFLINE, Status.PASSED)
         inactive()
         if after_verify is not None:
             after_verify()
+        if custom_yaml_sha:
+            progress.mark(Phase.YAML, Status.PASSED)
+        progress.mark(Phase.VERIFY, Status.PASSED)
+        progress.mark(Phase.REBOOT, Status.STARTED)
         before_boot = snapshot("before-reboot")
         boot_before = shell("cat", "/proc/sys/kernel/random/boot_id")
         adb("reboot")
@@ -425,6 +445,7 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
         phase("rebooted", custom_yaml_sha=custom_yaml_sha)
         if after_reboot is not None:
             after_reboot()
+        progress.mark(Phase.REBOOT, Status.PASSED)
         ops.write_json(RESULTS / "acceptance.json", {
             "api": args.api, "source_sha": record["source_sha"], "apk_sha256": record["apk_sha256"],
             "certificate_sha256": ops.CERTIFICATE,
@@ -437,6 +458,7 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
         })
         print("PASS: SIGNED_APK_INSTALL_INPUT_UPGRADE_DATA_AND_REBOOT", flush=True)
     except Exception as failure:
+        progress.failure(failure)
         try:
             collect_failure_diagnostics(args.api, failure)
         except BaseException as diagnostic_error:
@@ -446,6 +468,8 @@ def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_
     finally:
         failed = sys.exc_info()[0] is not None
         try:
+            if not failed:
+                progress.mark(Phase.EVIDENCE, Status.STARTED)
             adb("pull", "/sdcard/Android/data/" + PACKAGE + ".debug/files/release-results",
                 str(RESULTS / "device"), timeout=90, check=False)
         except BaseException as transfer_error:
