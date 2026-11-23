@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 import os
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 from zipfile import ZipFile
@@ -49,6 +50,26 @@ def job():
 
 
 class Trust(unittest.TestCase):
+    def test_publisher_requires_the_exact_empty_draft_before_issuing_recipient(self):
+        env = {"GITHUB_RUN_ID": str(SCOPE.run_id), "GITHUB_RUN_ATTEMPT": str(SCOPE.attempt),
+               "PREVIEW_APPROVAL_SHA256": SCOPE.approval}
+        args = SimpleNamespace(operation="recipient", stage=Path("never-written"))
+        with mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.object(preview, "authority", return_value=SCOPE.revision), \
+             mock.patch.object(handoff, "active_run"), \
+             mock.patch.object(handoff, "create_recipient") as create:
+            with mock.patch.object(preview, "exact_release",
+                                   side_effect=ops.ReleaseError("PREVIEW_DRAFT_READ_API_HTTP_403")):
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRAFT_READ_API_HTTP_403"):
+                    handoff.run(args)
+            with mock.patch.object(preview, "exact_release", return_value=({"assets": [{"id": 1}]}, {})):
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRAFT_NOT_EMPTY"):
+                    handoff.run(args)
+            create.assert_not_called()
+            with mock.patch.object(preview, "exact_release", return_value=({"assets": []}, {})):
+                handoff.run(args)
+            create.assert_called_once_with(SCOPE, args.stage, args.stage / "tools")
+
     def test_synthetic_attestations_and_transport_have_a_separate_identity(self):
         scope = replace(SCOPE, workflow=smoke.POLICY)
         for kind in ("recipient", "ciphertext"):

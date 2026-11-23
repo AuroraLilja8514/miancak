@@ -271,7 +271,7 @@ class Custody(unittest.TestCase):
                     mock.patch.object(handoff, "jobs_for_attempt", return_value=jobs),
                     mock.patch.object(inputs, "artifact", side_effect=lambda case, kind: metadata[kind]),
                     mock.patch.object(handoff, "verify_proof") as verify,
-                    mock.patch.object(preview, "exact_release", return_value=({"assets": []}, {})),
+                    mock.patch.object(preview, "public_baseline", return_value={}),
                     mock.patch.object(preview, "authority", return_value=scope.revision),
                     mock.patch.object(ops, "release_asset", side_effect=baseline) as previous,
                     mock.patch.object(ops, "inspect_apk", return_value=identity(old=True)),

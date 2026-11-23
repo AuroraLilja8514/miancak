@@ -131,15 +131,23 @@ class Trust(unittest.TestCase):
         state.update({source_url: {"sha": preview.SOURCE, "tree": {"sha": preview.TREE}},
                       "git/ref/heads/master": {"object": {"sha": REVISION}}})
         state["releases/latest"]["assets"] = [baseline]
+
+        def read_only(path, **kwargs):
+            if path == draft_url:
+                raise ops.ReleaseError("API_HTTP_403")
+            return state[path]
+
         with mock.patch.object(ops, "command", return_value=mock.Mock(stdout=REVISION.encode())), \
-             mock.patch.object(ops, "api", side_effect=lambda path, **kwargs: state[path]):
+             mock.patch.object(ops, "api", side_effect=read_only) as api:
             with mock.patch.dict(os.environ, self.trusted_env() | {"PREVIEW_MODE": "approve-inputs"}, clear=True):
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_WORKFLOW_AUTHORITY"):
                     preview.admit("approve-inputs")
             with mock.patch.dict(os.environ, self.trusted_env(), clear=True):
                 preview.admit("publish")
+                self.assertNotIn(draft_url, [call.args[0] for call in api.call_args_list])
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRAFT_READ_API_HTTP_403"):
+                    preview.exact_release()
                 for endpoint, replacement, error in (
-                    (draft_url, {"assets": [{"id": 1}]}, "PREVIEW_DRAFT_NOT_EMPTY"),
                     (source_url, {"tree": {"sha": "0" * 40}}, "PREVIEW_CANDIDATE_TREE"),
                     ("releases/latest", {"assets": [baseline, baseline]}, "PREVIEW_BASELINE_DIGEST"),
                     ("releases/latest", {"assets": [baseline | {"digest": "sha256:" + "0" * 64}]},
@@ -149,6 +157,9 @@ class Trust(unittest.TestCase):
                     with self.subTest(error=error), mock.patch.dict(state[endpoint], replacement):
                         with self.assertRaisesRegex(ops.ReleaseError, error):
                             preview.admit("publish")
+                with mock.patch.object(ops, "api", side_effect=ops.ReleaseError("API_HTTP_403")):
+                    with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_MASTER_READ_API_HTTP_403"):
+                        preview.admit("publish")
 
     def test_manifest_policy_is_exact_and_roles_are_distinct(self):
         preview.require_identity(identity())
@@ -347,7 +358,7 @@ class Workflow(unittest.TestCase):
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
-                 "github.head_ref == 'review/activate-protected-preview-v0.3.4-preview.1'))")
+                 "github.head_ref == 'review/repair-protected-preview-draft-access'))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
@@ -433,7 +444,7 @@ class Workflow(unittest.TestCase):
             git("update-ref", "HEAD", merge)
             event = {"number": 101, "repository": {"id": ops.REPO_ID},
                      "pull_request": {"draft": True,
-                                      "head": {"ref": "review/activate-protected-preview-v0.3.4-preview.1",
+                                      "head": {"ref": "review/repair-protected-preview-draft-access",
                                                "sha": head, "repo": {"id": ops.REPO_ID}},
                                       "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
             event_path = Path(directory) / "event.json"
@@ -570,6 +581,16 @@ class Workflow(unittest.TestCase):
         publisher = publisher_workflow["jobs"]["publisher"]
         self.assertNotIn("environment", publisher)
         self.assertEqual(publisher["permissions"], jobs["publish"]["permissions"])
+        publisher_steps = publisher["steps"]
+        draft_preflight = next(i for i, step in enumerate(publisher_steps)
+                               if "handoff.py recipient" in step.get("run", ""))
+        recipient_publication = next(i for i, step in enumerate(publisher_steps)
+                                     if "upload-artifact" in step.get("uses", ""))
+        accepted_receive = next(i for i, step in enumerate(publisher_steps)
+                                if "handoff.py receive" in step.get("run", ""))
+        self.assertTrue(draft_preflight < recipient_publication < accepted_receive)
+        self.assertNotIn("continue-on-error", publisher_steps[draft_preflight])
+        self.assertNotIn("if", publisher_steps[recipient_publication])
         for name, job in list(jobs.items()) + [("publisher", publisher), ("signer", signer)]:
             for step in job.get("steps", []):
                 if "uses" in step:
@@ -581,13 +602,17 @@ class Workflow(unittest.TestCase):
                     self.assertIn("preview_ops.py sign", step["run"])
                     self.assertNotIn("GH_TOKEN", step["env"])
         steps = signer["steps"]
+        input_recipient = next(i for i, step in enumerate(steps) if "private_inputs.py recipient" in step.get("run", ""))
+        input_recipient_publication = next(i for i, step in enumerate(steps) if "upload-artifact" in step.get("uses", ""))
         inbound = next(i for i, step in enumerate(steps) if "private_inputs.py receive" in step.get("run", ""))
         recipient = next(i for i, step in enumerate(steps) if "handoff.py await-recipient" in step.get("run", ""))
         pre_key = next(i for i, step in enumerate(steps) if "private_inputs.py pre-key" in step.get("run", ""))
         sign = next(i for i, step in enumerate(steps) if "preview_ops.py sign" in step.get("run", ""))
         device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("run", ""))
         seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
-        self.assertTrue(inbound <= recipient < pre_key < sign < device_step < seal)
+        self.assertTrue(input_recipient < input_recipient_publication < inbound <= recipient < pre_key
+                        < sign < device_step < seal)
+        self.assertNotIn("continue-on-error", steps[recipient])
         self.assertNotIn("continue-on-error", steps[device_step])
         self.assertNotIn("if", steps[seal])
         self.assertIn("handoff.py encrypt", steps[seal]["run"])
