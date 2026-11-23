@@ -1,0 +1,86 @@
+diff --git a/androidTest/juloo/keyboard2/ReleaseApkTest.java b/androidTest/juloo/keyboard2/ReleaseApkTest.java
+--- a/androidTest/juloo/keyboard2/ReleaseApkTest.java
++++ b/androidTest/juloo/keyboard2/ReleaseApkTest.java
+@@ -68,12 +68,70 @@
+       screenshot(phase + "-actual-release-input");
+       device.pressBack();
+       assertPreferenceMarkers();
++      String yaml = InstrumentationRegistry.getArguments().getString("releaseYamlSha", "");
++      if (!yaml.isEmpty())
++      {
++        assertTrue(yaml.matches("[0-9a-f]{64}"));
++        assertTrue(phase.equals("verify") || phase.equals("rebooted"));
++        if (phase.equals("verify"))
++        {
++          probeConversion("中国");
++          importTraditionalYaml(yaml);
++        }
++        probeConversion("中國");
++      }
+     }
+     finally
+     {
+       screenshot(phase + "-final");
+       device.unfreezeRotation();
+     }
++  }
++
++  private void probeConversion(String expected) throws Exception
++  {
++    android.net.ConnectivityManager network = driver.getSystemService(android.net.ConnectivityManager.class);
++    assertNotNull(network);
++    assertNull("Custom YAML must change actual offline input", network.getActiveNetwork());
++    launch();
++    focusEditor();
++    assertTrue(device.wait(Until.hasObject(By.res(APP, "miancak_language").text("中文")), 15000));
++    type("zhongguo");
++    UiObject2 candidate = device.wait(Until.findObject(By.descStartsWith("Candidate 1: ").text(expected)), 45000);
++    assertNotNull("Expected real candidate after YAML probe: " + expected, candidate);
++    candidate.click();
++    awaitEditor(expected);
++    device.pressBack();
++  }
++
++  private void importTraditionalYaml(String hash) throws Exception
++  {
++    settings();
++    String title = driver.getString(R.string.words_title);
++    scrollTo(title);
++    device.findObject(new UiSelector().packageName(APP).text(title)).click();
++    UiObject2 select = device.wait(Until.findObject(By.res(APP, "rime_config_import").enabled(true)), 15000);
++    assertNotNull("Shipped Rime YAML import action is missing", select);
++    select.click();
++    assertTrue("Android file picker is missing", device.wait(Until.hasObject(By.pkg(
++        java.util.regex.Pattern.compile(".*documentsui"))), 15000));
++    WanxiangSetupTest.choose(device, "wanxiang.custom.yaml");
++    String row = "wanxiang.custom.yaml · " + hash.substring(0, 8);
++    UiObject2 patch = device.wait(Until.findObject(By.pkg(APP).text(row)), 15000);
++    if (patch == null)
++    {
++      new UiScrollable(new UiSelector().resourceId(APP + ":id/word_tables_list"))
++          .scrollIntoView(new UiSelector().packageName(APP).text(row));
++      patch = device.findObject(By.pkg(APP).text(row));
++    }
++    assertNotNull("Imported original has the wrong fingerprint or is missing", patch);
++    assertFalse("Import should preserve the active selection", patch.isChecked());
++    patch.click();
++    UiObject2 apply = device.wait(Until.findObject(By.res(APP, "word_tables_apply").enabled(true)), 15000);
++    assertNotNull(apply);
++    apply.click();
++    assertTrue("Custom YAML activation did not finish",
++        device.wait(Until.hasObject(By.res(APP, "word_tables_status").text(driver.getString(R.string.words_ready))), 120000));
+   }
+
+   private void launch()
+diff --git a/androidTest/juloo/keyboard2/WanxiangSetupTest.java b/androidTest/juloo/keyboard2/WanxiangSetupTest.java
+--- a/androidTest/juloo/keyboard2/WanxiangSetupTest.java
++++ b/androidTest/juloo/keyboard2/WanxiangSetupTest.java
+@@ -130,7 +130,7 @@
+     choose(device, model);
+   }
+
+-  private static void choose(UiDevice device, String name)
++  static void choose(UiDevice device, String name)
+   {
+     UiObject2 file = device.wait(Until.findObject(By.text(name)), 5000);
+     if (file == null)

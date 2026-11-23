@@ -51,7 +51,7 @@ def job():
 class Trust(unittest.TestCase):
     def test_synthetic_attestations_and_transport_have_a_separate_identity(self):
         scope = replace(SCOPE, workflow=smoke.POLICY)
-        for kind in handoff.TRANSPORT:
+        for kind in ("recipient", "ciphertext"):
             with self.subTest(kind=kind):
                 proof = [attested_subject(kind, scope)]
                 handoff.verified_subject(proof, scope, kind, SHA)
@@ -80,7 +80,7 @@ class Trust(unittest.TestCase):
                     handoff.active_run(scope)
 
     def test_attestation_binds_workflow_role_revision_and_run_attempt(self):
-        for kind in handoff.TRANSPORT:
+        for kind in ("recipient", "ciphertext", "input-recipient"):
             handoff.verified_subject([attested_subject(kind)], SCOPE, kind, SHA)
         for field, wrong in {
             "issuer": "https://example.invalid", "buildSignerDigest": "d" * 40,

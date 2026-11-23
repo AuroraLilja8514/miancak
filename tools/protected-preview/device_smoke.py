@@ -310,13 +310,14 @@ def split_resources(apk):
     with ZipFile(apk) as archive:
         return 'assets/rime/delivery.json' in archive.namelist()
 
-def phase(name, *, setup_resources=False):
+def phase(name, *, setup_resources=False, custom_yaml_sha=None):
     shell("ime", "enable", PACKAGE + "/juloo.keyboard2.Keyboard2")
     shell("ime", "set", PACKAGE + "/juloo.keyboard2.Keyboard2")
     setup = ["-e", "releaseSetup", "true"] if setup_resources else []
+    custom = ["-e", "releaseYamlSha", custom_yaml_sha] if custom_yaml_sha else []
     text = shell("am", "instrument", "-w", "-e", "class", "juloo.keyboard2.ReleaseApkTest",
                  "-e", "releasePhase", name,
-                 *setup,
+                 *setup, *custom,
                  PACKAGE + ".debug.test/androidx.test.runner.AndroidJUnitRunner", timeout=600)
     (RESULTS / (name + ".log")).write_text(text)
     passed = "OK (1 test)" in text and not re.search(
@@ -353,7 +354,8 @@ def verify_release_target(api):
                 'RELEASE_TARGET_PREEXISTING_OR_UNAVAILABLE_APP')
     os.environ['ANDROID_SERIAL'] = serial
 
-def main(*, before_overwrite=None, after_reboot=None):
+def main(*, before_overwrite=None, before_verify=None, after_verify=None, after_reboot=None,
+         custom_yaml_sha=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--prepared", default="prepared")
     parser.add_argument("--signed", default="signed")
@@ -398,8 +400,12 @@ def main(*, before_overwrite=None, after_reboot=None):
         adb("install", "--no-incremental", "-r", str(apk), timeout=180)
         after = snapshot("after-install")
         ops.require(before == after, "RELEASE_UPGRADE_DATA_CHANGED")
-        phase("verify", setup_resources=split_resources(apk))
+        if before_verify is not None:
+            before_verify()
+        phase("verify", setup_resources=split_resources(apk), custom_yaml_sha=custom_yaml_sha)
         inactive()
+        if after_verify is not None:
+            after_verify()
         before_boot = snapshot("before-reboot")
         boot_before = shell("cat", "/proc/sys/kernel/random/boot_id")
         adb("reboot")
@@ -416,7 +422,7 @@ def main(*, before_overwrite=None, after_reboot=None):
         ops.require(boot_after != boot_before, "RELEASE_REBOOT_NOT_REAL")
         ops.require(snapshot("after-reboot") == before_boot, "RELEASE_REBOOT_DATA_CHANGED")
         shell("input", "keyevent", "82")
-        phase("rebooted")
+        phase("rebooted", custom_yaml_sha=custom_yaml_sha)
         if after_reboot is not None:
             after_reboot()
         ops.write_json(RESULTS / "acceptance.json", {

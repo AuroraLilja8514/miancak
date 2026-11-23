@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+  # A manual run on the exact review branch runs required checks without uploads.
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,7 @@ jobs:
   # Independent host diagnostic. Its separate guest cannot gate app tests on
   # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -71,6 +73,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Require exact workflow review branch and SHA
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'AuroraLilja8514/miancak'
+          test "$GITHUB_REF" = 'refs/heads/review/protected-preview-ciphertext'
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Regenerate checked-in files
         shell: bash
         run: |
@@ -99,6 +112,17 @@ jobs:
         with:
           submodules: true
 
+      - name: Require exact workflow review branch and SHA
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'AuroraLilja8514/miancak'
+          test "$GITHUB_REF" = 'refs/heads/review/protected-preview-ciphertext'
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -107,8 +131,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' }}
 
       - name: Cache locked native sources
+        if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
         uses: actions/cache@v4
         with:
           path: .native
@@ -140,7 +167,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload unit test reports
-        if: always()
+        if: always() && (github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext')
         uses: actions/upload-artifact@v7
         with:
           name: unit-results-${{ github.sha }}
@@ -157,6 +184,17 @@ jobs:
         with:
           submodules: true
 
+      - name: Require exact workflow review branch and SHA
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'AuroraLilja8514/miancak'
+          test "$GITHUB_REF" = 'refs/heads/review/protected-preview-ciphertext'
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -165,8 +203,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' }}
 
       - name: Cache locked native sources
+        if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
         uses: actions/cache@v4
         with:
           path: .native
@@ -176,6 +217,7 @@ jobs:
         run: python3 scripts/prepare_rime.py
 
       - name: Cache native build objects
+        if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
         uses: actions/cache@v4
         with:
           path: |
@@ -199,6 +241,7 @@ jobs:
           python3 scripts/check_native_apk.py build/word-upgrade-fixture/baseline.apk
 
       - name: Upload feature-enabled upgrade fixture
+        if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
         uses: actions/upload-artifact@v7
         with:
           name: miancak-word-baseline-${{ github.sha }}
@@ -207,6 +250,7 @@ jobs:
           retention-days: 7
 
       - name: Upload debug APK
+        if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
         uses: actions/upload-artifact@v7
         with:
           name: miancak-debug-${{ github.sha }}
@@ -217,6 +261,7 @@ jobs:
           retention-days: 7
 
   build-release:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: build-release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -262,6 +307,7 @@ jobs:
           retention-days: 7
 
   interaction-tests:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: interaction-tests (${{ matrix.api }})
     strategy:
       fail-fast: false
@@ -309,6 +355,7 @@ jobs:
           retention-days: 7
 
   word-pack-quality:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: word-pack-quality (${{ matrix.api }})
     strategy:
       fail-fast: false
@@ -356,6 +403,7 @@ jobs:
           retention-days: 7
 
   first-install:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: first-install (${{ matrix.api }}, ${{ matrix.entry }})
     strategy:
       fail-fast: false
@@ -404,6 +452,7 @@ jobs:
           retention-days: 7
 
   word-table-tests:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: word-table-tests (${{ matrix.api }})
     needs: [build-debug]
     runs-on: ubuntu-24.04
@@ -456,6 +505,7 @@ jobs:
           retention-days: 7
 
   build-upgrade-baseline:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: build-upgrade-baseline
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -495,6 +545,7 @@ jobs:
           retention-days: 7
 
   upgrade-tests:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/review/protected-preview-ciphertext'
     name: upgrade-tests (${{ matrix.api }})
     needs: [build-debug, build-upgrade-baseline]
     runs-on: ubuntu-24.04

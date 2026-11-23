@@ -31,72 +31,75 @@ transport and signed acceptance described here are implemented and reviewed.
 
 ### Private build input handoff
 
-Use one production run for build, signing and publication, with a separate
-owner-only digest approval dispatch. This lets the build and signing
-runners use a fresh `age` identity without copying a private decryption
-key between runs. The current `release-signing` environment limits branches
-and has no required reviewer. The digest approval gate must run outside that
-environment and succeed before the signing job can start.
+The local implementation uses one owner-dispatched production run with a
+separate `approve-inputs` dispatch. The approval job has read-only permissions
+and no signing environment. The current `release-signing` environment
+limits branches and has no required reviewers.
 
-1. **Build.** On the exact reviewed `master` revision, compile the tagged
-   candidate and debug driver on an unprivileged runner. Keep all three
-   APKs in private temporary storage. Publish only a strictly typed receipt
-   with the trusted workflow revision, exact tag commit and tree, application
-   fingerprint, run and attempt, Build Tools hashes, expected package and
-   version, and the names, lengths and SHA-256 hashes of the three APKs.
-   Record the SHA-256 of the canonical receipt. Keep compiler output and
-   archives local. The job waits for a recipient from the authorized signer.
-2. **Approve.** A concurrent, read-only job validates the receipt and waits
-   for the owner to review it and dispatch a dedicated `approve-digest` mode
-   with the production run ID and receipt hash. That mode has a single
-   no-secrets validation job and a fixed run title that binds the two inputs.
-   Use the authenticated Actions API to require that exact workflow and
-   completed successful approval job on the same current `master` revision.
-   Check the owner account ID in both actor fields, repository ID, branch,
-   workflow path, event, run title, and first attempt, with the approval
-   created after the receipt. Fail on missing, mismatched, duplicate or
-   replayed approvals. A build job output alone cannot satisfy this gate.
-3. **Receive and verify.** Only after the approval job succeeds, start the
-   protected signing job. It generates a runner-local `age` identity and
-   attests the public recipient with an input-specific role tied to the
-   approved receipt and this exact run and attempt. The build runner
-   authenticates it with the existing same-attempt transport checks. It seals
-   the three allowlisted APKs and the canonical receipt, uploads only the
-   ciphertext, clears plaintext staging and finishes successfully. The
-   signer verifies the origin and archive digest, waits for build success,
-   decrypts in temporary storage and independently inspects the actual
-   APKs and Build Tools. Require all digests and the canonical receipt to
-   match the owner approval before the credential-bearing step. Check the
-   current master and tag again before using the key.
-4. **Publish.** Start the publisher after both approval and build success.
-   The signer authenticates that second recipient before signing. It uses
-   the independent output transfer and acceptance gates below. Delaying the
-   publisher lets two hosted runners suffice throughout the run. Give the
-   receipt, owner review, transfer and cancellation paths finite deadlines.
-   Run approval in its own concurrency group so it can finish while the
-   production run waits. A timeout or lost runner requires a fresh build
-   and approval, including if only a debug fixture digest changes.
+1. **Build.** The unprivileged builder verifies the tag and compiles the
+   production and debug APKs before applying the reviewed test-only patch.
+   It then compiles the instrumentation APK from the same candidate with
+   that patch. It publishes a bounded canonical JSON receipt of the three
+   exact lengths and digests, pinned SDK tools, package, build run and
+   attempt, candidate commit/tree/application fingerprint, trusted workflow
+   SHA, and test-only patch hash. The APKs and compiler log stay in the
+   builder's temporary directory. The receipt digest is in the completed
+   receipt step's log and its metadata-only artifact, so review can start
+   while the builder waits.
+2. **Approve.** The owner reviews the receipt and dispatches
+   `approve-inputs` with that live run ID and the canonical receipt SHA-256.
+   A separate job checks the active production run and digest. The
+   authorization gate verifies its exact workflow, owner account ID in
+   both actor fields, source branch and SHA, attempt, title, completion,
+   and unique successful approval job. The approval must occur after the
+   receipt and within 15 minutes. Both dispatches use the current protected
+   master. A separate concurrency group lets the approval run start while
+   the production run waits.
+3. **Receive.** The signer starts only after the read-only authorization
+   job passes. It uses a distinct reusable workflow to attest a fresh
+   `age` recipient. The builder authenticates the signer and recipient
+   against the exact workflow revision, invocation, attempt and transport
+   role, then sends the three allowlisted files as ciphertext. The signer
+   requires the exact successful build job before downloading, verifies
+   the ZIP digest and scope, decrypts, and recomputes the complete approved
+   receipt from the actual APKs. The APKs are independently inspected
+   again. The read-only pre-key step confirms the owner grant, receipt
+   freshness, current master and all three local APK hashes. The signing
+   step receives the existing credentials and also binds the same bytes.
+4. **Accept and publish.** The publisher starts after build and approval
+   success. The signer verifies its independent recipient before signing.
+   The output follows the encrypted handoff and device gates below.
 
-The preserved local inputs total 79,922,499 bytes before transport overhead.
-Use a separate input archive limit, for example 96 MiB, with per-file
-lengths bound by the receipt. The 64 MiB signed-output cap is too small
-for this input transfer and should stay scoped to its existing role.
+The builder's compile phase has 40 minutes and the receipt wait is capped
+at 45 minutes. The owner has 15 minutes from receipt creation. The receipt
+expires for the signer after 22 minutes. The inbound ciphertext wait is
+four minutes, with earlier expiry still enforced. Job ceilings are 70
+minutes for the builder, 63 for authorization, three for the approval
+request, 42 for the signer and 50 for the publisher. The Android watchdog
+remains 1,200 seconds. Three hosted-runner slots may be needed briefly
+during owner approval. Waiting for approval or changing master may cause
+expiry, which requires a fresh compile and owner review.
 
-This design is a proposal. Exercise the new approval and incoming transfer
-with only synthetic data before enabling real inputs. The successful
-synthetic run below exercised the other direction. A configured, explicitly
-approved private runner and transfer service could also hold the three
-inputs, provided it enforces the same byte comparison and pre-key owner
-approval. A registered private runner or storage integration has not been
-verified here.
+The three previously built local inputs total 79,922,499 bytes before
+transport overhead. The inbound limit is 96 MiB with exact per-file lengths
+bound to the approved receipt. The signed output cap remains 64 MiB.
 
-Public Actions would expose workflow and job statuses, typed receipt
-metadata and hashes, approval IDs, the public recipients, ciphertext sizes
-and attestation metadata. Approve this boundary before production
-execution. Keep raw logs, APKs, signing data and acceptance evidence
-outside summaries, caches and unencrypted artifacts. Check an uploaded
-APK against authenticated draft metadata before changing release state.
-[Actions workflow run metadata](https://docs.github.com/en/rest/actions/workflow-runs)
+The local tests exercise this path with dummy bytes, real `age` and
+simulated GitHub API records. The production modes stop at
+`private-input-review`. Before enabling them, validate the owner approval
+and new direction on GitHub in a separate synthetic-only run without
+the signing environment or a Contents-write token. That run needs to
+confirm the three-runner overlap, authoritative owner and attempt metadata,
+in-progress artifact access, replay and expiry rejection, and decryption.
+The previous synthetic run verified the outgoing direction.
+
+Public Actions would expose run and job statuses, the typed build receipt,
+approval run IDs, public recipients, encrypted archive sizes and digest,
+and attestation metadata. The owner needs to approve that visibility.
+Raw compiler and guest output, APKs, signing data and acceptance diagnostics
+stay in runner-local staging. Use a verified private runner or storage route
+if this visibility is unsuitable. Private runner availability is unverified.
+[Workflow run metadata](https://docs.github.com/en/rest/actions/workflow-runs)
 
 ## Signing, acceptance and artifact visibility
 
@@ -129,48 +132,36 @@ the preview's new custom YAML UI are separate acceptance cases.
 
 ### Signed custom YAML acceptance
 
-Keep the existing signed smoke intact. Add the following on the guarded,
-disposable Android 15 guest after the normal signed upgrade, offline editor
-checks and real reboot. The pinned candidate needs no application change.
-Test the shipped picker and actual receiving editor. Directly seeding a
-compiled schema, selection JSON or app-private catalog cannot pass.
+Only the independently debug-signed instrumentation fixture gets the
+reviewed overlay in `tools/protected-preview/release-yaml-driver.patch`.
+The exact candidate source and the app APKs are built before applying it.
+The signer checks the actual instrumentation target and binds the overlay
+hash and driver bytes to the owner receipt. The production app and driver
+execute in the disposable guest after key-file cleanup.
 
-1. Use the existing signed code-7 package. Confirm the app is using the
-   pinned Wanxiang Base and grammar. In an ordinary receiving editor,
-   confirm `nihao` commits `你好` with the default spelling. Record whether
-   `nihc` already offers the same result so the spelling probe has a control.
-2. Place the synthetic file below in Android Downloads. Open **Settings →
-   Chinese word tables → Import Rime configuration** and choose
-   `wanxiang.custom.yaml` through the normal Files picker. Check that the
-   imported original's bytes and digest match, and that its checkbox starts
-   clear. Confirm the import alone leaves the active selection unchanged.
+The guarded host driver creates a synthetic `wanxiang.custom.yaml` in
+Android Downloads after the signed v0.3.2 overwrite. It writes only
+the picker source. The overlay uses the actual signed app's Settings and
+Files picker. It requires the new source's fingerprint to appear and its
+checkbox to start clear, then selects it and applies the deployment.
 
-   ```yaml
-   patch:
-     speller/algebra:
-       __patch: [wanxiang_algebra:/base/小鹤双拼]
-   ```
+```yaml
+# Synthetic preview acceptance
+patch:
+  'switches/@7/reset': 1
+```
 
-3. Select the imported file and apply word tables. Wait for the successful
-   deployment. Check the selected digest and managed slot. Offline in a
-   real receiving editor, type `nihc`, explicitly select `你好` and require
-   exact committed text. If the unpatched control could already produce this
-   text, also verify the compiled spelling change in the active slot.
-4. Force-stop and reopen, then reboot and require a changed boot ID. Repeat
-   the offline check without reimporting or applying. Verify the managed
-   original and the legacy file both survived. Verify a null default
-   Android network and no usable external route for the tested guest before
-   the offline assertions. Keep the raw observations local. Tests already
-   present in `RimeConfigNativeTest` use a debug-only isolated store and
-   provide a supplement.
-
-The release report must require a typed
-`custom_yaml_activated_after_reboot: true` from the trusted guest check.
-The byte-retention-only driver cannot produce that field. The marker and
-sequence are prepared for review. The pinned host parser accepts the
-synthetic marker (SHA-256
-`f9c8c56de2cba0025fc65d76db00b05006ed4d6774417238b565472a37598c6b`).
-The import, editor and reboot checks await Android execution.
+The original receiver checks remain. On the same ordinary editor, the
+overlay types `zhongguo` and requires the explicit candidate tap to
+commit `中国` first. After applying the YAML it requires `中國`.
+After the existing real reboot it repeats that exact commit offline without
+reimport or reapplication. The host checks the managed source bytes and
+the same selected slot across reboot, in addition to the original legacy
+YAML, model, preference and learning checks. A typed
+`custom_yaml_activated_after_reboot` receipt reaches the publisher only
+after these checks finish. The marker uses the Traditional switch already
+exercised by the pinned native host suite. Local compilation and host
+fixtures leave the actual Android run pending.
 
 The public Actions handoff uses two independently scheduled, fresh hosted
 runners. The reusable publisher workflow comes from the caller's exact
@@ -207,13 +198,12 @@ further write. If a job exits early, the publisher's private identity is
 discarded. A subsequent attempt requires a new owner-approved dispatch and
 a known draft state.
 
-The workflow concurrency group admits one active preview run. Publish mode
-needs capacity for two runners at once. The signer must see its running
-publisher and a finalized recipient within four minutes. The publisher
-waits at most 43 minutes for successful signed acceptance and ciphertext.
-The two jobs have 42- and 50-minute limits. The device smoke keeps its
-original 1,200-second watchdog. Missing overlap, API access, valid proofs,
-or acceptance abort the handoff. There is no plaintext fallback.
+The workflow concurrency group admits one active preview production run.
+After the private inbound transfer, the signer and publisher overlap.
+The signer waits up to four minutes for a running publisher's recipient.
+The publisher waits up to 43 minutes for successful signed acceptance and
+ciphertext, subject to its job ceiling. Missing overlap, API access, valid
+proof or acceptance aborts delivery.
 
 The tool installer fetches the official Linux x86-64 release archives for
 `age` 1.3.2 and `gh` 2.105.0 over HTTPS and checks their exact sizes and
@@ -264,16 +254,21 @@ same tree under another commit cannot satisfy the required checks. Current
 uploads debug and instrumentation APKs, fixtures and an unsigned app.
 That makes it unsuitable for a metadata-only review.
 
-For a separate review, add an explicit review-only input to the existing
-`ci.yml` manual dispatch on the exact workflow review branch. Run the
-original steps of all three required checks, including both debug fixture
-builds and native validation, with artifact uploads disabled. Skip the other
-jobs only in this scoped mode. Leave normal PR and master push behavior
-unchanged. Keep the review HEAD marked `[skip ci]`, so its PR does not start
-CI before the approved dispatch. Review the effective job list and confirm
-the actual passed checks at the commit GitHub is requiring before merge.
-Check that the base and protected application inputs are unchanged. Do not
-stand in required status checks, skip required jobs or bypass the ruleset.
+The local `ci.yml` revision scopes review-only mode to an explicit manual
+dispatch on `review/protected-preview-ciphertext`. It uses the already
+registered workflow and takes no new dispatch inputs. It runs the original
+steps of all three required jobs, including both debug fixture builds and
+native validation. It disables artifact uploads, caches and the other
+jobs for this mode. Normal PR and master push jobs keep their existing
+behavior. Each required job checks the owner, repository, branch, attempt,
+workflow SHA, and checked-out SHA. Retain the `[skip ci]` marker at the exact
+review HEAD, then recheck the branch and PR head before and after the
+authorized manual run. GitHub documents that manual branch dispatch checks
+the last commit on the given ref. Verify the three successful GitHub
+Actions check runs on the PR head, the empty artifacts list, and the absence
+of check results on a competing test-merge commit before marking ready.
+Actual attachment to #38 awaits that run.
+[Dispatch source SHA](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
 
 When the owner approves a merge after those checks, use a squash or merge
 message that explicitly carries `[skip ci]` on the new master commit.

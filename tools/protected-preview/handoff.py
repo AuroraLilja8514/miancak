@@ -20,16 +20,21 @@ import preview_ops as preview
 import release_ops as ops
 
 PUBLISHER = ".github/workflows/protected-preview-publisher.yml"
-SIGN_JOB = "Accept signed preview"
+SIGNER = ".github/workflows/protected-preview-signer.yml"
+SIGN_JOB = "Accept signed preview / Sign and test preview"
 PUBLISH_JOB = "Publish preview / Receive accepted preview"
 PREDICATE = f"https://github.com/{ops.REPO}/provenance/preview-handoff/v1"
 OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 MAX_CIPHERTEXT = 64 * 1024 * 1024
+MAX_INPUT_CIPHERTEXT = 96 * 1024 * 1024
 PROOF_BYTES = 128 * 1024
 RECEIPT_BYTES = 4096
 TRANSPORT = {
     "recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
     "ciphertext": ("accepted.age", MAX_CIPHERTEXT, MAX_CIPHERTEXT + 256 * 1024),
+    "input-receipt": ("receipt.json", RECEIPT_BYTES, 16 * 1024),
+    "input-recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
+    "input-ciphertext": ("inputs.age", MAX_INPUT_CIPHERTEXT, MAX_INPUT_CIPHERTEXT + 256 * 1024),
 }
 RECEIPT = "handoff.json"
 RECIPIENT_PATTERN = r"age1[0-9a-z]{58}"
@@ -45,17 +50,18 @@ class WorkflowPolicy:
     accept_job: str
     publish_job: str
     artifact_prefix: str
+    signer: str | None = None
 
     @property
     def ref(self):
         return "refs/heads/" + self.branch
 
     def signer_for(self, kind):
-        return self.publisher if kind == "recipient" else self.caller
+        return self.publisher if kind == "recipient" else self.signer or self.caller
 
 
 PRODUCTION = WorkflowPolicy(preview.WORKFLOW, PUBLISHER, "master", "workflow_dispatch",
-                            f"{preview.TAG} publish", SIGN_JOB, PUBLISH_JOB, "preview")
+                            f"{preview.TAG} publish", SIGN_JOB, PUBLISH_JOB, "preview", SIGNER)
 
 
 @dataclass(frozen=True)
@@ -170,8 +176,8 @@ def select_job(scope, listing, name):
     return job
 
 
-def acceptance_job(scope, listing):
-    job = select_job(scope, listing, scope.workflow.accept_job)
+def acceptance_job(scope, listing, name=None):
+    job = select_job(scope, listing, name or scope.workflow.accept_job)
     if job is None:
         return False
     if job.get("status") == "completed":
@@ -211,7 +217,7 @@ def wait_for_transport(scope, kind, seconds):
                 return item
         remaining = deadline - time.monotonic()
         if remaining > 0:
-            time.sleep(min(5, remaining))
+            time.sleep(min(20 if scope.workflow == PRODUCTION else 5, remaining))
     raise ops.ReleaseError("HANDOFF_DEADLINE")
 
 
@@ -237,7 +243,10 @@ def fetch_wire(scope, kind, item, folder):
         zipped = Path(tmp) / "wire.zip"
         ops.download_api(f"actions/artifacts/{item['id']}/zip", zipped, item["digest"], limit=wire_limit)
         ops.require(zipped.stat().st_size == item["size_in_bytes"], "HANDOFF_ARCHIVE_SIZE")
-        unpack_exact(zipped, folder, {subject: payload_limit, "proof.json": PROOF_BYTES})
+        files = {subject: payload_limit}
+        if kind not in ("input-receipt", "input-ciphertext"):
+            files["proof.json"] = PROOF_BYTES
+        unpack_exact(zipped, folder, files)
 
 
 def recipient_value(scope, path):
@@ -265,7 +274,7 @@ def receipt(scope, recipient_path):
     return {**scope.record(), "recipient_sha256": ops.file_sha(recipient_path)}
 
 
-def encrypt_files(scope, recipient_path, source, files, destination, tools):
+def encrypt_files(scope, recipient_path, source, files, destination, tools, *, limit=MAX_CIPHERTEXT):
     recipient = recipient_value(scope, recipient_path)
     ops.require({p.name for p in source.iterdir()} == set(files) and
                 all(p.is_file() and not p.is_symlink() and 0 < p.stat().st_size <= files[p.name]
@@ -276,14 +285,14 @@ def encrypt_files(scope, recipient_path, source, files, destination, tools):
             for name in sorted(files):
                 archive.write(source / name, name)
             archive.writestr(RECEIPT, json.dumps(receipt(scope, recipient_path)))
-        ops.require(packed.stat().st_size < MAX_CIPHERTEXT - 1024 * 1024, "HANDOFF_PLAINTEXT_SIZE")
+        ops.require(packed.stat().st_size < limit - 1024 * 1024, "HANDOFF_PLAINTEXT_SIZE")
         ops.command([tools / "age", "-r", recipient, "-o", destination, packed], timeout=90)
-        ops.require(0 < destination.stat().st_size <= MAX_CIPHERTEXT, "HANDOFF_CIPHERTEXT_SIZE")
+        ops.require(0 < destination.stat().st_size <= limit, "HANDOFF_CIPHERTEXT_SIZE")
 
 
-def decrypt_files(scope, recipient_path, identity, ciphertext, target, files, tools):
+def decrypt_files(scope, recipient_path, identity, ciphertext, target, files, tools, *, limit=MAX_CIPHERTEXT):
     ops.require(not identity.is_symlink() and stat.S_IMODE(identity.stat().st_mode) == 0o600
-                and 0 < ciphertext.stat().st_size <= MAX_CIPHERTEXT, "HANDOFF_DECRYPT_INPUT")
+                and 0 < ciphertext.stat().st_size <= limit, "HANDOFF_DECRYPT_INPUT")
     current = ops.command([tools / "age-keygen", "-y", identity], timeout=20).stdout.decode().strip()
     ops.require(current == recipient_value(scope, recipient_path), "HANDOFF_RECIPIENT_KEY_CHANGED")
     with tempfile.TemporaryDirectory(dir=target.parent) as tmp:

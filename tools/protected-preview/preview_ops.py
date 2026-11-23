@@ -30,6 +30,8 @@ STABLE_APK = "74e884ef6465c96b57daa174ae5f5ce585f2c55417b591c76b8b77f212684bd5"
 APK = "miancak-0.3.4.apk"  # Exact basename emitted by the existing signer.
 ATTACHMENT = "miancak-0.3.4-preview.1.apk"
 INPUTS = {"unsigned.apk", "app-debug.apk", "app-debug-androidTest.apk"}
+INPUT_BYTES_LIMIT = 95 * 1024 * 1024
+DRIVER_PATCH = Path(__file__).with_name("release-yaml-driver.patch")
 SIGNED_FILES = {APK, "release-provenance.json", "SHA256SUMS.txt"}
 SDK_HASHES = {
     "aapt2": "d1096e11aba9c974644369ee3c50d239acac3f3428ffa928e5b9c14dfb7a57de",
@@ -55,7 +57,7 @@ def workflow_revision(mode):
     """Pin the tools checkout to the executing workflow."""
     env = os.environ
     revision = env.get("GITHUB_WORKFLOW_SHA", "")
-    ops.require(mode in ("build", "publish")
+    ops.require(mode in ("approve-inputs", "publish")
                 and env.get("PREVIEW_MODE") == mode
                 and env.get("GITHUB_REPOSITORY") == ops.REPO
                 and env.get("GITHUB_REPOSITORY_ID") == str(ops.REPO_ID)
@@ -168,36 +170,49 @@ def inspect_inputs(folder):
     return info
 
 
-def build_run(run_id, revision, *, completed):
-    run = ops.api(f"actions/runs/{run_id}")
-    ops.require(run.get("id") == run_id and run.get("run_attempt") == 1
-                and run.get("event") == "workflow_dispatch"
-                and run.get("head_branch") == "master" and run.get("head_sha") == revision
-                and matches_workflow(run.get("path")) and run.get("display_title") == f"{TAG} build"
-                and run.get("head_repository", {}).get("id") == ops.REPO_ID
-                and approved_actor(run.get("actor", {}).get("login", ""))
-                and (not completed or (run["status"], run["conclusion"]) == ("completed", "success")),
-                "PREVIEW_BUILD_RUN")
-
-
-def attest(folder, revision, run_id, artifact_id, *, completed):
-    build_run(run_id, revision, completed=completed)
-    item = ops.fetch_artifact(artifact_id, run_id, folder, canonical=True)
-    ops.require(item["name"] == f"preview-unsigned-{SOURCE}" and item["id"] == artifact_id
-                and hex_digest(item["digest"].removeprefix("sha256:")), "PREVIEW_ARTIFACT_IDENTITY")
-    info = inspect_inputs(folder)
-    record = {
+def input_identity(revision, run_id):
+    return {
         "repository": ops.REPO, "tag": TAG, "source_sha": SOURCE, "tree": TREE,
         "application_tree_sha256": APP_INPUT, "trusted_revision": revision,
-        "build_run_id": run_id, "artifact_id": artifact_id, "artifact_digest": item["digest"],
-        "apks": {name: ops.file_sha(folder / name) for name in sorted(INPUTS)},
-        "apk_identity": info, "build_tools": SDK_HASHES,
+        "build_run_id": run_id, "build_run_attempt": 1, "build_tools": SDK_HASHES,
+        "driver_patch_sha256": ops.file_sha(DRIVER_PATCH),
     }
+
+
+def validate_input_record(record, revision, run_id):
+    expected = input_identity(revision, run_id)
+    ops.require(isinstance(record, dict) and record.keys() == expected.keys() | {"apks", "apk_identity"}
+                and all(type(record[key]) is type(value) and record[key] == value
+                        for key, value in expected.items()), "PREVIEW_INPUT_RECEIPT")
+    apks = record["apks"]
+    ops.require(isinstance(apks, dict) and apks.keys() == INPUTS
+                and all(isinstance(value, dict) and value.keys() == {"sha256", "bytes"}
+                        and hex_digest(value["sha256"]) and type(value["bytes"]) is int
+                        and value["bytes"] > 0 for value in apks.values())
+                and sum(value["bytes"] for value in apks.values()) < INPUT_BYTES_LIMIT,
+                "PREVIEW_INPUT_RECEIPT_APKS")
+    info = record["apk_identity"]
+    expected_info = {"application_id": ops.PACKAGE, "version": "0.3.4", "version_code": 7,
+                     "min_sdk": 33, "debuggable": False, "abis": ops.ABIS}
+    ops.require(info == expected_info and all(type(info[k]) is type(v) for k, v in expected_info.items()),
+                "PREVIEW_INPUT_RECEIPT_IDENTITY")
+
+
+def input_record(folder, revision, run_id):
+    record = input_identity(revision, run_id)
+    record["apk_identity"] = inspect_inputs(folder)
+    record["apks"] = {name: {"sha256": ops.file_sha(folder / name), "bytes": (folder / name).stat().st_size}
+                      for name in sorted(INPUTS)}
+    validate_input_record(record, revision, run_id)
     return record
 
 
+def canonical_record(record):
+    return json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
+
+
 def attestation_sha(record):
-    return ops.digest(json.dumps(record, sort_keys=True, separators=(",", ":")).encode())
+    return ops.digest(canonical_record(record))
 
 
 def require_approval(record, approved_sha):
@@ -205,25 +220,27 @@ def require_approval(record, approved_sha):
                 "PREVIEW_APPROVED_ATTESTATION")
 
 
-def signing_manifest(record):
+def signing_manifest(record, transport):
+    ops.require(transport.keys() == {"id", "digest"} and type(transport["id"]) is int
+                and transport["id"] > 0 and re.fullmatch(r"sha256:[0-9a-f]{64}", transport["digest"]),
+                "PREVIEW_INPUT_TRANSPORT")
     return {
         **record["apk_identity"], "format_version": 1, "repository": ops.REPO,
-        "source_sha": SOURCE, "ci_run_id": record["build_run_id"], "ci_artifact_id": record["artifact_id"],
-        "ci_artifact_digest": record["artifact_digest"], "application_tree_sha256": APP_INPUT,
+        "source_sha": SOURCE, "ci_run_id": record["build_run_id"], "ci_artifact_id": transport["id"],
+        "ci_artifact_digest": transport["digest"], "application_tree_sha256": APP_INPUT,
         "build_tools_version": ops.BUILD_TOOLS, "tool_sha256": SDK_HASHES,
-        "unsigned_apk_sha256": record["apks"]["unsigned.apk"], "release_tag": TAG,
+        "unsigned_apk_sha256": record["apks"]["unsigned.apk"]["sha256"], "release_tag": TAG,
         "certificate_sha256": ops.CERTIFICATE,
         "previous_release": {"tag": STABLE_TAG, "version": "0.3.2", "version_code": 5,
                              "apk_sha256": STABLE_APK},
     }
 
 
-def prepare(folder, revision, run_id, artifact_id, approved_sha):
-    ops.require(hex_digest(approved_sha), "PREVIEW_APPROVAL_REQUIRED")
+def prepare_private(folder, revision, run_id, record, transport, approved_sha):
+    require_approval(record, approved_sha)
+    ops.require(input_record(folder, revision, run_id) == record, "PREVIEW_PRIVATE_INPUT_CHANGED")
     draft, stable = exact_release()
     ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
-    record = attest(folder, revision, run_id, artifact_id, completed=True)
-    require_approval(record, approved_sha)
     previous = folder / "previous.apk"
     item = ops.release_asset(stable, "miancak-0.3.2.apk", previous)
     ops.require(item.get("digest") == "sha256:" + STABLE_APK
@@ -231,7 +248,8 @@ def prepare(folder, revision, run_id, artifact_id, approved_sha):
     require_identity(ops.inspect_apk(previous), previous=True)
     ops.verify_signed(previous, previous=True)
     ops.write_json(folder / "approved.json", record)
-    ops.write_json(folder / "prepared.json", signing_manifest(record))
+    ops.write_json(folder / "transport.json", transport)
+    ops.write_json(folder / "prepared.json", signing_manifest(record, transport))
     (folder / "release-notes.md").write_bytes((ROOT / "docs/releases/0.3.4-preview.1.md").read_bytes())
 
 
@@ -239,13 +257,12 @@ def bind_signing_input(folder, revision, approved_sha):
     """Last local check before the reviewed signer sees any credential."""
     record = json.loads((folder / "approved.json").read_bytes())
     require_approval(record, approved_sha)
+    validate_input_record(record, revision, int(os.environ["GITHUB_RUN_ID"]))
     manifest = json.loads((folder / "prepared.json").read_bytes())
-    ops.require(record["trusted_revision"] == revision
-                and (record["repository"], record["tag"], record["source_sha"], record["tree"],
-                     record["application_tree_sha256"], record["build_tools"]) ==
-                    (ops.REPO, TAG, SOURCE, TREE, APP_INPUT, SDK_HASHES)
-                and manifest == signing_manifest(record)
-                and all(ops.file_sha(folder / name) == record["apks"][name] for name in INPUTS),
+    transport = json.loads((folder / "transport.json").read_bytes())
+    ops.require(manifest == signing_manifest(record, transport)
+                and all((folder / name).stat().st_size == record["apks"][name]["bytes"]
+                        and ops.file_sha(folder / name) == record["apks"][name]["sha256"] for name in INPUTS),
                 "PREVIEW_SIGNING_INPUT")
 
 
@@ -369,31 +386,22 @@ def publish(folder, revision, approved_sha):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("build-check", "attest", "prepare", "sign", "seal"))
+    parser.add_argument("operation", choices=("build-check", "sign", "seal"))
     parser.add_argument("--folder", type=Path)
-    parser.add_argument("--run-id", type=int)
-    parser.add_argument("--artifact-id", type=int)
     parser.add_argument("--prepared", type=Path)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--probe-classes", type=Path)
     args = parser.parse_args()
     ops.install_deadline()
-    build = args.operation in ("build-check", "attest")
     # The credential-bearing step has no GitHub token. Provenance is checked
     # before it and publication checks it independently on a clean runner.
-    mode = "build" if build else "publish"
+    mode = "publish"
     revision = workflow_revision(mode) if args.operation == "sign" else authority(mode)
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if args.operation == "build-check":
         draft, _ = exact_release()
         ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
         candidate_checkout(args.folder)
-    elif args.operation == "attest":
-        record = attest(args.folder, revision, args.run_id, args.artifact_id, completed=False)
-        print(json.dumps(record, sort_keys=True))
-        print("Review then approve this attestation SHA-256 " + attestation_sha(record))
-    elif args.operation == "prepare":
-        prepare(args.folder, revision, args.run_id, args.artifact_id, approval)
     elif args.operation == "sign":
         ops.require(not os.environ.get("GH_TOKEN") and os.environ.get("PREVIEW_MODE") == "publish",
                     "PREVIEW_SIGNING_ENVIRONMENT")

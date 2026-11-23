@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Preview acceptance adds a legacy YAML byte-retention check to the formal smoke."""
+"""Preview acceptance checks legacy YAML retention and functional custom YAML."""
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import sys
 
@@ -15,6 +16,12 @@ YAML_PATH = RIME + "/user/miancak_pinyin.custom.yaml"
 YAML = b"# Synthetic legacy Rime settings\npatch:\n  'menu/page_size': 5\n"
 NEW_SHARED = RIME + "/shared-3b8f1a6b0999dbacf0b0db3bde1e6d6c4049955891019d094e32140740b4c6cc"
 MODEL_SHA = "e9ddd501b7d536bc5ea1346f8f900ae49a719a05be349e0a17cb27e717143ca5"
+CUSTOM_NAME = "wanxiang.custom.yaml"
+CUSTOM = b"# Synthetic preview acceptance\npatch:\n  'switches/@7/reset': 1\n"
+CUSTOM_SHA = ops.digest(CUSTOM)
+CUSTOM_ID = ops.digest(CUSTOM_NAME.encode() + b"\0" + CUSTOM)
+CUSTOM_SOURCE = "/sdcard/Download/" + CUSTOM_NAME
+WORD_TABLES = RIME + "/word-tables"
 
 
 def verify_yaml():
@@ -45,6 +52,35 @@ def verify_rebooted_data():
     ops.require(printed == [MODEL_SHA, model], "PREVIEW_ONLINE_PACK_AFTER_REBOOT")
 
 
+def seed_custom_yaml():
+    # This is the public Files picker input on the guarded disposable guest.
+    # It never populates the application's catalog or selected deployment.
+    command = f"""set -euC
+mkdir -p /sdcard/Download
+test ! -e {CUSTOM_SOURCE}
+printf '%s' {shlex.quote(CUSTOM.decode())} > {CUSTOM_SOURCE}
+"""
+    smoke.shell("sh -c " + shlex.quote(command))
+    ops.require(smoke.adb("exec-out", "cat", CUSTOM_SOURCE) == CUSTOM, "PREVIEW_CUSTOM_SOURCE_BYTES")
+
+
+def custom_slot():
+    configs = WORD_TABLES + "/config-patches"
+    catalog = json.loads(smoke.adb("exec-out", "cat", configs + "/catalog.json"))
+    matches = [entry for entry in catalog["patches"] if entry.get("id") == CUSTOM_ID]
+    ops.require(len(matches) == 1 and matches[0]["filename"] == CUSTOM_NAME
+                and matches[0]["sha256"] == CUSTOM_SHA and matches[0]["bytes"] == len(CUSTOM),
+                "PREVIEW_CUSTOM_CATALOG")
+    ops.require(smoke.adb("exec-out", "cat", configs + "/" + CUSTOM_ID + "/source.custom.yaml") == CUSTOM,
+                "PREVIEW_CUSTOM_ORIGINAL")
+    current = json.loads(smoke.adb("exec-out", "cat", WORD_TABLES + "/selection.json"))["current"]
+    slot = current.get("slot", "")
+    ops.require(current.get("base") == "bundled" and current.get("patches") == [CUSTOM_ID]
+                and re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", slot),
+                "PREVIEW_CUSTOM_SELECTION")
+    return slot
+
+
 def main(prepared, signed):
     # Recheck the approved app and two driver digests after signing and before
     # handing any package to the disposable guest. This step has no signing key.
@@ -57,13 +93,23 @@ def main(prepared, signed):
     preview.signed_record(signed)
     sys.argv = [sys.argv[0], "--prepared", str(prepared), "--signed", str(signed),
                 "--api", "35", "--timeout-seconds", "1200"]
-    smoke.main(before_overwrite=seed_yaml, after_reboot=verify_rebooted_data)
+    selected = None
+
+    def after_verify():
+        nonlocal selected
+        selected = custom_slot()
+
+    def after_reboot():
+        verify_rebooted_data()
+        ops.require(selected is not None and custom_slot() == selected, "PREVIEW_CUSTOM_REBOOT_SELECTION")
+
+    smoke.main(before_overwrite=seed_yaml, before_verify=seed_custom_yaml, after_verify=after_verify,
+               after_reboot=after_reboot, custom_yaml_sha=CUSTOM_SHA)
     result = smoke.RESULTS / "acceptance.json"
     report = json.loads(result.read_bytes())
     report["legacy_yaml_preserved"] = True
     report["requires_online_pack_setup"] = True
-    # The original driver checks byte retention only. The publication gate
-    # requires a separate real import, apply and offline post-reboot probe.
+    report["custom_yaml_activated_after_reboot"] = True
     ops.write_json(result, report)
 
 
