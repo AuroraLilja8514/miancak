@@ -85,7 +85,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
 
-def request(method, url, *, body=None, accept="application/vnd.github+json", optional=False):
+def request(method, url, *, body=None, accept="application/vnd.github+json", optional=False, timeout=120):
     parsed = urllib.parse.urlsplit(url)
     require(parsed.scheme == "https" and parsed.hostname == "api.github.com"
             and parsed.path.startswith("/repos/" + REPO + "/")
@@ -100,7 +100,7 @@ def request(method, url, *, body=None, accept="application/vnd.github+json", opt
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.build_opener(NoRedirect).open(req, timeout=120) as response:
+        with urllib.request.build_opener(NoRedirect).open(req, timeout=timeout) as response:
             payload = response.read(LIMIT + 1)
             require(len(payload) <= LIMIT, "API_RESPONSE_SIZE")
             return json.loads(payload)
@@ -113,7 +113,7 @@ def api(path, **kwargs):
     return request(kwargs.pop("method", "GET"),
                    "https://api.github.com/repos/" + REPO + "/" + path, **kwargs)
 
-def download_api(path, target, expected=None):
+def download_api(path, target, expected=None, *, limit=LIMIT):
     """Follow GitHub's signed storage redirects without forwarding a token."""
     url = "https://api.github.com/repos/" + REPO + "/" + path
     opener = urllib.request.build_opener(NoRedirect)
@@ -151,7 +151,7 @@ def download_api(path, target, expected=None):
                 if not block:
                     break
                 size += len(block)
-                require(size <= LIMIT, "DOWNLOAD_SIZE")
+                require(size <= limit, "DOWNLOAD_SIZE")
                 h.update(block)
                 output.write(block)
         require(expected is None or h.hexdigest() == expected.removeprefix("sha256:"),

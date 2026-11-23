@@ -103,19 +103,19 @@ jobs:
           python3 tools/protected-preview/preview_ops.py attest --run-id "$GITHUB_RUN_ID" --artifact-id "$BUILD_ARTIFACT" --folder "$RUNNER_TEMP/miancak-preview-attestation"
 
   sign-and-accept:
+    name: Accept signed preview
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
       github.actor == github.repository_owner && inputs.mode == 'publish'
     environment: release-signing
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 42
     permissions:
       contents: read
       actions: read
-    outputs:
-      artifact_id: ${{ steps.accepted.outputs.artifact-id }}
-      artifact_digest: ${{ steps.accepted.outputs.artifact-digest }}
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -130,9 +130,11 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
           stage="$RUNNER_TEMP/miancak-preview"
           mkdir "$stage"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 tools/protected-preview/handoff.py await-recipient --stage "$stage" --timeout-seconds 420
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
           python3 tools/protected-preview/preview_ops.py prepare --run-id "$BUILD_RUN" --artifact-id "$BUILD_ARTIFACT" --folder "$stage/prepared"
           python3 - "$stage" <<'PY'
           import pathlib, re, sys, textwrap
@@ -179,21 +181,34 @@ jobs:
             cd "$RUNNER_TEMP/miancak-preview" &&
             umask 077 &&
             python3 "$GITHUB_WORKSPACE/tools/protected-preview/preview_device.py" prepared signed > acceptance-private.log 2>&1
-      - name: Seal the accepted APK and discard guest details from the transport
+      - name: Seal the accepted APK and encrypt it for the authenticated publisher
         env:
           GH_TOKEN: ${{ github.token }}
           PREVIEW_APPROVAL_SHA256: ${{ inputs.approval_sha256 }}
         run: |
+          set -euo pipefail
+          umask 077
           stage="$RUNNER_TEMP/miancak-preview"
           python3 tools/protected-preview/preview_ops.py seal --folder "$stage/signed" --report "$stage/test-results/release/acceptance.json"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        id: accepted
+          python3 tools/protected-preview/handoff.py encrypt --stage "$stage" --timeout-seconds 260
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: ciphertext-proof
         with:
-          name: preview-accepted-${{ env.CANDIDATE }}
+          subject-path: ${{ runner.temp }}/miancak-preview/ciphertext/accepted.age
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
+          predicate: '{"role":"ciphertext"}'
+          show-summary: false
+      - name: Stage the ciphertext and its attestation
+        env:
+          CIPHERTEXT_PROOF: ${{ steps.ciphertext-proof.outputs.bundle-path }}
+        run: cp -- "$CIPHERTEXT_PROOF" "$RUNNER_TEMP/miancak-preview/ciphertext/proof.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/miancak-preview/signed/miancak-0.3.4.apk
-            ${{ runner.temp }}/miancak-preview/signed/release-provenance.json
-            ${{ runner.temp }}/miancak-preview/signed/SHA256SUMS.txt
+            ${{ runner.temp }}/miancak-preview/ciphertext/accepted.age
+            ${{ runner.temp }}/miancak-preview/ciphertext/proof.json
+          overwrite: false
           if-no-files-found: error
           retention-days: 1
       - name: Clear runner-local signing and Android acceptance staging
@@ -201,23 +216,16 @@ jobs:
         run: rm -rf -- "$RUNNER_TEMP/miancak-preview"
 
   publish:
-    needs: sign-and-accept
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    name: Publish preview
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'publish'
+    uses: ./.github/workflows/protected-preview-publisher.yml
     permissions:
       contents: write
       actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Attach the accepted APK to the exact draft and verify anonymous download
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PREVIEW_APPROVAL_SHA256: ${{ inputs.approval_sha256 }}
-          PREVIEW_ACCEPTED_DIGEST: ${{ needs.sign-and-accept.outputs.artifact_digest }}
-          ACCEPTED_ARTIFACT: ${{ needs.sign-and-accept.outputs.artifact_id }}
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
-          python3 tools/protected-preview/preview_ops.py publish --folder "$RUNNER_TEMP/miancak-preview-publish" --artifact-id "$ACCEPTED_ARTIFACT"
+      id-token: write
+      attestations: write
+    with:
+      approval_sha256: ${{ inputs.approval_sha256 }}

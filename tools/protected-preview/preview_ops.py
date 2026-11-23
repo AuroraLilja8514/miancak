@@ -47,6 +47,10 @@ def approved_actor(name):
     return name.lower() == ops.REPO.split("/")[0].lower()
 
 
+def matches_workflow(path):
+    return path in (WORKFLOW, f"{WORKFLOW}@master", f"{WORKFLOW}@refs/heads/master")
+
+
 def workflow_revision(mode):
     """Pin the tools checkout to the executing workflow."""
     env = os.environ
@@ -151,7 +155,7 @@ def build_run(run_id, revision, *, completed):
     ops.require(run.get("id") == run_id and run.get("run_attempt") == 1
                 and run.get("event") == "workflow_dispatch"
                 and run.get("head_branch") == "master" and run.get("head_sha") == revision
-                and run.get("path") == WORKFLOW and run.get("display_title") == f"{TAG} build"
+                and matches_workflow(run.get("path")) and run.get("display_title") == f"{TAG} build"
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
                 and approved_actor(run.get("actor", {}).get("login", ""))
                 and (not completed or (run["status"], run["conclusion"]) == ("completed", "success")),
@@ -347,7 +351,7 @@ def publish(folder, revision, approved_sha):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("build-check", "attest", "prepare", "sign", "seal", "publish"))
+    parser.add_argument("operation", choices=("build-check", "attest", "prepare", "sign", "seal"))
     parser.add_argument("--folder", type=Path)
     parser.add_argument("--run-id", type=int)
     parser.add_argument("--artifact-id", type=int)
@@ -378,13 +382,8 @@ def main():
         bind_signing_input(args.prepared, revision, approval)
         from sign_apk import sign
         sign(args.prepared, args.folder, args.probe_classes)
-    elif args.operation == "seal":
-        seal(args.folder, args.report, revision, approval)
     else:
-        item = ops.fetch_artifact(args.artifact_id, int(os.environ["GITHUB_RUN_ID"]), args.folder,
-                                  os.environ["PREVIEW_ACCEPTED_DIGEST"], canonical=True)
-        ops.require(item["name"] == f"preview-accepted-{SOURCE}", "PREVIEW_ACCEPTED_ARTIFACT")
-        publish(args.folder, revision, approval)
+        seal(args.folder, args.report, revision, approval)
 
 
 if __name__ == "__main__":

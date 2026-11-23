@@ -291,9 +291,18 @@ class Workflow(unittest.TestCase):
                          ["publish"])
         self.assertEqual([name for name, job in jobs.items() if "environment" in job], ["sign-and-accept"])
         self.assertEqual(jobs["sign-and-accept"]["environment"], "release-signing")
-        self.assertEqual(jobs["publish"]["needs"], "sign-and-accept")
-        for name, job in jobs.items():
-            for step in job["steps"]:
+        self.assertNotIn("needs", jobs["publish"])
+        self.assertNotIn("needs", jobs["sign-and-accept"])
+        self.assertEqual(jobs["publish"]["uses"], "./.github/workflows/protected-preview-publisher.yml")
+        self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
+        publisher_path = preview.ROOT / ".github/workflows/protected-preview-publisher.yml"
+        publisher_workflow = yaml.load(publisher_path.read_bytes(), Loader=yaml.BaseLoader)
+        self.assertEqual(set(publisher_workflow["on"]), {"workflow_call"})
+        publisher = publisher_workflow["jobs"]["publisher"]
+        self.assertNotIn("environment", publisher)
+        self.assertEqual(publisher["permissions"], jobs["publish"]["permissions"])
+        for name, job in list(jobs.items()) + [("publisher", publisher)]:
+            for step in job.get("steps", []):
                 if "uses" in step:
                     self.assertRegex(step["uses"], r"@[0-9a-f]{40}$")
                 if "run" in step:
@@ -303,11 +312,22 @@ class Workflow(unittest.TestCase):
                     self.assertIn("preview_ops.py sign", step["run"])
                     self.assertNotIn("GH_TOKEN", step["env"])
         steps = jobs["sign-and-accept"]["steps"]
-        accepted = next(i for i, step in enumerate(steps) if step.get("id") == "accepted")
-        self.assertIn("preview_ops.py seal", steps[accepted - 1]["run"])
-        self.assertIn("preview_device.py", steps[accepted - 2]["with"]["script"])
-        self.assertNotIn("if", steps[accepted])
-        self.assertEqual(len([step for step in steps if "upload-artifact" in step.get("uses", "")]), 1)
+        recipient = next(i for i, step in enumerate(steps) if "handoff.py await-recipient" in step.get("run", ""))
+        sign = next(i for i, step in enumerate(steps) if "preview_ops.py sign" in step.get("run", ""))
+        device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("with", {}).get("script", ""))
+        seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
+        self.assertTrue(recipient < sign < device_step < seal)
+        self.assertIn("handoff.py encrypt", steps[seal]["run"])
+        wire = [step for step in steps if "upload-artifact" in step.get("uses", "")]
+        self.assertEqual(len(wire), 1)
+        self.assertNotIn("if", wire[0])
+        self.assertEqual([Path(value).name for value in wire[0]["with"]["path"].splitlines()],
+                         ["accepted.age", "proof.json"])
+        self.assertEqual(wire[0]["with"]["overwrite"], "false")
+        publisher_wire = [step for step in publisher["steps"] if "upload-artifact" in step.get("uses", "")]
+        self.assertEqual(len(publisher_wire), 1)
+        self.assertEqual([Path(value).name for value in publisher_wire[0]["with"]["path"].splitlines()],
+                         ["recipient.json", "proof.json"])
 
     def test_reboot_requires_unchanged_legacy_yaml_and_exact_downloaded_model(self):
         with mock.patch.object(device.smoke, "adb", return_value=device.YAML) as adb, \

@@ -58,24 +58,103 @@ grammar digest is checked in the active resource directory after reboot. This te
 legacy YAML byte retention. The old release's catalog import activation and
 the preview's new custom YAML UI are separate acceptance cases.
 
-Signed APK bytes and raw synthetic guest data remain runner-local until the
-signed Android gate passes. Raw test logs, screenshots, data hashes and
-application data are never uploaded by this workflow. After the pass, a
-one-day Actions artifact carries only the accepted APK and public
-provenance/checksums to the separate publisher. Actions run metadata and
-job status are visible on the public repository. If the review requires
-the existence and outcome of the acceptance run to be private too, this
-public Actions template cannot provide that privacy. Keep the template
-uninstalled until an approved private Android runner and signed-artifact
-handoff are available.
+The public Actions handoff uses two independently scheduled, fresh hosted
+runners. The reusable publisher workflow comes from the caller's exact
+commit and generates a single-run `age` identity. Its private identity file
+stays on that runner, outside every upload path. It publishes only the scoped
+recipient JSON and its GitHub/Sigstore attestation. The signing job requires
+a live publisher from this attempt and authenticates the recipient before
+the signing step. It checks the verified certificate extensions for the
+reusable publisher identity, repository ID, caller, source and workflow
+digests, GitHub-hosted runner, and exact invocation URI with run and attempt.
+Matching artifact names and JSON fields alone are insufficient. The protected
+signer and publisher require OIDC and attestation permissions to generate
+these proofs. The publisher alone has Contents write. Each job uses its
+scoped Actions token and this introduces no persistent credential.
 
-The publish job alone has Contents write and uses its scoped GitHub Actions
-token. It rechecks the signed APK and exact tag and draft, then uploads one
-APK, compares the server digest, and publishes with `prerelease: true` and
-`make_latest: false`. It verifies the same asset anonymously and compares
-downloaded bytes to the signed APK. A failed upload or digest leaves the draft
-unpublished. A failure after publication requires checking the actual remote
-state before any further write.
+After the signed Android gate passes, the signer packs only the accepted
+APK, sealed provenance/checksums and a receipt binding the exact recipient
+into a size-bounded archive. The public handoff carries the `age` ciphertext
+and the protected workflow's attestation of its digest. The publisher
+requires the same run attempt's unique successful acceptance job, verifies
+the transport digest and signed workflow identity, decrypts locally, and
+checks the accepted APK and receipt again. Both jobs discard private staging.
+Raw guest logs, screenshots, preference and learning snapshots, signing
+credentials, and the private age identity are outside all artifact paths and
+job outputs. Public readers can see the run status, recipient, ciphertext,
+and attestation and transparency log metadata.
+
+The publisher attaches one verified APK to the exact existing draft. It
+checks the server digest before publishing with `prerelease: true` and
+`make_latest: false`. It verifies the result by anonymous full download and
+checksum. An upload or digest error leaves the draft unpublished. A failure
+after publication requires checking the actual remote state before any
+further write. If a job exits early, the publisher's private identity is
+discarded. A subsequent attempt requires a new owner-approved dispatch and
+a known draft state.
+
+The workflow concurrency group admits one active preview run. Publish mode
+needs capacity for two runners at once. The signer must see its running
+publisher and a finalized recipient within four minutes. The publisher
+waits at most 43 minutes for successful signed acceptance and ciphertext.
+The two jobs have 42- and 50-minute limits. The device smoke keeps its
+original 1,200-second watchdog. Missing overlap, API access, valid proofs,
+or acceptance abort the handoff. There is no plaintext fallback.
+
+The tool installer fetches the official Linux x86-64 release archives for
+`age` 1.3.2 and `gh` 2.105.0 over HTTPS and checks their exact sizes and
+SHA-256 hashes before extracting only named binaries. Checkout, upload,
+emulation and attestation actions use full commit pins. Review must confirm
+the repository allows the pinned attestation action, GitHub/Sigstore
+network access, and the scoped OIDC permissions. Keep production dispatch
+pending the synthetic verification below. If run status or ciphertext
+must also stay private, use an approved private execution and custody
+route before signing.
+
+[Verified attestation claims](https://cli.github.com/manual/gh_attestation_verify) · [Fulcio invocation identity](https://github.com/sigstore/fulcio/blob/main/docs/oid-info.md) · [Artifacts during a run](https://github.blog/news-insights/product-news/get-started-with-v4-of-github-actions-artifacts/#immediate-public-api-availability)
+
+## Opt-in synthetic Actions verification
+
+Review a separate manual-only workflow and reusable publisher, with
+distinct file identities and both jobs restricted to Contents read and
+Actions read plus OIDC and attestation permissions. Give neither job a
+signing environment, inherited secrets, or release-writing permissions.
+Use a separate fixed smoke policy when verifying the test certificates,
+so production verifiers will reject those workflow identities even in the
+same repository. The smoke entry points call the archive, age, transport,
+and attestation helpers using literal synthetic bytes and a synthetic
+receipt. They must have no path to candidate checkout, `apksigner`, ADB,
+`preview_ops.publish`, or the Releases API. A successful test compares the
+recovered dummy bytes in memory and prints only a pass marker.
+
+The authorized test should check in-progress artifact listing and download,
+resolved reusable-workflow certificate identity, exact run-attempt claims,
+and signer job completion before decrypting. Exercise missing overlap,
+wrong recipient, changed ciphertext, non-success job, mismatched proof, and
+prior-attempt replay. Inspect the finalized artifact member names and
+console output for ciphertext-only transfer and local key cleanup.
+No production credential, APK, guest, or release mutation belongs in that
+test. This review did not dispatch the smoke workflow.
+
+## Upgrade from this preview to stable
+
+Reserve production code 7 for the signed preview. The next stable APK needs
+code 8 or higher, `org.miancak.keyboard`, and the same registered release
+certificate. Android rejects a normal reinstall of v0.3.2 code 5 over code
+7. Keeping v0.3.2 latest on GitHub does not change package-manager ordering.
+The current stable gate compares only against that latest stable release,
+so it does not enforce the floor after code 7. This review leaves that
+pipeline intact.
+
+When the preview has shipped, pin the exact released code-7 APK digest and
+certificate as an additional stable acceptance fixture alongside v0.3.2.
+On a fresh disposable Android 15 guest, exercise the signed preview and
+preserve synthetic settings, learning and YAML. Overwrite it with the
+higher-code same-signer stable APK, confirm the installed code and real
+input, and check those data and offline Chinese setup after a real reboot.
+Do not treat the separately signed debug APK as an upgrade fixture.
+
+[Android version code and downgrade rules](https://developer.android.com/studio/publish/versioning#versionSettings)
 
 The ordinary public Android 15 test run targeted at the tag has a separate
 purpose and remains gated on verified anonymous download of this signed
