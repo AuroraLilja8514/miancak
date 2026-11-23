@@ -1,0 +1,76 @@
+# Called by the reviewed protected preview workflow at the same commit.
+name: Publish authenticated MIANCAK preview
+on:
+  workflow_call:
+    inputs:
+      approval_sha256:
+        required: true
+        type: string
+
+jobs:
+  publisher:
+    name: Receive accepted preview
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.workflow_ref == 'AuroraLilja8514/miancak/.github/workflows/protected-preview.yml@refs/heads/master' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    env:
+      PREVIEW_MODE: publish
+      PREVIEW_APPROVAL_SHA256: ${{ inputs.approval_sha256 }}
+      JAVA_TOOL_OPTIONS: ''
+      _JAVA_OPTIONS: ''
+      JDK_JAVA_OPTIONS: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Provision pinned tools and generate a publisher-local age identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview-publish"
+          mkdir "$stage"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 tools/protected-preview/handoff.py recipient --stage "$stage" --timeout-seconds 90
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: recipient-proof
+        with:
+          subject-path: ${{ runner.temp }}/miancak-preview-publish/recipient/recipient.json
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
+          predicate: '{"role":"recipient"}'
+          show-summary: false
+      - name: Stage the authenticated public recipient only
+        env:
+          RECIPIENT_PROOF: ${{ steps.recipient-proof.outputs.bundle-path }}
+        run: cp -- "$RECIPIENT_PROOF" "$RUNNER_TEMP/miancak-preview-publish/recipient/proof.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-recipient-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/miancak-preview-publish/recipient/recipient.json
+            ${{ runner.temp }}/miancak-preview-publish/recipient/proof.json
+          overwrite: false
+          if-no-files-found: error
+          retention-days: 1
+      - name: Require trusted acceptance and decrypt before the deliberate publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
+          python3 tools/protected-preview/handoff.py receive --stage "$RUNNER_TEMP/miancak-preview-publish" --timeout-seconds 2750
+      - name: Clear the run-local identity and verified payload
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-preview-publish"

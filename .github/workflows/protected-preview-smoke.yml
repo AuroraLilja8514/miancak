@@ -1,0 +1,84 @@
+name: MIANCAK synthetic ciphertext handoff
+run-name: MIANCAK synthetic ciphertext handoff
+on:
+  push:
+    branches: [review/protected-preview-ciphertext]
+    paths:
+      - '.github/workflows/protected-preview-smoke*.yml'
+      - 'tools/protected-preview/smoke_handoff.py'
+
+permissions: {}
+concurrency:
+  group: miancak-protected-preview-smoke
+  cancel-in-progress: false
+
+jobs:
+  seal:
+    name: Seal synthetic handoff
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.event.created && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Prepare pinned tools
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview-smoke"
+          mkdir "$stage"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+      - name: Verify the active receiver and seal synthetic bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_handoff.py seal --stage "$RUNNER_TEMP/miancak-preview-smoke" --timeout-seconds 500
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: ciphertext-proof
+        with:
+          subject-path: ${{ runner.temp }}/miancak-preview-smoke/ciphertext/accepted.age
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
+          predicate: '{"role":"ciphertext"}'
+          show-summary: false
+      - name: Stage only synthetic ciphertext and its proof
+        env:
+          CIPHERTEXT_PROOF: ${{ steps.ciphertext-proof.outputs.bundle-path }}
+        run: cp -- "$CIPHERTEXT_PROOF" "$RUNNER_TEMP/miancak-preview-smoke/ciphertext/proof.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/miancak-preview-smoke/ciphertext/accepted.age
+            ${{ runner.temp }}/miancak-preview-smoke/ciphertext/proof.json
+          overwrite: false
+          if-no-files-found: error
+          retention-days: 1
+      - name: Clear temporary synthetic data
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-preview-smoke"
+
+  receive:
+    name: Receive synthetic handoff
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.event.created && github.run_attempt == 1
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/protected-preview-smoke-publisher.yml

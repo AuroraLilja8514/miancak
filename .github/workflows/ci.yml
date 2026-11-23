@@ -6,11 +6,19 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      owner_approval_probe:
+        description: Dummy owner approval probe on the review branch only
+        type: string
+        default: ''
+
+run-name: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' && github.repository == 'AuroraLilja8514/miancak' && inputs.owner_approval_probe != '') && format('MIANCAK dummy {0}', inputs.owner_approval_probe) || '' }}
 
 permissions:
   contents: read
 
 env:
+  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.event.number == 38)) }}
   MIANCAK_SCRIPT_TIMEOUT_SECONDS: "3600"
   MIANCAK_ADB_TIMEOUT_SECONDS: "30"
   MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
@@ -21,13 +29,19 @@ env:
   MIANCAK_EMULATOR_GPU_API23: swiftshader_indirect
 
 concurrency:
-  group: miancak-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: >-
+    miancak-ci-${{
+    (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+    github.repository == 'AuroraLilja8514/miancak' && inputs.owner_approval_probe != '') &&
+    (inputs.owner_approval_probe == 'start' && 'owner-probe-hold' || 'owner-probe-approve') ||
+    github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' && github.repository == 'AuroraLilja8514/miancak' && inputs.owner_approval_probe != '') }}
 
 jobs:
   # Independent host diagnostic. Its separate guest cannot gate app tests on
   # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
+    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.event.number == 38))) }}
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -64,12 +78,54 @@ jobs:
           retention-days: 7
 
   generated:
+    if: &review_checks_enabled ${{ !((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext' && github.repository == 'AuroraLilja8514/miancak' && inputs.owner_approval_probe != '')) }}
     name: generated
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      - &review_guard
+        name: Require exact trusted review and checked-out SHA
+        if: env.MIANCAK_REVIEW_CI == 'true'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'AuroraLilja8514/miancak'
+          test "$GITHUB_REPOSITORY_ID" = 1355190124
+          test "$GITHUB_ACTOR_ID" = 315702774
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch)
+              test "$GITHUB_REF" = 'refs/heads/review/protected-preview-ciphertext'
+              test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+              ;;
+            pull_request)
+              test "$GITHUB_REF" = 'refs/pull/38/merge'
+              python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
+              event = json.load(stream)
+          pr = event["pull_request"]
+          head = pr["head"]
+          base = pr["base"]
+          commit = os.environ["GITHUB_SHA"]
+          assert event["number"] == 38 and pr["draft"] is True
+          assert event["repository"]["id"] == head["repo"]["id"] == base["repo"]["id"] == 1355190124
+          assert head["ref"] == "review/protected-preview-ciphertext" and base["ref"] == "master"
+          assert os.environ["GITHUB_WORKFLOW_SHA"] in (commit, head["sha"])
+          header = subprocess.check_output(["git", "cat-file", "commit", commit], text=True).splitlines()
+          parents = [line.removeprefix("parent ") for line in header[:header.index("")] if line.startswith("parent ")]
+          assert parents == [base["sha"], head["sha"]]
+          print(f"Verified PR #38 head {head['sha']}, test merge {commit}, workflow {os.environ['GITHUB_WORKFLOW_SHA']}")
+          PY
+              ;;
+            *) exit 1 ;;
+          esac
 
       - name: Regenerate checked-in files
         shell: bash
@@ -90,6 +146,7 @@ jobs:
         run: git diff --exit-code
 
   unit:
+    if: *review_checks_enabled
     name: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -99,6 +156,8 @@ jobs:
         with:
           submodules: true
 
+      - *review_guard
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -107,8 +166,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ env.MIANCAK_REVIEW_CI == 'true' }}
 
       - name: Cache locked native sources
+        if: *ordinary_ci
         uses: actions/cache@v4
         with:
           path: .native
@@ -140,7 +202,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload unit test reports
-        if: always()
+        if: ${{ always() && !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.event.number == 38))) }}
         uses: actions/upload-artifact@v7
         with:
           name: unit-results-${{ github.sha }}
@@ -148,6 +210,7 @@ jobs:
           retention-days: 7
 
   build-debug:
+    if: *review_checks_enabled
     name: build-debug
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -157,6 +220,8 @@ jobs:
         with:
           submodules: true
 
+      - *review_guard
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -165,8 +230,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ env.MIANCAK_REVIEW_CI == 'true' }}
 
       - name: Cache locked native sources
+        if: *ordinary_ci
         uses: actions/cache@v4
         with:
           path: .native
@@ -176,6 +244,7 @@ jobs:
         run: python3 scripts/prepare_rime.py
 
       - name: Cache native build objects
+        if: *ordinary_ci
         uses: actions/cache@v4
         with:
           path: |
@@ -199,6 +268,7 @@ jobs:
           python3 scripts/check_native_apk.py build/word-upgrade-fixture/baseline.apk
 
       - name: Upload feature-enabled upgrade fixture
+        if: *ordinary_ci
         uses: actions/upload-artifact@v7
         with:
           name: miancak-word-baseline-${{ github.sha }}
@@ -207,6 +277,7 @@ jobs:
           retention-days: 7
 
       - name: Upload debug APK
+        if: *ordinary_ci
         uses: actions/upload-artifact@v7
         with:
           name: miancak-debug-${{ github.sha }}
@@ -217,6 +288,7 @@ jobs:
           retention-days: 7
 
   build-release:
+    if: *ordinary_ci
     name: build-release
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -262,6 +334,7 @@ jobs:
           retention-days: 7
 
   interaction-tests:
+    if: *ordinary_ci
     name: interaction-tests (${{ matrix.api }})
     strategy:
       fail-fast: false
@@ -309,6 +382,7 @@ jobs:
           retention-days: 7
 
   word-pack-quality:
+    if: *ordinary_ci
     name: word-pack-quality (${{ matrix.api }})
     strategy:
       fail-fast: false
@@ -356,6 +430,7 @@ jobs:
           retention-days: 7
 
   first-install:
+    if: *ordinary_ci
     name: first-install (${{ matrix.api }}, ${{ matrix.entry }})
     strategy:
       fail-fast: false
@@ -404,6 +479,7 @@ jobs:
           retention-days: 7
 
   word-table-tests:
+    if: *ordinary_ci
     name: word-table-tests (${{ matrix.api }})
     needs: [build-debug]
     runs-on: ubuntu-24.04
@@ -456,6 +532,7 @@ jobs:
           retention-days: 7
 
   build-upgrade-baseline:
+    if: *ordinary_ci
     name: build-upgrade-baseline
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -495,6 +572,7 @@ jobs:
           retention-days: 7
 
   upgrade-tests:
+    if: *ordinary_ci
     name: upgrade-tests (${{ matrix.api }})
     needs: [build-debug, build-upgrade-baseline]
     runs-on: ubuntu-24.04
@@ -547,3 +625,183 @@ jobs:
           name: upgrade-results-api-${{ matrix.api }}-${{ github.sha }}
           path: test-results/
           retention-days: 7
+
+  inbound-smoke-build:
+    name: Hold synthetic preview inputs
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' && inputs.owner_approval_probe == '' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Stage only synthetic bytes and a digest receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-input-smoke"
+          mkdir "$stage"
+          python3 tools/protected-preview/smoke_inputs.py stage --stage "$stage" --timeout-seconds 60
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-inbound-input-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-input-smoke/receipt/receipt.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Encrypt synthetic inputs for the authenticated receiver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-input-smoke"
+          python3 tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 tools/protected-preview/smoke_inputs.py seal --stage "$stage" --timeout-seconds 500
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-inbound-input-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-input-smoke/inputs.age
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Clear synthetic input staging
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-input-smoke"
+
+  inbound-smoke-approval:
+    name: Approve synthetic receipt
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' && inputs.owner_approval_probe == '' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Check the in-progress dummy receipt and actual three-job overlap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_inputs.py approve --stage "$RUNNER_TEMP" --timeout-seconds 370
+
+  inbound-smoke-gate:
+    name: Authorize synthetic inputs
+    needs: generated
+    if: >-
+      !cancelled() && github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' && inputs.owner_approval_probe == '' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Bind the dummy authorization to the successful same-attempt approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/smoke_inputs.py gate --stage "$RUNNER_TEMP" --timeout-seconds 385
+
+  inbound-smoke-receive:
+    name: Receive synthetic preview inputs
+    needs: inbound-smoke-gate
+    if: >-
+      !cancelled() && needs.inbound-smoke-gate.result == 'success' &&
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'workflow_dispatch' && inputs.owner_approval_probe == '' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1
+    permissions:
+      contents: read
+      actions: read
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/protected-preview-inbound-smoke.yml
+
+  owner-smoke-hold:
+    name: Hold synthetic owner receipt
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' && github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1 &&
+      inputs.owner_approval_probe == 'start'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - &owner_smoke_checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: tools/protected-preview
+      - name: Stage the literal dummy receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/protected-preview/smoke_owner.py stage --stage "$RUNNER_TEMP" --timeout-seconds 60
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-smoke-owner-input-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/owner-smoke-receipt/receipt.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Require successful approval from a distinct owner run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/protected-preview/smoke_owner.py wait --stage "$RUNNER_TEMP" --timeout-seconds 400
+
+  owner-smoke-approve:
+    name: Confirm synthetic owner approval
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' && github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/review/protected-preview-ciphertext' &&
+      github.actor == github.repository_owner && github.run_attempt == 1 &&
+      startsWith(inputs.owner_approval_probe, 'approve-inputs ')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - *owner_smoke_checkout
+      - name: Verify the exact in-progress dummy receipt and approval origin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MIANCAK_OWNER_PROBE: ${{ inputs.owner_approval_probe }}
+        run: python3 tools/protected-preview/smoke_owner.py approve --stage "$RUNNER_TEMP" --timeout-seconds 110

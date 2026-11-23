@@ -1,0 +1,215 @@
+# Review-only source. See docs/PROTECTED_PRERELEASE.md before adoption.
+name: MIANCAK protected prerelease
+run-name: ${{ inputs.mode == 'approve-inputs' && format('v0.3.4-preview.1 approve-inputs {0} {1}', inputs.release_run_id, inputs.receipt_sha256) || 'v0.3.4-preview.1 publish' }}
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [publish, approve-inputs]
+        required: true
+      release_run_id:
+        description: Active production run ID (approve-inputs only)
+        type: string
+      receipt_sha256:
+        description: Reviewed canonical receipt SHA-256 (approve-inputs only)
+        type: string
+
+permissions: {}
+concurrency:
+  group: miancak-protected-preview-v0.3.4-preview.1-${{ inputs.mode == 'approve-inputs' && format('approval-{0}', github.run_id) || 'production' }}
+  cancel-in-progress: false
+env:
+  CANDIDATE: 30b074bf08ba7e668761874b41819781a3f4d44f
+  PREVIEW_MODE: ${{ inputs.mode }}
+  JAVA_TOOL_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+
+jobs:
+  private-input-review:
+    name: Hold production modes pending synthetic validation and review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    permissions: {}
+    steps:
+      - run: |
+          echo 'FAIL: PREVIEW_PRODUCTION_REVIEW_REQUIRED'
+          exit 1
+
+  build:
+    name: Compile private preview inputs
+    needs: private-input-review
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'publish'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CANDIDATE }}
+          path: candidate
+          submodules: true
+          persist-credentials: false
+      - name: Check candidate checkout and admitted tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 trusted/tools/protected-preview/preview_ops.py build-check --folder candidate
+      - name: Build exact application and reviewed guest fixture privately
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          umask 077
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          stage="$RUNNER_TEMP/miancak-preview-build"
+          mkdir -p "$stage/inputs"
+          if ! python3 ../trusted/tools/protected-preview/run_with_timeout.py --timeout-seconds 2400 -- bash -ec '
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "ndk;28.0.13004108" "cmake;3.22.1"
+            python3 scripts/prepare_rime.py --timeout-seconds 1800
+            ./gradlew --no-daemon assembleRelease assembleDebug
+            python3 scripts/check_native_apk.py build/outputs/apk/release/*.apk --release
+            cp build/outputs/apk/release/*.apk "$1/inputs/unsigned.apk"
+            cp build/outputs/apk/debug/*.apk "$1/inputs/app-debug.apk"
+            git apply --check ../trusted/tools/protected-preview/release-yaml-driver.patch
+            git apply ../trusted/tools/protected-preview/release-yaml-driver.patch
+            ./gradlew --no-daemon assembleDebugAndroidTest
+            cp build/outputs/apk/androidTest/debug/*.apk "$1/inputs/app-debug-androidTest.apk"
+          ' -- "$stage" > "$stage/compiler.log" 2>&1; then
+            echo 'FAIL: PREVIEW_PRIVATE_BUILD'
+            exit 1
+          fi
+      - name: Record only exact identities and digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview-build"
+          python3 trusted/tools/protected-preview/install_handoff_tools.py "$stage/tools"
+          python3 trusted/tools/protected-preview/private_inputs.py stage --stage "$stage" --timeout-seconds 90
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-input-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-preview-build/receipt/receipt.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Wait for exact owner approval and seal bytes to the authenticated signer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 trusted/tools/protected-preview/private_inputs.py seal --stage "$RUNNER_TEMP/miancak-preview-build" --timeout-seconds 1390
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-input-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/miancak-preview-build/inputs.age
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Clear private build staging
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-preview-build" "$GITHUB_WORKSPACE/candidate"
+
+  authorize:
+    name: Authorize private preview inputs
+    needs: private-input-review
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'publish'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 63
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      approval_sha256: ${{ steps.approve.outputs.approval_sha256 }}
+      approval_run_id: ${{ steps.approve.outputs.approval_run_id }}
+      receipt_artifact_id: ${{ steps.approve.outputs.receipt_artifact_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Wait for the exact owner approval of the public digest receipt
+        id: approve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/private_inputs.py authorize --stage "$RUNNER_TEMP" --timeout-seconds 3650
+
+  approval-request:
+    name: Confirm exact preview input receipt
+    needs: private-input-review
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'approve-inputs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Confirm typed input digest for the active production run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_TARGET_RUN_ID: ${{ inputs.release_run_id }}
+          PREVIEW_REQUEST_SHA256: ${{ inputs.receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 tools/protected-preview/private_inputs.py request --stage "$RUNNER_TEMP" --timeout-seconds 90
+
+  sign-and-accept:
+    name: Accept signed preview
+    needs: [private-input-review, authorize]
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'publish'
+    uses: ./.github/workflows/protected-preview-signer.yml
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    with:
+      approval_sha256: ${{ needs.authorize.outputs.approval_sha256 }}
+      approval_run_id: ${{ needs.authorize.outputs.approval_run_id }}
+      receipt_artifact_id: ${{ needs.authorize.outputs.receipt_artifact_id }}
+
+  publish:
+    name: Publish preview
+    needs: [private-input-review, authorize, build]
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
+      github.actor == github.repository_owner && inputs.mode == 'publish'
+    uses: ./.github/workflows/protected-preview-publisher.yml
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    with:
+      approval_sha256: ${{ needs.authorize.outputs.approval_sha256 }}
