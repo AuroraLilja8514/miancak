@@ -98,9 +98,30 @@ class Trust(unittest.TestCase):
             api.return_value = run | {"status": "in_progress"}
             self.assertTrue(handoff.active_run(scope, starting=True))
 
+    def test_production_run_requires_both_owner_identities_and_live_attempt(self):
+        owner = {"id": preview.OWNER_ID, "login": ops.REPO.split("/")[0]}
+        run = {"id": SCOPE.run_id, "run_attempt": SCOPE.attempt, "event": SCOPE.workflow.event,
+               "head_branch": SCOPE.workflow.branch, "head_sha": SCOPE.revision,
+               "path": SCOPE.workflow.caller, "display_title": SCOPE.workflow.title,
+               "status": "in_progress", "head_repository": {"id": ops.REPO_ID},
+               "actor": owner, "triggering_actor": owner}
+        with mock.patch.object(ops, "api", return_value=run) as api:
+            self.assertTrue(handoff.active_run(SCOPE))
+            for changes in ({"actor": owner | {"id": 1}}, {"triggering_actor": owner | {"id": 1}},
+                            {"run_attempt": 2}, {"status": "completed", "conclusion": "cancelled"}):
+                with self.subTest(changes=changes), self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ACTIVE_RUN"):
+                    api.return_value = run | changes
+                    handoff.active_run(SCOPE)
+
     def test_attestation_binds_workflow_role_revision_and_run_attempt(self):
-        for kind in ("recipient", "ciphertext", "input-recipient"):
+        for kind in ("recipient", "ciphertext", "input-recipient", "input-grant"):
             handoff.verified_subject([attested_subject(kind)], SCOPE, kind, SHA)
+        previous_run = replace(SCOPE, run_id=SCOPE.run_id - 1)
+        for replay in (previous_run, replace(SCOPE, attempt=2), replace(SCOPE, workflow=smoke.POLICY)):
+            with self.subTest(replay=replay), self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ATTESTATION_ORIGIN"):
+                handoff.verified_subject([attested_subject("input-grant", replay)], SCOPE, "input-grant", SHA)
+        with self.assertRaisesRegex(ops.ReleaseError, "HANDOFF_ATTESTATION_ORIGIN"):
+            handoff.verified_subject([attested_subject("input-recipient")], SCOPE, "input-grant", SHA)
         for field, wrong in {
             "issuer": "https://example.invalid", "buildSignerDigest": "d" * 40,
             "buildConfigDigest": "e" * 40, "sourceRepositoryIdentifier": "1",

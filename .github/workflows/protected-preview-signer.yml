@@ -1,4 +1,4 @@
-# Called only after the read-only exact-input gate has succeeded.
+# Called only after the attested exact-input gate has succeeded.
 name: Accept authenticated MIANCAK preview
 on:
   workflow_call:
@@ -6,10 +6,7 @@ on:
       approval_sha256:
         required: true
         type: string
-      approval_run_id:
-        required: true
-        type: string
-      receipt_artifact_id:
+      grant_artifact_id:
         required: true
         type: string
 
@@ -33,8 +30,8 @@ jobs:
     env:
       PREVIEW_MODE: publish
       PREVIEW_APPROVAL_SHA256: ${{ inputs.approval_sha256 }}
-      PREVIEW_APPROVAL_RUN_ID: ${{ inputs.approval_run_id }}
-      PREVIEW_RECEIPT_ARTIFACT_ID: ${{ inputs.receipt_artifact_id }}
+      PREVIEW_GRANT_ARTIFACT_ID: ${{ inputs.grant_artifact_id }}
+      PREVIEW_EMULATOR_RUNNER: b530d96654c385303d652368551fb075bc2f0b6b
       JAVA_TOOL_OPTIONS: ''
       _JAVA_OPTIONS: ''
       JDK_JAVA_OPTIONS: ''
@@ -43,7 +40,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Recheck owner approval and create the runner-local input identity
+      - name: Verify the attested build grant and create the runner-local input identity
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -94,7 +91,7 @@ jobs:
           (root / "MiancakCredentialProbe.java").write_text(textwrap.dedent(java[1]))
           PY
           "$JAVA_HOME_17_X64/bin/javac" -encoding UTF-8 -d "$stage" "$stage/MiancakCredentialProbe.java"
-      - name: Recheck exact owner grant, freshness and all plaintext bytes before secrets
+      - name: Recheck the attested grant, run, freshness and all plaintext bytes before secrets
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/protected-preview/private_inputs.py pre-key --stage "$RUNNER_TEMP/miancak-preview" --timeout-seconds 90
@@ -107,7 +104,18 @@ jobs:
           umask 077
           ulimit -c 0
           stage="$RUNNER_TEMP/miancak-preview"
-          python3 tools/protected-preview/preview_ops.py sign --prepared "$stage/prepared" --folder "$stage/signed" --probe-classes "$stage"
+          if ! python3 tools/protected-preview/preview_ops.py sign --prepared "$stage/prepared" --folder "$stage/signed" --probe-classes "$stage" > "$stage/signing-private.log" 2>&1; then
+            echo 'FAIL: PREVIEW_SIGNING'
+            exit 1
+          fi
+          echo 'PASS: PREVIEW_SIGNING'
+      - name: Checkout the pinned emulator action entry point
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: reactivecircus/android-emulator-runner
+          ref: ${{ env.PREVIEW_EMULATOR_RUNNER }}
+          path: .preview-emulator
+          persist-credentials: false
       - name: Enable KVM for the Android 15 acceptance guest
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -117,22 +125,30 @@ jobs:
         env:
           MIANCAK_TEST_DISPOSABLE_GUEST: 'true'
           MIANCAK_SCRIPT_TIMEOUT_SECONDS: '1200'
-        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b
-        with:
-          api-level: 35
-          system-image-api-level: 35
-          emulator-build: '16428233'
-          arch: x86_64
-          target: google_apis
-          avd-name: miancak-release-35
-          force-avd-creation: true
-          disable-animations: true
-          pre-emulator-launch-script: sed -i 's/^hw.keyboard=.*/hw.keyboard=no/' "$HOME/.android/avd/miancak-release-35.avd/config.ini"
-          emulator-options: -no-window -gpu swangle -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none
-          script: >-
-            cd "$RUNNER_TEMP/miancak-preview" &&
-            umask 077 &&
-            python3 "$GITHUB_WORKSPACE/tools/protected-preview/preview_device.py" prepared signed > acceptance-private.log 2>&1
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview"
+          runner="$GITHUB_WORKSPACE/.preview-emulator"
+          # Redirect the whole action. Its emulator and ADB setup also emit output.
+          if ! {
+            test "$(git -C "$runner" rev-parse HEAD)" = "$PREVIEW_EMULATOR_RUNNER" &&
+            env \
+              'INPUT_API-LEVEL=35' 'INPUT_SYSTEM-IMAGE-API-LEVEL=35' 'INPUT_EMULATOR-BUILD=16428233' \
+              'INPUT_ARCH=x86_64' 'INPUT_TARGET=google_apis' 'INPUT_CHANNEL=stable' \
+              'INPUT_AVD-NAME=miancak-release-35' 'INPUT_FORCE-AVD-CREATION=true' 'INPUT_CORES=2' \
+              'INPUT_EMULATOR-PORT=5554' 'INPUT_EMULATOR-BOOT-TIMEOUT=600' \
+              'INPUT_DISABLE-ANIMATIONS=true' 'INPUT_DISABLE-LINUX-HW-ACCEL=false' \
+              'INPUT_ENABLE-HW-KEYBOARD=false' 'INPUT_DISABLE-SPELLCHECKER=false' \
+              'INPUT_PRE-EMULATOR-LAUNCH-SCRIPT=sed -i "s/^hw.keyboard=.*/hw.keyboard=no/" "$HOME/.android/avd/miancak-release-35.avd/config.ini"' \
+              'INPUT_EMULATOR-OPTIONS=-no-window -accel on -gpu swangle -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none' \
+              'INPUT_SCRIPT=cd "$RUNNER_TEMP/miancak-preview" && python3 "$GITHUB_WORKSPACE/tools/protected-preview/preview_device.py" prepared signed' \
+              node "$runner/lib/main.js"
+          } > "$stage/acceptance-private.log" 2>&1; then
+            echo 'FAIL: PREVIEW_ANDROID_ACCEPTANCE'
+            exit 1
+          fi
+          echo 'PASS: PREVIEW_ANDROID_ACCEPTANCE'
       - name: Seal the accepted APK and encrypt it for the authenticated publisher
         env:
           GH_TOKEN: ${{ github.token }}

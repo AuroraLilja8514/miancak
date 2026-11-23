@@ -45,7 +45,7 @@ def current_scope(policy=POLICY):
     ops.require(re.fullmatch(r"[0-9a-f]{40}", revision)
                 and env.get("GITHUB_REPOSITORY") == ops.REPO
                 and env.get("GITHUB_REPOSITORY_ID") == str(ops.REPO_ID)
-                and env.get("GITHUB_ACTOR_ID") == str(inputs.OWNER_ID)
+                and env.get("GITHUB_ACTOR_ID") == str(preview.OWNER_ID)
                 and preview.approved_actor(env.get("GITHUB_TRIGGERING_ACTOR", ""))
                 and env.get("GITHUB_REF") == policy.ref and env.get("GITHUB_EVENT_NAME") == policy.event
                 and env.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{policy.caller}@{policy.ref}"

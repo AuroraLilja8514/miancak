@@ -69,8 +69,12 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
-          python3 tools/protected-preview/handoff.py receive --stage "$RUNNER_TEMP/miancak-preview-publish" --timeout-seconds 2750
+          stage="$RUNNER_TEMP/miancak-preview-publish"
+          if ! "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0' > "$stage/sdk.log" 2>&1; then
+            echo 'FAIL: PREVIEW_PUBLISHER_SDK'
+            exit 1
+          fi
+          python3 tools/protected-preview/handoff.py receive --stage "$stage" --timeout-seconds 2750
       - name: Clear the run-local identity and verified payload
         if: always()
         run: rm -rf -- "$RUNNER_TEMP/miancak-preview-publish"

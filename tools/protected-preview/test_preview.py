@@ -82,6 +82,7 @@ class Trust(unittest.TestCase):
                 "GITHUB_REPOSITORY_ID": str(ops.REPO_ID), "GITHUB_EVENT_NAME": "workflow_dispatch",
                 "GITHUB_REF": "refs/heads/master", "GITHUB_WORKFLOW_SHA": REVISION,
                 "GITHUB_SHA": REVISION, "GITHUB_WORKFLOW_REF": f"{ops.REPO}/{preview.WORKFLOW}@refs/heads/master",
+                "GITHUB_ACTOR_ID": str(preview.OWNER_ID),
                 "GITHUB_ACTOR": owner, "GITHUB_TRIGGERING_ACTOR": owner, "GITHUB_RUN_ATTEMPT": "1"}
 
     def test_current_master_and_exact_workflow_checkout(self):
@@ -96,6 +97,7 @@ class Trust(unittest.TestCase):
     def test_reject_branch_tag_event_mode_actor_workflow_and_rerun(self):
         for key, value in {"GITHUB_REF": f"refs/tags/{preview.TAG}", "GITHUB_EVENT_NAME": "pull_request_target",
                            "PREVIEW_MODE": "build", "GITHUB_ACTOR": "other-writer",
+                           "GITHUB_ACTOR_ID": "1",
                            "GITHUB_TRIGGERING_ACTOR": "other-writer", "GITHUB_REPOSITORY_ID": "0",
                            "GITHUB_WORKFLOW_REF": f"{ops.REPO}/.github/workflows/release.yml@refs/heads/master",
                            "GITHUB_RUN_ATTEMPT": "2", "GITHUB_SHA": preview.SOURCE}.items():
@@ -121,6 +123,33 @@ class Trust(unittest.TestCase):
                     with self.assertRaises(ops.ReleaseError):
                         preview.exact_release()
 
+    def test_admission_has_one_exact_dispatch_and_fails_closed(self):
+        state = release_state()
+        source_url = f"git/commits/{preview.SOURCE}"
+        draft_url = f"releases/{preview.DRAFT_ID}"
+        baseline = {"name": preview.STABLE_APK_NAME, "state": "uploaded", "digest": f"sha256:{preview.STABLE_APK}"}
+        state.update({source_url: {"sha": preview.SOURCE, "tree": {"sha": preview.TREE}},
+                      "git/ref/heads/master": {"object": {"sha": REVISION}}})
+        state["releases/latest"]["assets"] = [baseline]
+        with mock.patch.object(ops, "command", return_value=mock.Mock(stdout=REVISION.encode())), \
+             mock.patch.object(ops, "api", side_effect=lambda path, **kwargs: state[path]):
+            with mock.patch.dict(os.environ, self.trusted_env() | {"PREVIEW_MODE": "approve-inputs"}, clear=True):
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_WORKFLOW_AUTHORITY"):
+                    preview.admit("approve-inputs")
+            with mock.patch.dict(os.environ, self.trusted_env(), clear=True):
+                preview.admit("publish")
+                for endpoint, replacement, error in (
+                    (draft_url, {"assets": [{"id": 1}]}, "PREVIEW_DRAFT_NOT_EMPTY"),
+                    (source_url, {"tree": {"sha": "0" * 40}}, "PREVIEW_CANDIDATE_TREE"),
+                    ("releases/latest", {"assets": [baseline, baseline]}, "PREVIEW_BASELINE_DIGEST"),
+                    ("releases/latest", {"assets": [baseline | {"digest": "sha256:" + "0" * 64}]},
+                     "PREVIEW_BASELINE_DIGEST"),
+                    ("git/ref/heads/master", {"object": {"sha": "0" * 40}}, "PREVIEW_TRUSTED_REVISION"),
+                ):
+                    with self.subTest(error=error), mock.patch.dict(state[endpoint], replacement):
+                        with self.assertRaisesRegex(ops.ReleaseError, error):
+                            preview.admit("publish")
+
     def test_manifest_policy_is_exact_and_roles_are_distinct(self):
         preview.require_identity(identity())
         preview.require_identity(identity(old=True), previous=True)
@@ -133,12 +162,14 @@ class Trust(unittest.TestCase):
             preview.require_identity(identity(), previous=True)
 
     def test_approval_binds_tooling_source_manifest_archive_and_all_apks(self):
-        with tempfile.TemporaryDirectory() as directory:
+        old_apk = b"synthetic baseline"
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(preview, "STABLE_APK", ops.digest(old_apk)):
             folder = Path(directory)
             for name in preview.INPUTS:
                 (folder / name).write_bytes(name.encode())
             with mock.patch.object(preview, "inspect_inputs", return_value=identity()):
                 record = preview.input_record(folder, REVISION, BUILD)
+            (folder / "previous.apk").write_bytes(old_apk)
             transport = {"id": ARTIFACT, "digest": "sha256:" + "d" * 64}
             approval = preview.attestation_sha(record)
             ops.write_json(folder / "approved.json", record)
@@ -152,6 +183,10 @@ class Trust(unittest.TestCase):
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
                     preview.bind_signing_input(folder, REVISION, approval)
                 ops.write_json(folder / "transport.json", transport)
+                (folder / "previous.apk").write_bytes(b"wrong baseline")
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
+                    preview.bind_signing_input(folder, REVISION, approval)
+                (folder / "previous.apk").write_bytes(old_apk)
                 (folder / "app-debug-androidTest.apk").write_bytes(b"different driver")
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
                     preview.bind_signing_input(folder, REVISION, approval)
@@ -311,7 +346,8 @@ class Workflow(unittest.TestCase):
         branch = "refs/heads/review/protected-preview-ciphertext"
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
-                 "(github.event_name == 'pull_request' && github.event.number == 38))")
+                 "(github.event_name == 'pull_request' && "
+                 "github.head_ref == 'review/activate-protected-preview-v0.3.4-preview.1'))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
@@ -344,6 +380,10 @@ class Workflow(unittest.TestCase):
             self.assertEqual(check["if"], "env.MIANCAK_REVIEW_CI == 'true'")
             guard = guard or check["run"]
             self.assertEqual(check["run"], guard)
+            if name == "generated":
+                cli = job["steps"].pop()
+                self.assertEqual(cli["if"], "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'")
+                self.assertIn("test_preview_cli.py --timeout-seconds 40", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
@@ -391,21 +431,21 @@ class Workflow(unittest.TestCase):
             head = git("commit-tree", tree, "-p", base, "-m", "head")
             merge = git("commit-tree", tree, "-p", base, "-p", head, "-m", "merge")
             git("update-ref", "HEAD", merge)
-            event = {"number": 38, "repository": {"id": ops.REPO_ID},
+            event = {"number": 101, "repository": {"id": ops.REPO_ID},
                      "pull_request": {"draft": True,
-                                      "head": {"ref": "review/protected-preview-ciphertext",
+                                      "head": {"ref": "review/activate-protected-preview-v0.3.4-preview.1",
                                                "sha": head, "repo": {"id": ops.REPO_ID}},
                                       "base": {"ref": "master", "sha": base, "repo": {"id": ops.REPO_ID}}}}
             event_path = Path(directory) / "event.json"
             env.update(GITHUB_SHA=merge, GITHUB_WORKFLOW_SHA=merge, GITHUB_REPOSITORY=ops.REPO,
                        GITHUB_REPOSITORY_ID=str(ops.REPO_ID), GITHUB_ACTOR_ID=str(315702774),
                        GITHUB_EVENT_PATH=str(event_path), GITHUB_EVENT_NAME="pull_request",
-                       GITHUB_REF="refs/pull/38/merge", GITHUB_RUN_ATTEMPT="1",
+                       GITHUB_REF="refs/pull/101/merge", GITHUB_RUN_ATTEMPT="1",
                        GITHUB_ACTOR="owner", GITHUB_REPOSITORY_OWNER="owner")
             event_path.write_text(json.dumps(event))
             result = subprocess.run(["bash", "-c", guard], cwd=directory, env=env, text=True,
                                     check=True, capture_output=True)
-            self.assertIn(f"head {head}, test merge {merge}", result.stdout)
+            self.assertIn(f"PR #101 head {head}, test merge {merge}", result.stdout)
             for keys, wrong in ((("number",), 99), (("pull_request", "draft"), False),
                                 (("pull_request", "head", "ref"), "other"),
                                 (("pull_request", "head", "sha"), "a" * 40),
@@ -483,24 +523,27 @@ class Workflow(unittest.TestCase):
         if not path.is_file():
             path = preview.ROOT / "tools/release/protected-preview.yml.in"
         workflow = yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        self.assertEqual(workflow["on"]["workflow_dispatch"]["inputs"]["mode"]["options"], ["publish", "approve-inputs"])
+        self.assertEqual(workflow["on"], {"workflow_dispatch": ""})
+        self.assertEqual(workflow["run-name"], preview.TAG + " publish")
+        self.assertEqual(workflow["env"]["CANDIDATE"], preview.SOURCE)
+        self.assertEqual(workflow["env"]["PREVIEW_MODE"], "publish")
         jobs = workflow["jobs"]
+        self.assertEqual(set(jobs), {"admit", "build", "authorize", "sign-and-accept", "publish"})
         self.assertEqual([name for name, job in jobs.items() if job["permissions"].get("contents") == "write"],
                          ["publish"])
         self.assertFalse(any("environment" in job for job in jobs.values()))
-        for name in ("build", "authorize", "approval-request", "sign-and-accept", "publish"):
-            self.assertIn("private-input-review", jobs[name]["needs"])
+        for name in ("build", "authorize", "sign-and-accept", "publish"):
+            self.assertIn("admit", jobs[name]["needs"])
             self.assertNotIn("always()", jobs[name]["if"])
-        hold = jobs["private-input-review"]
-        self.assertEqual(hold["permissions"], {})
-        self.assertNotIn("environment", hold)
-        result = subprocess.run(["bash", "-ec", hold["steps"][0]["run"]], capture_output=True, text=True)
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.strip(), "FAIL: PREVIEW_PRODUCTION_REVIEW_REQUIRED")
-        self.assertEqual(jobs["sign-and-accept"]["needs"], ["private-input-review", "authorize"])
-        self.assertEqual(jobs["publish"]["needs"], ["private-input-review", "authorize", "build"])
-        self.assertIn("approval-{0}", workflow["concurrency"]["group"])
+        admit = jobs["admit"]
+        self.assertEqual(admit["permissions"], {"contents": "read"})
+        self.assertIn("preview_ops.py admit", admit["steps"][-1]["run"])
+        for requirement in ("github.event_name == 'workflow_dispatch'", "refs/heads/master",
+                            "github.actor == github.repository_owner", "github.run_attempt == 1"):
+            self.assertIn(requirement, admit["if"])
+        self.assertEqual(jobs["sign-and-accept"]["needs"], ["admit", "authorize"])
+        self.assertEqual(jobs["publish"]["needs"], ["admit", "authorize", "build"])
+        self.assertEqual(workflow["concurrency"]["group"], f"miancak-protected-preview-{preview.TAG}-production")
         self.assertEqual(jobs["publish"]["uses"], "./.github/workflows/protected-preview-publisher.yml")
         self.assertEqual(jobs["sign-and-accept"]["uses"], "./.github/workflows/protected-preview-signer.yml")
         signer_path = preview.ROOT / ".github/workflows/protected-preview-signer.yml"
@@ -510,8 +553,16 @@ class Workflow(unittest.TestCase):
         self.assertEqual(signer["environment"], "release-signing")
         self.assertEqual(signer["permissions"], jobs["sign-and-accept"]["permissions"])
         self.assertEqual(jobs["build"]["permissions"], {"contents": "read", "actions": "read"})
-        self.assertEqual(jobs["authorize"]["permissions"], jobs["build"]["permissions"])
-        self.assertEqual(jobs["approval-request"]["permissions"], jobs["build"]["permissions"])
+        gate = jobs["authorize"]
+        self.assertEqual(gate["permissions"], {"contents": "read", "actions": "read",
+                                               "id-token": "write", "attestations": "write"})
+        self.assertFalse(any("candidate" in step.get("with", {}).get("path", "") for step in gate["steps"]))
+        self.assertEqual(set(signer_workflow["on"]["workflow_call"]["inputs"]),
+                         {"approval_sha256", "grant_artifact_id"})
+        self.assertEqual(jobs["sign-and-accept"]["with"], {
+            "approval_sha256": "${{ needs.authorize.outputs.approval_sha256 }}",
+            "grant_artifact_id": "${{ needs.authorize.outputs.grant_artifact_id }}",
+        })
         self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
         publisher_path = preview.ROOT / ".github/workflows/protected-preview-publisher.yml"
         publisher_workflow = yaml.load(publisher_path.read_bytes(), Loader=yaml.BaseLoader)
@@ -534,9 +585,11 @@ class Workflow(unittest.TestCase):
         recipient = next(i for i, step in enumerate(steps) if "handoff.py await-recipient" in step.get("run", ""))
         pre_key = next(i for i, step in enumerate(steps) if "private_inputs.py pre-key" in step.get("run", ""))
         sign = next(i for i, step in enumerate(steps) if "preview_ops.py sign" in step.get("run", ""))
-        device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("with", {}).get("script", ""))
+        device_step = next(i for i, step in enumerate(steps) if "preview_device.py" in step.get("run", ""))
         seal = next(i for i, step in enumerate(steps) if "preview_ops.py seal" in step.get("run", ""))
         self.assertTrue(inbound <= recipient < pre_key < sign < device_step < seal)
+        self.assertNotIn("continue-on-error", steps[device_step])
+        self.assertNotIn("if", steps[seal])
         self.assertIn("handoff.py encrypt", steps[seal]["run"])
         wire = [step for step in steps if "upload-artifact" in step.get("uses", "")]
         self.assertEqual(len(wire), 2)
@@ -549,10 +602,72 @@ class Workflow(unittest.TestCase):
         build_wire = [step for step in jobs["build"]["steps"] if "upload-artifact" in step.get("uses", "")]
         self.assertEqual([Path(step["with"]["path"]).name for step in build_wire],
                          ["receipt.json", "inputs.age"])
+        gate_proof = next(step for step in gate["steps"] if "actions/attest@" in step.get("uses", ""))
+        self.assertEqual(gate_proof["with"]["predicate"], '{"role":"input-grant"}')
+        gate_wire = [step for step in gate["steps"] if "upload-artifact" in step.get("uses", "")]
+        self.assertEqual([Path(value).name for value in gate_wire[0]["with"]["path"].splitlines()],
+                         ["grant.json", "proof.json"])
+        self.assertEqual(len(gate_wire), 1)
+        self.assertEqual(gate["outputs"]["grant_artifact_id"], "${{ steps.grant.outputs.artifact-id }}")
         publisher_wire = [step for step in publisher["steps"] if "upload-artifact" in step.get("uses", "")]
         self.assertEqual(len(publisher_wire), 1)
         self.assertEqual([Path(value).name for value in publisher_wire[0]["with"]["path"].splitlines()],
                          ["recipient.json", "proof.json"])
+
+    def test_private_build_signing_and_guest_output_stays_private_on_success_and_failure(self):
+        def job(file, name):
+            path = preview.ROOT / ".github/workflows" / file
+            return yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)["jobs"][name]
+
+        build = job("protected-preview.yml", "build")
+        signer = job("protected-preview-signer.yml", "signer")
+        cases = (
+            (build, "PREVIEW_PRIVATE_BUILD", "compiler.log", ""),
+            (signer, "PREVIEW_SIGNING", "signing-private.log", "PASS: PREVIEW_SIGNING\n"),
+            (signer, "PREVIEW_ANDROID_ACCEPTANCE", "acceptance-private.log", "PASS: PREVIEW_ANDROID_ACCEPTANCE\n"),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            java = root / "java"
+            executables = java / "bin"
+            executables.mkdir(parents=True)
+            for name, script in {
+                "git": '#!/bin/sh\nprintf "%s\\n" "$PREVIEW_EMULATOR_RUNNER"\n',
+                "python3": '#!/bin/sh\necho private-stdout\necho private-stderr >&2\nexit "$MOCK_EXIT"\n',
+                "node": """#!/usr/bin/python3
+import os
+import sys
+assert sys.argv[1].endswith("/.preview-emulator/lib/main.js")
+assert os.environ["INPUT_API-LEVEL"] == os.environ["INPUT_SYSTEM-IMAGE-API-LEVEL"] == "35"
+assert os.environ["INPUT_EMULATOR-BUILD"] == "16428233"
+assert os.environ["INPUT_AVD-NAME"] == "miancak-release-35"
+assert os.environ["INPUT_TARGET"] == "google_apis" and os.environ["INPUT_ARCH"] == "x86_64"
+assert "-accel on" in os.environ["INPUT_EMULATOR-OPTIONS"]
+assert "preview_device.py" in os.environ["INPUT_SCRIPT"]
+print("private-stdout")
+print("private-stderr", file=sys.stderr)
+raise SystemExit(int(os.environ["MOCK_EXIT"]))
+""",
+            }.items():
+                stub = executables / name
+                stub.write_text(script)
+                stub.chmod(0o700)
+            env = {"PATH": f"{executables}:/usr/bin:/bin", "JAVA_HOME_17_X64": str(java),
+                   "GITHUB_WORKSPACE": directory, "RUNNER_TEMP": directory,
+                   "PREVIEW_EMULATOR_RUNNER": signer["env"]["PREVIEW_EMULATOR_RUNNER"]}
+            for spec, error, log, success in cases:
+                run = next(step["run"] for step in spec["steps"] if f"FAIL: {error}" in step.get("run", ""))
+                stage = root / ("miancak-preview-build" if spec is build else "miancak-preview")
+                stage.mkdir(exist_ok=True)
+                for status in (0, 2):
+                    with self.subTest(step=error, status=status):
+                        result = subprocess.run(["bash", "-c", run], cwd=root, text=True, capture_output=True,
+                                                env=env | {"MOCK_EXIT": str(status)})
+                        self.assertEqual(result.returncode, 1 if status else 0)
+                        self.assertEqual(result.stdout, f"FAIL: {error}\n" if status else success)
+                        self.assertEqual(result.stderr, "")
+                        self.assertCountEqual((stage / log).read_text().splitlines(),
+                                              ["private-stdout", "private-stderr"])
 
     def test_reboot_requires_unchanged_legacy_yaml_and_exact_downloaded_model(self):
         with mock.patch.object(device.smoke, "adb", return_value=device.YAML) as adb, \
