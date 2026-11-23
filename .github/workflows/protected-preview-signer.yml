@@ -1,4 +1,4 @@
-# Called only after the read-only exact-input gate has succeeded.
+# Called only after the attested exact-input gate has succeeded.
 name: Accept authenticated MIANCAK preview
 on:
   workflow_call:
@@ -6,10 +6,7 @@ on:
       approval_sha256:
         required: true
         type: string
-      approval_run_id:
-        required: true
-        type: string
-      receipt_artifact_id:
+      grant_artifact_id:
         required: true
         type: string
 
@@ -33,8 +30,7 @@ jobs:
     env:
       PREVIEW_MODE: publish
       PREVIEW_APPROVAL_SHA256: ${{ inputs.approval_sha256 }}
-      PREVIEW_APPROVAL_RUN_ID: ${{ inputs.approval_run_id }}
-      PREVIEW_RECEIPT_ARTIFACT_ID: ${{ inputs.receipt_artifact_id }}
+      PREVIEW_GRANT_ARTIFACT_ID: ${{ inputs.grant_artifact_id }}
       PREVIEW_EMULATOR_RUNNER: b530d96654c385303d652368551fb075bc2f0b6b
       JAVA_TOOL_OPTIONS: ''
       _JAVA_OPTIONS: ''
@@ -44,7 +40,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Recheck owner approval and create the runner-local input identity
+      - name: Verify the attested build grant and create the runner-local input identity
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -95,7 +91,7 @@ jobs:
           (root / "MiancakCredentialProbe.java").write_text(textwrap.dedent(java[1]))
           PY
           "$JAVA_HOME_17_X64/bin/javac" -encoding UTF-8 -d "$stage" "$stage/MiancakCredentialProbe.java"
-      - name: Recheck exact owner grant, freshness and all plaintext bytes before secrets
+      - name: Recheck the attested grant, run, freshness and all plaintext bytes before secrets
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/protected-preview/private_inputs.py pre-key --stage "$RUNNER_TEMP/miancak-preview" --timeout-seconds 90

@@ -33,6 +33,7 @@ TRANSPORT = {
     "recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
     "ciphertext": ("accepted.age", MAX_CIPHERTEXT, MAX_CIPHERTEXT + 256 * 1024),
     "input-receipt": ("receipt.json", RECEIPT_BYTES, 16 * 1024),
+    "input-grant": ("grant.json", RECEIPT_BYTES, 256 * 1024),
     "input-recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
     "input-ciphertext": ("inputs.age", MAX_INPUT_CIPHERTEXT, MAX_INPUT_CIPHERTEXT + 256 * 1024),
 }
@@ -57,6 +58,8 @@ class WorkflowPolicy:
         return "refs/heads/" + self.branch
 
     def signer_for(self, kind):
+        if kind == "input-grant":
+            return self.caller
         return self.publisher if kind == "recipient" else self.signer or self.caller
 
 
@@ -97,10 +100,10 @@ def active_run(scope, *, starting=False):
                                         f"{policy.caller}@{policy.ref}")
                 and (policy.title is None or run.get("display_title") == policy.title)
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
-                and (policy != PRODUCTION or preview.approved_actor(run.get("actor", {}).get("login", ""))),
+                and (policy != PRODUCTION or preview.owner_dispatch(run)),
                 "HANDOFF_ACTIVE_RUN")
     status = run.get("status")
-    if status == "in_progress":
+    if status == "in_progress" and run.get("conclusion") is None:
         return True
     ops.require(starting and status in ("queued", "pending", "requested"), "HANDOFF_ACTIVE_RUN_STATUS")
     return None

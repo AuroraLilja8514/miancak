@@ -3,6 +3,7 @@ from pathlib import Path
 import shlex
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +40,27 @@ class AdmissionCLI(unittest.TestCase):
         self.assertEqual(result.returncode, 124)
         self.assertEqual(result.stdout, "")
         self.assertEqual(result.stderr, "Timeout: inherited script deadline expired\n")
+
+    def test_machine_gate_cli_refuses_inert_dispatch_before_writing_a_grant(self):
+        workflow = ROOT / ".github/workflows/protected-preview.yml"
+        prefix = "python3 tools/protected-preview/private_inputs.py authorize"
+        commands = [line.strip() for line in workflow.read_text().splitlines()
+                    if line.strip().startswith(prefix)]
+        self.assertEqual(len(commands), 1)
+        argv = shlex.split(commands[0])
+        self.assertEqual(argv, ["python3", "tools/protected-preview/private_inputs.py", "authorize",
+                                "--stage", "$stage", "--timeout-seconds", "2760"])
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory)
+            env = {"PYTHONDONTWRITEBYTECODE": "1", "PREVIEW_MODE": "publish", "GITHUB_RUN_ID": "1",
+                   "GITHUB_REPOSITORY": "fixture/inert", "GITHUB_OUTPUT": str(stage / "outputs")}
+            argv = [directory if word == "$stage" else word for word in argv]
+            result = subprocess.run([sys.executable, *argv[1:]], cwd=ROOT, env=env, capture_output=True,
+                                    text=True, timeout=10)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "FAIL: PREVIEW_WORKFLOW_AUTHORITY\n")
+            self.assertEqual(list(stage.iterdir()), [])
 
 
 if __name__ == "__main__":

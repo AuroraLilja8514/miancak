@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Same-run build custody and owner approval for the protected preview."""
+"""Same-run authenticated build custody for the exact protected preview."""
 from __future__ import annotations
 
 import argparse
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -20,9 +20,8 @@ import release_ops as ops
 
 BUILD_JOB = "Compile private preview inputs"
 GATE_JOB = "Authorize private preview inputs"
-APPROVE_JOB = "Confirm exact preview input receipt"
+RECEIPT_STEP = "Upload the exact build receipt"
 BUILD_WAIT = 45 * 60
-REVIEW_SECONDS = 15 * 60
 RECEIPT_SECONDS = 22 * 60
 
 
@@ -75,118 +74,72 @@ def load_receipt(scope, item, scratch):
     return record
 
 
-def approval_title(scope, *, label=preview.TAG):
-    return f"{label} approve-inputs {scope.run_id} {scope.approval}"
-
-
-def owner_run(run, scope):
-    policy = scope.workflow
-    return (run.get("event") == policy.event and run.get("run_attempt") == scope.attempt == 1
-            and run.get("head_branch") == policy.branch and run.get("head_sha") == scope.revision
-            and run.get("path") in (policy.caller, f"{policy.caller}@{policy.branch}",
-                                    f"{policy.caller}@{policy.ref}")
-            and run.get("head_repository", {}).get("id") == ops.REPO_ID
-            and all(run.get(field, {}).get("id") == preview.OWNER_ID
-                    and preview.approved_actor(run.get(field, {}).get("login", ""))
-                    for field in ("actor", "triggering_actor")))
-
-
-def approval_origin(run, scope, created, *, label=preview.TAG):
-    asked_at = timestamp(run.get("created_at"))
-    ops.require(owner_run(run, scope) and type(run.get("id")) is int
-                and run["id"] > 0 and run["id"] != scope.run_id
-                and run.get("display_title") == approval_title(scope, label=label)
-                and created <= asked_at <= created + timedelta(seconds=REVIEW_SECONDS),
-                "PREVIEW_OWNER_APPROVAL_ORIGIN")
-
-
-def approved_run(scope, created, approval_run_id, *, label=preview.TAG, job_name=APPROVE_JOB):
-    run = ops.api(f"actions/runs/{approval_run_id}", timeout=10)
-    approval_origin(run, scope, created, label=label)
-    ops.require(run["id"] == approval_run_id, "PREVIEW_OWNER_APPROVAL_ORIGIN")
-    if run.get("status") != "completed":
-        return None
-    ops.require(run.get("conclusion") == "success", "PREVIEW_OWNER_APPROVAL_FAILED")
-    approval_scope = replace(scope, run_id=approval_run_id)
-    ops.require(handoff.acceptance_job(approval_scope, handoff.jobs_for_attempt(approval_scope),
-                                       job_name), "PREVIEW_OWNER_APPROVAL_JOB")
-    return approval_run_id
-
-
-def find_approval(scope, created, *, label=preview.TAG, job_name=APPROVE_JOB):
-    policy = scope.workflow
-    query = urlencode({"event": policy.event, "branch": policy.branch, "head_sha": scope.revision,
-                       "created": ">=" + created.strftime("%Y-%m-%dT%H:%M:%SZ"), "per_page": 100})
-    listing = ops.api(f"actions/workflows/{Path(policy.caller).name}/runs?{query}", timeout=10)
-    runs = listing["workflow_runs"]
-    ops.require(listing["total_count"] == len(runs) <= 100, "PREVIEW_OWNER_APPROVAL_LIST")
-    matches = [run for run in runs if run.get("display_title") == approval_title(scope, label=label)]
-    ops.require(len(matches) <= 1, "PREVIEW_OWNER_APPROVAL_AMBIGUOUS")
-    if matches:
-        approval_origin(matches[0], scope, created, label=label)
-        return approved_run(scope, created, matches[0]["id"], label=label, job_name=job_name)
-    return None
-
-
 def finished(scope, name):
     return handoff.acceptance_job(scope, handoff.jobs_for_attempt(scope), name)
 
 
-def write_request(scope, approval_id, stage):
+def builder_receipt(scope):
     handoff.active_run(scope)
+    builder = handoff.select_job(scope, handoff.jobs_for_attempt(scope), BUILD_JOB)
+    if builder is None:
+        return None
+    status, result = builder.get("status"), builder.get("conclusion")
+    ops.require((status == "completed" and result == "success")
+                or (status in ("queued", "in_progress", "waiting", "pending", "requested") and result is None),
+                "PREVIEW_INPUT_BUILDER_STATE")
+    if status not in ("in_progress", "completed"):
+        return None
+    steps = [step for step in builder.get("steps", []) if step["name"] == RECEIPT_STEP]
+    ops.require(len(steps) <= 1, "PREVIEW_INPUT_BUILDER_STEP")
+    if not steps or steps[0]["status"] != "completed":
+        return None
+    ops.require(steps[0]["conclusion"] == "success", "PREVIEW_INPUT_BUILDER_STEP")
+    ops.require(builder.get("runner_group_name") == "GitHub Actions"
+                and builder.get("labels") == ["ubuntu-24.04"], "PREVIEW_INPUT_BUILDER_RUNNER")
     item = artifact(scope, "input-receipt")
-    ops.require(item is not None, "PREVIEW_INPUT_RECEIPT_UNAVAILABLE")
-    created = fresh(item, REVIEW_SECONDS)
-    record = load_receipt(scope, item, stage)
-    preview.require_approval(record, scope.approval)
-    run = ops.api(f"actions/runs/{approval_id}", timeout=10)
-    approval_origin(run, scope, created)
-    ops.require(run["id"] == approval_id and run.get("status") == "in_progress",
-                "PREVIEW_OWNER_APPROVAL_ORIGIN")
-    print("PASS: exact owner approval request validated")
+    if item is None:
+        return None
+    fresh(item)
+    return builder["id"], item
+
+
+def grant_record(scope, builder_id, item):
+    return {**scope.record(), "builder_job_id": builder_id,
+            "receipt": {key: item[key] for key in ("id", "digest", "size_in_bytes", "created_at")}}
 
 
 def authorize(scope, stage):
-    def current_receipt():
-        handoff.active_run(scope)
-        return artifact(scope, "input-receipt")
-
-    item = wait(BUILD_WAIT, current_receipt)
+    builder_id, item = wait(BUILD_WAIT, lambda: builder_receipt(scope))
     record = load_receipt(scope, item, stage)
     scope = replace(scope, approval=preview.attestation_sha(record))
-    created = fresh(item, REVIEW_SECONDS)
-    summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
-    with summary.open("a") as stream:
-        stream.write(f"### Approve exact preview inputs\n\nRun `{scope.run_id}`, attempt `1`\n\n"
-                     f"Receipt SHA-256 `{scope.approval}`\n\n"
-                     f"```json\n{json.dumps(record, sort_keys=True, indent=2)}\n```\n")
-    print(f"Review run {scope.run_id} and receipt SHA-256 {scope.approval}", flush=True)
-
-    def current_approval():
-        fresh(item, REVIEW_SECONDS)
-        ops.require(current_receipt() == item, "PREVIEW_INPUT_RECEIPT_CHANGED")
-        approved = find_approval(scope, created)
-        fresh(item, REVIEW_SECONDS)
-        return approved
-
-    approval_id = wait(REVIEW_SECONDS, current_approval)
     ops.require(preview.authority("publish") == scope.revision, "PREVIEW_TRUSTED_REVISION")
+    ops.require(builder_receipt(scope) == (builder_id, item), "PREVIEW_INPUT_RECEIPT_CHANGED")
+    (stage / "grant.json").write_bytes(preview.canonical_record(grant_record(scope, builder_id, item)))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
-        stream.write(f"approval_sha256={scope.approval}\napproval_run_id={approval_id}\n"
-                     f"receipt_artifact_id={item['id']}\n")
+        stream.write(f"approval_sha256={scope.approval}\n")
+    print(f"PASS: verified build receipt {scope.approval} for run {scope.run_id}, attempt 1")
 
 
 def confirm_grant(scope, stage):
-    approval_id = identifier(os.environ.get("PREVIEW_APPROVAL_RUN_ID", ""))
-    receipt_id = identifier(os.environ.get("PREVIEW_RECEIPT_ARTIFACT_ID", ""))
+    grant_id = identifier(os.environ.get("PREVIEW_GRANT_ARTIFACT_ID", ""))
     handoff.active_run(scope)
     ops.require(finished(scope, GATE_JOB), "PREVIEW_INPUT_GATE_JOB")
-    item = artifact(scope, "input-receipt")
-    ops.require(item is not None and item["id"] == receipt_id, "PREVIEW_INPUT_RECEIPT_CHANGED")
+    receipt = builder_receipt(scope)
+    ops.require(receipt is not None, "PREVIEW_INPUT_RECEIPT_UNAVAILABLE")
+    builder_id, item = receipt
+    grant = artifact(scope, "input-grant")
+    ops.require(grant is not None and grant["id"] == grant_id, "PREVIEW_INPUT_GRANT_CHANGED")
+    with tempfile.TemporaryDirectory(dir=stage) as temporary:
+        folder = Path(temporary) / "grant"
+        handoff.fetch_wire(scope, "input-grant", grant, folder)
+        raw = (folder / "grant.json").read_bytes()
+        ops.require(raw == preview.canonical_record(grant_record(scope, builder_id, item)),
+                    "PREVIEW_INPUT_GRANT_RECORD")
+        handoff.verify_proof(scope, "input-grant", folder, stage / "tools")
     record = load_receipt(scope, item, stage)
     preview.require_approval(record, scope.approval)
-    ops.require(find_approval(scope, fresh(item)) == approval_id, "PREVIEW_OWNER_APPROVAL_REQUIRED")
-    fresh(item)
+    ops.require(builder_receipt(scope) == receipt, "PREVIEW_INPUT_RECEIPT_CHANGED")
+    ops.require(artifact(scope, "input-grant") == grant, "PREVIEW_INPUT_GRANT_CHANGED")
     return record
 
 
@@ -245,13 +198,6 @@ def run(args):
     stage = args.stage
     operation = args.operation
     run_id = identifier(os.environ.get("GITHUB_RUN_ID", ""))
-    if operation == "request":
-        requested = os.environ.get("PREVIEW_REQUEST_SHA256", "")
-        ops.require(preview.hex_digest(requested), "PREVIEW_APPROVAL_REQUIRED")
-        target = identifier(os.environ.get("PREVIEW_TARGET_RUN_ID", ""))
-        revision = preview.authority("approve-inputs")
-        write_request(handoff.Scope(target, 1, revision, requested), run_id, stage)
-        return
     revision = preview.authority("publish")
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if operation == "seal":
@@ -278,6 +224,8 @@ def run(args):
         receive_inputs(scope, stage)
     else:
         confirm_grant(scope, stage)
+        ops.require(finished(scope, BUILD_JOB), "PREVIEW_INPUT_BUILDER_STATE")
+        ops.require(preview.authority("publish") == scope.revision, "PREVIEW_TRUSTED_REVISION")
         preview.bind_signing_input(stage / "prepared", revision, approval)
 
 
@@ -285,7 +233,7 @@ if __name__ == "__main__":
     from run_with_timeout import guard_script
     guard_script(__file__)
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("stage", "authorize", "request", "seal", "recipient",
+    parser.add_argument("operation", choices=("stage", "authorize", "seal", "recipient",
                                               "receive", "pre-key"))
     parser.add_argument("--stage", type=Path, required=True)
     try:

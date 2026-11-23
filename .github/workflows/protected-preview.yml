@@ -1,27 +1,16 @@
-# See docs/PROTECTED_PRERELEASE.md for the owner approval and signed test gates.
+# See docs/PROTECTED_PRERELEASE.md for the exact release admission and signed test gates.
 name: MIANCAK protected prerelease
-run-name: ${{ inputs.mode == 'approve-inputs' && format('v0.3.4-preview.1 approve-inputs {0} {1}', inputs.release_run_id, inputs.receipt_sha256) || 'v0.3.4-preview.1 publish' }}
+run-name: v0.3.4-preview.1 publish
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        type: choice
-        options: [publish, approve-inputs]
-        required: true
-      release_run_id:
-        description: Active production run ID (approve-inputs only)
-        type: string
-      receipt_sha256:
-        description: Reviewed canonical receipt SHA-256 (approve-inputs only)
-        type: string
 
 permissions: {}
 concurrency:
-  group: miancak-protected-preview-v0.3.4-preview.1-${{ inputs.mode == 'approve-inputs' && format('approval-{0}', github.run_id) || 'production' }}
+  group: miancak-protected-preview-v0.3.4-preview.1-production
   cancel-in-progress: false
 env:
   CANDIDATE: 30b074bf08ba7e668761874b41819781a3f4d44f
-  PREVIEW_MODE: ${{ inputs.mode }}
+  PREVIEW_MODE: publish
   JAVA_TOOL_OPTIONS: ''
   _JAVA_OPTIONS: ''
   JDK_JAVA_OPTIONS: ''
@@ -53,7 +42,7 @@ jobs:
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.actor == github.repository_owner && inputs.mode == 'publish'
+      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     permissions:
@@ -108,7 +97,8 @@ jobs:
           stage="$RUNNER_TEMP/miancak-preview-build"
           python3 trusted/tools/protected-preview/install_handoff_tools.py "$stage/tools"
           python3 trusted/tools/protected-preview/private_inputs.py stage --stage "$stage" --timeout-seconds 90
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - name: Upload the exact build receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: preview-input-receipt-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/miancak-preview-build/receipt/receipt.json
@@ -139,56 +129,56 @@ jobs:
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.actor == github.repository_owner && inputs.mode == 'publish'
+      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
     runs-on: ubuntu-24.04
-    timeout-minutes: 63
+    timeout-minutes: 48
     permissions:
       contents: read
       actions: read
+      id-token: write
+      attestations: write
     outputs:
       approval_sha256: ${{ steps.approve.outputs.approval_sha256 }}
-      approval_run_id: ${{ steps.approve.outputs.approval_run_id }}
-      receipt_artifact_id: ${{ steps.approve.outputs.receipt_artifact_id }}
+      grant_artifact_id: ${{ steps.grant.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Wait for the exact owner approval of the public digest receipt
+      - name: Verify the active hosted builder and the canonical digest receipt
         id: approve
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
-          python3 tools/protected-preview/private_inputs.py authorize --stage "$RUNNER_TEMP" --timeout-seconds 3650
-
-  approval-request:
-    name: Confirm exact preview input receipt
-    needs: admit
-    if: >-
-      github.repository == 'AuroraLilja8514/miancak' &&
-      github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.actor == github.repository_owner && inputs.mode == 'approve-inputs'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+          stage="$RUNNER_TEMP/miancak-preview-grant"
+          mkdir "$stage"
+          python3 tools/protected-preview/private_inputs.py authorize --stage "$stage" --timeout-seconds 2760
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: proof
         with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Confirm typed input digest for the active production run
+          subject-path: ${{ runner.temp }}/miancak-preview-grant/grant.json
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
+          predicate: '{"role":"input-grant"}'
+          show-summary: false
+      - name: Stage the public grant proof
         env:
-          GH_TOKEN: ${{ github.token }}
-          PREVIEW_TARGET_RUN_ID: ${{ inputs.release_run_id }}
-          PREVIEW_REQUEST_SHA256: ${{ inputs.receipt_sha256 }}
-        run: |
-          set -euo pipefail
-          umask 077
-          python3 tools/protected-preview/private_inputs.py request --stage "$RUNNER_TEMP" --timeout-seconds 90
+          INPUT_GRANT_PROOF: ${{ steps.proof.outputs.bundle-path }}
+        run: cp -- "$INPUT_GRANT_PROOF" "$RUNNER_TEMP/miancak-preview-grant/proof.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        id: grant
+        with:
+          name: preview-input-grant-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/miancak-preview-grant/grant.json
+            ${{ runner.temp }}/miancak-preview-grant/proof.json
+          retention-days: 1
+          overwrite: false
+          if-no-files-found: error
+      - name: Clear grant staging
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-preview-grant"
 
   sign-and-accept:
     name: Accept signed preview
@@ -196,7 +186,7 @@ jobs:
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.actor == github.repository_owner && inputs.mode == 'publish'
+      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
     uses: ./.github/workflows/protected-preview-signer.yml
     permissions:
       contents: read
@@ -205,8 +195,7 @@ jobs:
       attestations: write
     with:
       approval_sha256: ${{ needs.authorize.outputs.approval_sha256 }}
-      approval_run_id: ${{ needs.authorize.outputs.approval_run_id }}
-      receipt_artifact_id: ${{ needs.authorize.outputs.receipt_artifact_id }}
+      grant_artifact_id: ${{ needs.authorize.outputs.grant_artifact_id }}
 
   publish:
     name: Publish preview
@@ -214,7 +203,7 @@ jobs:
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.actor == github.repository_owner && inputs.mode == 'publish'
+      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
     uses: ./.github/workflows/protected-preview-publisher.yml
     permissions:
       contents: write

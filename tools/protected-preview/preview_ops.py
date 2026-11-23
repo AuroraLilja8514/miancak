@@ -51,11 +51,17 @@ def approved_actor(name):
     return name.lower() == ops.REPO.split("/")[0].lower()
 
 
+def owner_dispatch(run):
+    return all(run.get(field, {}).get("id") == OWNER_ID
+               and approved_actor(run.get(field, {}).get("login", ""))
+               for field in ("actor", "triggering_actor"))
+
+
 def workflow_revision(mode):
     """Pin the tools checkout to the executing workflow."""
     env = os.environ
     revision = env.get("GITHUB_WORKFLOW_SHA", "")
-    ops.require(mode in ("approve-inputs", "publish")
+    ops.require(mode == "publish"
                 and env.get("PREVIEW_MODE") == mode
                 and env.get("GITHUB_REPOSITORY") == ops.REPO
                 and env.get("GITHUB_REPOSITORY_ID") == str(ops.REPO_ID)
@@ -183,6 +189,8 @@ def inspect_inputs(folder):
 def input_identity(revision, run_id):
     return {
         "repository": ops.REPO, "tag": TAG, "source_sha": SOURCE, "tree": TREE,
+        "draft_id": DRAFT_ID, "certificate_sha256": ops.CERTIFICATE,
+        "baseline_release_id": STABLE_ID, "baseline_apk_sha256": STABLE_APK,
         "application_tree_sha256": APP_INPUT, "trusted_revision": revision,
         "build_run_id": run_id, "build_run_attempt": 1, "build_tools": SDK_HASHES,
         "driver_patch_sha256": ops.file_sha(DRIVER_PATCH),
@@ -271,6 +279,7 @@ def bind_signing_input(folder, revision, approved_sha):
     manifest = json.loads((folder / "prepared.json").read_bytes())
     transport = json.loads((folder / "transport.json").read_bytes())
     ops.require(manifest == signing_manifest(record, transport)
+                and ops.file_sha(folder / "previous.apk") == STABLE_APK
                 and all((folder / name).stat().st_size == record["apks"][name]["bytes"]
                         and ops.file_sha(folder / name) == record["apks"][name]["sha256"] for name in INPUTS),
                 "PREVIEW_SIGNING_INPUT")

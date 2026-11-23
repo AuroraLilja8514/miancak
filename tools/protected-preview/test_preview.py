@@ -123,7 +123,7 @@ class Trust(unittest.TestCase):
                     with self.assertRaises(ops.ReleaseError):
                         preview.exact_release()
 
-    def test_admission_checks_both_dispatch_modes_and_fails_closed(self):
+    def test_admission_has_one_exact_dispatch_and_fails_closed(self):
         state = release_state()
         source_url = f"git/commits/{preview.SOURCE}"
         draft_url = f"releases/{preview.DRAFT_ID}"
@@ -133,10 +133,11 @@ class Trust(unittest.TestCase):
         state["releases/latest"]["assets"] = [baseline]
         with mock.patch.object(ops, "command", return_value=mock.Mock(stdout=REVISION.encode())), \
              mock.patch.object(ops, "api", side_effect=lambda path, **kwargs: state[path]):
-            for mode in ("publish", "approve-inputs"):
-                with mock.patch.dict(os.environ, self.trusted_env() | {"PREVIEW_MODE": mode}, clear=True):
-                    preview.admit(mode)
+            with mock.patch.dict(os.environ, self.trusted_env() | {"PREVIEW_MODE": "approve-inputs"}, clear=True):
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_WORKFLOW_AUTHORITY"):
+                    preview.admit("approve-inputs")
             with mock.patch.dict(os.environ, self.trusted_env(), clear=True):
+                preview.admit("publish")
                 for endpoint, replacement, error in (
                     (draft_url, {"assets": [{"id": 1}]}, "PREVIEW_DRAFT_NOT_EMPTY"),
                     (source_url, {"tree": {"sha": "0" * 40}}, "PREVIEW_CANDIDATE_TREE"),
@@ -161,12 +162,14 @@ class Trust(unittest.TestCase):
             preview.require_identity(identity(), previous=True)
 
     def test_approval_binds_tooling_source_manifest_archive_and_all_apks(self):
-        with tempfile.TemporaryDirectory() as directory:
+        old_apk = b"synthetic baseline"
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(preview, "STABLE_APK", ops.digest(old_apk)):
             folder = Path(directory)
             for name in preview.INPUTS:
                 (folder / name).write_bytes(name.encode())
             with mock.patch.object(preview, "inspect_inputs", return_value=identity()):
                 record = preview.input_record(folder, REVISION, BUILD)
+            (folder / "previous.apk").write_bytes(old_apk)
             transport = {"id": ARTIFACT, "digest": "sha256:" + "d" * 64}
             approval = preview.attestation_sha(record)
             ops.write_json(folder / "approved.json", record)
@@ -180,6 +183,10 @@ class Trust(unittest.TestCase):
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
                     preview.bind_signing_input(folder, REVISION, approval)
                 ops.write_json(folder / "transport.json", transport)
+                (folder / "previous.apk").write_bytes(b"wrong baseline")
+                with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
+                    preview.bind_signing_input(folder, REVISION, approval)
+                (folder / "previous.apk").write_bytes(old_apk)
                 (folder / "app-debug-androidTest.apk").write_bytes(b"different driver")
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNING_INPUT"):
                     preview.bind_signing_input(folder, REVISION, approval)
@@ -516,13 +523,16 @@ class Workflow(unittest.TestCase):
         if not path.is_file():
             path = preview.ROOT / "tools/release/protected-preview.yml.in"
         workflow = yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        self.assertEqual(workflow["on"]["workflow_dispatch"]["inputs"]["mode"]["options"], ["publish", "approve-inputs"])
+        self.assertEqual(workflow["on"], {"workflow_dispatch": ""})
+        self.assertEqual(workflow["run-name"], preview.TAG + " publish")
+        self.assertEqual(workflow["env"]["CANDIDATE"], preview.SOURCE)
+        self.assertEqual(workflow["env"]["PREVIEW_MODE"], "publish")
         jobs = workflow["jobs"]
+        self.assertEqual(set(jobs), {"admit", "build", "authorize", "sign-and-accept", "publish"})
         self.assertEqual([name for name, job in jobs.items() if job["permissions"].get("contents") == "write"],
                          ["publish"])
         self.assertFalse(any("environment" in job for job in jobs.values()))
-        for name in ("build", "authorize", "approval-request", "sign-and-accept", "publish"):
+        for name in ("build", "authorize", "sign-and-accept", "publish"):
             self.assertIn("admit", jobs[name]["needs"])
             self.assertNotIn("always()", jobs[name]["if"])
         admit = jobs["admit"]
@@ -533,7 +543,7 @@ class Workflow(unittest.TestCase):
             self.assertIn(requirement, admit["if"])
         self.assertEqual(jobs["sign-and-accept"]["needs"], ["admit", "authorize"])
         self.assertEqual(jobs["publish"]["needs"], ["admit", "authorize", "build"])
-        self.assertIn("approval-{0}", workflow["concurrency"]["group"])
+        self.assertEqual(workflow["concurrency"]["group"], f"miancak-protected-preview-{preview.TAG}-production")
         self.assertEqual(jobs["publish"]["uses"], "./.github/workflows/protected-preview-publisher.yml")
         self.assertEqual(jobs["sign-and-accept"]["uses"], "./.github/workflows/protected-preview-signer.yml")
         signer_path = preview.ROOT / ".github/workflows/protected-preview-signer.yml"
@@ -543,8 +553,16 @@ class Workflow(unittest.TestCase):
         self.assertEqual(signer["environment"], "release-signing")
         self.assertEqual(signer["permissions"], jobs["sign-and-accept"]["permissions"])
         self.assertEqual(jobs["build"]["permissions"], {"contents": "read", "actions": "read"})
-        self.assertEqual(jobs["authorize"]["permissions"], jobs["build"]["permissions"])
-        self.assertEqual(jobs["approval-request"]["permissions"], jobs["build"]["permissions"])
+        gate = jobs["authorize"]
+        self.assertEqual(gate["permissions"], {"contents": "read", "actions": "read",
+                                               "id-token": "write", "attestations": "write"})
+        self.assertFalse(any("candidate" in step.get("with", {}).get("path", "") for step in gate["steps"]))
+        self.assertEqual(set(signer_workflow["on"]["workflow_call"]["inputs"]),
+                         {"approval_sha256", "grant_artifact_id"})
+        self.assertEqual(jobs["sign-and-accept"]["with"], {
+            "approval_sha256": "${{ needs.authorize.outputs.approval_sha256 }}",
+            "grant_artifact_id": "${{ needs.authorize.outputs.grant_artifact_id }}",
+        })
         self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
         publisher_path = preview.ROOT / ".github/workflows/protected-preview-publisher.yml"
         publisher_workflow = yaml.load(publisher_path.read_bytes(), Loader=yaml.BaseLoader)
@@ -584,6 +602,13 @@ class Workflow(unittest.TestCase):
         build_wire = [step for step in jobs["build"]["steps"] if "upload-artifact" in step.get("uses", "")]
         self.assertEqual([Path(step["with"]["path"]).name for step in build_wire],
                          ["receipt.json", "inputs.age"])
+        gate_proof = next(step for step in gate["steps"] if "actions/attest@" in step.get("uses", ""))
+        self.assertEqual(gate_proof["with"]["predicate"], '{"role":"input-grant"}')
+        gate_wire = [step for step in gate["steps"] if "upload-artifact" in step.get("uses", "")]
+        self.assertEqual([Path(value).name for value in gate_wire[0]["with"]["path"].splitlines()],
+                         ["grant.json", "proof.json"])
+        self.assertEqual(len(gate_wire), 1)
+        self.assertEqual(gate["outputs"]["grant_artifact_id"], "${{ steps.grant.outputs.artifact-id }}")
         publisher_wire = [step for step in publisher["steps"] if "upload-artifact" in step.get("uses", "")]
         self.assertEqual(len(publisher_wire), 1)
         self.assertEqual([Path(value).name for value in publisher_wire[0]["with"]["path"].splitlines()],
