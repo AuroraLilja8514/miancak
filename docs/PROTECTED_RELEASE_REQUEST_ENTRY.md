@@ -129,18 +129,32 @@ only the initial request.
 
 ## Hosted rehearsal before activation
 
-The separate disarmed rehearsal review uses
-`review/protected-preview-readiness`. It adds a caller with a literal
-one-file trigger for `.github/release-requests/_protected-preview-readiness-probe.json`,
-a matching ordinary master CI path exclusion, and genuine no-upload
-checks for just this review branch and `release-request/dummy-preview-readiness`.
-The review contains workflows, scripts, and tests. The dummy request is
-a later one-file PR from freshly verified protected master. Its bytes
-come from `preview_readiness.canonical_dummy`, pinned to that exact
-base. The approved setup squash uses `[skip ci]` to avoid ordinary
-master CI. The later dummy squash uses a normal message so the scoped
-rehearsal can start. The caller verifies the actual repository, protected
-ref, exact owner actor ID, reviewed one-file merge and attempt 1.
+The v1 rehearsal ran once after the protected #48 squash. Admission and
+the synthetic signer each completed all twelve reads and the signer
+verified its hosted proof. The publisher stopped at HTTP 403 before
+creating its subject. Both reusable roles had the same scoped
+permissions and read sequence. Their metadata steps ran at
+11:29:20–24 UTC and 11:29:26–27 UTC respectively. The publisher's
+step overlapped the signer's proof verification. The status alone
+cannot establish a quota, permission, or runner-specific failure.
+The protected release workflow needs overlapping signing and publishing
+for the encrypted handoff, so the rehearsal keeps the existing job
+dependencies. [Hosted v1 rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45384569065)
+
+The separate disarmed diagnostics review uses
+`review/protected-preview-readiness-v2`. Its caller accepts the literal
+`.github/release-requests/_protected-preview-readiness-probe-v2.json` path
+on protected master. Ordinary master CI excludes that path. The consumed
+v1 file stays in history and is outside the rehearsal trigger. Its
+original branch remains in no-upload review scope and the v2 request
+guard rejects it. This review contains workflows, scripts, and tests.
+The v2 request is a later one-file PR on
+`release-request/dummy-preview-readiness-v2` from freshly verified
+protected master. Its bytes come from `preview_readiness.canonical_dummy`,
+with format version 2 and the exact reviewed base. The setup squash
+uses `[skip ci]`. The later dummy squash uses a normal message to
+start the scoped rehearsal. It verifies the repository, protected ref,
+owner actor ID, reviewed one-file merge, unused path and attempt 1.
 
 Exercise the real metadata router in the Contents-only admission role
 and in two reusable jobs with Contents and Actions read. Use fixed public
@@ -150,23 +164,34 @@ expected empty production result and normal response shapes. Each role
 performs twelve reads with its existing role permissions. The admission
 budget is 75 seconds in a two-minute job. The reusable roles have
 90 seconds for metadata and 135 seconds for the verifier and its pinned
-GH CLI installation, within seven minutes per job. The only metadata
-read output is the role, count, elapsed milliseconds, or a sanitized
-error code. Rate limiting, timeout and unavailable metadata fail the
-rehearsal.
+GH CLI installation, within seven minutes per job.
+
+On an HTTP failure, the rehearsal logs a fixed route category, whether
+it was anonymous or used the job token, the status, and any single,
+bounded decimal values for limit, remaining, reset epoch, or
+retry-after seconds. The failing response body remains unread. The
+header allowlist excludes permission headers, arbitrary text, signed
+URLs and credentials. A zero remaining value is evidence of primary
+quota exhaustion. A valid retry-after value supplies a delay hint and
+can accompany a secondary limit. An unclassified 403 still requires
+the route and context to distinguish permission, quota and runner
+failures. The rehearsal stops after the first failure and leaves
+retry decisions to a separate reviewed request.
+[GitHub rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
+[GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)
 
 In the same rehearsal run, use separate local reusable signer and
 publisher jobs with read-only repository permissions plus only the
 OIDC and attestation permissions needed for dummy digest attestations.
 The two jobs attest distinct fixed synthetic digests in the
-`preview-readiness/v1` namespace. Each job verifies its own actual
+`preview-readiness/v2` namespace. Each job verifies its own actual
 certificate and subject against the caller and reusable workflow paths,
 source revision, protected ref, `push`, GitHub-hosted runner identity and
 exact invocation. Each also tests rejection with a different reusable
 workflow, attempt and subject. The attestation store and job status are
 the only hosted outputs. The usual PR checks still compile the application
 on their runners. The later protected-push rehearsal operates only on
-synthetic data. Hosted routing budgets and OIDC issuance remain pending.
+synthetic data. The hosted v2 rehearsal remains pending.
 
 ## Activation is a separate protected change
 

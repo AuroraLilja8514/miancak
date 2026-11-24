@@ -36,27 +36,30 @@ def binding(revision, *, environ=None, root=None):
     return {"path": REQUEST_PATH, "sha256": ops.digest(raw), "reviewed_base_sha": base, "tree": tree}
 
 
-def public_read(path):
-    return ops.api(path, authenticated=False, timeout=5, limit=1024 * 1024)
+METADATA_ROUTES = (
+    (r"branches/master", "protected_branch", "contents"),
+    (r"git/commits/[0-9a-f]{40}", "git_commit", "contents"),
+    (r"actions/caches", "review_caches", "actions"),
+    (r"actions/runs/[1-9][0-9]*/attempts/1/jobs", "review_jobs", "actions"),
+    (r"actions/runs/[1-9][0-9]*/artifacts", "review_artifacts", "actions"),
+    (rf"actions/workflows/(?:{WORKFLOW_ID}|{CI_WORKFLOW_ID})/runs", "workflow_runs", "actions"),
+    (r"rules/branches/master", "branch_rules", "public"),
+    (r"commits/[0-9a-f]{40}/pulls", "commit_pull_requests", "public"),
+    (r"pulls/[1-9][0-9]*", "pull_request", "public"),
+)
 
 
-def metadata_read(path, *, actions_read):
+def metadata_read(path, *, actions_read, report_failure=None):
     """Use the current job token only for fixed Contents and Actions reads."""
     endpoint = path.split("?", 1)[0]
-    if endpoint == "branches/master" or re.fullmatch(r"git/commits/[0-9a-f]{40}", endpoint):
-        authenticated = True
-    elif (endpoint == "actions/caches"
-          or re.fullmatch(r"actions/runs/[1-9][0-9]*/(?:attempts/1/jobs|artifacts)", endpoint)
-          or re.fullmatch(rf"actions/workflows/(?:{WORKFLOW_ID}|{CI_WORKFLOW_ID})/runs", endpoint)):
-        authenticated = actions_read
-    elif (endpoint == "rules/branches/master"
-          or re.fullmatch(r"(?:commits/[0-9a-f]{40}/pulls|pulls/[1-9][0-9]*)", endpoint)):
-        authenticated = False
-    else:
-        raise ops.ReleaseError("PREVIEW_REQUEST_METADATA_ROUTE")
-    if authenticated:
-        return ops.api(path, authenticated=True, timeout=5, limit=1024 * 1024)
-    return public_read(path)
+    for pattern, category, scope in METADATA_ROUTES:
+        if re.fullmatch(pattern, endpoint):
+            authenticated = scope == "contents" or (scope == "actions" and bool(actions_read))
+            options = {}
+            if report_failure is not None:
+                options["on_http_error"] = partial(report_failure, category, authenticated)
+            return ops.api(path, authenticated=authenticated, timeout=5, limit=1024 * 1024, **options)
+    raise ops.ReleaseError("PREVIEW_REQUEST_METADATA_ROUTE")
 
 
 def require_protection(fetch):
