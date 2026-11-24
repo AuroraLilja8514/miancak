@@ -1,11 +1,14 @@
 """Run the dummy entry points against real Git trees and simulated hosted responses."""
 from contextlib import redirect_stderr, redirect_stdout
+from email.message import Message
 import io
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest import mock
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 
 import handoff
@@ -66,6 +69,15 @@ class Readiness(RequestFixture, unittest.TestCase):
     def test_admit_and_both_reusable_roles_exercise_the_real_router(self):
         self.request()
         data = self.routed_response()
+        expected_routes = [
+            "branches/master", "rules/branches/master", self.production_runs,
+            f"commits/{self.squash}/pulls?per_page=2", f"pulls/{PR_NUMBER}", f"git/commits/{self.head}",
+            self.ci_run_path, self.jobs_path,
+            self.jobs_path.split("/attempts/", 1)[0] + "/artifacts?per_page=1",
+            f"actions/caches?{urlencode({'ref': f'refs/pull/{PR_NUMBER}/merge', 'per_page': 1})}",
+            f"actions/caches?{urlencode({'ref': 'refs/heads/' + self.branch, 'per_page': 1})}",
+            "branches/master",
+        ]
         for role, authenticated in (("admit", 3), ("signer", 9), ("publisher", 9)):
             with self.subTest(role=role):
                 stage = self.root.parent / role
@@ -75,7 +87,11 @@ class Readiness(RequestFixture, unittest.TestCase):
                 self.assertEqual((status, stderr), (0, ""))
                 self.assertRegex(stdout, rf"^PASS: READINESS_METADATA role={role} reads=12 elapsed_ms=\d+\n$")
                 self.assertEqual(sum(call.kwargs["authenticated"] for call in calls), authenticated)
-                self.assertEqual(len(calls), 12)
+                self.assertEqual([call.args[0] for call in calls], expected_routes)
+                actions_read = role != "admit"
+                self.assertEqual([call.kwargs["authenticated"] for call in calls], [
+                    True, False, actions_read, False, False, True, *([actions_read] * 5), True,
+                ])
                 self.assertTrue(all(call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
                                     and "method" not in call.kwargs for call in calls))
                 if role != "admit":
@@ -93,6 +109,7 @@ class Readiness(RequestFixture, unittest.TestCase):
             ("GITHUB_RUN_ATTEMPT", "2", "REHEARSAL_RUNNER_SCOPE"),
             ("GITHUB_ACTOR_ID", "1", "REHEARSAL_RUNNER_ACTOR"),
             ("GITHUB_REF_PROTECTED", "false", "REHEARSAL_PROTECTED_WORKFLOW"),
+            ("GITHUB_REF", "refs/heads/other", "REHEARSAL_PROTECTED_WORKFLOW"),
             ("GITHUB_WORKFLOW_REF", "wrong.yml", "REHEARSAL_PROTECTED_WORKFLOW"),
             ("GITHUB_RUN_ID", "1/2", "READINESS_RUN_ID"),
         ):
@@ -101,6 +118,31 @@ class Readiness(RequestFixture, unittest.TestCase):
                                  (1, "", f"FAIL: {failure}\n", []))
         with mock.patch.object(request, "MERGE_ENABLED", True):
             self.assertEqual(self.run_command(["admit"], {}), (1, "", "FAIL: READINESS_PRODUCTION_DISARMED\n", []))
+
+    def test_invalid_role_fails_before_reads(self):
+        with mock.patch.object(ops, "api") as api, redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            readiness.main(["prepare", "other", "--stage", str(self.root / "stage")],
+                           environ=self.env, root=self.root)
+        api.assert_not_called()
+
+    def test_consumed_v1_request_cannot_start_the_v2_rehearsal(self):
+        self.path = ".github/release-requests/_protected-preview-readiness-probe.json"
+        self.branch = "release-request/dummy-preview-readiness"
+        self.request(content=readiness.canonical_dummy(self.base).replace(b'"format_version": 2', b'"format_version": 1'))
+        failed = self.run_pr()
+        self.assertEqual((failed.returncode, failed.stderr), (1, "FAIL: REHEARSAL_PR_REF\n"))
+        self.push_metadata()
+        self.assertEqual(self.run_command(["admit"], {}), (1, "", "FAIL: REHEARSAL_CHANGED_PATHS\n", []))
+
+    def test_v2_request_replay_fails_even_if_the_file_was_deleted(self):
+        self.request()
+        self.push_metadata()
+        self.git("rm", self.path)
+        self.git("commit", "-qm", "Remove consumed synthetic request")
+        self.base = self.git("rev-parse", "HEAD")
+        self.request()
+        self.push_metadata()
+        self.assertEqual(self.run_command(["admit"], {}), (1, "", "FAIL: REHEARSAL_PUSH_HISTORY\n", []))
 
     def test_rate_limit_competing_production_or_failed_review_yields_no_subject(self):
         self.request()
@@ -118,6 +160,58 @@ class Readiness(RequestFixture, unittest.TestCase):
             with self.subTest(failure=failure):
                 status, stdout, stderr, _ = self.run_command(command, data | replacement, GITHUB_OUTPUT=str(output))
                 self.assertEqual((status, stdout, stderr), (1, "", f"FAIL: {failure}\n"))
+                self.assertFalse(stage.exists())
+                self.assertFalse(output.exists())
+
+    def test_http_failures_observe_only_bounded_facts_and_stop_before_attestation(self):
+        self.request()
+        data = self.routed_response()
+        stage = self.root.parent / "blocked"
+        output = self.root.parent / "digest"
+        command = ["prepare", "publisher", "--stage", str(stage)]
+        prefix = f"https://api.github.com/repos/{ops.REPO}/"
+        for endpoint, name, mode, headers, suffix in (
+            ("rules/branches/master", "branch_rules", "anonymous",
+             [("X-RateLimit-Limit", "60"), ("X-RateLimit-Remaining", "0"), ("X-RateLimit-Reset", "1800000000")],
+             " limit=60 remaining=0 reset_epoch=1800000000"),
+            (self.production_runs, "workflow_runs", "job_token",
+             [("X-RateLimit-Remaining", "947"), ("Retry-After", "77")], " remaining=947 retry_after_seconds=77"),
+            (f"git/commits/{self.head}", "git_commit", "job_token",
+             [("X-Accepted-GitHub-Permissions", "opaque-scope-fixture")], ""),
+            (self.jobs_path, "review_jobs", "job_token",
+             [("X-RateLimit-Limit", "9" * 16), ("X-RateLimit-Remaining", "0"), ("X-RateLimit-Remaining", "7"),
+              ("X-RateLimit-Reset", "٠"), ("Retry-After", "86401"), ("Location", "https://untrusted.invalid")], ""),
+        ):
+            with self.subTest(endpoint=name):
+                seen = []
+                error_body = mock.Mock()
+                response_headers = Message()
+                for key, value in headers:
+                    response_headers[key] = value
+
+                def open_request(req, *, timeout):
+                    self.assertEqual(timeout, 5)
+                    self.assertEqual(req.get_method(), "GET")
+                    route = req.full_url.removeprefix(prefix)
+                    seen.append(route)
+                    if route == endpoint:
+                        self.assertEqual(req.has_header("Authorization"), mode == "job_token")
+                        raise HTTPError("https://opaque.invalid/private", 403, "opaque failure reason",
+                                        response_headers, error_body)
+                    return io.BytesIO(json.dumps(data[route]).encode())
+
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with mock.patch.dict(os.environ, {"GH_TOKEN": "synthetic-fixture"}, clear=True), \
+                     mock.patch.object(ops.urllib.request, "build_opener") as opener, \
+                     redirect_stdout(stdout), redirect_stderr(stderr):
+                    opener.return_value.open.side_effect = open_request
+                    code = readiness.main(command, environ=self.push_env(GITHUB_OUTPUT=str(output)), root=self.root)
+                self.assertEqual((code, stdout.getvalue(), stderr.getvalue()), (
+                    1, "", f"READINESS_HTTP_ERROR category={name} auth={mode} status=403{suffix}\nFAIL: API_HTTP_403\n",
+                ))
+                self.assertEqual(seen[-1], endpoint)
+                self.assertEqual(len(seen), len(set(seen)))
+                error_body.read.assert_not_called()
                 self.assertFalse(stage.exists())
                 self.assertFalse(output.exists())
 

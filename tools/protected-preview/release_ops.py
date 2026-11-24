@@ -85,8 +85,27 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
 
+def rate_limit_facts(headers):
+    """Copy only single, bounded decimal rate-limit header values."""
+    facts = {}
+    for header, field, maximum in (
+        ("X-RateLimit-Limit", "limit", 1_000_000),
+        ("X-RateLimit-Remaining", "remaining", 1_000_000),
+        ("X-RateLimit-Reset", "reset_epoch", 4_102_444_800),
+        ("Retry-After", "retry_after_seconds", 86_400),
+    ):
+        values = headers.get_all(header, []) if headers is not None else []
+        if len(values) != 1:
+            continue
+        value = values[0]
+        if isinstance(value, str) and len(value) <= len(str(maximum)) and value.isascii() and value.isdecimal():
+            number = int(value)
+            if number <= maximum:
+                facts[field] = number
+    return facts
+
 def request(method, url, *, body=None, accept="application/vnd.github+json", optional=False,
-            timeout=120, authenticated=True, limit=LIMIT):
+            timeout=120, authenticated=True, limit=LIMIT, on_http_error=None):
     parsed = urllib.parse.urlsplit(url)
     require(parsed.scheme == "https" and parsed.hostname == "api.github.com"
             and parsed.path.startswith("/repos/" + REPO + "/")
@@ -113,6 +132,8 @@ def request(method, url, *, body=None, accept="application/vnd.github+json", opt
     except urllib.error.HTTPError as failure:
         if optional and failure.code == 404:
             return None
+        if on_http_error is not None:
+            on_http_error(failure.code, rate_limit_facts(failure.headers))
         raise ReleaseError("API_HTTP_" + str(failure.code)) from None
 
 def api(path, **kwargs):

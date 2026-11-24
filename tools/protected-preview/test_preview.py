@@ -366,16 +366,21 @@ class Workflow(unittest.TestCase):
         self.assertEqual(revised["permissions"], {"contents": "read"})
         branch = "refs/heads/review/protected-preview-ciphertext"
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
+        v1_request_branch = "release-request/dummy-preview-readiness"
+        readiness_branches = json.dumps([v1_request_branch, readiness.HEAD_BRANCH], separators=(",", ":"))
         review_branches = json.dumps([
             "review/trace-protected-preview-android",
             "review/bootstrap-protected-release-request",
             "review/protected-preview-merge-entry",
+            "review/protected-preview-readiness",
             readiness.REVIEW_BRANCH,
             rehearsal.HEAD_BRANCH,
             request.HEAD_BRANCH,
+            v1_request_branch,
             readiness.HEAD_BRANCH,
         ], separators=(",", ":"))
-        request_branches = json.dumps([rehearsal.HEAD_BRANCH, request.HEAD_BRANCH, readiness.HEAD_BRANCH],
+        request_branches = json.dumps([rehearsal.HEAD_BRANCH, request.HEAD_BRANCH, v1_request_branch,
+                                       readiness.HEAD_BRANCH],
                                       separators=(",", ":"))
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
@@ -383,7 +388,10 @@ class Workflow(unittest.TestCase):
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
-        self.assertEqual(restored["on"]["push"].pop("paths-ignore"), [rehearsal.DUMMY_PATH, readiness.DUMMY_PATH])
+        self.assertEqual(restored["on"]["push"].pop("paths-ignore"), [
+            rehearsal.DUMMY_PATH, ".github/release-requests/_protected-preview-readiness-probe.json",
+            readiness.DUMMY_PATH,
+        ])
         self.assertEqual(restored["on"]["workflow_dispatch"]["inputs"]["owner_approval_probe"]["default"], "")
         restored["on"]["workflow_dispatch"] = original["on"]["workflow_dispatch"]
         self.assertIn(review, restored.pop("run-name"))
@@ -428,7 +436,7 @@ class Workflow(unittest.TestCase):
             self.assertEqual(job["steps"].pop(1), {
                 "name": readiness.REVIEW_STEP,
                 "if": "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request' && "
-                      f"github.head_ref == '{readiness.HEAD_BRANCH}'",
+                      f"contains(fromJSON('{readiness_branches}'), github.head_ref)",
                 "run": "python3 tools/protected-preview/preview_readiness.py pr-check --timeout-seconds 25",
             })
             checkout = job["steps"][0]

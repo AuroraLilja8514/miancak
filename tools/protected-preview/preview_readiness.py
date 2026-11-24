@@ -16,15 +16,15 @@ import manifest_rehearsal as checked
 import manifest_request as request
 import release_ops as ops
 
-DUMMY_PATH = ".github/release-requests/_protected-preview-readiness-probe.json"
-HEAD_BRANCH = "release-request/dummy-preview-readiness"
-REVIEW_BRANCH = "review/protected-preview-readiness"
+DUMMY_PATH = ".github/release-requests/_protected-preview-readiness-probe-v2.json"
+HEAD_BRANCH = "release-request/dummy-preview-readiness-v2"
+REVIEW_BRANCH = "review/protected-preview-readiness-v2"
 REVIEW_STEP = "Verify preview readiness dummy request and reviewed tree"
 WORKFLOW = ".github/workflows/protected-preview-readiness.yml"
 SIGNER = ".github/workflows/protected-preview-readiness-signer.yml"
 PUBLISHER = ".github/workflows/protected-preview-readiness-publisher.yml"
 ROLE_WORKFLOWS = {"signer": SIGNER, "publisher": PUBLISHER}
-PREDICATE = f"https://github.com/{ops.REPO}/provenance/preview-readiness/v1"
+PREDICATE = f"https://github.com/{ops.REPO}/provenance/preview-readiness/v2"
 POLICY = handoff.WorkflowPolicy(
     caller=WORKFLOW, publisher=PUBLISHER, branch="master", event="push",
     title="MIANCAK dummy preview readiness", accept_job="Rehearse signer / Verify synthetic signer proof",
@@ -34,7 +34,7 @@ POLICY = handoff.WorkflowPolicy(
 
 
 def canonical_dummy(base):
-    content = {"format_version": 1, "kind": "dummy-preview-readiness", "reviewed_base_sha": checked.sha(base)}
+    content = {"format_version": 2, "kind": "dummy-preview-readiness", "reviewed_base_sha": checked.sha(base)}
     return (json.dumps(content, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -47,6 +47,12 @@ def pushed(environ, root):
     return revision, base, tree, int(run)
 
 
+def report_metadata_failure(category, authenticated, status, rate_facts):
+    auth = "job_token" if authenticated else "anonymous"
+    fields = "".join(f" {key}={value}" for key, value in rate_facts.items())
+    print(f"READINESS_HTTP_ERROR category={category} auth={auth} status={status}{fields}", file=sys.stderr)
+
+
 def check_metadata(revision, base, tree, role):
     calls = 0
     start = time.monotonic()
@@ -54,7 +60,7 @@ def check_metadata(revision, base, tree, role):
     def fetch(path):
         nonlocal calls
         calls += 1
-        return request.metadata_read(path, actions_read=role != "admit")
+        return request.metadata_read(path, actions_read=role != "admit", report_failure=report_metadata_failure)
 
     def check_branch():
         branch = fetch("branches/master")
@@ -80,7 +86,7 @@ def fixture_name(role):
 
 
 def fixture_bytes(role):
-    return f"MIANCAK synthetic preview readiness {role} v1\n".encode()
+    return f"MIANCAK synthetic preview readiness {role} v2\n".encode()
 
 
 def check_proof(role, revision, run, stage, proof):

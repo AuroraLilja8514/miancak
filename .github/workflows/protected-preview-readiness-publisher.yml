@@ -37,7 +37,7 @@ jobs:
         with:
           subject-name: miancak-readiness-publisher.txt
           subject-digest: ${{ steps.fixture.outputs.digest }}
-          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-readiness/v1
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-readiness/v2
           predicate: '{"role":"publisher"}'
           show-summary: false
       - name: Verify the caller, reusable workflow, run attempt and synthetic subject
