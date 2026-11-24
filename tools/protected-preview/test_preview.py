@@ -12,6 +12,7 @@ import urllib.error
 
 import yaml
 
+import manifest_rehearsal as rehearsal
 import preview_device as device
 import preview_ops as preview
 import release_ops as ops
@@ -356,12 +357,18 @@ class Workflow(unittest.TestCase):
         self.assertEqual(revised["permissions"], {"contents": "read"})
         branch = "refs/heads/review/protected-preview-ciphertext"
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
+        review_branches = json.dumps([
+            "review/trace-protected-preview-android",
+            "review/bootstrap-protected-release-request",
+            rehearsal.HEAD_BRANCH,
+        ], separators=(",", ":"))
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
-                 "github.head_ref == 'review/trace-protected-preview-android'))")
+                 f"contains(fromJSON('{review_branches}'), github.head_ref)))")
         ordinary = "${{ !(" + scope + ") }}"
         restored = copy.deepcopy(revised)
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
+        self.assertEqual(restored["on"]["push"].pop("paths-ignore"), [rehearsal.DUMMY_PATH])
         self.assertEqual(restored["on"]["workflow_dispatch"]["inputs"]["owner_approval_probe"]["default"], "")
         restored["on"]["workflow_dispatch"] = original["on"]["workflow_dispatch"]
         self.assertIn(review, restored.pop("run-name"))
@@ -391,16 +398,29 @@ class Workflow(unittest.TestCase):
             self.assertEqual(check["if"], "env.MIANCAK_REVIEW_CI == 'true'")
             guard = guard or check["run"]
             self.assertEqual(check["run"], guard)
+            self.assertEqual(job["steps"].pop(1), {
+                "name": rehearsal.REVIEW_STEP,
+                "if": "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request' && "
+                      f"github.head_ref == '{rehearsal.HEAD_BRANCH}'",
+                "run": "python3 tools/protected-preview/manifest_rehearsal.py pr-check --timeout-seconds 25",
+            })
+            checkout = job["steps"][0]
+            self.assertEqual(checkout["with"].pop("fetch-depth"),
+                             "${{ github.event_name == 'pull_request' && "
+                             f"github.head_ref == '{rehearsal.HEAD_BRANCH}' && 2 || 1 }}}}")
+            if not checkout["with"]:
+                del checkout["with"]
             if name == "generated":
                 cli = job["steps"].pop()
                 self.assertEqual(cli["if"], "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request'")
                 self.assertIn("test_preview_cli.py --timeout-seconds 40", cli["run"])
                 self.assertIn("test_android_progress.py --timeout-seconds 30", cli["run"])
+                self.assertIn("test_manifest_rehearsal.py --timeout-seconds 40", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
                     condition = step.pop("if")
-                    if condition == "${{ always() && !(" + scope + ") }}":
+                    if condition == "always() && env.MIANCAK_REVIEW_CI != 'true'":
                         step["if"] = "always()"
                     else:
                         self.assertEqual(condition, ordinary)
@@ -425,6 +445,27 @@ class Workflow(unittest.TestCase):
             for step in job.get("steps", []):
                 if "run" in step:
                     subprocess.run(["bash", "-n"], input=step["run"], text=True, check=True)
+
+    def test_manifest_rehearsal_has_one_literal_trigger_and_a_read_only_job(self):
+        workflow = yaml.load((preview.ROOT / rehearsal.WORKFLOW).read_bytes(), Loader=yaml.BaseLoader)
+        self.assertEqual(workflow["on"], {
+            "push": {"branches": [rehearsal.BRANCH], "paths": [rehearsal.DUMMY_PATH]},
+        })
+        self.assertEqual(workflow["permissions"], {})
+        self.assertEqual(set(workflow["jobs"]), {"verify-dummy-merge"})
+        job = workflow["jobs"]["verify-dummy-merge"]
+        self.assertEqual(job["permissions"], {"contents": "read", "actions": "read", "pull-requests": "read"})
+        self.assertNotIn("environment", job)
+        self.assertNotIn("secrets", json.dumps(job))
+        self.assertNotIn("outputs", job)
+        checkout, verify = job["steps"]
+        self.assertRegex(checkout["uses"], r"^actions/checkout@[a-f0-9]{40}$")
+        self.assertEqual(checkout["with"], {
+            "ref": "${{ github.workflow_sha }}", "persist-credentials": "false", "fetch-depth": "0",
+        })
+        self.assertEqual(verify["env"], {"GH_TOKEN": "${{ github.token }}"})
+        self.assertEqual(verify["run"],
+                         "python3 tools/protected-preview/manifest_rehearsal.py push-check --timeout-seconds 75")
 
     def test_scoped_pull_request_checks_require_exact_draft_and_real_merge_parents(self):
         path = preview.ROOT / ".github/workflows/ci.yml"
