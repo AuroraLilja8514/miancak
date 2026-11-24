@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - .github/release-requests/_protected-bootstrap-probe.json
   workflow_dispatch:
     inputs:
       owner_approval_probe:
@@ -18,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/trace-protected-preview-android')) }}
+  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","release-request/dummy-protected-merge"]'), github.head_ref))) }}
   MIANCAK_SCRIPT_TIMEOUT_SECONDS: "3600"
   MIANCAK_ADB_TIMEOUT_SECONDS: "30"
   MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
@@ -41,7 +43,7 @@ jobs:
   # Independent host diagnostic. Its separate guest cannot gate app tests on
   # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
-    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/trace-protected-preview-android'))) }}
+    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","release-request/dummy-protected-merge"]'), github.head_ref)))) }}
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -85,6 +87,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: &review_checkout_depth ${{ github.event_name == 'pull_request' && github.head_ref == 'release-request/dummy-protected-merge' && 2 || 1 }}
 
       - &review_guard
         name: Require exact trusted review and checked-out SHA
@@ -117,7 +121,9 @@ jobs:
           assert type(number) is int and number > 0 and pr["draft"] is True
           assert os.environ["GITHUB_REF"] == f"refs/pull/{number}/merge"
           assert event["repository"]["id"] == head["repo"]["id"] == base["repo"]["id"] == 1355190124
-          assert head["ref"] == "review/trace-protected-preview-android" and base["ref"] == "master"
+          assert head["ref"] in ("review/trace-protected-preview-android",
+                                 "review/bootstrap-protected-release-request",
+                                 "release-request/dummy-protected-merge") and base["ref"] == "master"
           assert os.environ["GITHUB_WORKFLOW_SHA"] in (commit, head["sha"])
           header = subprocess.check_output(["git", "cat-file", "commit", commit], text=True).splitlines()
           parents = [line.removeprefix("parent ") for line in header[:header.index("")] if line.startswith("parent ")]
@@ -127,6 +133,11 @@ jobs:
               ;;
             *) exit 1 ;;
           esac
+
+      - &dummy_review_guard
+        name: Verify dummy request and reviewed tree
+        if: env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request' && github.head_ref == 'release-request/dummy-protected-merge'
+        run: python3 tools/protected-preview/manifest_rehearsal.py pr-check --timeout-seconds 25
 
       - name: Regenerate checked-in files
         shell: bash
@@ -151,6 +162,7 @@ jobs:
         run: |
           PYTHONDONTWRITEBYTECODE=1 python3 tools/protected-preview/test_preview_cli.py --timeout-seconds 40
           PYTHONDONTWRITEBYTECODE=1 python3 tools/protected-preview/test_android_progress.py --timeout-seconds 30
+          PYTHONDONTWRITEBYTECODE=1 python3 tools/protected-preview/test_manifest_rehearsal.py --timeout-seconds 40
 
   unit:
     if: *review_checks_enabled
@@ -162,8 +174,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: true
+          fetch-depth: *review_checkout_depth
 
       - *review_guard
+
+      - *dummy_review_guard
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -209,7 +224,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload unit test reports
-        if: ${{ always() && !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && github.head_ref == 'review/trace-protected-preview-android'))) }}
+        if: always() && env.MIANCAK_REVIEW_CI != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: unit-results-${{ github.sha }}
@@ -226,8 +241,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           submodules: true
+          fetch-depth: *review_checkout_depth
 
       - *review_guard
+
+      - *dummy_review_guard
 
       - name: Setup Java
         uses: actions/setup-java@v5

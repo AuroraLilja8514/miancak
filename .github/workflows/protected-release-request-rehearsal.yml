@@ -1,0 +1,34 @@
+name: MIANCAK protected request rehearsal
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/release-requests/_protected-bootstrap-probe.json
+
+permissions: {}
+
+jobs:
+  verify-dummy-merge:
+    name: Verify the protected dummy merge
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/master' &&
+      github.ref_protected && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check live merge, actor and reviewed CI metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/protected-preview/manifest_rehearsal.py push-check --timeout-seconds 75
