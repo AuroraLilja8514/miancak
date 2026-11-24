@@ -1,0 +1,20 @@
+{
+  "application_id": "org.miancak.keyboard",
+  "application_input_sha256": "8c5b3db965cf5726fa891e6390c9636dc74839cad6abd7b1aa8ad832ed1500a5",
+  "asset_name": "miancak-0.3.4-preview.1.apk",
+  "baseline_apk_sha256": "74e884ef6465c96b57daa174ae5f5ce585f2c55417b591c76b8b77f212684bd5",
+  "baseline_release_id": 446744401,
+  "baseline_version_code": 5,
+  "candidate_sha": "30b074bf08ba7e668761874b41819781a3f4d44f",
+  "candidate_tree": "4cf327606fbf51372771dc061bd8728eda8f8a70",
+  "certificate_sha256": "3883a84d506b029db9d7cb6ddb7953c96ad3aa81a38e3e19290b3d50c4f9a26b",
+  "delivery_manifest_sha256": "e145053e7cc5498fc97200649edb14090b75ead3c425fc0ea00bc9639d7b18ae",
+  "draft_id": 453133947,
+  "format_version": 1,
+  "kind": "protected-prerelease",
+  "make_latest": false,
+  "repository_id": 1355190124,
+  "reviewed_base_sha": "7436029ac1e5fc28241241a45fdc44fa65159add",
+  "tag": "v0.3.4-preview.1",
+  "version_code": 7
+}
