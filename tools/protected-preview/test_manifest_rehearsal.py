@@ -19,7 +19,15 @@ CI_RUN_ID = 901
 REPO = {"id": rehearsal.ops.REPO_ID, "full_name": rehearsal.ops.REPO}
 
 
-class Rehearsal(unittest.TestCase):
+class RequestFixture:
+    path = rehearsal.DUMMY_PATH
+    branch = rehearsal.HEAD_BRANCH
+    workflow = rehearsal.WORKFLOW
+    workflow_id = WORKFLOW_ID
+    review_step = rehearsal.REVIEW_STEP
+    canonical = staticmethod(rehearsal.canonical_dummy)
+    pr_cli = (rehearsal.__file__, "pr-check")
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -41,13 +49,13 @@ class Rehearsal(unittest.TestCase):
         return subprocess.check_output(["git", *args], cwd=self.root, env=self.env, timeout=6,
                                        text=True).strip()
 
-    def request(self, *, extra=False, symlink=False):
-        path = self.root / rehearsal.DUMMY_PATH
+    def request(self, *, extra=False, symlink=False, content=None):
+        path = self.root / self.path
         path.parent.mkdir(parents=True, exist_ok=True)
         if symlink:
             path.symlink_to("dummy")
         else:
-            path.write_bytes(rehearsal.canonical_dummy(self.base))
+            path.write_bytes(self.canonical(self.base) if content is None else content)
         if extra:
             other = self.root / ".github/workflows/hidden.yml"
             other.parent.mkdir()
@@ -58,7 +66,7 @@ class Rehearsal(unittest.TestCase):
         self.squash = self.git("commit-tree", self.tree, "-p", self.base, "-m", "squash")
         self.test_merge = self.git("commit-tree", self.tree, "-p", self.base, "-p", self.head, "-m", "merge")
         self.pr_base = {"ref": rehearsal.BRANCH, "sha": self.base, "repo": REPO}
-        self.pr_head = {"ref": rehearsal.HEAD_BRANCH, "sha": self.head, "repo": REPO}
+        self.pr_head = {"ref": self.branch, "sha": self.head, "repo": REPO}
 
     def run_pr(self, *, shallow=False):
         self.git("update-ref", "HEAD", self.test_merge)
@@ -70,7 +78,7 @@ class Rehearsal(unittest.TestCase):
         if shallow:
             checkout = self.root.parent / "checkout"
             self.git("clone", "-q", "--depth", "2", self.root.as_uri(), str(checkout))
-        return subprocess.run([sys.executable, rehearsal.__file__, "pr-check", "--timeout-seconds", "15"],
+        return subprocess.run([sys.executable, *self.pr_cli, "--timeout-seconds", "15"],
                               cwd=checkout, timeout=20, capture_output=True, text=True, env=self.env | {
                                   "GITHUB_EVENT_NAME": "pull_request", "GITHUB_REF": f"refs/pull/{PR_NUMBER}/merge",
                                   "GITHUB_SHA": self.test_merge, "GITHUB_WORKFLOW_SHA": self.test_merge,
@@ -88,21 +96,21 @@ class Rehearsal(unittest.TestCase):
         checks = [
             {"name": name, "head_sha": self.head, "run_id": CI_RUN_ID, "run_attempt": 1,
              "status": "completed", "conclusion": "success",
-             "steps": [{"name": rehearsal.REVIEW_STEP, "conclusion": "success"}]}
+             "steps": [{"name": self.review_step, "conclusion": "success"}]}
             for name in rehearsal.REQUIRED
         ] + [{"name": "build-release", "conclusion": "skipped"}]
-        self.push_run_path = (f"actions/workflows/{WORKFLOW_ID}/runs?event=push"
+        self.push_run_path = (f"actions/workflows/{self.workflow_id}/runs?event=push"
                               f"&head_sha={self.squash}&per_page=2")
         self.ci_run_path = (f"actions/workflows/{rehearsal.CI_WORKFLOW_ID}/runs?event=pull_request"
                             f"&head_sha={self.head}&per_page=2")
         self.jobs_path = f"actions/runs/{CI_RUN_ID}/attempts/1/jobs?per_page=30"
         return {
             "branches/master": {"name": "master", "protected": True, "commit": {"sha": self.squash}},
-            f"actions/workflows/{Path(rehearsal.WORKFLOW).name}": {
-                "id": WORKFLOW_ID, "path": rehearsal.WORKFLOW, "state": "active",
+            f"actions/workflows/{Path(self.workflow).name}": {
+                "id": self.workflow_id, "path": self.workflow, "state": "active",
             },
             self.push_run_path: {"total_count": 1, "workflow_runs": [
-                actors | {"id": RUN_ID, "workflow_id": WORKFLOW_ID, "path": rehearsal.WORKFLOW,
+                actors | {"id": RUN_ID, "workflow_id": self.workflow_id, "path": self.workflow,
                           "head_sha": self.squash, "head_branch": rehearsal.BRANCH, "status": "in_progress",
                           "event": "push", "conclusion": None},
             ]},
@@ -114,20 +122,25 @@ class Rehearsal(unittest.TestCase):
                                          "parents": [{"sha": self.base}]},
             self.ci_run_path: {"total_count": 1, "workflow_runs": [
                 actors | {"id": CI_RUN_ID, "workflow_id": rehearsal.CI_WORKFLOW_ID, "path": rehearsal.CI_WORKFLOW,
-                          "head_sha": self.head, "head_branch": rehearsal.HEAD_BRANCH, "status": "completed",
+                          "head_sha": self.head, "head_branch": self.branch, "status": "completed",
                           "event": "pull_request", "conclusion": "success", "pull_requests": []},
             ]},
             self.jobs_path: {"jobs": checks, "total_count": len(checks)},
             f"actions/runs/{CI_RUN_ID}/artifacts?per_page=1": {"total_count": 0, "artifacts": []},
         }
 
-    def run_push(self, metadata, **changes):
-        output = io.StringIO()
-        env = self.env | {
+    def push_env(self, **changes):
+        return self.env | {
             "GITHUB_EVENT_NAME": "push", "GITHUB_REF": rehearsal.REF, "GITHUB_REF_PROTECTED": "true",
             "GITHUB_SHA": self.squash, "GITHUB_WORKFLOW_SHA": self.squash, "GITHUB_RUN_ID": str(RUN_ID),
-            "GITHUB_WORKFLOW_REF": f"{rehearsal.ops.REPO}/{rehearsal.WORKFLOW}@{rehearsal.REF}",
+            "GITHUB_WORKFLOW_REF": f"{rehearsal.ops.REPO}/{self.workflow}@{rehearsal.REF}",
         } | changes
+
+
+class Rehearsal(RequestFixture, unittest.TestCase):
+    def run_push(self, metadata, **changes):
+        output = io.StringIO()
+        env = self.push_env(**changes)
         with mock.patch.object(rehearsal.ops, "api", side_effect=lambda path, **kw: metadata[path]) as api:
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
                 code = rehearsal.main(["push-check"], root=self.root, environ=env)

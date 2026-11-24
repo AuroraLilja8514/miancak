@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 import os
 from pathlib import Path
@@ -65,6 +65,8 @@ class WorkflowPolicy:
 
 PRODUCTION = WorkflowPolicy(preview.WORKFLOW, PUBLISHER, "master", "workflow_dispatch",
                             f"{preview.TAG} publish", SIGN_JOB, PUBLISH_JOB, "preview", SIGNER)
+MERGE_PRODUCTION = replace(PRODUCTION, event="push")
+PRODUCTION_POLICIES = (PRODUCTION, MERGE_PRODUCTION)
 QUEUED_STATES = ("queued", "pending", "requested")
 SIGNER_STARTUP_STATES = (*QUEUED_STATES, "waiting")
 
@@ -76,6 +78,7 @@ class Scope:
     revision: str
     approval: str
     workflow: WorkflowPolicy = PRODUCTION
+    release_request: dict | None = None
 
     @property
     def invocation(self):
@@ -85,16 +88,28 @@ class Scope:
         return f"{self.workflow.artifact_prefix}-{kind}-{self.run_id}-{self.attempt}"
 
     def record(self):
+        ops.require((self.workflow == MERGE_PRODUCTION) == (self.release_request is not None),
+                    "HANDOFF_REQUEST_SCOPE")
         common = {"schema": 1, "repository_id": ops.REPO_ID, "run_id": self.run_id,
                   "attempt": self.attempt, "revision": self.revision, "approval_sha256": self.approval}
-        if self.workflow == PRODUCTION:
-            return {**common, "source": preview.SOURCE, "tag": preview.TAG, "draft_id": preview.DRAFT_ID}
+        if self.workflow in PRODUCTION_POLICIES:
+            common.update(source=preview.SOURCE, tag=preview.TAG, draft_id=preview.DRAFT_ID)
+            if self.release_request is not None:
+                common["release_request"] = self.release_request
+            return common
         return {**common, "synthetic_workflow": self.workflow.caller}
+
+
+def production_scope(run_id, revision, approval):
+    fields = preview.request_fields(revision)
+    if fields:
+        return Scope(run_id, 1, revision, approval, MERGE_PRODUCTION, **fields)
+    return Scope(run_id, 1, revision, approval)
 
 
 def active_run(scope, *, starting=False, startup_phase=None):
     if startup_phase is not None:
-        ops.require(scope.workflow == PRODUCTION and startup_phase in ("builder-await-signer", "signer-startup"),
+        ops.require(scope.workflow in PRODUCTION_POLICIES and startup_phase in ("builder-await-signer", "signer-startup"),
                     "HANDOFF_STARTUP_PHASE")
     run = ops.api(f"actions/runs/{scope.run_id}", timeout=10)
     policy = scope.workflow
@@ -105,8 +120,13 @@ def active_run(scope, *, starting=False, startup_phase=None):
                                         f"{policy.caller}@{policy.ref}")
                 and (policy.title is None or run.get("display_title") == policy.title)
                 and run.get("head_repository", {}).get("id") == ops.REPO_ID
-                and (policy != PRODUCTION or preview.owner_dispatch(run)),
+                and (policy not in PRODUCTION_POLICIES or preview.owner_dispatch(run)),
                 "HANDOFF_ACTIVE_RUN")
+    if policy == MERGE_PRODUCTION:
+        from manifest_request import WORKFLOW_ID
+        ops.require(scope.release_request is not None and scope.attempt == 1
+                    and run.get("workflow_id") == WORKFLOW_ID
+                    and run.get("repository", {}).get("id") == ops.REPO_ID, "HANDOFF_REQUEST_RUN")
     status = run.get("status")
     unfinished = run.get("conclusion") is None
     if status == "in_progress" and unfinished:
@@ -234,7 +254,7 @@ def wait_for_transport(scope, kind, seconds):
                 return item
         remaining = deadline - time.monotonic()
         if remaining > 0:
-            time.sleep(min(20 if scope.workflow == PRODUCTION else 5, remaining))
+            time.sleep(min(20 if scope.workflow in PRODUCTION_POLICIES else 5, remaining))
     raise ops.ReleaseError("HANDOFF_DEADLINE")
 
 
@@ -326,7 +346,7 @@ def run(args):
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     ops.require(re.fullmatch(r"[1-9][0-9]{0,19}", run_id) and preview.hex_digest(approval), "HANDOFF_SCOPE")
-    scope = Scope(int(run_id), int(os.environ["GITHUB_RUN_ATTEMPT"]), revision, approval)
+    scope = production_scope(int(run_id), revision, approval)
     active_run(scope)
     stage = args.stage
     tools = stage / "tools"
@@ -335,6 +355,7 @@ def run(args):
              "release-provenance.json": 128 * 1024, "SHA256SUMS.txt": RECEIPT_BYTES}
     outgoing = stage / "ciphertext"
     if args.operation == "recipient":
+        preview.verify_request(revision)
         draft, _ = preview.exact_release()
         ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
         create_recipient(scope, stage, tools)

@@ -13,6 +13,7 @@ import urllib.error
 import yaml
 
 import manifest_rehearsal as rehearsal
+import manifest_request as request
 import preview_device as device
 import preview_ops as preview
 import release_ops as ops
@@ -360,8 +361,11 @@ class Workflow(unittest.TestCase):
         review_branches = json.dumps([
             "review/trace-protected-preview-android",
             "review/bootstrap-protected-release-request",
+            "review/protected-preview-merge-entry",
             rehearsal.HEAD_BRANCH,
+            request.HEAD_BRANCH,
         ], separators=(",", ":"))
+        request_branches = json.dumps([rehearsal.HEAD_BRANCH, request.HEAD_BRANCH], separators=(",", ":"))
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
                  f"contains(fromJSON('{review_branches}'), github.head_ref)))")
@@ -404,10 +408,16 @@ class Workflow(unittest.TestCase):
                       f"github.head_ref == '{rehearsal.HEAD_BRANCH}'",
                 "run": "python3 tools/protected-preview/manifest_rehearsal.py pr-check --timeout-seconds 25",
             })
+            self.assertEqual(job["steps"].pop(1), {
+                "name": request.REVIEW_STEP,
+                "if": "env.MIANCAK_REVIEW_CI == 'true' && github.event_name == 'pull_request' && "
+                      f"github.head_ref == '{request.HEAD_BRANCH}'",
+                "run": "python3 tools/protected-preview/manifest_request.py --timeout-seconds 25",
+            })
             checkout = job["steps"][0]
             self.assertEqual(checkout["with"].pop("fetch-depth"),
                              "${{ github.event_name == 'pull_request' && "
-                             f"github.head_ref == '{rehearsal.HEAD_BRANCH}' && 2 || 1 }}}}")
+                             f"contains(fromJSON('{request_branches}'), github.head_ref) && 2 || 1 }}}}")
             if not checkout["with"]:
                 del checkout["with"]
             if name == "generated":
@@ -416,6 +426,7 @@ class Workflow(unittest.TestCase):
                 self.assertIn("test_preview_cli.py --timeout-seconds 40", cli["run"])
                 self.assertIn("test_android_progress.py --timeout-seconds 30", cli["run"])
                 self.assertIn("test_manifest_rehearsal.py --timeout-seconds 40", cli["run"])
+                self.assertIn("test_manifest_request.py --timeout-seconds 60", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
@@ -577,6 +588,8 @@ class Workflow(unittest.TestCase):
             path = preview.ROOT / "tools/release/protected-preview.yml.in"
         workflow = yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)
         self.assertEqual(workflow["on"], {"workflow_dispatch": ""})
+        self.assertIs(request.MERGE_ENABLED, False)
+        self.assertFalse((preview.ROOT / request.REQUEST_PATH).exists())
         self.assertEqual(workflow["run-name"], preview.TAG + " publish")
         self.assertEqual(workflow["env"]["CANDIDATE"], preview.SOURCE)
         self.assertEqual(workflow["env"]["PREVIEW_MODE"], "publish")
@@ -642,7 +655,11 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("continue-on-error", publisher_steps[draft_preflight])
         self.assertNotIn("if", publisher_steps[recipient_publication])
         for name, job in list(jobs.items()) + [("publisher", publisher), ("signer", signer)]:
+            self.assertIn("(github.event_name == 'push' && github.ref_protected)", job["if"])
             for step in job.get("steps", []):
+                checkout = step.get("with", {})
+                if checkout.get("ref") == "${{ github.workflow_sha }}":
+                    self.assertEqual(checkout["fetch-depth"], "${{ github.event_name == 'push' && '0' || '1' }}")
                 if "uses" in step:
                     self.assertRegex(step["uses"], r"@[0-9a-f]{40}$")
                 if "run" in step:

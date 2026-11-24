@@ -85,24 +85,29 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
 
-def request(method, url, *, body=None, accept="application/vnd.github+json", optional=False, timeout=120):
+def request(method, url, *, body=None, accept="application/vnd.github+json", optional=False,
+            timeout=120, authenticated=True, limit=LIMIT):
     parsed = urllib.parse.urlsplit(url)
     require(parsed.scheme == "https" and parsed.hostname == "api.github.com"
             and parsed.path.startswith("/repos/" + REPO + "/")
             and parsed.port in (None, 443) and parsed.username is None, "API_DESTINATION")
     headers = {"Accept": accept, "User-Agent": "miancak-release",
                "X-GitHub-Api-Version": "2022-11-28"}
-    token = os.environ.get("GH_TOKEN", "")
-    require(token, "API_TOKEN_MISSING")
-    headers["Authorization"] = "Bearer " + token
+    if authenticated:
+        token = os.environ.get("GH_TOKEN", "")
+        require(token, "API_TOKEN_MISSING")
+        headers["Authorization"] = "Bearer " + token
+    else:
+        require(method == "GET" and body is None, "PUBLIC_METADATA_READ_ONLY")
+        headers["Cache-Control"] = "no-cache"
     data = None if body is None else json.dumps(body).encode()
     if data is not None:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.build_opener(NoRedirect).open(req, timeout=timeout) as response:
-            payload = response.read(LIMIT + 1)
-            require(len(payload) <= LIMIT, "API_RESPONSE_SIZE")
+            payload = response.read(limit + 1)
+            require(len(payload) <= limit, "API_RESPONSE_SIZE")
             return json.loads(payload)
     except urllib.error.HTTPError as failure:
         if optional and failure.code == 404:

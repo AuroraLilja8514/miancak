@@ -114,6 +114,7 @@ def authorize(scope, stage):
     record = load_receipt(scope, item, stage)
     scope = replace(scope, approval=preview.attestation_sha(record))
     ops.require(preview.authority("publish") == scope.revision, "PREVIEW_TRUSTED_REVISION")
+    preview.verify_request(scope.revision)
     ops.require(builder_receipt(scope) == (builder_id, item), "PREVIEW_INPUT_RECEIPT_CHANGED")
     (stage / "grant.json").write_bytes(preview.canonical_record(grant_record(scope, builder_id, item)))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
@@ -213,7 +214,7 @@ def run(args):
         approval = ops.file_sha(stage / "receipt/receipt.json")
     if operation in ("seal", "recipient", "receive", "pre-key"):
         ops.require(preview.hex_digest(approval), "PREVIEW_APPROVAL_REQUIRED")
-    scope = handoff.Scope(run_id, 1, revision, approval)
+    scope = handoff.production_scope(run_id, revision, approval)
     if operation == "recipient":
         wait(SIGNER_START_SECONDS, lambda: handoff.active_run(scope, startup_phase="signer-startup"))
     elif operation != "seal":
@@ -240,6 +241,7 @@ def run(args):
         ops.require(finished(scope, BUILD_JOB), "PREVIEW_INPUT_BUILDER_STATE")
         ops.require(preview.authority("publish") == scope.revision, "PREVIEW_TRUSTED_REVISION")
         preview.bind_signing_input(stage / "prepared", revision, approval)
+        preview.request_pre_key(stage / "prepared", revision, approval, record=True)
 
 
 if __name__ == "__main__":
