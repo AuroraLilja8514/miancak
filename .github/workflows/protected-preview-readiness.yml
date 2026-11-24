@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - .github/release-requests/_protected-preview-readiness-probe-v2.json
+      - .github/release-requests/_protected-preview-readiness-probe-v3.json
 
 permissions: {}
 concurrency:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   admit:
-    name: Rehearse Contents-only admission
+    name: Rehearse authenticated admission
     if: >-
       github.repository == 'AuroraLilja8514/miancak' &&
       github.event_name == 'push' && github.ref == 'refs/heads/master' &&
@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 2
     permissions:
       contents: read
+      actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -40,6 +42,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     uses: ./.github/workflows/protected-preview-readiness-signer.yml
@@ -50,6 +53,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     uses: ./.github/workflows/protected-preview-readiness-publisher.yml

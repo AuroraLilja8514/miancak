@@ -31,18 +31,54 @@ verify the two test-merge parents, one-file diff, canonical bytes and
 equality with the reviewed head tree. Before privileged work the script
 checks the active protection, owner merger, unique associated PR and
 same tree, and genuine successful jobs with zero artifacts and PR caches.
-The existing job permissions remain unchanged. Each gate uses its own
-job token for bounded same-repository Contents reads. Gates with
-`actions: read` also use that token for the scoped Actions runs, jobs,
-artifacts and cache reads. Rules and pull request reads stay anonymous.
-The admission job has Contents read only and makes nine anonymous reads.
-Each of the other six gates makes three, for 27 anonymous request reads
-per complete push attempt. This count excludes other jobs on the runner
-IP. Each read uses a five-second timeout and a 1 MiB response cap.
-Missing authorization, limits and deadlines fail the gate. Verify the
-effective ruleset independently during activation review.
-[GitHub ruleset API](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset)
+The shared request verifier uses the current job token for all twelve
+GETs on the fixed repository. Each read retains a five-second timeout
+and a 1 MiB response cap. The metadata client rejects redirects and
+fails on the first missing credential, permission error, quota response,
+or deadline. The v3 rehearsal exercises this policy. Production
+workflow permissions and the dispatch-only trigger remain unchanged.
+
+| Fixed repository GET | Reads per gate | Required permission |
+| --- | ---: | --- |
+| `branches/master` | 2 | Contents read |
+| `rules/branches/master` | 1 | Metadata read, implicit in the installation token |
+| `commits/{push-sha}/pulls?per_page=2` | 1 | Pull requests read |
+| `pulls/{number}` | 1 | Contents read or Pull requests read |
+| `git/commits/{reviewed-head}` | 1 | Contents read |
+| `actions/workflows/{pinned-id}/runs` | 2 | Actions read |
+| `actions/runs/{review-run}/attempts/1/jobs` | 1 | Actions read |
+| `actions/runs/{review-run}/artifacts` | 1 | Actions read |
+| `actions/caches` for the checked PR merge and head refs | 2 | Actions read |
+
+The workflow-run queries cover the production workflow at the push SHA
+and the required CI workflow at the reviewed head. The rehearsal
+requires zero production runs. The protected release request would
+require one exact active production run. The push path makes up to
+seven independent 12-read checks. Owner dispatch does not enter that
+path. The repository token has its own rate limit, which still stops a
+gate when exhausted.
+[GitHub branch rules](https://docs.github.com/en/rest/repos/rules#get-rules-for-a-branch)
+[GitHub commit-to-PR lookup](https://docs.github.com/en/rest/commits/commits#list-pull-requests-associated-with-a-commit)
+[GitHub PR details](https://docs.github.com/en/rest/pulls/pulls#get-a-pull-request)
+[GitHub cache API](https://docs.github.com/en/rest/actions/cache#list-github-actions-caches-for-a-repository)
 [GitHub REST rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
+
+Other production metadata already uses authenticated same-repository
+reads. Contents covers live refs, the candidate Git commit, the latest
+stable release and the stable APK asset. Only the publisher's existing
+Contents-write token reads the exact draft and can write to Releases.
+Actions read covers the active run, attempt jobs, and encrypted
+handoff artifact metadata and archive. Authenticated binary downloads
+start at the repository API and drop the token before following a
+storage redirect. The tool archives for pinned `age` and `gh` are public
+downloads verified by hash. The production build still needs its public
+SDK, native dependencies and emulator. Android acceptance downloads
+the pinned Wanxiang data with no job credential. The exact candidate's
+grammar uses the upstream GitHub Releases API asset `763629573`, so that
+public download remains subject to upstream availability and anonymous
+quota. The v3 metadata rehearsal does not test that download. It needs
+the pinned checkout, CLI, and GitHub attestation services. An actual
+release still requires the final full anonymous APK download and checksum.
 
 ## Same-run custody
 
@@ -141,42 +177,43 @@ The protected release workflow needs overlapping signing and publishing
 for the encrypted handoff, so the rehearsal keeps the existing job
 dependencies. [Hosted v1 rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45384569065)
 
-The separate disarmed diagnostics review uses
-`review/protected-preview-readiness-v2`. Its caller accepts the literal
-`.github/release-requests/_protected-preview-readiness-probe-v2.json` path
-on protected master. Ordinary master CI excludes that path. The consumed
-v1 file stays in history and is outside the rehearsal trigger. Its
-original branch remains in no-upload review scope and the v2 request
-guard rejects it. This review contains workflows, scripts, and tests.
-The v2 request is a later one-file PR on
-`release-request/dummy-preview-readiness-v2` from freshly verified
-protected master. Its bytes come from `preview_readiness.canonical_dummy`,
-with format version 2 and the exact reviewed base. The setup squash
-uses `[skip ci]`. The later dummy squash uses a normal message to
-start the scoped rehearsal. It verifies the repository, protected ref,
-owner actor ID, reviewed one-file merge, unused path and attempt 1.
+The v2 rehearsal ran once after the protected #50 squash. Admission
+received HTTP 403 on the anonymous `branch_rules` read. Its sanitized
+fields recorded `limit=60`, `remaining=0`, and `reset_epoch=1795528181`,
+establishing primary quota exhaustion for that read. Both reusable roles
+were skipped. The v1 publisher's failure remains unclassified.
+[Hosted v2 rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45400868771)
 
-Exercise the real metadata router in the Contents-only admission role
-and in two reusable jobs with Contents and Actions read. Use fixed public
-PR, protection, run, job, artifact and cache queries, including the
-production workflow's push-list query at the dummy SHA. Confirm the
-expected empty production result and normal response shapes. Each role
-performs twelve reads with its existing role permissions. The admission
-budget is 75 seconds in a two-minute job. The reusable roles have
-90 seconds for metadata and 135 seconds for the verifier and its pinned
-GH CLI installation, within seven minutes per job.
+The v3 review branch is `review/protected-preview-readiness-v3`. The
+review contains workflow, verifier and test changes and no request.
+It keeps the real required PR checks with uploads and caches disabled.
+After separate review and a setup squash with `[skip ci]`, a new PR on
+`release-request/dummy-preview-readiness-v3` would add only the literal
+`.github/release-requests/_protected-preview-readiness-probe-v3.json`.
+Its canonical version 3 bytes pin the newly reviewed parent. The
+v1 and v2 files remain outside the trigger. Ordinary master CI excludes
+all three readiness request paths. A protected squash of the one-file PR
+without `[skip ci]` would start one rehearsal on attempt 1. The guard
+checks the owner actor and merger, ref, prior history, one-file tree
+and three genuine required jobs before the synthetic role steps.
 
-On an HTTP failure, the rehearsal logs a fixed route category, whether
-it was anonymous or used the job token, the status, and any single,
-bounded decimal values for limit, remaining, reset epoch, or
-retry-after seconds. The failing response body remains unread. The
-header allowlist excludes permission headers, arbitrary text, signed
-URLs and credentials. A zero remaining value is evidence of primary
-quota exhaustion. A valid retry-after value supplies a delay hint and
-can accompany a secondary limit. An unclassified 403 still requires
-the route and context to distinguish permission, quota and runner
-failures. The rehearsal stops after the first failure and leaves
-retry decisions to a separate reviewed request.
+All three dummy jobs use their own `GITHUB_TOKEN` with Contents,
+Actions and Pull requests read. The caller and reusable workflows
+declare the same scopes. The only write scopes are the reusable jobs'
+existing OIDC and attestations permissions for fixed synthetic subjects.
+The earlier bootstrap demonstrated the PR and workflow-check reads with
+the same read scopes. The v3 run still needs to prove the authenticated
+branch-rules read and the full sequence in all three roles.
+The admission budget is 75 seconds in a two-minute job. The reusable
+roles have 90 seconds for metadata and 135 seconds for the verifier
+and pinned GH CLI download, within seven minutes per job.
+
+On HTTP failure, the rehearsal logs the fixed category, job-token
+mode, status and allowlisted numeric quota fields. A 403 or 429 stops
+the run. There is no automatic retry or switch to another identity.
+The response body and other header values are excluded. Confirm each
+role completed all twelve authenticated reads, or record the exact
+failed category and which later gates were skipped.
 [GitHub rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
 [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)
 
@@ -184,14 +221,14 @@ In the same rehearsal run, use separate local reusable signer and
 publisher jobs with read-only repository permissions plus only the
 OIDC and attestation permissions needed for dummy digest attestations.
 The two jobs attest distinct fixed synthetic digests in the
-`preview-readiness/v2` namespace. Each job verifies its own actual
+`preview-readiness/v3` namespace. Each job verifies its own actual
 certificate and subject against the caller and reusable workflow paths,
 source revision, protected ref, `push`, GitHub-hosted runner identity and
 exact invocation. Each also tests rejection with a different reusable
 workflow, attempt and subject. The attestation store and job status are
 the only hosted outputs. The usual PR checks still compile the application
 on their runners. The later protected-push rehearsal operates only on
-synthetic data. The hosted v2 rehearsal remains pending.
+synthetic data. Hosted v3 permission and provenance verification is pending.
 
 ## Activation is a separate protected change
 
@@ -203,6 +240,26 @@ change. The activation adds no request file. Verify the exact
 protected branch, permission scope and unchanged owner-dispatch entry
 before opening the separate request PR. A request merged before activation
 would consume the one-shot path and must stop the release flow.
+
+Before any activation, the production admission job needs Actions read
+and Pull requests read alongside its existing Contents read. The builder,
+grant verifier, signer pre-key verifier and publisher need Pull requests
+read alongside their existing scopes. Reusable caller and callee scopes
+must match. GitHub scopes tokens by job, so a shell step's `GH_TOKEN`
+mapping limits where the metadata code uses the token. The credential
+step remains tokenless and consumes the existing fresh local pre-key
+receipt. The publisher keeps the only Contents-write scope. No new write
+permissions or credentials are needed for the metadata change.
+
+The scoped read keeps the unique commit-to-PR lookup at each live gate.
+Using the PR number from a manifest or an earlier job would require a
+separate proof of unique association and freshness at the later gates.
+Direct PR details alone prove only the named PR. Keeping the independent
+read costs one documented read scope and preserves the gate immediately
+before both draft upload and publication. Review the exact job-level
+permission change and hosted v3 evidence before any production work.
+[GitHub job permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)
+[GitHub reusable workflow permission inheritance](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows#nesting-reusable-workflows)
 
 This draft's no-upload review branch is
 `review/protected-preview-merge-entry`. The real PR jobs run, and local

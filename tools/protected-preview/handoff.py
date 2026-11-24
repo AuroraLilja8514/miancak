@@ -398,7 +398,7 @@ def run(args):
              "release-provenance.json": 128 * 1024, "SHA256SUMS.txt": RECEIPT_BYTES}
     outgoing = stage / "ciphertext"
     if args.operation == "recipient":
-        preview.verify_request(revision, actions_read=True)
+        preview.verify_request(revision)
         draft, _ = preview.exact_release()
         ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
         create_recipient(scope, stage, tools)

@@ -367,20 +367,24 @@ class Workflow(unittest.TestCase):
         branch = "refs/heads/review/protected-preview-ciphertext"
         review = f"github.event_name == 'workflow_dispatch' && github.ref == '{branch}'"
         v1_request_branch = "release-request/dummy-preview-readiness"
-        readiness_branches = json.dumps([v1_request_branch, readiness.HEAD_BRANCH], separators=(",", ":"))
+        v2_request_branch = "release-request/dummy-preview-readiness-v2"
+        readiness_branches = json.dumps([v1_request_branch, v2_request_branch, readiness.HEAD_BRANCH],
+                                        separators=(",", ":"))
         review_branches = json.dumps([
             "review/trace-protected-preview-android",
             "review/bootstrap-protected-release-request",
             "review/protected-preview-merge-entry",
             "review/protected-preview-readiness",
+            "review/protected-preview-readiness-v2",
             readiness.REVIEW_BRANCH,
             rehearsal.HEAD_BRANCH,
             request.HEAD_BRANCH,
             v1_request_branch,
+            v2_request_branch,
             readiness.HEAD_BRANCH,
         ], separators=(",", ":"))
         request_branches = json.dumps([rehearsal.HEAD_BRANCH, request.HEAD_BRANCH, v1_request_branch,
-                                       readiness.HEAD_BRANCH],
+                                       v2_request_branch, readiness.HEAD_BRANCH],
                                       separators=(",", ":"))
         scope = (f"github.repository == '{ops.REPO}' && (({review}) || "
                  "(github.event_name == 'pull_request' && "
@@ -390,6 +394,7 @@ class Workflow(unittest.TestCase):
         self.assertEqual(restored["env"].pop("MIANCAK_REVIEW_CI"), "${{ " + scope + " }}")
         self.assertEqual(restored["on"]["push"].pop("paths-ignore"), [
             rehearsal.DUMMY_PATH, ".github/release-requests/_protected-preview-readiness-probe.json",
+            ".github/release-requests/_protected-preview-readiness-probe-v2.json",
             readiness.DUMMY_PATH,
         ])
         self.assertEqual(restored["on"]["workflow_dispatch"]["inputs"]["owner_approval_probe"]["default"], "")
@@ -517,11 +522,13 @@ class Workflow(unittest.TestCase):
         self.assertEqual(read(preview.WORKFLOW)["on"], {"workflow_dispatch": ""})
         jobs = rehearsal_workflow["jobs"]
         self.assertEqual(set(jobs), {"admit", "signer", "publisher"})
-        self.assertEqual(jobs["admit"]["permissions"], {"contents": "read"})
+        reads = {"contents": "read", "actions": "read", "pull-requests": "read"}
+        self.assertEqual(jobs["admit"]["permissions"], reads)
         self.assertEqual(jobs["admit"]["steps"][1]["run"],
                          "python3 tools/protected-preview/preview_readiness.py admit --timeout-seconds 75")
+        self.assertEqual(jobs["admit"]["steps"][1]["env"], {"GH_TOKEN": "${{ github.token }}"})
         self.assertEqual(len(jobs["admit"]["steps"]), 2)
-        synthetic = {"contents": "read", "actions": "read", "id-token": "write", "attestations": "write"}
+        synthetic = reads | {"id-token": "write", "attestations": "write"}
         for role, path in readiness.ROLE_WORKFLOWS.items():
             with self.subTest(role=role):
                 self.assertEqual(jobs[role], {"name": f"Rehearse {role}", "needs": "admit",

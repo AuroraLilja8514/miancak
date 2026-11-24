@@ -126,7 +126,7 @@ class PublisherProof(unittest.TestCase):
             "--cert-oidc-issuer", handoff.OIDC_ISSUER, "--predicate-type", handoff.ACCEPTANCE_PREDICATE,
             "--format", "json",
         ], timeout=90)
-        self.request.assert_has_calls([mock.call(self.scope.revision, actions_read=True)] * 2)
+        self.request.assert_has_calls([mock.call(self.scope.revision)] * 2)
         self.assertEqual(self.writes, ["upload", "patch"])
         self.public.assert_called_once()
         self.assertEqual(self.public.call_args.args[0], self.download)
