@@ -37,13 +37,12 @@ def parents(root, commit):
     return [sha(line[7:].decode()) for line in header.splitlines() if line.startswith(b"parent ")]
 
 
-def dummy_tree(root, base, revision):
+def request_tree(root, base, revision, path, expected):
     changes = git(root, "diff", "--name-status", "--no-renames", "-z", base, revision)
-    require(changes == f"A\0{DUMMY_PATH}\0".encode(), "REHEARSAL_CHANGED_PATHS")
-    entry = git(root, "ls-tree", "-z", revision, "--", DUMMY_PATH)
+    require(changes == f"A\0{path}\0".encode(), "REHEARSAL_CHANGED_PATHS")
+    entry = git(root, "ls-tree", "-z", revision, "--", path)
     require(entry.startswith(b"100644 blob "), "REHEARSAL_REQUEST_MODE")
-    spec = f"{revision}:{DUMMY_PATH}"
-    expected = canonical_dummy(base)
+    spec = f"{revision}:{path}"
     require(int(git(root, "cat-file", "-s", spec)) == len(expected)
             and git(root, "cat-file", "blob", spec) == expected, "REHEARSAL_REQUEST_BYTES")
     return sha(git(root, "rev-parse", f"{revision}^{{tree}}").decode().strip())
@@ -68,19 +67,19 @@ def runner_event(environ, root, event_name):
     return revision, event
 
 
-def pr_check(environ, root):
+def pr_check(environ, root, *, path=DUMMY_PATH, head_branch=HEAD_BRANCH, canonical=canonical_dummy):
     revision, event = runner_event(environ, root, "pull_request")
     number = positive_id(event.get("number"))
     pr = event["pull_request"]
     require(environ.get("GITHUB_REF") == f"refs/pull/{number}/merge"
             and pr.get("draft") is True, "REHEARSAL_DRAFT_PR")
     require_pr_ref(pr["base"], BRANCH)
-    require_pr_ref(pr["head"], HEAD_BRANCH)
+    require_pr_ref(pr["head"], head_branch)
     base, head = sha(pr["base"].get("sha")), sha(pr["head"].get("sha"))
     require(environ.get("GITHUB_WORKFLOW_SHA") in (revision, head)
             and parents(root, revision) == [base, head]
             and parents(root, head) == [base], "REHEARSAL_PR_PARENTS")
-    require(dummy_tree(root, base, revision)
+    require(request_tree(root, base, revision, path, canonical(base))
             == git(root, "rev-parse", f"{head}^{{tree}}").decode().strip(), "REHEARSAL_PR_TREE")
 
 
@@ -93,8 +92,8 @@ def read(path):
     return ops.api(path, timeout=8)
 
 
-def workflow_run(workflow, event, revision):
-    result = read(f"actions/workflows/{workflow}/runs?event={event}&head_sha={revision}&per_page=2")
+def workflow_run(workflow, event, revision, *, fetch=read):
+    result = fetch(f"actions/workflows/{workflow}/runs?event={event}&head_sha={revision}&per_page=2")
     require(type(result.get("total_count")) is int and result["total_count"] == 1
             and len(result["workflow_runs"]) == 1, "REHEARSAL_RUN_UNIQUE")
     return result["workflow_runs"][0]
@@ -108,29 +107,29 @@ def require_run(run, fields):
         expect(run.get(name), OWNER, "REHEARSAL_RUN_ACTOR")
 
 
-def merged_pr_head(revision, base, tree):
-    related = read(f"commits/{revision}/pulls?per_page=2")
+def merged_pr_head(revision, base, tree, *, head_branch=HEAD_BRANCH, fetch=read):
+    related = fetch(f"commits/{revision}/pulls?per_page=2")
     require(type(related) is list and len(related) == 1, "REHEARSAL_PR_UNIQUE")
     number = positive_id(related[0].get("number"))
-    pr = read(f"pulls/{number}")
+    pr = fetch(f"pulls/{number}")
     expect(pr, {"number": number, "state": "closed", "merged": True, "merge_commit_sha": revision},
            "REHEARSAL_SQUASH_PR")
     expect(pr.get("merged_by"), OWNER, "REHEARSAL_MERGER")
     require_pr_ref(pr["base"], BRANCH)
-    require_pr_ref(pr["head"], HEAD_BRANCH)
+    require_pr_ref(pr["head"], head_branch)
     expect(pr["base"], {"sha": base}, "REHEARSAL_REVIEW_BASE")
     head = sha(pr["head"].get("sha"))
-    commit = read(f"git/commits/{head}")
+    commit = fetch(f"git/commits/{head}")
     expect(commit, {"sha": head}, "REHEARSAL_REVIEW_HEAD")
     expect(commit.get("tree"), {"sha": tree}, "REHEARSAL_REVIEW_TREE")
     require([p.get("sha") for p in commit["parents"]] == [base], "REHEARSAL_REVIEW_PARENT")
     return number, head
 
 
-def require_review_checks(number, head):
-    run = workflow_run(CI_WORKFLOW_ID, "pull_request", head)
+def require_review_checks(number, head, *, head_branch=HEAD_BRANCH, review_step=REVIEW_STEP, fetch=read):
+    run = workflow_run(CI_WORKFLOW_ID, "pull_request", head, fetch=fetch)
     require_run(run, {"workflow_id": CI_WORKFLOW_ID, "path": CI_WORKFLOW, "event": "pull_request",
-                      "head_branch": HEAD_BRANCH, "head_sha": head, "run_attempt": 1,
+                      "head_branch": head_branch, "head_sha": head, "run_attempt": 1,
                       "status": "completed", "conclusion": "success"})
     # GitHub can omit PR associations for PR runs. The protected exact-branch
     # guard in each required job checks the actual test merge and its parents.
@@ -138,7 +137,7 @@ def require_review_checks(number, head):
     require(type(related) is list and (not related or [item.get("number") for item in related] == [number]),
             "REHEARSAL_CHECK_PR")
     run_id = positive_id(run.get("id"))
-    result = read(f"actions/runs/{run_id}/attempts/1/jobs?per_page=30")
+    result = fetch(f"actions/runs/{run_id}/attempts/1/jobs?per_page=30")
     jobs = result["jobs"]
     require(len(jobs) == result["total_count"] <= 30, "REHEARSAL_CHECK_JOB_PAGE")
     # Check the full job page so an extra synthetic or ordinary job is caught.
@@ -148,17 +147,17 @@ def require_review_checks(number, head):
         if job.get("name") in REQUIRED:
             expect(job, {"head_sha": head, "run_id": run_id, "run_attempt": 1,
                          "status": "completed", "conclusion": "success"}, "REHEARSAL_CHECK_JOB")
-            reviewed = [step.get("conclusion") for step in job["steps"] if step.get("name") == REVIEW_STEP]
+            reviewed = [step.get("conclusion") for step in job["steps"] if step.get("name") == review_step]
             require(reviewed == ["success"], "REHEARSAL_REQUIRED_TREE_CHECK")
-    expect(read(f"actions/runs/{run_id}/artifacts?per_page=1"), {"total_count": 0, "artifacts": []},
+    expect(fetch(f"actions/runs/{run_id}/artifacts?per_page=1"), {"total_count": 0, "artifacts": []},
            "REHEARSAL_CHECK_ARTIFACTS")
 
 
-def push_check(environ, root):
+def checked_push(environ, root, *, workflow=WORKFLOW, path=DUMMY_PATH, canonical=canonical_dummy):
     revision, event = runner_event(environ, root, "push")
     require(environ.get("GITHUB_REF") == REF and environ.get("GITHUB_REF_PROTECTED") == "true"
             and environ.get("GITHUB_WORKFLOW_SHA") == revision
-            and environ.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{WORKFLOW}@{REF}",
+            and environ.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{workflow}@{REF}",
             "REHEARSAL_PROTECTED_WORKFLOW")
     expect(event, {"ref": REF, "after": revision, "created": False, "deleted": False, "forced": False},
            "REHEARSAL_PUSH_SCOPE")
@@ -167,9 +166,15 @@ def push_check(environ, root):
     base = sha(event.get("before"))
     require(git(root, "rev-parse", "--is-shallow-repository") == b"false\n"
             and parents(root, revision) == [base]
-            and not git(root, "log", "-1", "--full-history", "--format=%H", base, "--", DUMMY_PATH),
+            and not git(root, "log", "-1", "--full-history", "--format=%H", base, "--", path),
             "REHEARSAL_PUSH_HISTORY")
-    tree = dummy_tree(root, base, revision)
+    raw = canonical(base)
+    tree = request_tree(root, base, revision, path, raw)
+    return revision, base, tree, raw
+
+
+def push_check(environ, root):
+    revision, base, tree, _ = checked_push(environ, root)
 
     branch = read(f"branches/{BRANCH}")
     expect(branch, {"name": BRANCH, "protected": True}, "REHEARSAL_LIVE_BRANCH")

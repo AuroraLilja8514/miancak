@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -57,6 +58,19 @@ def owner_dispatch(run):
                for field in ("actor", "triggering_actor"))
 
 
+def request_fields(revision):
+    if os.environ.get("GITHUB_EVENT_NAME") != "push":
+        return {}
+    from manifest_request import binding
+    return {"release_request": binding(revision)}
+
+
+def verify_request(revision, *, actions_read):
+    if os.environ.get("GITHUB_EVENT_NAME") == "push":
+        from manifest_request import verify
+        verify(revision, actions_read=actions_read)
+
+
 def workflow_revision(mode):
     """Pin the tools checkout to the executing workflow."""
     env = os.environ
@@ -65,7 +79,7 @@ def workflow_revision(mode):
                 and env.get("PREVIEW_MODE") == mode
                 and env.get("GITHUB_REPOSITORY") == ops.REPO
                 and env.get("GITHUB_REPOSITORY_ID") == str(ops.REPO_ID)
-                and env.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+                and env.get("GITHUB_EVENT_NAME") in ("workflow_dispatch", "push")
                 and env.get("GITHUB_REF") == "refs/heads/master"
                 and env.get("GITHUB_WORKFLOW_REF") == f"{ops.REPO}/{WORKFLOW}@refs/heads/master"
                 and env.get("GITHUB_RUN_ATTEMPT") == "1"
@@ -77,6 +91,7 @@ def workflow_revision(mode):
     checkout = ops.command(["git", "-C", ROOT, "rev-parse", "HEAD"]).stdout.decode().strip()
     ops.require(checkout == revision, "PREVIEW_TRUSTED_REVISION")
     ops.require(getattr(ops, "MIN_SDK", None) == 33 and ops.BUILD_TOOLS == "35.0.0", "PREVIEW_TOOLING_POLICY")
+    request_fields(revision)
     return revision
 
 
@@ -118,7 +133,8 @@ def exact_release(published=False):
 
 
 def admit(mode):
-    authority(mode)
+    revision = authority(mode)
+    verify_request(revision, actions_read=False)
     stable = public_baseline()
     source = read_metadata(f"git/commits/{SOURCE}", "PREVIEW_CANDIDATE_READ", timeout=15)
     ops.require(source["sha"] == SOURCE and source["tree"]["sha"] == TREE, "PREVIEW_CANDIDATE_TREE")
@@ -206,6 +222,7 @@ def input_identity(revision, run_id):
         "application_tree_sha256": APP_INPUT, "trusted_revision": revision,
         "build_run_id": run_id, "build_run_attempt": 1, "build_tools": SDK_HASHES,
         "driver_patch_sha256": ops.file_sha(DRIVER_PATCH),
+        **request_fields(revision),
     }
 
 
@@ -263,6 +280,7 @@ def signing_manifest(record, transport):
         "certificate_sha256": ops.CERTIFICATE,
         "previous_release": {"tag": STABLE_TAG, "version": "0.3.2", "version_code": 5,
                              "apk_sha256": STABLE_APK},
+        **({"release_request": record["release_request"]} if "release_request" in record else {}),
     }
 
 
@@ -296,6 +314,31 @@ def bind_signing_input(folder, revision, approved_sha):
                 "PREVIEW_SIGNING_INPUT")
 
 
+def request_pre_key(folder, revision, approval, *, record=False):
+    if os.environ.get("GITHUB_EVENT_NAME") != "push":
+        return
+    proof = canonical_record({
+        **request_fields(revision), "trusted_revision": revision, "approval_sha256": approval,
+        "run_id": int(os.environ["GITHUB_RUN_ID"]), "attempt": 1,
+    })
+    path = folder / "request-pre-key.json"
+    if record:
+        verify_request(revision, actions_read=True)
+        with path.open("xb") as stream:
+            stream.write(proof)
+    else:
+        ops.require(path.is_file() and not path.is_symlink()
+                    and path.stat().st_size == len(proof)
+                    and 0 <= time.time() - path.stat().st_mtime <= 90
+                    and path.read_bytes() == proof,
+                    "PREVIEW_REQUEST_PRE_KEY")
+
+
+def require_signed_request(record, revision):
+    ops.require({key: record[key] for key in ("release_request",) if key in record} == request_fields(revision),
+                "PREVIEW_SIGNED_REQUEST")
+
+
 def signed_record(folder, *, accepted=False):
     record = json.loads((folder / "release-provenance.json").read_bytes())
     apk = folder / APK
@@ -314,6 +357,7 @@ def signed_record(folder, *, accepted=False):
     ops.verify_signed(apk)
     if accepted:
         require_acceptance(record["preview_acceptance"], record["apk_sha256"])
+        require_signed_request(record, record.get("trusted_revision"))
     return record
 
 
@@ -327,19 +371,17 @@ def require_acceptance(report, apk_sha):
     }
     ops.require(all(type(report.get(key)) is type(value) and report[key] == value
                     for key, value in expected.items()), "PREVIEW_SIGNED_ACCEPTANCE")
+    return expected
 
 
 def seal(folder, report_path, revision, approved_sha):
     record = signed_record(folder)
     report = json.loads(report_path.read_bytes())
-    require_acceptance(report, record["apk_sha256"])
     # Keep guest paths, text, output, preferences and diagnostics on the runner.
-    record["preview_acceptance"] = {key: report[key] for key in (
-        "api", "source_sha", "apk_sha256", "certificate_sha256", "baseline_version_code",
-        "version_code", "scenario", "result", "real_reboot", "legacy_yaml_preserved",
-        "requires_online_pack_setup", "custom_yaml_activated_after_reboot")}
+    record["preview_acceptance"] = require_acceptance(report, record["apk_sha256"])
     record["trusted_revision"] = revision
     record["approval_sha256"] = approved_sha
+    record.update(request_fields(revision))
     ops.write_json(folder / "release-provenance.json", record)
     (folder / "SHA256SUMS.txt").write_text("".join(
         f"{ops.file_sha(folder / name)}  {name}\n" for name in (APK, "release-provenance.json")))
@@ -383,11 +425,15 @@ def verify_public(url, apk):
     raise ops.ReleaseError("PREVIEW_PUBLIC_REDIRECT_LIMIT")
 
 
-def publish(folder, revision, approved_sha):
+def publish(folder, scope, acceptance_proof, tools):
+    from handoff import verify_accepted_apk
+    revision, approved_sha = scope.revision, scope.approval
     record = signed_record(folder, accepted=True)
     ops.require(record["trusted_revision"] == revision
                 and hex_digest(approved_sha) and record["approval_sha256"] == approved_sha,
                 "PREVIEW_PUBLICATION_APPROVAL")
+    verify_accepted_apk(scope, folder, record, acceptance_proof, tools)
+    verify_request(revision, actions_read=True)
     draft, _ = exact_release()
     ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
     with tempfile.TemporaryDirectory(prefix="miancak-preview-asset-", dir=folder.parent) as directory:
@@ -403,6 +449,7 @@ def publish(folder, revision, approved_sha):
         notes += (f"\n\nSource `{SOURCE}`. Version code 7.\n\n"
                   f"APK SHA-256 `{record['apk_sha256']}`.\n\n"
                   f"Signing certificate SHA-256 `{ops.CERTIFICATE}`.\n")
+        verify_request(revision, actions_read=True)
         ops.api(f"releases/{DRAFT_ID}", method="PATCH",
                 body={"name": "MIANCAK v0.3.4-preview.1", "body": notes,
                       "draft": False, "prerelease": True, "make_latest": "false"})
@@ -425,7 +472,10 @@ def main():
     ops.install_deadline()
     if args.operation == "admit":
         admit(os.environ.get("PREVIEW_MODE", ""))
-        print("PASS: PREVIEW_EXACT_DISPATCH_ADMITTED")
+        if os.environ.get("GITHUB_EVENT_NAME") == "push":
+            print("PASS: PREVIEW_PROTECTED_REQUEST_ADMITTED")
+        else:
+            print("PASS: PREVIEW_EXACT_DISPATCH_ADMITTED")
         return
     # The credential-bearing step has no GitHub token. Provenance is checked
     # before it and publication checks it independently on a clean runner.
@@ -433,12 +483,14 @@ def main():
     revision = workflow_revision(mode) if args.operation == "sign" else authority(mode)
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if args.operation == "build-check":
+        verify_request(revision, actions_read=True)
         public_baseline()
         candidate_checkout(args.folder)
     elif args.operation == "sign":
         ops.require(not os.environ.get("GH_TOKEN") and os.environ.get("PREVIEW_MODE") == "publish",
                     "PREVIEW_SIGNING_ENVIRONMENT")
         bind_signing_input(args.prepared, revision, approval)
+        request_pre_key(args.prepared, revision, approval)
         from sign_apk import sign
         sign(args.prepared, args.folder, args.probe_classes)
     else:

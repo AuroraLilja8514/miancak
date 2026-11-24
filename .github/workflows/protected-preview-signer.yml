@@ -23,7 +23,8 @@ jobs:
       github.repository == 'AuroraLilja8514/miancak' &&
       github.workflow_ref == 'AuroraLilja8514/miancak/.github/workflows/protected-preview.yml@refs/heads/master' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref_protected)) && github.actor == github.repository_owner
     environment: release-signing
     runs-on: ubuntu-24.04
     timeout-minutes: 42
@@ -44,6 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.workflow_sha }}
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
           persist-credentials: false
       - name: Verify the attested build grant and create the runner-local input identity
         env:
@@ -168,6 +170,7 @@ jobs:
           fi
           echo 'PASS: PREVIEW_ANDROID_ACCEPTANCE'
       - name: Seal the accepted APK and encrypt it for the authenticated publisher
+        id: seal-accepted
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -177,22 +180,36 @@ jobs:
           python3 tools/protected-preview/preview_ops.py seal --folder "$stage/signed" --report "$stage/test-results/release/acceptance.json"
           python3 tools/protected-preview/handoff.py encrypt --stage "$stage" --timeout-seconds 260
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: accepted-apk-proof
+        with:
+          subject-name: miancak-0.3.4-preview.1.apk
+          subject-digest: ${{ steps.seal-accepted.outputs.apk_digest }}
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-accepted-apk/v1
+          predicate-path: ${{ runner.temp }}/miancak-preview/ciphertext/accepted-apk-predicate.json
+          show-summary: false
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         id: ciphertext-proof
         with:
           subject-path: ${{ runner.temp }}/miancak-preview/ciphertext/accepted.age
           predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-handoff/v1
           predicate: '{"role":"ciphertext"}'
           show-summary: false
-      - name: Stage the ciphertext and its attestation
+      - name: Stage the ciphertext and both attestation bundles
         env:
           CIPHERTEXT_PROOF: ${{ steps.ciphertext-proof.outputs.bundle-path }}
-        run: cp -- "$CIPHERTEXT_PROOF" "$RUNNER_TEMP/miancak-preview/ciphertext/proof.json"
+          ACCEPTED_APK_PROOF: ${{ steps.accepted-apk-proof.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/miancak-preview/ciphertext"
+          cp -- "$CIPHERTEXT_PROOF" "$stage/proof.json"
+          cp -- "$ACCEPTED_APK_PROOF" "$stage/accepted-apk-proof.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: preview-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/miancak-preview/ciphertext/accepted.age
             ${{ runner.temp }}/miancak-preview/ciphertext/proof.json
+            ${{ runner.temp }}/miancak-preview/ciphertext/accepted-apk-proof.json
           overwrite: false
           if-no-files-found: error
           retention-days: 1

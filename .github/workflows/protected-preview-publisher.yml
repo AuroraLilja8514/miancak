@@ -14,7 +14,8 @@ jobs:
       github.repository == 'AuroraLilja8514/miancak' &&
       github.workflow_ref == 'AuroraLilja8514/miancak/.github/workflows/protected-preview.yml@refs/heads/master' &&
       github.ref == 'refs/heads/master' && github.run_attempt == 1 &&
-      github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref_protected)) && github.actor == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     permissions:
@@ -32,6 +33,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.workflow_sha }}
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
           persist-credentials: false
       - name: Provision pinned tools and generate a publisher-local age identity
         env:
