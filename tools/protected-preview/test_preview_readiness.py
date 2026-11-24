@@ -78,7 +78,7 @@ class Readiness(RequestFixture, unittest.TestCase):
             f"actions/caches?{urlencode({'ref': 'refs/heads/' + self.branch, 'per_page': 1})}",
             "branches/master",
         ]
-        for role, authenticated in (("admit", 3), ("signer", 9), ("publisher", 9)):
+        for role in ("admit", "signer", "publisher"):
             with self.subTest(role=role):
                 stage = self.root.parent / role
                 output = self.root.parent / (role + ".output")
@@ -86,13 +86,9 @@ class Readiness(RequestFixture, unittest.TestCase):
                 status, stdout, stderr, calls = self.run_command(command, data, GITHUB_OUTPUT=str(output))
                 self.assertEqual((status, stderr), (0, ""))
                 self.assertRegex(stdout, rf"^PASS: READINESS_METADATA role={role} reads=12 elapsed_ms=\d+\n$")
-                self.assertEqual(sum(call.kwargs["authenticated"] for call in calls), authenticated)
                 self.assertEqual([call.args[0] for call in calls], expected_routes)
-                actions_read = role != "admit"
-                self.assertEqual([call.kwargs["authenticated"] for call in calls], [
-                    True, False, actions_read, False, False, True, *([actions_read] * 5), True,
-                ])
-                self.assertTrue(all(call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
+                self.assertTrue(all(call.kwargs["authenticated"] is True and call.kwargs["timeout"] == 5
+                                    and call.kwargs["limit"] == 1024 * 1024
                                     and "method" not in call.kwargs for call in calls))
                 if role != "admit":
                     expected = readiness.fixture_bytes(role)
@@ -125,16 +121,20 @@ class Readiness(RequestFixture, unittest.TestCase):
                            environ=self.env, root=self.root)
         api.assert_not_called()
 
-    def test_consumed_v1_request_cannot_start_the_v2_rehearsal(self):
-        self.path = ".github/release-requests/_protected-preview-readiness-probe.json"
-        self.branch = "release-request/dummy-preview-readiness"
-        self.request(content=readiness.canonical_dummy(self.base).replace(b'"format_version": 2', b'"format_version": 1'))
-        failed = self.run_pr()
-        self.assertEqual((failed.returncode, failed.stderr), (1, "FAIL: REHEARSAL_PR_REF\n"))
-        self.push_metadata()
-        self.assertEqual(self.run_command(["admit"], {}), (1, "", "FAIL: REHEARSAL_CHANGED_PATHS\n", []))
+    def test_consumed_requests_cannot_start_the_v3_rehearsal(self):
+        for version, suffix in ((1, ""), (2, "-v2")):
+            with self.subTest(version=version):
+                self.path = f".github/release-requests/_protected-preview-readiness-probe{suffix}.json"
+                self.branch = f"release-request/dummy-preview-readiness{suffix}"
+                record = json.loads(readiness.canonical_dummy(self.base)) | {"format_version": version}
+                self.request(content=(json.dumps(record, indent=2, sort_keys=True) + "\n").encode())
+                failed = self.run_pr()
+                self.assertEqual((failed.returncode, failed.stderr), (1, "FAIL: REHEARSAL_PR_REF\n"))
+                self.push_metadata()
+                self.assertEqual(self.run_command(["admit"], {}), (1, "", "FAIL: REHEARSAL_CHANGED_PATHS\n", []))
+                self.git("reset", "--hard", self.base)
 
-    def test_v2_request_replay_fails_even_if_the_file_was_deleted(self):
+    def test_v3_request_replay_fails_even_if_the_file_was_deleted(self):
         self.request()
         self.push_metadata()
         self.git("rm", self.path)
@@ -170,15 +170,15 @@ class Readiness(RequestFixture, unittest.TestCase):
         output = self.root.parent / "digest"
         command = ["prepare", "publisher", "--stage", str(stage)]
         prefix = f"https://api.github.com/repos/{ops.REPO}/"
-        for endpoint, name, mode, headers, suffix in (
-            ("rules/branches/master", "branch_rules", "anonymous",
-             [("X-RateLimit-Limit", "60"), ("X-RateLimit-Remaining", "0"), ("X-RateLimit-Reset", "1800000000")],
-             " limit=60 remaining=0 reset_epoch=1800000000"),
-            (self.production_runs, "workflow_runs", "job_token",
+        for endpoint, name, headers, suffix in (
+            ("rules/branches/master", "branch_rules",
+             [("X-RateLimit-Limit", "1000"), ("X-RateLimit-Remaining", "0"), ("X-RateLimit-Reset", "1800000000")],
+             " limit=1000 remaining=0 reset_epoch=1800000000"),
+            (self.production_runs, "workflow_runs",
              [("X-RateLimit-Remaining", "947"), ("Retry-After", "77")], " remaining=947 retry_after_seconds=77"),
-            (f"git/commits/{self.head}", "git_commit", "job_token",
+            (f"commits/{self.squash}/pulls?per_page=2", "commit_pull_requests",
              [("X-Accepted-GitHub-Permissions", "opaque-scope-fixture")], ""),
-            (self.jobs_path, "review_jobs", "job_token",
+            (self.jobs_path, "review_jobs",
              [("X-RateLimit-Limit", "9" * 16), ("X-RateLimit-Remaining", "0"), ("X-RateLimit-Remaining", "7"),
               ("X-RateLimit-Reset", "٠"), ("Retry-After", "86401"), ("Location", "https://untrusted.invalid")], ""),
         ):
@@ -192,10 +192,10 @@ class Readiness(RequestFixture, unittest.TestCase):
                 def open_request(req, *, timeout):
                     self.assertEqual(timeout, 5)
                     self.assertEqual(req.get_method(), "GET")
+                    self.assertEqual(req.get_header("Authorization"), "Bearer synthetic-fixture")
                     route = req.full_url.removeprefix(prefix)
                     seen.append(route)
                     if route == endpoint:
-                        self.assertEqual(req.has_header("Authorization"), mode == "job_token")
                         raise HTTPError("https://opaque.invalid/private", 403, "opaque failure reason",
                                         response_headers, error_body)
                     return io.BytesIO(json.dumps(data[route]).encode())
@@ -207,7 +207,7 @@ class Readiness(RequestFixture, unittest.TestCase):
                     opener.return_value.open.side_effect = open_request
                     code = readiness.main(command, environ=self.push_env(GITHUB_OUTPUT=str(output)), root=self.root)
                 self.assertEqual((code, stdout.getvalue(), stderr.getvalue()), (
-                    1, "", f"READINESS_HTTP_ERROR category={name} auth={mode} status=403{suffix}\nFAIL: API_HTTP_403\n",
+                    1, "", f"READINESS_HTTP_ERROR category={name} auth=job_token status=403{suffix}\nFAIL: API_HTTP_403\n",
                 ))
                 self.assertEqual(seen[-1], endpoint)
                 self.assertEqual(len(seen), len(set(seen)))

@@ -1,5 +1,6 @@
 """Exercise the disarmed and protected preview entry with real Git trees."""
 import copy
+from email.message import Message
 import io
 import json
 import os
@@ -9,6 +10,7 @@ import unittest
 from unittest import mock
 from urllib.error import HTTPError
 from urllib.parse import urlencode
+from urllib.response import addinfourl
 
 import handoff
 import manifest_request as request
@@ -85,27 +87,27 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
         self.request()
         read = self.run_admit(self.admitted_metadata())
         guarded = [call for call in read.call_args_list if "authenticated" in call.kwargs]
-        public = [call for call in guarded if not call.kwargs["authenticated"]]
-        contents = [call.args[0] for call in guarded if call.kwargs["authenticated"]]
-        self.assertEqual(len(public), 9)
-        self.assertEqual(contents, ["branches/master", f"git/commits/{self.head}", "branches/master"])
-        self.assertTrue(all(set(call.kwargs) == {"authenticated", "timeout", "limit"}
-                            and call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
-                            for call in guarded))
+        self.assertEqual(len(guarded), 12)
+        for call in guarded:
+            self.assertEqual(call.kwargs, {
+                "authenticated": True, "timeout": 5, "limit": 1024 * 1024, "on_http_error": None,
+            })
         self.assertTrue(all("method" not in call.kwargs for call in read.call_args_list))
 
-    def test_actions_enabled_role_routes_all_eligible_reads_through_existing_token(self):
+    def test_protected_request_checks_rules_and_unique_pr_with_job_token(self):
         self.request()
         data = self.admitted_metadata()
         with mock.patch.object(request, "MERGE_ENABLED", True), \
              mock.patch.object(ops, "api", side_effect=lambda path, **kw: data[path]) as read:
-            request.verify(self.squash, actions_read=True, root=self.root, environ=self.push_env())
-        public = [call.args[0] for call in read.call_args_list if not call.kwargs["authenticated"]]
-        eligible = [call.args[0] for call in read.call_args_list if call.kwargs["authenticated"]]
-        self.assertEqual(public, ["rules/branches/master", f"commits/{self.squash}/pulls?per_page=2", f"pulls/{PR_NUMBER}"])
-        self.assertEqual(len(eligible), 9)
-        self.assertIn(self.push_run_path, eligible)
-        self.assertIn(self.jobs_path, eligible)
+            request.verify(self.squash, root=self.root, environ=self.push_env())
+        routes = [call.args[0] for call in read.call_args_list]
+        self.assertEqual(len(routes), 12)
+        self.assertEqual(routes[:6], [
+            "branches/master", "rules/branches/master", self.push_run_path,
+            f"commits/{self.squash}/pulls?per_page=2", f"pulls/{PR_NUMBER}", f"git/commits/{self.head}",
+        ])
+        self.assertIn(self.jobs_path, routes)
+        self.assertTrue(all(call.kwargs["authenticated"] is True for call in read.call_args_list))
         self.assertTrue(all(call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
                             for call in read.call_args_list))
 
@@ -225,51 +227,46 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
             sign.assert_called_once()
 
     def test_metadata_restricts_method_destination_and_authorization(self):
-        with mock.patch.dict(os.environ, {"GH_TOKEN": "never-sent-fixture"}), \
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "job-token-fixture"}, clear=True), \
              mock.patch.object(ops.urllib.request, "build_opener") as build:
             fetch = build.return_value.open
-            fetch.return_value = io.BytesIO(b'{"id":45}')
-            self.assertEqual(request.metadata_read("pulls/45", actions_read=True), {"id": 45})
-            sent = fetch.call_args.args[0]
-            self.assertEqual(sent.get_method(), "GET")
-            self.assertNotIn("Authorization", sent.headers)
-            self.assertEqual(sent.headers["Cache-control"], "no-cache")
             with self.assertRaisesRegex(ops.ReleaseError, "PUBLIC_METADATA_READ_ONLY"):
                 ops.api("pulls/45", method="PATCH", body={}, authenticated=False)
-            for endpoint, actions_read, authenticated in (
-                ("branches/master", False, True),
-                (f"git/commits/{'a' * 40}", True, True),
-                ("actions/caches?per_page=1", False, False),
-                ("actions/caches?per_page=1", True, True),
+            for endpoint in (
+                "rules/branches/master", "branches/master", f"git/commits/{'a' * 40}",
+                f"commits/{'a' * 40}/pulls?per_page=2", "pulls/45", "actions/caches?per_page=1",
             ):
                 fetch.reset_mock()
                 fetch.return_value = io.BytesIO(b"{}")
-                request.metadata_read(endpoint, actions_read=actions_read)
+                request.metadata_read(endpoint)
                 fetch.assert_called_once()
                 sent = fetch.call_args.args[0]
                 self.assertEqual(sent.full_url, f"https://api.github.com/repos/{ops.REPO}/{endpoint}")
                 self.assertEqual(sent.get_method(), "GET")
                 self.assertEqual(fetch.call_args.kwargs["timeout"], 5)
                 self.assertEqual(sent.headers["Cache-control"], "no-cache")
-                self.assertEqual(sent.headers.get("Authorization"), "Bearer never-sent-fixture" if authenticated else None)
+                self.assertEqual(sent.headers.get("Authorization"), "Bearer job-token-fixture")
             fetch.reset_mock()
             for endpoint in ("releases/453133947", "../actions/caches", "https://example.invalid/actions/caches",
-                             "actions/workflows/1/runs", "actions/runs/123/attempts/2/jobs"):
+                             "actions/workflows/1/runs", "actions/runs/123/attempts/2/jobs", "rules/branches/other"):
                 with self.subTest(endpoint=endpoint), self.assertRaisesRegex(
                     ops.ReleaseError, "PREVIEW_REQUEST_METADATA_ROUTE"
                 ):
-                    request.metadata_read(endpoint, actions_read=True)
-            with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(ops.ReleaseError, "API_TOKEN_MISSING"):
-                request.metadata_read("branches/master", actions_read=True)
+                    request.metadata_read(endpoint)
+            with mock.patch.dict(os.environ, {"GITHUB_TOKEN": "other-token-fixture"}, clear=True), \
+                 self.assertRaisesRegex(ops.ReleaseError, "API_TOKEN_MISSING"):
+                request.metadata_read("rules/branches/master")
             fetch.assert_not_called()
 
     def test_metadata_limits_fail_without_retry_or_authentication_fallback(self):
-        with mock.patch.dict(os.environ, {"GH_TOKEN": "never-sent-fixture"}), \
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "job-token-fixture"}, clear=True), \
              mock.patch.object(ops.urllib.request, "build_opener") as build:
             fetch = build.return_value.open
             for path, body, failure in (
                 ("pulls/45", io.BytesIO(b" " * (1024 * 1024 + 1)), "API_RESPONSE_SIZE"),
                 ("branches/master", HTTPError("synthetic", 429, "limit", {}, None), "API_HTTP_429"),
+                (f"commits/{'a' * 40}/pulls?per_page=2",
+                 HTTPError("synthetic", 403, "denied", {}, None), "API_HTTP_403"),
             ):
                 fetch.reset_mock(return_value=True, side_effect=True)
                 if isinstance(body, HTTPError):
@@ -277,8 +274,30 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
                 else:
                     fetch.return_value = body
                 with self.subTest(path=path), self.assertRaisesRegex(ops.ReleaseError, failure):
-                    request.metadata_read(path, actions_read=True)
+                    request.metadata_read(path)
                 fetch.assert_called_once()
+                self.assertEqual(fetch.call_args.args[0].get_header("Authorization"), "Bearer job-token-fixture")
+
+    def test_metadata_redirect_never_makes_a_second_request(self):
+        urllib_request = ops.urllib.request
+        seen = []
+
+        class RedirectResponse(urllib_request.HTTPSHandler):
+            def https_open(self, req):
+                seen.append((req.full_url, req.get_header("Authorization")))
+                headers = Message()
+                headers["Location"] = "https://other-origin.invalid/redirect"
+                response = addinfourl(io.BytesIO(b""), headers, req.full_url, 302)
+                response.msg = "Found"
+                return response
+
+        opener = urllib_request.build_opener(urllib_request.ProxyHandler({}), RedirectResponse, ops.NoRedirect)
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "job-token-fixture"}, clear=True), \
+             mock.patch.object(urllib_request, "build_opener", return_value=opener), \
+             self.assertRaisesRegex(ops.ReleaseError, "API_HTTP_302"):
+            request.metadata_read("rules/branches/master")
+        self.assertEqual(seen, [(f"https://api.github.com/repos/{ops.REPO}/rules/branches/master",
+                                 "Bearer job-token-fixture")])
 
     def test_failed_required_check_prevents_draft_upload(self):
         self.request()

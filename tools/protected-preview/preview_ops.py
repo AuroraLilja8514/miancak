@@ -65,10 +65,10 @@ def request_fields(revision):
     return {"release_request": binding(revision)}
 
 
-def verify_request(revision, *, actions_read):
+def verify_request(revision):
     if os.environ.get("GITHUB_EVENT_NAME") == "push":
         from manifest_request import verify
-        verify(revision, actions_read=actions_read)
+        verify(revision)
 
 
 def workflow_revision(mode):
@@ -134,7 +134,7 @@ def exact_release(published=False):
 
 def admit(mode):
     revision = authority(mode)
-    verify_request(revision, actions_read=False)
+    verify_request(revision)
     stable = public_baseline()
     source = read_metadata(f"git/commits/{SOURCE}", "PREVIEW_CANDIDATE_READ", timeout=15)
     ops.require(source["sha"] == SOURCE and source["tree"]["sha"] == TREE, "PREVIEW_CANDIDATE_TREE")
@@ -323,7 +323,7 @@ def request_pre_key(folder, revision, approval, *, record=False):
     })
     path = folder / "request-pre-key.json"
     if record:
-        verify_request(revision, actions_read=True)
+        verify_request(revision)
         with path.open("xb") as stream:
             stream.write(proof)
     else:
@@ -433,7 +433,7 @@ def publish(folder, scope, acceptance_proof, tools):
                 and hex_digest(approved_sha) and record["approval_sha256"] == approved_sha,
                 "PREVIEW_PUBLICATION_APPROVAL")
     verify_accepted_apk(scope, folder, record, acceptance_proof, tools)
-    verify_request(revision, actions_read=True)
+    verify_request(revision)
     draft, _ = exact_release()
     ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
     with tempfile.TemporaryDirectory(prefix="miancak-preview-asset-", dir=folder.parent) as directory:
@@ -449,7 +449,7 @@ def publish(folder, scope, acceptance_proof, tools):
         notes += (f"\n\nSource `{SOURCE}`. Version code 7.\n\n"
                   f"APK SHA-256 `{record['apk_sha256']}`.\n\n"
                   f"Signing certificate SHA-256 `{ops.CERTIFICATE}`.\n")
-        verify_request(revision, actions_read=True)
+        verify_request(revision)
         ops.api(f"releases/{DRAFT_ID}", method="PATCH",
                 body={"name": "MIANCAK v0.3.4-preview.1", "body": notes,
                       "draft": False, "prerelease": True, "make_latest": "false"})
@@ -483,7 +483,7 @@ def main():
     revision = workflow_revision(mode) if args.operation == "sign" else authority(mode)
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if args.operation == "build-check":
-        verify_request(revision, actions_read=True)
+        verify_request(revision)
         public_baseline()
         candidate_checkout(args.folder)
     elif args.operation == "sign":

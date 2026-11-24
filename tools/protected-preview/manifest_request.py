@@ -37,28 +37,25 @@ def binding(revision, *, environ=None, root=None):
 
 
 METADATA_ROUTES = (
-    (r"branches/master", "protected_branch", "contents"),
-    (r"git/commits/[0-9a-f]{40}", "git_commit", "contents"),
-    (r"actions/caches", "review_caches", "actions"),
-    (r"actions/runs/[1-9][0-9]*/attempts/1/jobs", "review_jobs", "actions"),
-    (r"actions/runs/[1-9][0-9]*/artifacts", "review_artifacts", "actions"),
-    (rf"actions/workflows/(?:{WORKFLOW_ID}|{CI_WORKFLOW_ID})/runs", "workflow_runs", "actions"),
-    (r"rules/branches/master", "branch_rules", "public"),
-    (r"commits/[0-9a-f]{40}/pulls", "commit_pull_requests", "public"),
-    (r"pulls/[1-9][0-9]*", "pull_request", "public"),
+    (r"branches/master", "protected_branch"),
+    (r"git/commits/[0-9a-f]{40}", "git_commit"),
+    (r"actions/caches", "review_caches"),
+    (r"actions/runs/[1-9][0-9]*/attempts/1/jobs", "review_jobs"),
+    (r"actions/runs/[1-9][0-9]*/artifacts", "review_artifacts"),
+    (rf"actions/workflows/(?:{WORKFLOW_ID}|{CI_WORKFLOW_ID})/runs", "workflow_runs"),
+    (r"rules/branches/master", "branch_rules"),
+    (r"commits/[0-9a-f]{40}/pulls", "commit_pull_requests"),
+    (r"pulls/[1-9][0-9]*", "pull_request"),
 )
 
 
-def metadata_read(path, *, actions_read, report_failure=None):
-    """Use the current job token only for fixed Contents and Actions reads."""
+def metadata_read(path, *, report_failure=None):
+    """Use only the current job token on allowlisted same-repository GETs."""
     endpoint = path.split("?", 1)[0]
-    for pattern, category, scope in METADATA_ROUTES:
+    for pattern, category in METADATA_ROUTES:
         if re.fullmatch(pattern, endpoint):
-            authenticated = scope == "contents" or (scope == "actions" and bool(actions_read))
-            options = {}
-            if report_failure is not None:
-                options["on_http_error"] = partial(report_failure, category, authenticated)
-            return ops.api(path, authenticated=authenticated, timeout=5, limit=1024 * 1024, **options)
+            handler = None if report_failure is None else partial(report_failure, category)
+            return ops.api(path, authenticated=True, timeout=5, limit=1024 * 1024, on_http_error=handler)
     raise ops.ReleaseError("PREVIEW_REQUEST_METADATA_ROUTE")
 
 
@@ -80,11 +77,11 @@ def require_protection(fetch):
             "PREVIEW_REQUEST_REQUIRED_CONTEXTS")
 
 
-def verify(revision, *, actions_read, environ=None, root=None):
+def verify(revision, *, environ=None, root=None):
     """Read the authoritative current run, protected merge and its required checks."""
     environ = os.environ if environ is None else environ
     request = binding(revision, environ=environ, root=root)
-    fetch = partial(metadata_read, actions_read=actions_read)
+    fetch = metadata_read
     try:
         branch = fetch("branches/master")
         expect(branch, {"name": "master", "protected": True}, "PREVIEW_REQUEST_PROTECTED_REF")

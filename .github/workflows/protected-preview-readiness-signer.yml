@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     steps:
@@ -37,7 +38,7 @@ jobs:
         with:
           subject-name: miancak-readiness-signer.txt
           subject-digest: ${{ steps.fixture.outputs.digest }}
-          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-readiness/v2
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-readiness/v3
           predicate: '{"role":"signer"}'
           show-summary: false
       - name: Verify the caller, reusable workflow, run attempt and synthetic subject
