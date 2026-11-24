@@ -129,38 +129,44 @@ only the initial request.
 
 ## Hosted rehearsal before activation
 
-Use a separate, disarmed review to add a literal one-file trigger for
-`.github/release-requests/_protected-preview-readiness-probe.json`.
-Review a matching ordinary master CI path exclusion and genuine
-no-upload PR checks for the exact rehearsal review and dummy request
-branches. Keep this workflow's source gate and owner-dispatch trigger
-unchanged. A normally protected dummy squash should produce one run
-whose caller verifies the actual repository, protected ref, exact owner
-actor ID, reviewed one-file merge and attempt 1.
+The separate disarmed rehearsal review uses
+`review/protected-preview-readiness`. It adds a caller with a literal
+one-file trigger for `.github/release-requests/_protected-preview-readiness-probe.json`,
+a matching ordinary master CI path exclusion, and genuine no-upload
+checks for just this review branch and `release-request/dummy-preview-readiness`.
+The review contains workflows, scripts, and tests. The dummy request is
+a later one-file PR from freshly verified protected master. Its bytes
+come from `preview_readiness.canonical_dummy`, pinned to that exact
+base. The approved setup squash uses `[skip ci]` to avoid ordinary
+master CI. The later dummy squash uses a normal message so the scoped
+rehearsal can start. The caller verifies the actual repository, protected
+ref, exact owner actor ID, reviewed one-file merge and attempt 1.
 
 Exercise the real metadata router in the Contents-only admission role
 and in two reusable jobs with Contents and Actions read. Use fixed public
 PR, protection, run, job, artifact and cache queries, including the
 production workflow's push-list query at the dummy SHA. Confirm the
-expected empty production result and normal response shapes. Check
-both role budgets under GitHub-hosted egress. The admission budget is
-75 seconds in a two-minute job. The other roles' metadata probes must
-fit their 90-second step envelopes. Record only fixed phase/status,
-request counts, bounded timing and any available public quota headers.
-Treat rate limiting, timeout and unavailable metadata as failed evidence.
+expected empty production result and normal response shapes. Each role
+performs twelve reads with its existing role permissions. The admission
+budget is 75 seconds in a two-minute job. The reusable roles have
+90 seconds for metadata and 135 seconds for the verifier and its pinned
+GH CLI installation, within seven minutes per job. The only metadata
+read output is the role, count, elapsed milliseconds, or a sanitized
+error code. Rate limiting, timeout and unavailable metadata fail the
+rehearsal.
 
 In the same rehearsal run, use separate local reusable signer and
 publisher jobs with read-only repository permissions plus only the
 OIDC and attestation permissions needed for dummy digest attestations.
-Use a dummy predicate namespace, fixed dummy bytes and the pinned
-official attestation and verifier tooling. Verify both real certificates
-against the caller and reusable workflow paths, source revision,
-protected ref, `push`, GitHub-hosted runner identity and exact invocation.
-Prove that wrong workflow, attempt and subject fail. Confirm that the
-run produces only dummy attestations and job metadata. The rehearsal
-jobs have no signing environment, credentials, APK build, archive
-upload, cache or release write. Its hosted routing budgets and OIDC
-evidence remain pending.
+The two jobs attest distinct fixed synthetic digests in the
+`preview-readiness/v1` namespace. Each job verifies its own actual
+certificate and subject against the caller and reusable workflow paths,
+source revision, protected ref, `push`, GitHub-hosted runner identity and
+exact invocation. Each also tests rejection with a different reusable
+workflow, attempt and subject. The attestation store and job status are
+the only hosted outputs. The usual PR checks still compile the application
+on their runners. The later protected-push rehearsal operates only on
+synthetic data. Hosted routing budgets and OIDC issuance remain pending.
 
 ## Activation is a separate protected change
 

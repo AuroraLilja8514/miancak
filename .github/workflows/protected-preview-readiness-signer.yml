@@ -1,0 +1,50 @@
+name: Rehearse preview signer identity
+on: workflow_call
+
+permissions: {}
+jobs:
+  prove:
+    name: Verify synthetic signer proof
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.workflow_ref == 'AuroraLilja8514/miancak/.github/workflows/protected-preview-readiness.yml@refs/heads/master' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/master' &&
+      github.ref_protected && github.run_attempt == 1 &&
+      github.actor_id == '315702774' && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exercise bounded metadata reads and prepare fixed synthetic bytes
+        id: fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 tools/protected-preview/preview_readiness.py prepare signer
+          --stage "$RUNNER_TEMP/miancak-preview-readiness-signer" --timeout-seconds 90
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: synthetic
+        timeout-minutes: 2
+        with:
+          subject-name: miancak-readiness-signer.txt
+          subject-digest: ${{ steps.fixture.outputs.digest }}
+          predicate-type: https://github.com/AuroraLilja8514/miancak/provenance/preview-readiness/v1
+          predicate: '{"role":"signer"}'
+          show-summary: false
+      - name: Verify the caller, reusable workflow, run attempt and synthetic subject
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNTHETIC_PROOF: ${{ steps.synthetic.outputs.bundle-path }}
+        run: >-
+          python3 tools/protected-preview/preview_readiness.py verify signer
+          --stage "$RUNNER_TEMP/miancak-preview-readiness-signer"
+          --proof "$SYNTHETIC_PROOF" --timeout-seconds 135
