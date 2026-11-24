@@ -10,6 +10,7 @@ on:
       - .github/release-requests/_protected-preview-readiness-probe.json
       - .github/release-requests/_protected-preview-readiness-probe-v2.json
       - .github/release-requests/_protected-preview-readiness-probe-v3.json
+      - .github/release-requests/v0.3.4-preview.1.json
   workflow_dispatch:
     inputs:
       owner_approval_probe:
@@ -23,7 +24,7 @@ permissions:
   contents: read
 
 env:
-  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","review/protected-preview-merge-entry","review/protected-preview-readiness","review/protected-preview-readiness-v2","review/protected-preview-readiness-v3","release-request/dummy-protected-merge","release-request/v0.3.4-preview.1","release-request/dummy-preview-readiness","release-request/dummy-preview-readiness-v2","release-request/dummy-preview-readiness-v3"]'), github.head_ref))) }}
+  MIANCAK_REVIEW_CI: ${{ github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","review/protected-preview-merge-entry","review/protected-preview-readiness","review/protected-preview-readiness-v2","review/protected-preview-readiness-v3","review/activate-protected-preview-request","release-request/dummy-protected-merge","release-request/v0.3.4-preview.1","release-request/dummy-preview-readiness","release-request/dummy-preview-readiness-v2","release-request/dummy-preview-readiness-v3"]'), github.head_ref))) }}
   MIANCAK_SCRIPT_TIMEOUT_SECONDS: "3600"
   MIANCAK_ADB_TIMEOUT_SECONDS: "30"
   MIANCAK_INSTRUMENT_TIMEOUT_SECONDS: "900"
@@ -46,7 +47,7 @@ jobs:
   # Independent host diagnostic. Its separate guest cannot gate app tests on
   # other hosts; real app upgrade/learning jobs still require actual reboots.
   emulator-reboot-check:
-    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","review/protected-preview-merge-entry","review/protected-preview-readiness","review/protected-preview-readiness-v2","review/protected-preview-readiness-v3","release-request/dummy-protected-merge","release-request/v0.3.4-preview.1","release-request/dummy-preview-readiness","release-request/dummy-preview-readiness-v2","release-request/dummy-preview-readiness-v3"]'), github.head_ref)))) }}
+    if: &ordinary_ci ${{ !(github.repository == 'AuroraLilja8514/miancak' && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/review/protected-preview-ciphertext') || (github.event_name == 'pull_request' && contains(fromJSON('["review/trace-protected-preview-android","review/bootstrap-protected-release-request","review/protected-preview-merge-entry","review/protected-preview-readiness","review/protected-preview-readiness-v2","review/protected-preview-readiness-v3","review/activate-protected-preview-request","release-request/dummy-protected-merge","release-request/v0.3.4-preview.1","release-request/dummy-preview-readiness","release-request/dummy-preview-readiness-v2","release-request/dummy-preview-readiness-v3"]'), github.head_ref)))) }}
     name: emulator-reboot (23)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -130,6 +131,7 @@ jobs:
                                  "review/protected-preview-readiness",
                                  "review/protected-preview-readiness-v2",
                                  "review/protected-preview-readiness-v3",
+                                 "review/activate-protected-preview-request",
                                  "release-request/dummy-protected-merge",
                                  "release-request/v0.3.4-preview.1",
                                  "release-request/dummy-preview-readiness",

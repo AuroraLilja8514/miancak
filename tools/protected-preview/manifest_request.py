@@ -16,9 +16,9 @@ from manifest_admission_prototype import (
 import preview_ops as preview
 import release_ops as ops
 
-# The workflow is still dispatch-only. Enabling a protected push is a separate
-# protected review and does not use a workflow input or repository variable.
-MERGE_ENABLED = False
+# Reviewed source enables only the literal protected request push. Workflow
+# inputs and repository variables cannot change this gate.
+MERGE_ENABLED = True
 REVIEW_STEP = "Verify preview request and reviewed tree"
 RULESET_ID = 22517239
 

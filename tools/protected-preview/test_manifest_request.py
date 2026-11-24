@@ -77,6 +77,12 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
         result = self.run_pr()
         self.assertEqual((result.returncode, result.stderr), (1, "FAIL: REHEARSAL_CHANGED_PATHS\n"))
 
+    def test_protected_push_rejects_a_request_merged_with_other_code(self):
+        self.request(extra=True)
+        self.push_metadata()
+        with self.assertRaisesRegex(ops.ReleaseError, "REHEARSAL_CHANGED_PATHS"):
+            self.run_admit({})
+
     def test_production_bootstrap_has_no_runtime_override(self):
         self.request()
         self.push_metadata()
