@@ -65,10 +65,10 @@ def request_fields(revision):
     return {"release_request": binding(revision)}
 
 
-def verify_request(revision):
+def verify_request(revision, *, actions_read):
     if os.environ.get("GITHUB_EVENT_NAME") == "push":
         from manifest_request import verify
-        verify(revision)
+        verify(revision, actions_read=actions_read)
 
 
 def workflow_revision(mode):
@@ -134,7 +134,7 @@ def exact_release(published=False):
 
 def admit(mode):
     revision = authority(mode)
-    verify_request(revision)
+    verify_request(revision, actions_read=False)
     stable = public_baseline()
     source = read_metadata(f"git/commits/{SOURCE}", "PREVIEW_CANDIDATE_READ", timeout=15)
     ops.require(source["sha"] == SOURCE and source["tree"]["sha"] == TREE, "PREVIEW_CANDIDATE_TREE")
@@ -323,7 +323,7 @@ def request_pre_key(folder, revision, approval, *, record=False):
     })
     path = folder / "request-pre-key.json"
     if record:
-        verify_request(revision)
+        verify_request(revision, actions_read=True)
         with path.open("xb") as stream:
             stream.write(proof)
     else:
@@ -371,17 +371,14 @@ def require_acceptance(report, apk_sha):
     }
     ops.require(all(type(report.get(key)) is type(value) and report[key] == value
                     for key, value in expected.items()), "PREVIEW_SIGNED_ACCEPTANCE")
+    return expected
 
 
 def seal(folder, report_path, revision, approved_sha):
     record = signed_record(folder)
     report = json.loads(report_path.read_bytes())
-    require_acceptance(report, record["apk_sha256"])
     # Keep guest paths, text, output, preferences and diagnostics on the runner.
-    record["preview_acceptance"] = {key: report[key] for key in (
-        "api", "source_sha", "apk_sha256", "certificate_sha256", "baseline_version_code",
-        "version_code", "scenario", "result", "real_reboot", "legacy_yaml_preserved",
-        "requires_online_pack_setup", "custom_yaml_activated_after_reboot")}
+    record["preview_acceptance"] = require_acceptance(report, record["apk_sha256"])
     record["trusted_revision"] = revision
     record["approval_sha256"] = approved_sha
     record.update(request_fields(revision))
@@ -428,12 +425,15 @@ def verify_public(url, apk):
     raise ops.ReleaseError("PREVIEW_PUBLIC_REDIRECT_LIMIT")
 
 
-def publish(folder, revision, approved_sha):
+def publish(folder, scope, acceptance_proof, tools):
+    from handoff import verify_accepted_apk
+    revision, approved_sha = scope.revision, scope.approval
     record = signed_record(folder, accepted=True)
     ops.require(record["trusted_revision"] == revision
                 and hex_digest(approved_sha) and record["approval_sha256"] == approved_sha,
                 "PREVIEW_PUBLICATION_APPROVAL")
-    verify_request(revision)
+    verify_accepted_apk(scope, folder, record, acceptance_proof, tools)
+    verify_request(revision, actions_read=True)
     draft, _ = exact_release()
     ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
     with tempfile.TemporaryDirectory(prefix="miancak-preview-asset-", dir=folder.parent) as directory:
@@ -449,7 +449,7 @@ def publish(folder, revision, approved_sha):
         notes += (f"\n\nSource `{SOURCE}`. Version code 7.\n\n"
                   f"APK SHA-256 `{record['apk_sha256']}`.\n\n"
                   f"Signing certificate SHA-256 `{ops.CERTIFICATE}`.\n")
-        verify_request(revision)
+        verify_request(revision, actions_read=True)
         ops.api(f"releases/{DRAFT_ID}", method="PATCH",
                 body={"name": "MIANCAK v0.3.4-preview.1", "body": notes,
                       "draft": False, "prerelease": True, "make_latest": "false"})
@@ -483,7 +483,7 @@ def main():
     revision = workflow_revision(mode) if args.operation == "sign" else authority(mode)
     approval = os.environ.get("PREVIEW_APPROVAL_SHA256", "")
     if args.operation == "build-check":
-        verify_request(revision)
+        verify_request(revision, actions_read=True)
         public_baseline()
         candidate_checkout(args.folder)
     elif args.operation == "sign":

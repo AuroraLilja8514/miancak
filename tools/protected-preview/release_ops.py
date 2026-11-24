@@ -93,13 +93,14 @@ def request(method, url, *, body=None, accept="application/vnd.github+json", opt
             and parsed.port in (None, 443) and parsed.username is None, "API_DESTINATION")
     headers = {"Accept": accept, "User-Agent": "miancak-release",
                "X-GitHub-Api-Version": "2022-11-28"}
+    if method == "GET":
+        headers["Cache-Control"] = "no-cache"
     if authenticated:
         token = os.environ.get("GH_TOKEN", "")
         require(token, "API_TOKEN_MISSING")
         headers["Authorization"] = "Bearer " + token
     else:
         require(method == "GET" and body is None, "PUBLIC_METADATA_READ_ONLY")
-        headers["Cache-Control"] = "no-cache"
     data = None if body is None else json.dumps(body).encode()
     if data is not None:
         headers["Content-Type"] = "application/json"

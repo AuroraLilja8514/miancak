@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Verify the exact protected preview request using Git and GitHub metadata."""
 import argparse
+from functools import partial
 import os
 from pathlib import Path
+import re
 import sys
 from urllib.parse import urlencode
 
 import manifest_rehearsal as checked
 from manifest_admission_prototype import (
-    HEAD_BRANCH, REQUEST_PATH, REQUIRED, WORKFLOW_ID, Rejected, canonical_request,
+    CI_WORKFLOW_ID, HEAD_BRANCH, REQUEST_PATH, REQUIRED, WORKFLOW_ID, Rejected, canonical_request,
     expect, positive_id, require,
 )
 import preview_ops as preview
@@ -35,9 +37,26 @@ def binding(revision, *, environ=None, root=None):
 
 
 def public_read(path):
-    # Pull request, rules and CI metadata are public. Keep the existing
-    # protected jobs' token permissions and never forward a token here.
     return ops.api(path, authenticated=False, timeout=5, limit=1024 * 1024)
+
+
+def metadata_read(path, *, actions_read):
+    """Use the current job token only for fixed Contents and Actions reads."""
+    endpoint = path.split("?", 1)[0]
+    if endpoint == "branches/master" or re.fullmatch(r"git/commits/[0-9a-f]{40}", endpoint):
+        authenticated = True
+    elif (endpoint == "actions/caches"
+          or re.fullmatch(r"actions/runs/[1-9][0-9]*/(?:attempts/1/jobs|artifacts)", endpoint)
+          or re.fullmatch(rf"actions/workflows/(?:{WORKFLOW_ID}|{CI_WORKFLOW_ID})/runs", endpoint)):
+        authenticated = actions_read
+    elif (endpoint == "rules/branches/master"
+          or re.fullmatch(r"(?:commits/[0-9a-f]{40}/pulls|pulls/[1-9][0-9]*)", endpoint)):
+        authenticated = False
+    else:
+        raise ops.ReleaseError("PREVIEW_REQUEST_METADATA_ROUTE")
+    if authenticated:
+        return ops.api(path, authenticated=True, timeout=5, limit=1024 * 1024)
+    return public_read(path)
 
 
 def require_protection(fetch):
@@ -58,10 +77,11 @@ def require_protection(fetch):
             "PREVIEW_REQUEST_REQUIRED_CONTEXTS")
 
 
-def verify(revision, *, environ=None, root=None, fetch=public_read):
+def verify(revision, *, actions_read, environ=None, root=None):
     """Read the authoritative current run, protected merge and its required checks."""
     environ = os.environ if environ is None else environ
     request = binding(revision, environ=environ, root=root)
+    fetch = partial(metadata_read, actions_read=actions_read)
     try:
         branch = fetch("branches/master")
         expect(branch, {"name": "master", "protected": True}, "PREVIEW_REQUEST_PROTECTED_REF")

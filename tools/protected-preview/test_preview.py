@@ -12,6 +12,7 @@ import urllib.error
 
 import yaml
 
+import handoff
 import manifest_rehearsal as rehearsal
 import manifest_request as request
 import preview_device as device
@@ -24,6 +25,10 @@ BUILD = 123
 ARTIFACT = 456
 APPROVAL = "c" * 64
 DOWNLOAD = f"https://github.com/{ops.REPO}/releases/download/{preview.TAG}/{preview.ATTACHMENT}"
+
+
+def publish_fixture(folder):
+    preview.publish(folder, handoff.Scope(1, 1, REVISION, APPROVAL), folder / handoff.ACCEPTANCE_PROOF, folder)
 
 
 def release_state():
@@ -251,17 +256,17 @@ class Publication(unittest.TestCase):
                  mock.patch.object(ops, "upload_asset") as upload:
                 verify.side_effect = ops.ReleaseError("SIGNED_CERTIFICATE")
                 with self.assertRaisesRegex(ops.ReleaseError, "SIGNED_CERTIFICATE"):
-                    preview.publish(folder, REVISION, APPROVAL)
+                    publish_fixture(folder)
                 verify.side_effect = None
                 del record["preview_acceptance"]["custom_yaml_activated_after_reboot"]
                 ops.write_json(record_path, record)
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
-                    preview.publish(folder, REVISION, APPROVAL)
+                    publish_fixture(folder)
                 record["preview_acceptance"]["custom_yaml_activated_after_reboot"] = True
                 record["preview_acceptance"]["apk_sha256"] = "0" * 64
                 ops.write_json(record_path, record)
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_SIGNED_ACCEPTANCE"):
-                    preview.publish(folder, REVISION, APPROVAL)
+                    publish_fixture(folder)
                 upload.assert_not_called()
 
     def test_upload_digest_then_exact_prerelease_then_anonymous_verification(self):
@@ -300,9 +305,10 @@ class Publication(unittest.TestCase):
                 writes.append("download")
 
             with mock.patch.object(preview, "signed_record", return_value=record) as verify, \
+                 mock.patch.object(handoff, "verify_accepted_apk"), \
                  mock.patch.object(ops, "api", side_effect=api), mock.patch.object(ops, "upload_asset", side_effect=upload), \
                  mock.patch.object(preview, "verify_public", side_effect=public), mock.patch("builtins.print"):
-                preview.publish(folder, REVISION, APPROVAL)
+                publish_fixture(folder)
                 verify.assert_called_once_with(folder, accepted=True)
             self.assertEqual(writes, ["upload", "publish", "download"])
             self.assertEqual(states["releases/latest"]["tag_name"], "v0.3.2")
@@ -315,19 +321,20 @@ class Publication(unittest.TestCase):
             record = self.report(apk)
             state = release_state()
             with mock.patch.object(preview, "signed_record", return_value=record), \
+                 mock.patch.object(handoff, "verify_accepted_apk"), \
                  mock.patch.object(ops, "api", side_effect=state.__getitem__) as api, \
                  mock.patch.object(ops, "upload_asset", return_value={"state": "uploaded", "name": preview.ATTACHMENT,
                      "size": apk.stat().st_size, "digest": "sha256:" + "f" * 64}) as upload, \
                  mock.patch.object(preview, "verify_public") as public:
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_UPLOAD_CHECKSUM"):
-                    preview.publish(folder, REVISION, APPROVAL)
+                    publish_fixture(folder)
                 upload.assert_called_once()
                 self.assertTrue(all(not call.kwargs for call in api.call_args_list))
                 public.assert_not_called()
                 state[f"releases/{preview.DRAFT_ID}"]["assets"] = [{"id": 1}]
                 upload.reset_mock()
                 with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_DRAFT_NOT_EMPTY"):
-                    preview.publish(folder, REVISION, APPROVAL)
+                    publish_fixture(folder)
                 upload.assert_not_called()
 
     def test_public_bytes_use_no_auth_and_reject_corruption(self):
@@ -427,6 +434,7 @@ class Workflow(unittest.TestCase):
                 self.assertIn("test_android_progress.py --timeout-seconds 30", cli["run"])
                 self.assertIn("test_manifest_rehearsal.py --timeout-seconds 40", cli["run"])
                 self.assertIn("test_manifest_request.py --timeout-seconds 60", cli["run"])
+                self.assertIn("test_preview_acceptance_proof.py --timeout-seconds 40", cli["run"])
             for step in job["steps"]:
                 uses = step.get("uses", "")
                 if uses.startswith(("actions/upload-artifact@", "actions/cache@")):
@@ -684,11 +692,25 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("continue-on-error", steps[device_step])
         self.assertNotIn("if", steps[seal])
         self.assertIn("handoff.py encrypt", steps[seal]["run"])
+        proof = next(i for i, step in enumerate(steps) if step.get("id") == "accepted-apk-proof")
+        cipher_upload = next(i for i, step in enumerate(steps) if
+                             step.get("with", {}).get("name", "").startswith("preview-ciphertext-"))
+        self.assertLess(seal, proof)
+        self.assertLess(proof, cipher_upload)
+        self.assertEqual(steps[proof]["with"], {
+            "subject-name": preview.ATTACHMENT,
+            "subject-digest": "${{ steps.seal-accepted.outputs.apk_digest }}",
+            "predicate-type": handoff.ACCEPTANCE_PREDICATE,
+            "predicate-path": "${{ runner.temp }}/miancak-preview/ciphertext/accepted-apk-predicate.json",
+            "show-summary": "false",
+        })
+        for key in ("if", "env", "continue-on-error"):
+            self.assertNotIn(key, steps[proof])
         wire = [step for step in steps if "upload-artifact" in step.get("uses", "")]
         self.assertEqual(len(wire), 2)
         self.assertNotIn("if", wire[1])
         self.assertEqual([Path(value).name for value in wire[1]["with"]["path"].splitlines()],
-                         ["accepted.age", "proof.json"])
+                         ["accepted.age", "proof.json", handoff.ACCEPTANCE_PROOF])
         self.assertEqual(wire[1]["with"]["overwrite"], "false")
         self.assertEqual([Path(value).name for value in wire[0]["with"]["path"].splitlines()],
                          ["recipient.json", "proof.json"])

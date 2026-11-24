@@ -7,6 +7,7 @@ import sys
 import time
 import unittest
 from unittest import mock
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 
 import handoff
@@ -83,11 +84,30 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
     def test_actual_admission_reaches_only_bounded_metadata_and_exact_release_reads(self):
         self.request()
         read = self.run_admit(self.admitted_metadata())
-        public = [call for call in read.call_args_list if call.kwargs.get("authenticated") is False]
-        self.assertEqual(len(public), 12)
-        self.assertTrue(all(call.kwargs == {"authenticated": False, "timeout": 5, "limit": 1024 * 1024}
-                            for call in public))
+        guarded = [call for call in read.call_args_list if "authenticated" in call.kwargs]
+        public = [call for call in guarded if not call.kwargs["authenticated"]]
+        contents = [call.args[0] for call in guarded if call.kwargs["authenticated"]]
+        self.assertEqual(len(public), 9)
+        self.assertEqual(contents, ["branches/master", f"git/commits/{self.head}", "branches/master"])
+        self.assertTrue(all(set(call.kwargs) == {"authenticated", "timeout", "limit"}
+                            and call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
+                            for call in guarded))
         self.assertTrue(all("method" not in call.kwargs for call in read.call_args_list))
+
+    def test_actions_enabled_role_routes_all_eligible_reads_through_existing_token(self):
+        self.request()
+        data = self.admitted_metadata()
+        with mock.patch.object(request, "MERGE_ENABLED", True), \
+             mock.patch.object(ops, "api", side_effect=lambda path, **kw: data[path]) as read:
+            request.verify(self.squash, actions_read=True, root=self.root, environ=self.push_env())
+        public = [call.args[0] for call in read.call_args_list if not call.kwargs["authenticated"]]
+        eligible = [call.args[0] for call in read.call_args_list if call.kwargs["authenticated"]]
+        self.assertEqual(public, ["rules/branches/master", f"commits/{self.squash}/pulls?per_page=2", f"pulls/{PR_NUMBER}"])
+        self.assertEqual(len(eligible), 9)
+        self.assertIn(self.push_run_path, eligible)
+        self.assertIn(self.jobs_path, eligible)
+        self.assertTrue(all(call.kwargs["timeout"] == 5 and call.kwargs["limit"] == 1024 * 1024
+                            for call in read.call_args_list))
 
     def test_missing_or_wrong_request_body_prevents_build_admission(self):
         self.request(content=self.canonical(self.base).replace(ops.CERTIFICATE.encode(), b"0" * 64))
@@ -184,14 +204,16 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
                              clear=True), mock.patch.object(preview, "ROOT", self.root), \
              mock.patch.object(request, "MERGE_ENABLED", True), mock.patch.object(ops, "install_deadline"), \
              mock.patch.object(sys, "argv", ["preview_ops.py", "sign", "--prepared", str(staging)]), \
-             mock.patch.object(ops, "api", side_effect=lambda path, **kw: data[path]), \
+             mock.patch.object(ops, "api", side_effect=lambda path, **kw: data[path]) as api, \
              mock.patch.object(preview, "bind_signing_input"), mock.patch("sign_apk.sign") as sign:
             with self.assertRaisesRegex(ops.ReleaseError, "PREVIEW_REQUEST_PRE_KEY"):
                 preview.main()
             sign.assert_not_called()
             preview.request_pre_key(staging, self.squash, APPROVAL, record=True)
+            api.reset_mock()
             preview.main()
             sign.assert_called_once()
+            api.assert_not_called()
             proof = staging / "request-pre-key.json"
             expired = time.time() - 100
             os.utime(proof, (expired, expired))
@@ -202,19 +224,61 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
                 preview.main()
             sign.assert_called_once()
 
-    def test_public_metadata_has_no_token_and_cannot_mutate(self):
+    def test_metadata_restricts_method_destination_and_authorization(self):
         with mock.patch.dict(os.environ, {"GH_TOKEN": "never-sent-fixture"}), \
              mock.patch.object(ops.urllib.request, "build_opener") as build:
             fetch = build.return_value.open
             fetch.return_value = io.BytesIO(b'{"id":45}')
-            self.assertEqual(request.public_read("pulls/45"), {"id": 45})
+            self.assertEqual(request.metadata_read("pulls/45", actions_read=True), {"id": 45})
             sent = fetch.call_args.args[0]
             self.assertEqual(sent.get_method(), "GET")
             self.assertNotIn("Authorization", sent.headers)
             self.assertEqual(sent.headers["Cache-control"], "no-cache")
             with self.assertRaisesRegex(ops.ReleaseError, "PUBLIC_METADATA_READ_ONLY"):
                 ops.api("pulls/45", method="PATCH", body={}, authenticated=False)
-            fetch.assert_called_once()
+            for endpoint, actions_read, authenticated in (
+                ("branches/master", False, True),
+                (f"git/commits/{'a' * 40}", True, True),
+                ("actions/caches?per_page=1", False, False),
+                ("actions/caches?per_page=1", True, True),
+            ):
+                fetch.reset_mock()
+                fetch.return_value = io.BytesIO(b"{}")
+                request.metadata_read(endpoint, actions_read=actions_read)
+                fetch.assert_called_once()
+                sent = fetch.call_args.args[0]
+                self.assertEqual(sent.full_url, f"https://api.github.com/repos/{ops.REPO}/{endpoint}")
+                self.assertEqual(sent.get_method(), "GET")
+                self.assertEqual(fetch.call_args.kwargs["timeout"], 5)
+                self.assertEqual(sent.headers["Cache-control"], "no-cache")
+                self.assertEqual(sent.headers.get("Authorization"), "Bearer never-sent-fixture" if authenticated else None)
+            fetch.reset_mock()
+            for endpoint in ("releases/453133947", "../actions/caches", "https://example.invalid/actions/caches",
+                             "actions/workflows/1/runs", "actions/runs/123/attempts/2/jobs"):
+                with self.subTest(endpoint=endpoint), self.assertRaisesRegex(
+                    ops.ReleaseError, "PREVIEW_REQUEST_METADATA_ROUTE"
+                ):
+                    request.metadata_read(endpoint, actions_read=True)
+            with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(ops.ReleaseError, "API_TOKEN_MISSING"):
+                request.metadata_read("branches/master", actions_read=True)
+            fetch.assert_not_called()
+
+    def test_metadata_limits_fail_without_retry_or_authentication_fallback(self):
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "never-sent-fixture"}), \
+             mock.patch.object(ops.urllib.request, "build_opener") as build:
+            fetch = build.return_value.open
+            for path, body, failure in (
+                ("pulls/45", io.BytesIO(b" " * (1024 * 1024 + 1)), "API_RESPONSE_SIZE"),
+                ("branches/master", HTTPError("synthetic", 429, "limit", {}, None), "API_HTTP_429"),
+            ):
+                fetch.reset_mock(return_value=True, side_effect=True)
+                if isinstance(body, HTTPError):
+                    fetch.side_effect = body
+                else:
+                    fetch.return_value = body
+                with self.subTest(path=path), self.assertRaisesRegex(ops.ReleaseError, failure):
+                    request.metadata_read(path, actions_read=True)
+                fetch.assert_called_once()
 
     def test_failed_required_check_prevents_draft_upload(self):
         self.request()
@@ -225,9 +289,11 @@ class ProtectedRequest(RequestFixture, unittest.TestCase):
              mock.patch.object(ops, "api", side_effect=lambda path, **kw: data[path]), \
              mock.patch.object(preview, "signed_record", return_value={"trusted_revision": self.squash,
                                                                      "approval_sha256": APPROVAL}), \
+             mock.patch.object(handoff, "verify_accepted_apk"), \
              mock.patch.object(ops, "upload_asset") as upload:
+            scope = handoff.production_scope(RUN_ID, self.squash, APPROVAL)
             with self.assertRaisesRegex(ops.ReleaseError, "REHEARSAL_CHECK_JOB"):
-                preview.publish(self.root, self.squash, APPROVAL)
+                preview.publish(self.root, scope, self.root / handoff.ACCEPTANCE_PROOF, self.root)
             upload.assert_not_called()
 
 

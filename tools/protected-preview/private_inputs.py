@@ -114,7 +114,7 @@ def authorize(scope, stage):
     record = load_receipt(scope, item, stage)
     scope = replace(scope, approval=preview.attestation_sha(record))
     ops.require(preview.authority("publish") == scope.revision, "PREVIEW_TRUSTED_REVISION")
-    preview.verify_request(scope.revision)
+    preview.verify_request(scope.revision, actions_read=True)
     ops.require(builder_receipt(scope) == (builder_id, item), "PREVIEW_INPUT_RECEIPT_CHANGED")
     (stage / "grant.json").write_bytes(preview.canonical_record(grant_record(scope, builder_id, item)))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:

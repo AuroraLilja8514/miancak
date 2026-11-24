@@ -24,6 +24,8 @@ SIGNER = ".github/workflows/protected-preview-signer.yml"
 SIGN_JOB = "Accept signed preview / Sign and test preview"
 PUBLISH_JOB = "Publish preview / Receive accepted preview"
 PREDICATE = f"https://github.com/{ops.REPO}/provenance/preview-handoff/v1"
+ACCEPTANCE_PREDICATE = f"https://github.com/{ops.REPO}/provenance/preview-accepted-apk/v1"
+ACCEPTANCE_PROOF = "accepted-apk-proof.json"
 OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 MAX_CIPHERTEXT = 64 * 1024 * 1024
 MAX_INPUT_CIPHERTEXT = 96 * 1024 * 1024
@@ -31,7 +33,7 @@ PROOF_BYTES = 128 * 1024
 RECEIPT_BYTES = 4096
 TRANSPORT = {
     "recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
-    "ciphertext": ("accepted.age", MAX_CIPHERTEXT, MAX_CIPHERTEXT + 256 * 1024),
+    "ciphertext": ("accepted.age", MAX_CIPHERTEXT, MAX_CIPHERTEXT + 3 * PROOF_BYTES),
     "input-receipt": ("receipt.json", RECEIPT_BYTES, 16 * 1024),
     "input-grant": ("grant.json", RECEIPT_BYTES, 256 * 1024),
     "input-recipient": ("recipient.json", RECEIPT_BYTES, 256 * 1024),
@@ -155,31 +157,70 @@ def certificate_claims(scope, workflow, certificate):
                 "HANDOFF_ATTESTATION_ORIGIN")
 
 
-def verified_subject(result, scope, kind, sha):
+def verified_statement(result, scope, workflow, predicate_type, sha):
     ops.require(isinstance(result, list) and len(result) == 1, "HANDOFF_ATTESTATION_COUNT")
     verified = result[0]["verificationResult"]
-    certificate_claims(scope, scope.workflow.signer_for(kind), verified["signature"]["certificate"])
+    certificate_claims(scope, workflow, verified["signature"]["certificate"])
     statement = verified["statement"]
     subject = statement["subject"]
-    ops.require(statement["predicateType"] == PREDICATE and statement["predicate"] == {"role": kind}
+    ops.require(statement["predicateType"] == predicate_type
                 and len(subject) == 1 and subject[0]["digest"] == {"sha256": sha},
                 "HANDOFF_ATTESTATION_SUBJECT")
+    return statement
 
 
-def verify_proof(scope, kind, folder, tools):
-    subject, _, _ = TRANSPORT[kind]
-    workflow = scope.workflow.signer_for(kind)
-    body = folder / subject
-    bundle = folder / "proof.json"
+def verified_subject(result, scope, kind, sha):
+    statement = verified_statement(result, scope, scope.workflow.signer_for(kind), PREDICATE, sha)
+    ops.require(statement["predicate"] == {"role": kind}, "HANDOFF_ATTESTATION_SUBJECT")
+
+
+def verify_bundle(scope, workflow, predicate_type, body, bundle, tools):
     verified = ops.command([tools / "gh", "attestation", "verify", body, "--bundle", bundle,
                             "--repo", ops.REPO, "--signer-workflow", f"{ops.REPO}/{workflow}",
                             "--signer-digest", scope.revision, "--source-digest", scope.revision,
                             "--source-ref", scope.workflow.ref, "--deny-self-hosted-runners",
-                            "--cert-oidc-issuer", OIDC_ISSUER, "--predicate-type", PREDICATE,
+                            "--cert-oidc-issuer", OIDC_ISSUER, "--predicate-type", predicate_type,
                             "--format", "json"], timeout=90)
-    result = json.loads(verified.stdout)
+    return json.loads(verified.stdout)
+
+
+def verify_proof(scope, kind, folder, tools):
+    body = folder / TRANSPORT[kind][0]
+    result = verify_bundle(scope, scope.workflow.signer_for(kind), PREDICATE, body,
+                           folder / "proof.json", tools)
     verified_subject(result, scope, kind, ops.file_sha(body))
     return result
+
+
+def accepted_apk_predicate(scope, signed, record):
+    ops.require(scope.workflow in PRODUCTION_POLICIES
+                and scope.attempt == 1 and preview.hex_digest(scope.approval)
+                and record["trusted_revision"] == scope.revision
+                and record["approval_sha256"] == scope.approval
+                and record["release_run_id"] == scope.run_id
+                and record.get("release_request") == scope.release_request,
+                "HANDOFF_SIGNED_ACCEPTANCE")
+    # Only the checked release identity and sanitized acceptance facts leave
+    # the signer, independent of the short-lived encrypted transport.
+    return {
+        **scope.record(), "package": ops.PACKAGE, "version_code": 7,
+        "certificate_sha256": ops.CERTIFICATE, "baseline_apk_sha256": preview.STABLE_APK,
+        "apk_bytes": (signed / preview.APK).stat().st_size,
+        "sealed_provenance_sha256": ops.file_sha(signed / "release-provenance.json"),
+        "android_acceptance": preview.require_acceptance(record["preview_acceptance"], record["apk_sha256"]),
+    }
+
+
+def verify_accepted_apk(scope, signed, record, proof, tools):
+    ops.require(proof.is_file() and not proof.is_symlink()
+                and 0 < proof.stat().st_size <= PROOF_BYTES, "HANDOFF_ACCEPTANCE_PROOF_FILE")
+    expected = accepted_apk_predicate(scope, signed, record)
+    apk = signed / preview.APK
+    result = verify_bundle(scope, SIGNER, ACCEPTANCE_PREDICATE, apk, proof, tools)
+    statement = verified_statement(result, scope, SIGNER, ACCEPTANCE_PREDICATE, ops.file_sha(apk))
+    ops.require(statement["subject"][0]["name"] == preview.ATTACHMENT
+                and preview.canonical_record(statement["predicate"]) == preview.canonical_record(expected),
+                "HANDOFF_ACCEPTANCE_PROOF")
 
 
 def matching_artifact(scope, kind, listing):
@@ -283,6 +324,8 @@ def fetch_wire(scope, kind, item, folder):
         files = {subject: payload_limit}
         if kind not in ("input-receipt", "input-ciphertext"):
             files["proof.json"] = PROOF_BYTES
+        if kind == "ciphertext" and scope.workflow in PRODUCTION_POLICIES:
+            files[ACCEPTANCE_PROOF] = PROOF_BYTES
         unpack_exact(zipped, folder, files)
 
 
@@ -355,7 +398,7 @@ def run(args):
              "release-provenance.json": 128 * 1024, "SHA256SUMS.txt": RECEIPT_BYTES}
     outgoing = stage / "ciphertext"
     if args.operation == "recipient":
-        preview.verify_request(revision)
+        preview.verify_request(revision, actions_read=True)
         draft, _ = preview.exact_release()
         ops.require(draft["assets"] == [], "PREVIEW_DRAFT_NOT_EMPTY")
         create_recipient(scope, stage, tools)
@@ -370,10 +413,12 @@ def run(args):
         verify_proof(scope, "recipient", recipient.parent, tools)
         signed = stage / "signed"
         record = preview.signed_record(signed, accepted=True)
-        ops.require(record["trusted_revision"] == revision and record["approval_sha256"] == approval,
-                    "HANDOFF_SIGNED_ACCEPTANCE")
+        predicate = accepted_apk_predicate(scope, signed, record)
         outgoing.mkdir(mode=0o700)
         encrypt_files(scope, recipient, signed, files, outgoing / "accepted.age", tools)
+        ops.write_json(outgoing / "accepted-apk-predicate.json", predicate)
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+            stream.write(f"apk_digest=sha256:{record['apk_sha256']}\n")
     else:
         item = wait_for_transport(scope, "ciphertext", 43 * 60)
         fetch_wire(scope, "ciphertext", item, outgoing)
@@ -384,7 +429,7 @@ def run(args):
             active_run(scope)
             ops.require(accepted(scope) and preview.authority("publish") == revision,
                         "HANDOFF_PUBLICATION_GATE")
-            preview.publish(local, revision, approval)
+            preview.publish(local, scope, outgoing / ACCEPTANCE_PROOF, tools)
 
 
 if __name__ == "__main__":
