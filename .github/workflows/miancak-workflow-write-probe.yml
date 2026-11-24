@@ -1,0 +1,10 @@
+name: MIANCAK workflow write probe (inert)
+on:
+  workflow_call:
+permissions: {}
+jobs:
+  inert:
+    if: ${{ false }}
+    runs-on: ubuntu-24.04
+    steps:
+      - run: exit 1
