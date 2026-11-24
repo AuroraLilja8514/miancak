@@ -1,16 +1,16 @@
 # Protected preview request entry
 
-The disarmed review starts at protected master
+The first disarmed review started at protected master
 `87c9f78caf4449b14714a1706ba9f16e8c6f499f`. The connector's dummy merge
 produced exactly one protected `push` rehearsal, with `AuroraLilja8514`
 and numeric user ID `315702774` as actor, triggering actor and merger.
 [Rehearsal run](https://github.com/AuroraLilja8514/miancak/actions/runs/45354063489)
 
-This change prepares the route for the existing same-key preview. The live
-entry remains owner `workflow_dispatch`. The workflow has no push trigger,
-`manifest_request.MERGE_ENABLED` is false in source, and no release request
-exists in this diff. Neither a workflow input nor a repository variable can
-enable it. The dummy workflow remains read-only.
+This activation adds the protected push entry for the existing same-key
+preview when merged to protected master. The owner `workflow_dispatch`
+entry remains available. `manifest_request.MERGE_ENABLED` is controlled by
+reviewed source. The release request is a separate protected change and
+the activation contains no request file.
 
 ## Reviewed release authority
 
@@ -35,8 +35,7 @@ The shared request verifier uses the current job token for all twelve
 GETs on the fixed repository. Each read retains a five-second timeout
 and a 1 MiB response cap. The metadata client rejects redirects and
 fails on the first missing credential, permission error, quota response,
-or deadline. The v3 rehearsal exercises this policy. Production
-workflow permissions and the dispatch-only trigger remain unchanged.
+or deadline. The hosted v3 rehearsal exercised this policy in each role.
 
 | Fixed repository GET | Reads per gate | Required permission |
 | --- | ---: | --- |
@@ -184,26 +183,18 @@ establishing primary quota exhaustion for that read. Both reusable roles
 were skipped. The v1 publisher's failure remains unclassified.
 [Hosted v2 rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45400868771)
 
-The v3 review branch is `review/protected-preview-readiness-v3`. The
-review contains workflow, verifier and test changes and no request.
-It keeps the real required PR checks with uploads and caches disabled.
-After separate review and a setup squash with `[skip ci]`, a new PR on
-`release-request/dummy-preview-readiness-v3` would add only the literal
-`.github/release-requests/_protected-preview-readiness-probe-v3.json`.
-Its canonical version 3 bytes pin the newly reviewed parent. The
-v1 and v2 files remain outside the trigger. Ordinary master CI excludes
-all three readiness request paths. A protected squash of the one-file PR
-without `[skip ci]` would start one rehearsal on attempt 1. The guard
-checks the owner actor and merger, ref, prior history, one-file tree
-and three genuine required jobs before the synthetic role steps.
+The v3 rehearsal ran once after #52 added only the canonical dummy
+request. Protected master was `46888c657aab1834c00442c02547e74a299a8963`.
+The guard verified the owner actor and merger, protected ref, unused
+request path, exact one-file tree and three genuine required PR checks.
+Admission, signer and publisher each completed all twelve authenticated
+metadata reads on attempt 1. The v1, v2 and v3 request paths are consumed.
+[Hosted v3 rehearsal](https://github.com/AuroraLilja8514/miancak/actions/runs/45408615525)
 
 All three dummy jobs use their own `GITHUB_TOKEN` with Contents,
 Actions and Pull requests read. The caller and reusable workflows
 declare the same scopes. The only write scopes are the reusable jobs'
 existing OIDC and attestations permissions for fixed synthetic subjects.
-The earlier bootstrap demonstrated the PR and workflow-check reads with
-the same read scopes. The v3 run still needs to prove the authenticated
-branch-rules read and the full sequence in all three roles.
 The admission budget is 75 seconds in a two-minute job. The reusable
 roles have 90 seconds for metadata and 135 seconds for the verifier
 and pinned GH CLI download, within seven minutes per job.
@@ -217,39 +208,31 @@ failed category and which later gates were skipped.
 [GitHub rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
 [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)
 
-In the same rehearsal run, use separate local reusable signer and
-publisher jobs with read-only repository permissions plus only the
-OIDC and attestation permissions needed for dummy digest attestations.
-The two jobs attest distinct fixed synthetic digests in the
-`preview-readiness/v3` namespace. Each job verifies its own actual
-certificate and subject against the caller and reusable workflow paths,
-source revision, protected ref, `push`, GitHub-hosted runner identity and
-exact invocation. Each also tests rejection with a different reusable
-workflow, attempt and subject. The attestation store and job status are
-the only hosted outputs. The usual PR checks still compile the application
-on their runners. The later protected-push rehearsal operates only on
-synthetic data. Hosted v3 permission and provenance verification is pending.
+The two reusable jobs verified their distinct fixed synthetic digests
+in the `preview-readiness/v3` namespace. Both proofs bound the caller,
+reusable workflow, source revision, protected ref, push event, hosted
+runner and exact invocation. Both jobs rejected a different workflow,
+attempt and subject. The run created no Actions artifacts or caches.
+Android acceptance and release work were outside the rehearsal.
 
 ## Activation is a separate protected change
 
-A future reviewed activation must enable the source gate, add the literal
-protected-master push trigger for the one request path to
-`protected-preview.yml`, and add that same path to ordinary CI's master
-push exclusions. Review the corresponding trigger assertions with that
-change. The activation adds no request file. Verify the exact
-protected branch, permission scope and unchanged owner-dispatch entry
-before opening the separate request PR. A request merged before activation
-would consume the one-shot path and must stop the release flow.
+The activation enables the source gate and the literal protected-master
+push trigger for the one request path. Ordinary master CI excludes that
+same path. The activation PR uses `review/activate-protected-preview-request`
+and the three required PR checks with uploads and caches disabled.
+Verify its protected base, exact reviewed tree, scopes and owner-dispatch
+entry before approving the activation. A subsequent request PR must pin
+the newly verified master commit. A request merged before activation
+would consume the one-shot path and stop the release flow.
 
-Before any activation, the production admission job needs Actions read
-and Pull requests read alongside its existing Contents read. The builder,
-grant verifier, signer pre-key verifier and publisher need Pull requests
-read alongside their existing scopes. Reusable caller and callee scopes
-must match. GitHub scopes tokens by job, so a shell step's `GH_TOKEN`
-mapping limits where the metadata code uses the token. The credential
-step remains tokenless and consumes the existing fresh local pre-key
-receipt. The publisher keeps the only Contents-write scope. No new write
-permissions or credentials are needed for the metadata change.
+The admission job adds Actions read and Pull requests read alongside
+its existing Contents read. The builder, grant verifier, signer and
+publisher add Pull requests read. Reusable callers and callees have
+matching scopes. GitHub grants these scopes per job. The existing
+`GH_TOKEN` mappings govern the metadata shell steps. The credential step
+remains tokenless and consumes the fresh local pre-key receipt. The
+publisher retains the only Contents-write scope.
 
 The scoped read keeps the unique commit-to-PR lookup at each live gate.
 Using the PR number from a manifest or an earlier job would require a
@@ -261,8 +244,7 @@ permission change and hosted v3 evidence before any production work.
 [GitHub job permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)
 [GitHub reusable workflow permission inheritance](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows#nesting-reusable-workflows)
 
-This draft's no-upload review branch is
-`review/protected-preview-merge-entry`. The real PR jobs run, and local
-tests exercise the admitted and rejected entry paths using disposable Git
-trees and synthetic API observations. The signed Android 15 run and push
-attestation issuance remain untested in this disarmed review.
+The release still requires the exact same-key version-code 5 to 7
+overwrite on Android 15, authenticated custody, online pack setup,
+offline editor output, working custom YAML, learning preservation and
+a real reboot. The preview remains gated on that full signed acceptance.

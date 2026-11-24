@@ -377,6 +377,7 @@ class Workflow(unittest.TestCase):
             "review/protected-preview-readiness",
             "review/protected-preview-readiness-v2",
             readiness.REVIEW_BRANCH,
+            "review/activate-protected-preview-request",
             rehearsal.HEAD_BRANCH,
             request.HEAD_BRANCH,
             v1_request_branch,
@@ -395,7 +396,7 @@ class Workflow(unittest.TestCase):
         self.assertEqual(restored["on"]["push"].pop("paths-ignore"), [
             rehearsal.DUMMY_PATH, ".github/release-requests/_protected-preview-readiness-probe.json",
             ".github/release-requests/_protected-preview-readiness-probe-v2.json",
-            readiness.DUMMY_PATH,
+            readiness.DUMMY_PATH, request.REQUEST_PATH,
         ])
         self.assertEqual(restored["on"]["workflow_dispatch"]["inputs"]["owner_approval_probe"]["default"], "")
         restored["on"]["workflow_dispatch"] = original["on"]["workflow_dispatch"]
@@ -519,7 +520,7 @@ class Workflow(unittest.TestCase):
             "push": {"branches": ["master"], "paths": [readiness.DUMMY_PATH]},
         })
         self.assertEqual(rehearsal_workflow["permissions"], {})
-        self.assertEqual(read(preview.WORKFLOW)["on"], {"workflow_dispatch": ""})
+        self.assertNotIn(readiness.DUMMY_PATH, read(preview.WORKFLOW)["on"]["push"]["paths"])
         jobs = rehearsal_workflow["jobs"]
         self.assertEqual(set(jobs), {"admit", "signer", "publisher"})
         reads = {"contents": "read", "actions": "read", "pull-requests": "read"}
@@ -595,7 +596,8 @@ class Workflow(unittest.TestCase):
                        GITHUB_EVENT_PATH=str(event_path), GITHUB_EVENT_NAME="pull_request",
                        GITHUB_REF="refs/pull/101/merge", GITHUB_RUN_ATTEMPT="1",
                        GITHUB_ACTOR="owner", GITHUB_REPOSITORY_OWNER="owner")
-            for branch in ("review/trace-protected-preview-android", readiness.REVIEW_BRANCH, readiness.HEAD_BRANCH):
+            for branch in ("review/trace-protected-preview-android", readiness.REVIEW_BRANCH, readiness.HEAD_BRANCH,
+                           "review/activate-protected-preview-request"):
                 with self.subTest(branch=branch):
                     event["pull_request"]["head"]["ref"] = branch
                     event_path.write_text(json.dumps(event))
@@ -603,7 +605,7 @@ class Workflow(unittest.TestCase):
                                             check=True, capture_output=True)
                     self.assertIn(f"PR #101 head {head}, test merge {merge}", result.stdout)
             for keys, wrong in ((("number",), 99), (("pull_request", "draft"), False),
-                                (("pull_request", "head", "ref"), "other"),
+                                (("pull_request", "head", "ref"), "review/activate-protected-preview-request-other"),
                                 (("pull_request", "head", "sha"), "a" * 40),
                                 (("pull_request", "head", "repo", "id"), 1),
                                 (("pull_request", "base", "ref"), "other"),
@@ -674,13 +676,16 @@ class Workflow(unittest.TestCase):
         for name in ("inbound-smoke-approval", "inbound-smoke-gate"):
             self.assertEqual(uploads(jobs[name]), [])
 
-    def test_workflow_is_manual_with_scoped_keys_and_no_early_signed_upload(self):
+    def test_workflow_limits_protected_push_to_the_exact_request_with_scoped_keys(self):
         path = preview.ROOT / preview.WORKFLOW
         if not path.is_file():
             path = preview.ROOT / "tools/release/protected-preview.yml.in"
         workflow = yaml.load(path.read_bytes(), Loader=yaml.BaseLoader)
-        self.assertEqual(workflow["on"], {"workflow_dispatch": ""})
-        self.assertIs(request.MERGE_ENABLED, False)
+        self.assertEqual(workflow["on"], {
+            "workflow_dispatch": "", "push": {"branches": ["master"], "paths": [request.REQUEST_PATH]},
+        })
+        self.assertEqual(workflow["permissions"], {})
+        self.assertIs(request.MERGE_ENABLED, True)
         self.assertFalse((preview.ROOT / request.REQUEST_PATH).exists())
         self.assertEqual(workflow["run-name"], preview.TAG + " publish")
         self.assertEqual(workflow["env"]["CANDIDATE"], preview.SOURCE)
@@ -694,7 +699,9 @@ class Workflow(unittest.TestCase):
             self.assertIn("admit", jobs[name]["needs"])
             self.assertNotIn("always()", jobs[name]["if"])
         admit = jobs["admit"]
-        self.assertEqual(admit["permissions"], {"contents": "read"})
+        reads = {"contents": "read", "actions": "read", "pull-requests": "read"}
+        proofs = {"id-token": "write", "attestations": "write"}
+        self.assertEqual(admit["permissions"], reads)
         self.assertIn("preview_ops.py admit", admit["steps"][-1]["run"])
         for requirement in ("github.event_name == 'workflow_dispatch'", "refs/heads/master",
                             "github.actor == github.repository_owner", "github.run_attempt == 1"):
@@ -709,11 +716,11 @@ class Workflow(unittest.TestCase):
         self.assertEqual(set(signer_workflow["on"]), {"workflow_call"})
         signer = signer_workflow["jobs"]["signer"]
         self.assertEqual(signer["environment"], "release-signing")
+        self.assertEqual(signer["permissions"], reads | proofs)
         self.assertEqual(signer["permissions"], jobs["sign-and-accept"]["permissions"])
-        self.assertEqual(jobs["build"]["permissions"], {"contents": "read", "actions": "read"})
+        self.assertEqual(jobs["build"]["permissions"], reads)
         gate = jobs["authorize"]
-        self.assertEqual(gate["permissions"], {"contents": "read", "actions": "read",
-                                               "id-token": "write", "attestations": "write"})
+        self.assertEqual(gate["permissions"], reads | proofs)
         self.assertFalse(any("candidate" in step.get("with", {}).get("path", "") for step in gate["steps"]))
         self.assertEqual(set(signer_workflow["on"]["workflow_call"]["inputs"]),
                          {"approval_sha256", "grant_artifact_id"})
@@ -735,6 +742,7 @@ class Workflow(unittest.TestCase):
         self.assertEqual(set(publisher_workflow["on"]), {"workflow_call"})
         publisher = publisher_workflow["jobs"]["publisher"]
         self.assertNotIn("environment", publisher)
+        self.assertEqual(publisher["permissions"], reads | proofs | {"contents": "write"})
         self.assertEqual(publisher["permissions"], jobs["publish"]["permissions"])
         publisher_steps = publisher["steps"]
         draft_preflight = next(i for i, step in enumerate(publisher_steps)

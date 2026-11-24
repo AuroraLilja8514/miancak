@@ -3,6 +3,10 @@ name: MIANCAK protected prerelease
 run-name: v0.3.4-preview.1 publish
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - .github/release-requests/v0.3.4-preview.1.json
 
 permissions: {}
 concurrency:
@@ -27,6 +31,8 @@ jobs:
     timeout-minutes: 2
     permissions:
       contents: read
+      actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -51,6 +57,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -140,6 +147,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     outputs:
@@ -198,6 +206,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     secrets:
@@ -219,6 +228,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      pull-requests: read
       id-token: write
       attestations: write
     with:

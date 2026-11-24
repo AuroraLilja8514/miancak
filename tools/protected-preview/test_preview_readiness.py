@@ -27,6 +27,11 @@ class Readiness(RequestFixture, unittest.TestCase):
     canonical = staticmethod(readiness.canonical_dummy)
     pr_cli = (readiness.__file__, "pr-check")
 
+    def setUp(self):
+        super().setUp()
+        # The historical rehearsal fixtures model the disarmed v3 workflow.
+        self.enterContext(mock.patch.object(request, "MERGE_ENABLED", False))
+
     def routed_response(self):
         data = self.push_metadata()
         data["rules/branches/master"] = [item | {"ruleset_id": request.RULESET_ID} for item in (
