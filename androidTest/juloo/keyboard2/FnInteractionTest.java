@@ -91,6 +91,7 @@ public final class FnInteractionTest
         choose(base + "_fn"); assertTrue(keyboard().getContentDescription().contains("Fn: true"));
         press("language_switch"); awaitPage(base.equals("en") ? "zh_fn" : "en_fn");
       }
+      verifyScriptModifiers();
       verifyRemainingFnEffects();
       choose("zh_fn"); press("（"); press("shift"); press("（");
       awaitText("（(");
@@ -228,6 +229,21 @@ public final class FnInteractionTest
       .put("undoRedoAndPlainPasteActual", text()).put("menuActions", new org.json.JSONArray(((ImeTestActivity.RecordingEditText)activity.first).menuActions));
     try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(TestEvidence.directory(context), "fn-editing-effects.json")))
     { out.write(report.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
+    instrumentation.runOnMainSync(() -> activity.first.setText(""));
+  }
+  private void verifyScriptModifiers() throws Exception
+  {
+    String expected = "";
+    for (String id : new String[] {"zh", "en", "zh_fn", "en_fn"})
+    {
+      choose(id);
+      // No Sup/Sub preferences are seeded: these must be the real defaults.
+      press("superscript"); press("n"); expected += "ⁿ"; awaitText(expected);
+      press("subscript"); press("n"); expected += "ₙ"; awaitText(expected);
+    }
+    try (java.io.FileOutputStream out = new java.io.FileOutputStream(
+          new java.io.File(TestEvidence.directory(context), "default-script-receiver.txt")))
+    { out.write(text().getBytes(java.nio.charset.StandardCharsets.UTF_8)); }
     instrumentation.runOnMainSync(() -> activity.first.setText(""));
   }
   private UiObject2 keyboard()

@@ -127,7 +127,7 @@ public class ExtraKeysPreference extends PreferenceCategory
     "combining_palatalization",
   };
 
-  /** Whether an extra key is enabled by default. */
+  /** Default for missing per-key preferences; saved choices remain authoritative. */
   public static boolean default_checked(String name)
   {
     switch (name)
@@ -140,6 +140,8 @@ public class ExtraKeysPreference extends PreferenceCategory
       case "esc":
       case "f11_placeholder":
       case "f12_placeholder":
+      case "superscript":
+      case "subscript":
         return true;
       default:
         return false;

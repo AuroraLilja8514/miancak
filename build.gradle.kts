@@ -25,8 +25,8 @@ android {
     applicationId = "org.miancak.keyboard"
     minSdk = 21
     targetSdk { version = release(36) }
-    versionCode = providers.gradleProperty("miancakVersionCode").orNull?.toInt() ?: 5
-    versionName = "0.3.2"
+    versionCode = providers.gradleProperty("miancakVersionCode").orNull?.toInt() ?: 6
+    versionName = "0.3.3"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     ndk {
       abiFilters.addAll((providers.gradleProperty("miancakAbis").orNull
