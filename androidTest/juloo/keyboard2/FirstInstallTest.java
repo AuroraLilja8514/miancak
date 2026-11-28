@@ -71,6 +71,7 @@ public final class FirstInstallTest
     String setupMode = InstrumentationRegistry.getArguments().getString("setupMode", "files");
     boolean oneClick = setupMode.equals("https-one-click");
     boolean https = setupMode.equals("https");
+    if (oneClick) WanxiangSetupTest.phase("entry-instrumentation");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     Throwable primary = null;
@@ -86,6 +87,7 @@ public final class FirstInstallTest
       assertNull("Every first-use lifecycle phase must start offline", network.getActiveNetwork());
       if (oneClick)
       {
+        WanxiangSetupTest.phase("entry-screen-ready");
         runOneClick(revisit, network);
         return;
       }

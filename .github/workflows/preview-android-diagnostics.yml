@@ -3,7 +3,12 @@ name: MIANCAK Android 15 preview diagnostics
 on:
   push:
     branches: [test/wanxiang-one-click-android15]
-    paths: [.github/workflows/preview-android-diagnostics.yml]
+    paths:
+      - .github/workflows/preview-android-diagnostics.yml
+      - androidTest/juloo/keyboard2/FirstInstallTest.java
+      - androidTest/juloo/keyboard2/WanxiangSetupTest.java
+      - res/layout/launcher_activity.xml
+      - scripts/preview_android_diagnostic.py
 
 permissions:
   contents: read

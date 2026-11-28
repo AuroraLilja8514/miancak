@@ -139,7 +139,10 @@ public final class WanxiangSetupTest
 
   private static WanxiangSetupActivity tapLauncherEntry(Context context, UiDevice device, String pkg)
   {
-    context.startActivity(Intent.makeMainActivity(new ComponentName(pkg, "juloo.keyboard2.LauncherActivity")));
+    Intent launch = Intent.makeMainActivity(new ComponentName(pkg, "juloo.keyboard2.LauncherActivity"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    context.startActivity(launch);
+    phase("entry-launch-request");
     LauncherActivity launcher = foreground(LauncherActivity.class);
     assertEquals("Unexpected launcher package", pkg, launcher.getPackageName());
     assertTrue("The launcher user is locked", launcher.getSystemService(UserManager.class).isUserUnlocked());

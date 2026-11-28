@@ -16,6 +16,7 @@ STAGES = {
     "baseline-candidate", "baseline-receiver", "baseline-language", "baseline-cleanup",
     "baseline-yaml", "baseline-persistence", "one-click", "entry-launcher", "entry-settings",
     "device-ready", "entry-plan", "entry-activity", "entry-package", "entry-unlock", "entry-viewport",
+    "entry-instrumentation", "entry-screen-ready", "entry-launch-request", "entry-launch-intent",
     "entry-launcher-visible", "entry-launcher-action", "entry-launcher-label", "entry-selector-unmatched",
     "entry-launcher-tap", "entry-pack-files", "entry-ready-again", "entry-reopen", "entry-reopen-preserved",
     "entry-network", "entry-download", "entry-ready", "entry-offline", "entry-receiver",
@@ -33,6 +34,7 @@ METHODS = {
     "screenshot": "baseline-cleanup",
 }
 ENTRY_ASSERTIONS = {
+    "context requires the FLAG_ACTIVITY_NEW_TASK flag": "entry-launch-intent",
     "Expected MIANCAK activity did not gain window focus: LauncherActivity": "entry-activity",
     "Expected MIANCAK activity did not gain window focus: SettingsActivity": "entry-settings",
     "Expected MIANCAK activity did not gain window focus: WanxiangSetupActivity": "entry-launcher-tap",
@@ -57,7 +59,8 @@ ENTRY_ASSERTIONS = {
     "Reopened setup offered a duplicate Download": "entry-ready-again",
     "Reopened setup started another transfer": "entry-ready-again",
 }
-REOPEN_MARKERS = {"entry-activity", "entry-viewport", "entry-launcher-visible", "entry-launcher-tap", "entry-ready-again"}
+REOPEN_MARKERS = {"entry-instrumentation", "entry-screen-ready", "entry-launch-request", "entry-activity",
+                  "entry-viewport", "entry-launcher-visible", "entry-launcher-tap", "entry-ready-again"}
 INSTALL_MARKERS = REOPEN_MARKERS | {
     "entry-network", "entry-download", "entry-ready", "entry-offline", "entry-settings", "entry-receiver",
 }
