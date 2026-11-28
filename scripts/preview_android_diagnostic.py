@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Runner-local baseline and one-tap download diagnosis. No signing or publication."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import sys
+from zipfile import ZipFile
 
 
 STAGES = {
@@ -13,11 +15,16 @@ STAGES = {
     "baseline-theme", "baseline-extra-keys", "baseline-superscript", "baseline-editor",
     "baseline-candidate", "baseline-receiver", "baseline-language", "baseline-cleanup",
     "baseline-yaml", "baseline-persistence", "one-click", "entry-launcher", "entry-settings",
+    "device-ready", "entry-plan", "entry-activity", "entry-package", "entry-unlock", "entry-viewport",
+    "entry-launcher-visible", "entry-launcher-action", "entry-launcher-label", "entry-selector-unmatched",
+    "entry-launcher-tap", "entry-pack-files", "entry-ready-again", "entry-reopen", "entry-reopen-preserved",
     "entry-network", "entry-download", "entry-ready", "entry-offline", "entry-receiver",
 }
-STATES = {"started", "passed", "failed"}
+STATES = {"started", "passed", "failed", "observed"}
 BASELINE_SHA = "74e884ef6465c96b57daa174ae5f5ce585f2c55417b591c76b8b77f212684bd5"
 BASELINE_CERT = "3883a84d506b029db9d7cb6ddb7953c96ad3aa81a38e3e19290b3d50c4f9a26b"
+PLAN_SHA = "e145053e7cc5498fc97200649edb14090b75ead3c425fc0ea00bc9639d7b18ae"
+MANIFEST_SHA = "3b8f1a6b0999dbacf0b0db3bde1e6d6c4049955891019d094e32140740b4c6cc"
 METHODS = {
     "launch": "baseline-launch", "settings": "baseline-settings", "scrollTo": "baseline-settings",
     "openExtraKeys": "baseline-extra-keys", "findCheckbox": "baseline-superscript",
@@ -26,18 +33,72 @@ METHODS = {
     "screenshot": "baseline-cleanup",
 }
 ENTRY_ASSERTIONS = {
-    "Wanxiang must be visible on first launch without scrolling": "entry-launcher",
+    "Expected MIANCAK activity did not gain window focus: LauncherActivity": "entry-activity",
+    "Expected MIANCAK activity did not gain window focus: SettingsActivity": "entry-settings",
+    "Expected MIANCAK activity did not gain window focus: WanxiangSetupActivity": "entry-launcher-tap",
+    "Unexpected launcher package": "entry-package",
+    "The launcher user is locked": "entry-unlock",
+    "Expected a portrait phone viewport": "entry-viewport",
+    "The launcher layout is missing its Wanxiang button": "entry-launcher-visible",
+    "The launcher Wanxiang button is clipped or offscreen": "entry-launcher-visible",
+    "The launcher Wanxiang button is disabled": "entry-launcher-action",
+    "The launcher Wanxiang button has no click action": "entry-launcher-action",
+    "Wanxiang launcher label does not match the active locale": "entry-launcher-label",
+    "Could not deliver the Wanxiang launcher tap": "entry-launcher-tap",
     "Wanxiang entry must be visible in Settings without scrolling": "entry-settings",
-    "The Settings entry must open the actual download screen": "entry-settings",
-    "Normal Chinese setup button was absent": "entry-launcher",
-    "Setup should finish checking the local resources": "entry-settings",
     "The fresh guest must need the Wanxiang download": "entry-download",
     "Normal setup did not offer Download": "entry-download",
     "No default network for pinned HTTPS setup": "entry-network",
     "The exact HTTPS pack did not become ready": "entry-ready",
     "Device must return offline before using the model": "entry-offline",
+    "The Chinese receiver must run offline": "entry-offline",
     "Fresh Chinese input lost or changed typed nihao": "entry-receiver",
+    "Reopened setup did not show the installed pack ready offline": "entry-ready-again",
+    "Reopened setup offered a duplicate Download": "entry-ready-again",
+    "Reopened setup started another transfer": "entry-ready-again",
 }
+REOPEN_MARKERS = {"entry-activity", "entry-viewport", "entry-launcher-visible", "entry-launcher-tap", "entry-ready-again"}
+INSTALL_MARKERS = REOPEN_MARKERS | {
+    "entry-network", "entry-download", "entry-ready", "entry-offline", "entry-settings", "entry-receiver",
+}
+
+
+def entry_markers(log, path):
+    observed = set()
+    for label in re.findall(r"(?m)^INSTRUMENTATION_STATUS: miancak_stage=([a-z-]+)\r?$", log):
+        if label in observed:
+            continue
+        if label in INSTALL_MARKERS or label == "entry-selector-unmatched":
+            append_status(path, label, "observed" if label == "entry-selector-unmatched" else "passed")
+            observed.add(label)
+    return observed
+
+
+def check_delivery(app):
+    with ZipFile(app) as archive:
+        raw_plan = archive.read("assets/rime/delivery.json")
+        manifest = archive.read("assets/rime/manifest.json")
+        if (hashlib.sha256(raw_plan).hexdigest() != PLAN_SHA
+                or hashlib.sha256(manifest).hexdigest() != MANIFEST_SHA):
+            raise ValueError("The app must use the reviewed Base and grammar pins")
+        plan = json.loads(raw_plan)
+        archive_paths = set(archive.namelist())
+        if (any(name.endswith(".gram") for name in archive_paths)
+                or any("assets/rime/" + item["path"] in archive_paths for item in plan["files"])):
+            raise ValueError("The diagnostic must start without a bundled pack")
+    base, = [item for item in plan["files"] if item["path"] == "dicts/jichu.dict.yaml"]
+    return [(plan["model"]["filename"], plan["model"]["bytes"]), (base["path"], base["bytes"])]
+
+
+def installed_files(smoke, package, expected):
+    fingerprints = []
+    for name, size in expected:
+        path = f"files/rime/shared-{MANIFEST_SHA}/{name}"
+        value = smoke.shell("run-as", package, "stat", "-c", "%i:%s:%Y", path)
+        if not re.fullmatch(r"[0-9]+:[0-9]+:[0-9]+", value) or int(value.split(":")[1]) != size:
+            raise ValueError("Installed resource file identity is unavailable or invalid")
+        fingerprints.append(value)
+    return fingerprints
 
 
 def baseline_failure(log, source):
@@ -118,6 +179,18 @@ def run(args):
             smoke.root()
         status("passed")
 
+        if not baseline:
+            step = "device-ready"
+            status("started")
+            ops.require(smoke.shell("getprop", "sys.boot_completed") == "1", "DIAGNOSTIC_BOOT_INCOMPLETE")
+            smoke.shell("wm", "size", "1080x1920")
+            smoke.shell("wm", "density", "480")
+            status("passed")
+            step = "entry-plan"
+            status("started")
+            pack = check_delivery(app)
+            status("passed")
+
         step = "install"
         status("started")
         for apk in (app, test):
@@ -161,16 +234,33 @@ def run(args):
             smoke.snapshot("baseline-only")
             status("passed")
         else:
-            step = "one-click"
-            status("started")
-            log = smoke.shell("am", "instrument", "-w", "-e", "class", "juloo.keyboard2.FirstInstallTest",
-                "-e", "entryOrder", "settings-first", "-e", "setupMode", "https-one-click",
-                smoke.PACKAGE + ".debug.test/androidx.test.runner.AndroidJUnitRunner", timeout=900)
-            (smoke.RESULTS / "one-click.log").write_text(log)
-            if not ("OK (1 test)" in log and not re.search(r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", log)):
-                step = next((phase for assertion, phase in ENTRY_ASSERTIONS.items() if assertion in log), step)
-                raise RuntimeError("one-click fixture failed")
-            status("passed")
+            package = smoke.PACKAGE + ".debug"
+            for step, required in (("one-click", INSTALL_MARKERS), ("entry-reopen", REOPEN_MARKERS)):
+                status("started")
+                reopen = ["-e", "revisit", "true", "-e", "evidencePhase", "reopen"] if step == "entry-reopen" else []
+                if reopen:
+                    smoke.shell("am", "force-stop", package)
+                log = smoke.shell("am", "instrument", "-w", "-r", "-e", "class", "juloo.keyboard2.FirstInstallTest",
+                    "-e", "entryOrder", "settings-first", "-e", "setupMode", "https-one-click",
+                    *reopen, package + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=900)
+                (smoke.RESULTS / (step + ".log")).write_text(log)
+                observed = entry_markers(log, args.status)
+                if not ("OK (1 test)" in log and not re.search(r"FAILURES|INSTRUMENTATION_FAILED|Process crashed|shortMsg=", log)):
+                    step = next((phase for assertion, phase in ENTRY_ASSERTIONS.items() if assertion in log), step)
+                    raise RuntimeError("one-click fixture failed")
+                if not required.issubset(observed):
+                    raise RuntimeError("one-click fixture did not report all required milestones")
+                status("passed")
+                if reopen:
+                    step = "entry-reopen-preserved"
+                    status("started")
+                    ops.require(fingerprint == installed_files(smoke, package, pack), "DIAGNOSTIC_PACK_CHANGED_ON_REOPEN")
+                    status("passed")
+                else:
+                    step = "entry-pack-files"
+                    status("started")
+                    fingerprint = installed_files(smoke, package, pack)
+                    status("passed")
     except BaseException:
         status("failed")
         raise

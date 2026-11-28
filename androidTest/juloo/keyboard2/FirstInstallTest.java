@@ -70,7 +70,7 @@ public final class FirstInstallTest
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
     String setupMode = InstrumentationRegistry.getArguments().getString("setupMode", "files");
     boolean oneClick = setupMode.equals("https-one-click");
-    boolean https = oneClick || setupMode.equals("https");
+    boolean https = setupMode.equals("https");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     Throwable primary = null;
@@ -84,16 +84,18 @@ public final class FirstInstallTest
       while (network.getActiveNetwork() != null && SystemClock.uptimeMillis() < offlineDeadline)
         SystemClock.sleep(50);
       assertNull("Every first-use lifecycle phase must start offline", network.getActiveNetwork());
+      if (oneClick)
+      {
+        runOneClick(revisit, network);
+        return;
+      }
       if (!revisit)
       {
         if (order.equals("settings-first"))
         {
           launch();
-          if (oneClick) assertNotNull("Wanxiang must be visible on first launch without scrolling",
-              device.findObject(By.res(pkg, "launcher_wanxiang_setup").enabled(true)));
           openSettings();
           assertDefaultLayout();
-          if (oneClick) WanxiangSetupTest.assertVisibleSettingsEntry(context, device, pkg);
           screenshot("settings-first-default");
           pressBack();
           object("launcher_enable").click();
@@ -122,9 +124,7 @@ public final class FirstInstallTest
         awaitLanguage("EN");
         type("hello"); press("2", "en"); awaitEditor("hello2");
         object("launcher_tryhere_area").setText("");
-        pressBack();
-        if (oneClick) WanxiangSetupTest.installFromFreshLauncher(context, device, pkg);
-        else WanxiangSetupTest.install(context, device, true, https);
+        pressBack(); WanxiangSetupTest.install(context, device, true, https);
         launch(); focusEditor();
         if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
         awaitLanguage("中文");
@@ -142,7 +142,6 @@ public final class FirstInstallTest
       assertTrue(candidate.matches(".*[\\u3400-\\u9fff].*"));
       swipe('c', -1, -1);
       awaitEditor(candidate + "。");
-      if (oneClick) return;
       String expected = candidate + "。";
       // The new-install double-tap setting must work without test setup.
       tap(0.75f, 2); tap(0.75f, 2);
@@ -243,6 +242,43 @@ public final class FirstInstallTest
         if (primary == null) throw cleanup;
       }
     }
+  }
+
+  private void runOneClick(boolean revisit, ConnectivityManager network) throws Exception
+  {
+    assertTrue("The download fixture requires split resources", WanxiangSetupTest.splitResources(context));
+    if (revisit)
+    {
+      WanxiangSetupTest.assertReadyFromLauncher(context, device, pkg);
+      return;
+    }
+
+    WanxiangSetupTest.installFromFreshLauncher(context, device, pkg);
+    launch();
+    openSettings();
+    assertDefaultLayout();
+    WanxiangSetupTest.assertReadyFromSettings(device, pkg);
+    pressBack();
+    object("launcher_enable").click();
+    enableThroughAndroidUi();
+    launch();
+    selectThroughAndroidPicker(false);
+    launch();
+    focusEditor();
+    assertReceiverText("");
+    if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
+    awaitLanguage("中文");
+    assertTrue("The visible keyboard must use the Chinese main page",
+        object("keyboard_view").getContentDescription().startsWith("Page: zh;"));
+    assertKeyboardDefaults("zh");
+    assertNull("The Chinese receiver must run offline", network.getActiveNetwork());
+    type("nihao");
+    assertEquals("Fresh Chinese input lost or changed typed nihao", "你好", candidate());
+    swipe('c', -1, -1);
+    awaitEditor("你好。");
+    WanxiangSetupTest.phase("entry-receiver");
+    pressBack();
+    WanxiangSetupTest.assertReadyFromLauncher(context, device, pkg);
   }
 
   private void launch()

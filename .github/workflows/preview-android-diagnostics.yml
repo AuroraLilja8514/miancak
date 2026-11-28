@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        mode: [baseline, one-click]
+        mode: [one-click]
     env:
       MIANCAK_TEST_DISPOSABLE_GUEST: 'true'
       MIANCAK_SCRIPT_TIMEOUT_SECONDS: '1200'
