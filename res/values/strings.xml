@@ -117,7 +117,7 @@
     <string name="launcher_button_imesettings">Enable keyboard</string>
     <string name="launcher_button_imepicker">Select keyboard</string>
     <string name="launcher_button_dictionaries">Install dictionaries</string>
-    <string name="launcher_description">MIANCAK adds Chinese Pinyin input to QWERTY. Enable it, select it, then try typing below. Tap the center or swipe toward a direction. Shift northeast switches Chinese/English; Enter southeast opens the chooser. Fn opens this layout’s paired variant. Chinese Space northwest opens Pinyin or the configured Zhuyin text layout. Double-tap or long-press Shift locks capitals. To get Chinese suggestions, open Chinese input setup and wait for preparation to finish. Direct typing works before setup.</string>
+    <string name="launcher_description">MIANCAK adds Chinese Pinyin input to QWERTY. Enable it, select it, then try typing below. Tap the center or swipe toward a direction. Shift northeast switches Chinese/English; Enter southeast opens the chooser. Fn opens this layout’s paired variant. Chinese Space northwest opens Pinyin or the configured Zhuyin text layout. Double-tap or long-press Shift locks capitals. Direct typing works before the Wanxiang download.</string>
     <string name="launcher_sourcecode">This is a free and open source application. You can find the source code or report bugs on GitHub.</string>
     <string name="launcher_project">Project / source code</string>
     <string name="launcher_feedback">Report a problem</string>

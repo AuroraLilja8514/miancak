@@ -68,7 +68,9 @@ public final class FirstInstallTest
     pkg = context.getPackageName();
     device = UiDevice.getInstance(instrumentation);
     boolean revisit = InstrumentationRegistry.getArguments().getString("revisit", "false").equals("true");
-    boolean https = InstrumentationRegistry.getArguments().getString("setupMode", "files").equals("https");
+    String setupMode = InstrumentationRegistry.getArguments().getString("setupMode", "files");
+    boolean oneClick = setupMode.equals("https-one-click");
+    boolean https = oneClick || setupMode.equals("https");
     firstCandidate = !revisit;
     String order = InstrumentationRegistry.getArguments().getString("entryOrder", "settings-first");
     Throwable primary = null;
@@ -87,8 +89,11 @@ public final class FirstInstallTest
         if (order.equals("settings-first"))
         {
           launch();
+          if (oneClick) assertNotNull("Wanxiang must be visible on first launch without scrolling",
+              device.findObject(By.res(pkg, "launcher_wanxiang_setup").enabled(true)));
           openSettings();
           assertDefaultLayout();
+          if (oneClick) WanxiangSetupTest.assertVisibleSettingsEntry(context, device, pkg);
           screenshot("settings-first-default");
           pressBack();
           object("launcher_enable").click();
@@ -117,7 +122,9 @@ public final class FirstInstallTest
         awaitLanguage("EN");
         type("hello"); press("2", "en"); awaitEditor("hello2");
         object("launcher_tryhere_area").setText("");
-        pressBack(); WanxiangSetupTest.install(context, device, true, https);
+        pressBack();
+        if (oneClick) WanxiangSetupTest.installFromFreshLauncher(context, device, pkg);
+        else WanxiangSetupTest.install(context, device, true, https);
         launch(); focusEditor();
         if ("EN".equals(object("miancak_language").getText())) object("miancak_language").click();
         awaitLanguage("中文");
@@ -135,6 +142,7 @@ public final class FirstInstallTest
       assertTrue(candidate.matches(".*[\\u3400-\\u9fff].*"));
       swipe('c', -1, -1);
       awaitEditor(candidate + "。");
+      if (oneClick) return;
       String expected = candidate + "。";
       // The new-install double-tap setting must work without test setup.
       tap(0.75f, 2); tap(0.75f, 2);

@@ -1,0 +1,135 @@
+name: MIANCAK Android 15 preview diagnostics
+
+on:
+  push:
+    branches: [test/wanxiang-one-click-android15]
+    paths: [.github/workflows/preview-android-diagnostics.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miancak-preview-android-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'AuroraLilja8514/miancak' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/test/wanxiang-one-click-android15' &&
+      github.run_attempt == '1'
+    name: Android 15 ${{ matrix.mode }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        mode: [baseline, one-click]
+    env:
+      MIANCAK_TEST_DISPOSABLE_GUEST: 'true'
+      MIANCAK_SCRIPT_TIMEOUT_SECONDS: '1200'
+      EMULATOR_REVISION: b530d96654c385303d652368551fb075bc2f0b6b
+      BASELINE_TOOLS: 7436029ac1e5fc28241241a45fdc44fa65159add
+      FROZEN_SOURCE: 30b074bf08ba7e668761874b41819781a3f4d44f
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ matrix.mode == 'baseline' && env.FROZEN_SOURCE || github.sha }}
+          path: candidate
+          submodules: true
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.BASELINE_TOOLS }}
+          path: baseline-tools
+          persist-credentials: false
+      - name: Build and verify private debug inputs
+        env:
+          DIAGNOSTIC_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview-diagnostic"
+          mkdir -p "$stage"
+          test "$(git -C baseline-tools rev-parse HEAD)" = "$BASELINE_TOOLS"
+          test "$(git -C candidate rev-parse HEAD)" = "$(if [[ "$DIAGNOSTIC_MODE" == baseline ]]; then echo "$FROZEN_SOURCE"; else echo "$GITHUB_SHA"; fi)"
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          if ! timeout --foreground --kill-after=15s 1800s bash -euc '
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "ndk;28.0.13004108" "cmake;3.22.1"
+            echo toolchain > "$1/build-status"
+            cd candidate
+            python3 scripts/prepare_rime.py --timeout-seconds 600
+            echo resources > "$1/build-status"
+            ./gradlew --no-daemon -PmiancakAbis=x86_64 assembleDebug
+            echo debug-apk > "$1/build-status"
+            if [[ "$DIAGNOSTIC_MODE" == baseline ]]; then
+              patch=../baseline-tools/tools/protected-preview/release-yaml-driver.patch
+              echo "88108548931206ae5c0fa5f17e53b01acfbc421e74575208ad9703c45d58bc53  $patch" | sha256sum --check
+              git apply --check "$patch"
+              git apply "$patch"
+            fi
+            ./gradlew --no-daemon -PmiancakAbis=x86_64 assembleDebugAndroidTest
+            cp build/outputs/apk/debug/*.apk "$1/app-debug.apk"
+            cp build/outputs/apk/androidTest/debug/*.apk "$1/app-debug-androidTest.apk"
+            echo test-apk > "$1/build-status"
+            if [[ "$DIAGNOSTIC_MODE" == baseline ]]; then
+              curl --fail --silent --show-error --location --proto "=https" --proto-redir "=https" \
+                --max-time 120 --max-filesize 12103321 --output "$1/previous.apk" \
+                https://github.com/AuroraLilja8514/miancak/releases/download/v0.3.2/miancak-0.3.2.apk
+              echo "74e884ef6465c96b57daa174ae5f5ce585f2c55417b591c76b8b77f212684bd5  $1/previous.apk" | sha256sum --check
+            fi
+          ' -- "$stage" > "$stage/build.log" 2>&1; then
+            last="$(cat "$stage/build-status" 2>/dev/null || true)"
+            case "$last" in toolchain|resources|debug-apk|test-apk) ;; *) last=start ;; esac
+            echo "MIANCAK_DIAG build failed after $last"
+            exit 1
+          fi
+          echo 'MIANCAK_DIAG build passed'
+          sha256sum "$stage/app-debug.apk" "$stage/app-debug-androidTest.apk" | awk '{print "MIANCAK_DIAG local input digest " $1}'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: reactivecircus/android-emulator-runner
+          ref: ${{ env.EMULATOR_REVISION }}
+          path: emulator-action
+          persist-credentials: false
+      - name: Enable hardware acceleration on the hosted runner
+        run: |
+          test -c /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=30
+          test -w /dev/kvm
+      - name: Run the diagnostic on a fresh Android 15 guest
+        env:
+          DIAGNOSTIC_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stage="$RUNNER_TEMP/miancak-preview-diagnostic"
+          test "$(git -C emulator-action rev-parse HEAD)" = "$EMULATOR_REVISION"
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          export DIAGNOSTIC_STAGE="$stage"
+          result=0
+          env \
+            'INPUT_API-LEVEL=35' 'INPUT_SYSTEM-IMAGE-API-LEVEL=35' 'INPUT_EMULATOR-BUILD=16428233' \
+            'INPUT_ARCH=x86_64' 'INPUT_TARGET=google_apis' 'INPUT_CHANNEL=stable' \
+            'INPUT_AVD-NAME=miancak-release-rehearsal-35' 'INPUT_FORCE-AVD-CREATION=true' 'INPUT_CORES=2' \
+            'INPUT_EMULATOR-PORT=5554' 'INPUT_EMULATOR-BOOT-TIMEOUT=600' \
+            'INPUT_DISABLE-ANIMATIONS=true' 'INPUT_DISABLE-LINUX-HW-ACCEL=false' \
+            'INPUT_ENABLE-HW-KEYBOARD=false' 'INPUT_DISABLE-SPELLCHECKER=false' \
+            'INPUT_PRE-EMULATOR-LAUNCH-SCRIPT=sed -i "s/^hw.keyboard=.*/hw.keyboard=no/" "$HOME/.android/avd/miancak-release-rehearsal-35.avd/config.ini"' \
+            'INPUT_EMULATOR-OPTIONS=-no-window -accel on -gpu swangle -feature -Vulkan -noaudio -no-boot-anim -no-snapshot -wipe-data -camera-back none' \
+            'INPUT_SCRIPT=python3 "$GITHUB_WORKSPACE/scripts/preview_android_diagnostic.py" "$DIAGNOSTIC_MODE" --stage "$DIAGNOSTIC_STAGE" --status "$DIAGNOSTIC_STAGE/status.jsonl" --tools "$GITHUB_WORKSPACE/baseline-tools" --source "$GITHUB_WORKSPACE/candidate/androidTest/juloo/keyboard2/ReleaseApkTest.java"' \
+            node emulator-action/lib/main.js > "$stage/guest.log" 2>&1 || result=$?
+          python3 scripts/preview_android_diagnostic.py report --status "$stage/status.jsonl"
+          exit "$result"
+      - name: Clear runner-local APKs and logs
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/miancak-preview-diagnostic" "$GITHUB_WORKSPACE/candidate/build"

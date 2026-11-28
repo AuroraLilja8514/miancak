@@ -69,6 +69,25 @@ public final class WanxiangSetupTest
     device.pressBack();
   }
 
+  static void assertVisibleSettingsEntry(Context context, UiDevice device, String pkg)
+  {
+    UiObject2 entry = device.wait(Until.findObject(By.pkg(pkg)
+        .text(context.getString(R.string.wanxiang_setup_title)).enabled(true)), 15000);
+    assertNotNull("Wanxiang entry must be visible in Settings without scrolling", entry);
+    entry.click();
+    assertNotNull("The Settings entry must open the actual download screen",
+        device.wait(Until.findObject(By.res(pkg, "wanxiang_setup_download").enabled(true)), 15000));
+    device.pressBack();
+  }
+
+  static void installFromFreshLauncher(Context context, UiDevice device, String pkg) throws Exception
+  {
+    openSetup(context, device, pkg);
+    assertFalse("The fresh guest must need the Wanxiang download", ready(context, device, pkg, 1));
+    download(context, device, pkg);
+    device.pressBack();
+  }
+
   private static void openSetup(Context context, UiDevice device, String pkg)
   {
     context.startActivity(new Intent().setComponent(new ComponentName(pkg, "juloo.keyboard2.LauncherActivity"))

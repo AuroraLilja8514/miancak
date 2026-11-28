@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true">
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-    <TextView style="@style/paragraph" android:text="@string/wanxiang_setup_info"/>
     <TextView android:id="@+id/wanxiang_setup_status" style="@style/paragraph" android:accessibilityLiveRegion="polite"/>
     <ProgressBar android:id="@+id/wanxiang_setup_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:visibility="gone"/>
     <Button android:id="@+id/wanxiang_setup_download" android:layout_width="match_parent" android:layout_height="wrap_content"/>
     <Button android:id="@+id/wanxiang_setup_files" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/wanxiang_setup_files"/>
     <Button android:id="@+id/wanxiang_setup_cancel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@android:string/cancel" android:visibility="gone"/>
+    <TextView style="@style/paragraph" android:text="@string/wanxiang_setup_info"/>
   </LinearLayout>
 </ScrollView>

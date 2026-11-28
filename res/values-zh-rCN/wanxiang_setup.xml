@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="wanxiang_setup_title">设置中文输入</string>
-  <string name="wanxiang_setup_input">请打开 MIANCAK 设置，完成中文输入设置。现在仍可直接输入。</string>
+  <string name="wanxiang_setup_title">万象中文输入</string>
+  <string name="wanxiang_setup_entry_summary">下载安装万象 Base 和语法模型后，即可离线使用中文输入。</string>
+  <string name="wanxiang_setup_input">请在 MIANCAK 中打开「万象中文输入」并下载资源。现在仍可直接输入。</string>
   <string name="wanxiang_setup_info">中文候选需要万象 Base 和语法模型。设置前仍可直接输入英文等字符；完成后可离线使用中文输入。</string>
   <string name="wanxiang_setup_checking">正在检查本机是否已有兼容资源…</string>
   <string name="wanxiang_setup_needed">万象 Base %1$s 和语法模型 · %2$s</string>
   <string name="wanxiang_setup_earlier_pack">如果本次更新暂不可用，仍可离线使用之前已校验的词包。</string>
-  <string name="wanxiang_setup_download">下载（%1$s）</string>
-  <string name="wanxiang_setup_retry">重试下载（%1$s）</string>
+  <string name="wanxiang_setup_download">下载安装（%1$s）</string>
+  <string name="wanxiang_setup_retry">重试下载安装（%1$s）</string>
   <string name="wanxiang_setup_files">从已校验的文件安装</string>
   <string name="wanxiang_setup_pick_base">选择万象 Base 压缩包</string>
   <string name="wanxiang_setup_pick_model">选择万象语法模型（.gram）</string>
   <string name="wanxiang_setup_copying">正在传输资源… %1$d%%</string>
   <string name="wanxiang_setup_unpacking">正在校验并解压万象资源…</string>
-  <string name="wanxiang_setup_staged">返回中文输入设置即可完成安装。</string>
+  <string name="wanxiang_setup_staged">返回「万象中文输入」即可完成安装。</string>
   <string name="wanxiang_setup_validating">正在准备离线候选，首次设置可能需要几分钟。</string>
   <string name="wanxiang_setup_ready">中文输入资源已就绪，可离线使用。请用键盘的语言键切换到中文。</string>
   <string name="wanxiang_setup_stopping">正在停止并清理未完成的文件…</string>

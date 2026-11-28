@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="wanxiang_setup_title">Chinese input setup</string>
-  <string name="wanxiang_setup_input">Open MIANCAK settings to set up Chinese. You can type directly now.</string>
+  <string name="wanxiang_setup_title">Wanxiang Chinese input</string>
+  <string name="wanxiang_setup_entry_summary">Download and install Wanxiang Base and its grammar model for offline Chinese input.</string>
+  <string name="wanxiang_setup_input">Open Wanxiang Chinese input in MIANCAK to download Chinese input. You can type directly now.</string>
   <string name="wanxiang_setup_info">Wanxiang Base and its grammar model are needed for Chinese suggestions. You can type English and other characters directly before setup. After setup, Chinese input works offline.</string>
   <string name="wanxiang_setup_checking">Checking for compatible resources on this device…</string>
   <string name="wanxiang_setup_needed">Wanxiang Base %1$s and grammar · %2$s</string>
   <string name="wanxiang_setup_earlier_pack">You can keep using the earlier verified pack offline if this update is unavailable.</string>
-  <string name="wanxiang_setup_download">Download (%1$s)</string>
-  <string name="wanxiang_setup_retry">Retry download (%1$s)</string>
+  <string name="wanxiang_setup_download">Download and install (%1$s)</string>
+  <string name="wanxiang_setup_retry">Retry download and install (%1$s)</string>
   <string name="wanxiang_setup_files">Install from verified files</string>
   <string name="wanxiang_setup_pick_base">Choose the Wanxiang Base ZIP</string>
   <string name="wanxiang_setup_pick_model">Choose the Wanxiang grammar model (.gram)</string>
   <string name="wanxiang_setup_copying">Transferring resources… %1$d%%</string>
   <string name="wanxiang_setup_unpacking">Checking and unpacking Wanxiang resources…</string>
-  <string name="wanxiang_setup_staged">Return to Chinese input setup to finish installation.</string>
+  <string name="wanxiang_setup_staged">Return to Wanxiang Chinese input to finish installation.</string>
   <string name="wanxiang_setup_validating">Preparing offline suggestions. First setup may take a few minutes.</string>
   <string name="wanxiang_setup_ready">Chinese input resources are ready offline. Use the keyboard language key to switch to Chinese.</string>
   <string name="wanxiang_setup_stopping">Stopping and removing the incomplete files…</string>

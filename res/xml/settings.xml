@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
   <PreferenceCategory android:title="@string/pref_category_layout">
+    <Preference android:key="wanxiang_setup" android:title="@string/wanxiang_setup_title" android:summary="@string/wanxiang_setup_entry_summary"/>
     <Preference android:key="pages" android:title="@string/pages_title" android:summary="@string/pages_summary"/>
     <Preference android:key="word_tables" android:title="@string/words_title" android:summary="@string/words_summary"/>
-    <Preference android:key="wanxiang_setup" android:title="@string/wanxiang_setup_title"/>
     <PreferenceScreen android:key="extra_keys_screen" android:title="@string/pref_extra_keys_title">
       <PreferenceCategory android:title="@string/pref_extra_keys_custom">
         <juloo.keyboard2.prefs.CustomExtraKeysPreference/>
